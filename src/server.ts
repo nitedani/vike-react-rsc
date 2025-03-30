@@ -6,4 +6,5 @@ const app = new Hono();
 
 apply(app);
 
-serve(app, { port: 3000 });
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+serve(app, { port });
