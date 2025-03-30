@@ -14,39 +14,65 @@ const fakeCallServer = (id: string, args: unknown[]) => {
   return Promise.reject(new Error("callServer not implemented"));
 };
 
+let setRscNodes_: React.Dispatch<React.SetStateAction<React.ReactNode>>;
+function Root({ initialNodes }: { initialNodes: React.ReactNode }) {
+  const [rscNodes, setRscNodes] = React.useState<React.ReactNode>(initialNodes);
+  setRscNodes_ = setRscNodes;
+  return rscNodes;
+}
+
+async function parseRscStream(
+  stream: ReadableStream<Uint8Array>
+): Promise<React.ReactNode> {
+  console.log(`[Client] Parsing RSC stream...`);
+  const rootNode =
+    await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
+      stream,
+      { callServer: fakeCallServer }
+    );
+  console.log(`[Client] RSC stream parsed.`);
+  return rootNode;
+}
+
 export async function onRenderClient(pageContext: PageContextClient) {
   console.log("[Vike Hook] +onRenderClient called.");
-  try {
-    console.log("[Client] hydrateApp() called.");
-    const container = document.getElementById("root");
-    if (!container) {
-      console.error("[Client] Container #root not found!");
-      return;
-    }
 
-    // Access the stream initialized by the injected script
-    const rscPayloadStream = (window as any)
-      .__rsc_payload_stream as ReadableStream<Uint8Array>;
-    if (!rscPayloadStream) {
-      console.error("[Client] RSC Payload Stream not found. Hydration failed.");
-      container.innerHTML = "Error: RSC payload stream missing on client.";
-      return;
-    }
-    console.log(
-      "[Client] RSC Payload Stream found, consuming for hydration..."
-    );
-
-    // Consume stream to get React nodes
-    const rootNode =
-      await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
-        rscPayloadStream,
-        { callServer: fakeCallServer }
+  if (pageContext.isHydration)
+    try {
+      console.log("[Client] Hydrating root...");
+      const container = document.getElementById("root");
+      if (!container) {
+        console.error("[Client] Container #root not found!");
+        return;
+      }
+      const rscPayloadStream = (window as any)
+        .__rsc_payload_stream as ReadableStream<Uint8Array>;
+      const initialNodes = await parseRscStream(rscPayloadStream);
+      ReactDOMClient.hydrateRoot(
+        container,
+        <Root initialNodes={initialNodes} />
       );
-
-    console.log("[Client] Hydrating root...");
-    ReactDOMClient.hydrateRoot(container, rootNode);
-    console.log("[Client] Hydration complete.");
-  } catch (err) {
-    console.error("[Client Hook] Hydration failed:", err);
-  }
+      console.log("[Client] Hydration complete.");
+    } catch (err) {
+      console.error("[Client Hook] Hydration failed:", err);
+    }
+  else if (pageContext.isClientSideNavigation)
+    try {
+      {
+        console.log("[Client] navigating to URL...");
+        const { rscPayloadString } = pageContext;
+        const initialNodes = await parseRscStream(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode(rscPayloadString!));
+              controller.close();
+            },
+          })
+        );
+        setRscNodes_(initialNodes);
+        console.log("[Client] Navigation complete.");
+      }
+    } catch (error) {
+      console.error("[Client] Failed to fetch RSC payload:", error);
+    }
 }
