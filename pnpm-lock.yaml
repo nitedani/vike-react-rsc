@@ -44,6 +44,11 @@ importers:
       vite:
         specifier: ^6.2.3
         version: 6.2.3(@types/node@22.13.14)(terser@5.39.0)
+    dependenciesMeta:
+      '@types/express':
+        node: /home/nitedani/.local/share/pnpm/nodejs/22.14.0/bin/node
+      express:
+        node: /home/nitedani/.local/share/pnpm/nodejs/22.14.0/bin/node
 
 packages:
 

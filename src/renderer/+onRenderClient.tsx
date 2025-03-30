@@ -1,8 +1,8 @@
 console.log("[Client] client.tsx loaded.");
 
-import type { PageContextClient } from "vike/types";
-import React from "react";
+import React, { use } from "react";
 import ReactDOMClient from "react-dom/client";
+import type { PageContextClient } from "vike/types";
 //@ts-ignore
 import ReactServerDOMClient from "react-server-dom-webpack/client.browser";
 
@@ -15,8 +15,13 @@ const fakeCallServer = (id: string, args: unknown[]) => {
 };
 
 let setRscNodes_: React.Dispatch<React.SetStateAction<React.ReactNode>>;
-function Root({ initialNodes }: { initialNodes: React.ReactNode }) {
-  const [rscNodes, setRscNodes] = React.useState<React.ReactNode>(initialNodes);
+function Root({
+  initialNodePromise,
+}: {
+  initialNodePromise: Promise<React.ReactNode>;
+}) {
+  const initialNode = use(initialNodePromise);
+  const [rscNodes, setRscNodes] = React.useState<React.ReactNode>(initialNode);
   setRscNodes_ = setRscNodes;
   return rscNodes;
 }
@@ -47,10 +52,10 @@ export async function onRenderClient(pageContext: PageContextClient) {
       }
       const rscPayloadStream = (window as any)
         .__rsc_payload_stream as ReadableStream<Uint8Array>;
-      const initialNodes = await parseRscStream(rscPayloadStream);
+      const initialNodePromise = parseRscStream(rscPayloadStream);
       ReactDOMClient.hydrateRoot(
         container,
-        <Root initialNodes={initialNodes} />
+        <Root initialNodePromise={initialNodePromise} />
       );
       console.log("[Client] Hydration complete.");
     } catch (err) {

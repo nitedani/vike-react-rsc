@@ -39,13 +39,12 @@ export async function onRenderHtml(pageContext: PageContextServer) {
   console.log("[Vike Hook] +onRenderHtml started...");
   const { rscPayloadStream } = pageContext;
   const [rscStreamForHtml, rscStreamForClientScript] = rscPayloadStream!.tee();
+
   const rootNode =
     await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
       rscStreamForHtml,
       { serverConsumerManifest: fakeRscClientManifest }
     );
-
-  // console.log(rootNode);
 
   const htmlStream = await renderToStream(rootNode, {
     userAgent: (pageContext.headersOriginal as any).get("user-agent"),

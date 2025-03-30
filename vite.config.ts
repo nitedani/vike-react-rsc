@@ -5,4 +5,9 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react(), vikeRscPluginMinimal(), vike()],
+  resolve: {
+    alias: {
+      "#": "/src",
+    },
+  },
 });
