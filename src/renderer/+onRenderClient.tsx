@@ -61,7 +61,7 @@ export async function onRenderClient(pageContext: PageContextClient) {
       {
         console.log("[Client] navigating to URL...");
         const { rscPayloadString } = pageContext;
-        const initialNodes = await parseRscStream(
+        const nodes = await parseRscStream(
           new ReadableStream<Uint8Array>({
             start(controller) {
               controller.enqueue(new TextEncoder().encode(rscPayloadString!));
@@ -69,7 +69,7 @@ export async function onRenderClient(pageContext: PageContextClient) {
             },
           })
         );
-        setRscNodes_(initialNodes);
+        setRscNodes_(nodes);
         console.log("[Client] Navigation complete.");
       }
     } catch (error) {
