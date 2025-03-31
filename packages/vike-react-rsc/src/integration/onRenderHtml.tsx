@@ -1,6 +1,6 @@
 import React from "react";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
-import type { PageContextServer } from "vike/types";
+import type { PageContextServer, OnRenderHtmlAsync } from "vike/types";
 import { renderToStream } from "react-streaming/server.web";
 //@ts-ignore
 import ReactServerDOMClient from "react-server-dom-webpack/client.edge";
@@ -61,7 +61,9 @@ Object.assign(globalThis, {
   __webpack_chunk_load__: async () => {},
 });
 
-export async function onRenderHtml(pageContext: PageContextServer) {
+export const onRenderHtml: OnRenderHtmlAsync = async function (
+  pageContext: PageContextServer
+) {
   console.log("[Vike Hook] +onRenderHtml started...");
   const { rscPayloadStream } = pageContext;
   const [rscStreamForHtml, rscStreamForClientScript] = rscPayloadStream!.tee();
@@ -111,4 +113,4 @@ export async function onRenderHtml(pageContext: PageContextServer) {
     documentHtml,
     pageContext: { enableEagerStreaming: true },
   };
-}
+};

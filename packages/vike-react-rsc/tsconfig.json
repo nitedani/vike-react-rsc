@@ -21,12 +21,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    "isolatedDeclarations": true,
+    "declaration": true,
 
     /* Import aliases */
-    "baseUrl": ".",
-    "paths": {
-      "#/*": ["./src/*"]
-    }
+    "baseUrl": "."
   },
   "include": ["src"],
   "exclude": ["node_modules"]

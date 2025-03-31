@@ -1,0 +1,1 @@
+import "vike-react-rsc/__internal/integration/client"

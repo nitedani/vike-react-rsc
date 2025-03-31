@@ -1,4 +1,4 @@
-import Counter from "#/components/Counter";
+import Counter from "../../components/Counter";
 
 type Film = {
   id: number;
@@ -26,7 +26,9 @@ export async function Page() {
     <>
       <h1>Home</h1>
       <Films />
-      <div><Counter /></div>
+      <div>
+        <Counter />
+      </div>
     </>
   );
 }

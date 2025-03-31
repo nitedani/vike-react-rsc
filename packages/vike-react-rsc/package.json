@@ -1,0 +1,49 @@
+{
+  "name": "vike-react-rsc",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "dev": "tsdown --watch --sourcemap",
+    "build": "tsdown --clean"
+  },
+  "exports": {
+    "./config": "./dist/config.js",
+    "./__internal/integration/onRenderHtml": "./dist/integration/onRenderHtml.js",
+    "./__internal/integration/onRenderClient": "./dist/integration/onRenderClient.js",
+    "./__internal/integration/onBeforeRender": "./dist/integration/onBeforeRender.js",
+    "./__internal/integration/client": "./dist/integration/client",
+    "./__internal/register/browser": "./dist/register/browser.js",
+    "./__internal/register/server": "./dist/register/server.js",
+    "./__internal/register/ssr": "./dist/register/ssr.js",
+    "./__internal/runtime/server": "./dist/runtime/server.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "*",
+    "react-dom": "*",
+    "vite": "*",
+    "vike": "*"
+  },
+  "dependencies": {
+    "@hiogawa/transforms": "^0.0.0",
+    "@hiogawa/utils": "^1.7.0",
+    "react-server-dom-webpack": "^19.1.0",
+    "react-streaming": "^0.3.50"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vike": "^0.4.227",
+    "vite": "^6.2.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "tsdown": "^0.6.10"
+  }
+}

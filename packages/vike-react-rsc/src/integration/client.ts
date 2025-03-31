@@ -18,3 +18,5 @@ Object.assign(globalThis, {
   __webpack_require__: memoize(importClientRefrence),
   __webpack_chunk_load__: async () => {},
 });
+
+export {};

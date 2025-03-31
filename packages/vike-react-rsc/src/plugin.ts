@@ -10,6 +10,7 @@ import { transformDirectiveProxyExport } from "@hiogawa/transforms";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import assert from "node:assert";
+import { PKG_NAME } from "./constants";
 
 // State for build orchestration
 let clientReferences: Record<string, string> = {};
@@ -115,6 +116,9 @@ export default function vikeRscPlugin(): Plugin[] {
                 ],
                 exclude: ["react-server-dom-webpack"],
               },
+              resolve: {
+                noExternal: [new RegExp(PKG_NAME)],
+              },
             },
             ssr: {
               optimizeDeps: {
@@ -123,6 +127,9 @@ export default function vikeRscPlugin(): Plugin[] {
                   "react-dom/server.edge",
                   "react-server-dom-webpack/client.edge",
                 ],
+              },
+              resolve: {
+                noExternal: [new RegExp(PKG_NAME)],
               },
             },
             rsc: {
@@ -133,6 +140,7 @@ export default function vikeRscPlugin(): Plugin[] {
                   "react",
                   "react/jsx-runtime",
                   "react/jsx-dev-runtime",
+                  new RegExp(PKG_NAME),
                 ],
               },
               optimizeDeps: {
@@ -199,7 +207,7 @@ export default function vikeRscPlugin(): Plugin[] {
           clientReferences[normalizedId] = id;
 
           output.prepend(`
-            import { registerClientReference } from "../register/server";
+            import { registerClientReference } from "${PKG_NAME}/__internal/register/server";
             const $$register = (id, name) => registerClientReference({}, id, name);
           `);
 

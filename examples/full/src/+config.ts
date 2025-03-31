@@ -1,10 +1,8 @@
 import type { Config } from "vike/types";
 import vikeServer from "vike-server/config";
+import vikeReactRsc from "vike-react-rsc/config";
 
 export default {
-  passToClient: ["rscPayloadString"],
-  hydrationCanBeAborted: true,
-  extends: [vikeServer],
+  extends: [vikeServer, vikeReactRsc],
   server: "./src/server.ts",
-  clientRouting: true,
 } satisfies Config;

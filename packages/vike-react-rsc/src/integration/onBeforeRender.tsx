@@ -1,18 +1,20 @@
-import type { PageContextServer } from "vike/types";
-import { getRscRunner } from "../vite-plugin-vike-rsc";
+import type { PageContextServer, OnBeforeRenderAsync } from "vike/types";
+import { getRscRunner } from "../plugin";
 import { streamToString } from "./utils/streamToString";
+import { PKG_NAME } from "../constants";
 
-export async function onBeforeRender(pageContext: PageContextServer) {
+export const onBeforeRender: OnBeforeRenderAsync = async function (
+  pageContext: PageContextServer
+) {
   console.log("[Vike Hook] +onBeforeRender called.");
   const rscRunner = getRscRunner();
   if (!rscRunner) throw new Error("RSC runner not found in onRenderHtml");
   const renderPageRsc = await rscRunner!
-    .import(new URL("./renderPageRsc.tsx", import.meta.url).pathname)
+    .import(`${PKG_NAME}/__internal/runtime/server`)
     .then((m) => m.default || m);
-  const Page = await rscRunner!
-    .import(pageContext.configEntries.Page[0].configDefinedByFile!)
-    .then((m) => m.default || m.Page);
-  const rscPayloadStream: ReadableStream<Uint8Array> = renderPageRsc(Page);
+  const rscPayloadStream: ReadableStream<Uint8Array> = await renderPageRsc(
+    pageContext
+  );
   const rscPayloadString = pageContext.isClientSideNavigation
     ? await streamToString(rscPayloadStream)
     : null;
@@ -23,4 +25,4 @@ export async function onBeforeRender(pageContext: PageContextServer) {
       rscPayloadStream,
     },
   };
-}
+};

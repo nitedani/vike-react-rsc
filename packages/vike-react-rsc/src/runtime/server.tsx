@@ -1,7 +1,9 @@
 //@ts-ignore
 import ReactServer from "react-server-dom-webpack/server.edge";
-import type { BundlerConfig, ImportManifestEntry } from "#/types";
+import type { BundlerConfig, ImportManifestEntry } from "../types";
 import { tinyassert, memoize } from "@hiogawa/utils";
+import { Suspense, type ReactElement } from "react";
+import type { PageContext } from "vike/types";
 
 async function importServerReference(id: string): Promise<unknown> {
   if (import.meta.env.DEV) {
@@ -42,10 +44,33 @@ export function createBundlerConfig(): BundlerConfig {
   );
 }
 
-// Render a React element to an RSC stream
-export function renderToRscStream(
-  element: React.ReactNode
-): ReadableStream<Uint8Array> {
+export default async function renderPageRsc(
+  pageContext: PageContext
+): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
+  console.log("[Renderer] Rendering page to RSC stream");
+  const Page = await import(
+    //TODO: Fix this hack
+    /* @vite-ignore */
+    pageContext.configEntries.Page[0].configDefinedByFile!
+  ).then((m) => m.default || m.Page);
+
+  // Get the page shell with the Page component
+  const element = getPageElement(Page);
   const bundlerConfig = createBundlerConfig();
-  return ReactServer.renderToReadableStream(element, bundlerConfig);
+  const rscPayloadStream = ReactServer.renderToReadableStream(
+    element,
+    bundlerConfig
+  );
+
+  return rscPayloadStream;
+}
+
+function getPageElement(Page: React.ComponentType): ReactElement {
+  return (
+    <div>
+      <Suspense fallback={<div>Loading page...</div>}>
+        <Page />
+      </Suspense>
+    </div>
+  );
 }

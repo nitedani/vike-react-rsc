@@ -1,6 +1,6 @@
 import React, { use } from "react";
 import ReactDOMClient from "react-dom/client";
-import type { PageContextClient } from "vike/types";
+import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import { parseRscStream, parseRscString } from "../runtime/client";
 
 // State management for client-side navigation
@@ -23,7 +23,9 @@ function Root({
   return rscNodes;
 }
 
-export async function onRenderClient(pageContext: PageContextClient) {
+export const onRenderClient: OnRenderClientAsync = async function (
+  pageContext: PageContextClient
+) {
   console.log("[Vike Hook] +onRenderClient called");
 
   // Handle initial page load (hydration)
@@ -73,4 +75,4 @@ export async function onRenderClient(pageContext: PageContextClient) {
       console.error("[Client] Failed to navigate:", error);
     }
   }
-}
+};
