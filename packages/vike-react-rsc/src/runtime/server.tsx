@@ -1,3 +1,7 @@
+import envName from "virtual:enviroment-name";
+import { assert } from "../utils/assert";
+assert(envName === "rsc", "Invalid environment");
+
 //@ts-ignore
 import ReactServer from "react-server-dom-webpack/server.edge";
 import type { BundlerConfig, ImportManifestEntry } from "../types";
@@ -9,10 +13,11 @@ async function importServerReference(id: string): Promise<unknown> {
   if (import.meta.env.DEV) {
     return import(/* @vite-ignore */ id);
   } else {
-    const references = await import("virtual:server-references" as string);
-    const dynImport = references.default[id];
-    tinyassert(dynImport, `server reference not found '${id}'`);
-    return dynImport();
+    //TODO: add "use server"
+    // const references = await import("virtual:server-references" as string);
+    // const dynImport = references.default[id];
+    // tinyassert(dynImport, `server reference not found '${id}'`);
+    // return dynImport();
   }
 }
 Object.assign(globalThis, {
@@ -48,13 +53,27 @@ export async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
   console.log("[Renderer] Rendering page to RSC stream");
+  let Page;
 
-  const Page = await import(
-    //TODO: Fix this hack
-    // We need to import the Page here in the rsc environment(this file)
-    /* @vite-ignore */
-    pageContext.configEntries.Page[0].configDefinedByFile!
-  ).then((m) => m.default || m.Page);
+  if (import.meta.env.DEV) {
+    Page = await import(
+      //TODO: Fix this hack 💀
+      // We need to import the Page here in the rsc environment(this file)
+      /* @vite-ignore */
+      pageContext.configEntries.Page[0].configDefinedByFile!
+    ).then((m) => m.default || m.Page);
+  } else {
+    Page = await import(
+      //TODO: Fix this hack 💀
+      // We need to import the Page here in the rsc environment(this file)
+      /* @vite-ignore */
+      "./entries/" + (Math.random() > 1 ? "" : "") + "src_pages_index.mjs"
+    ).then(
+      (m) => m.configValuesSerialized.Page.valueSerialized.exportValues.Page
+    );
+  }
+
+  console.log(Page);
 
   // Get the page shell with the Page component
   const element = getPageElement(Page);

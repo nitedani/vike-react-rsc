@@ -25,7 +25,6 @@
     "declaration": true,
 
     /* Import aliases */
-    "baseUrl": "."
   },
   "include": ["src"],
   "exclude": ["node_modules"]

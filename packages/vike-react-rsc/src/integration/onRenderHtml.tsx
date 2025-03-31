@@ -5,6 +5,7 @@ import { renderToStream } from "react-streaming/server.web";
 //@ts-ignore
 import ReactServerDOMClient from "react-server-dom-webpack/client.edge";
 import { memoize, tinyassert } from "@hiogawa/utils";
+import envName from "virtual:enviroment-name";
 
 const INIT_SCRIPT = `
 self.__raw_import = (id) => import(id);
@@ -51,66 +52,71 @@ async function importClientReference(id: string) {
       "virtual:client-references" as string
     );
     const dynImport = clientReferences.default[id];
+    console.log("[RSC] Importing client reference", id);
+
     tinyassert(dynImport, `client reference not found '${id}'`);
     return dynImport();
   }
 }
 
-Object.assign(globalThis, {
-  __webpack_require__: memoize(importClientReference),
-  __webpack_chunk_load__: async () => {},
-});
-
-export const onRenderHtml: OnRenderHtmlAsync = async function (
-  pageContext: PageContextServer
-) {
-  console.log("[Vike Hook] +onRenderHtml started...");
-  const { rscPayloadStream } = pageContext;
-  const [rscStreamForHtml, rscStreamForClientScript] = rscPayloadStream!.tee();
-
-  const rootNode =
-    await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
-      rscStreamForHtml,
-      {
-        serverConsumerManifest: {
-          moduleMap: createModuleMap(),
-          moduleLoading: { prefix: "" },
-        },
-      }
-    );
-
-  const htmlStream = await renderToStream(rootNode, {
-    userAgent: (pageContext.headersOriginal as any).get("user-agent"),
+envName === "ssr" &&
+  Object.assign(globalThis, {
+    __webpack_require__: memoize(importClientReference),
+    __webpack_chunk_load__: async () => {},
   });
 
-  const canClose = htmlStream.doNotClose();
-  rscStreamForClientScript.pipeThrough(new TextDecoderStream()).pipeTo(
-    new WritableStream({
-      write(rscChunk) {
-        console.log("Injecting RSC chunk...");
-        htmlStream.injectToStream(
-          `<script>self.__rsc_web_stream_push(${JSON.stringify(
-            rscChunk
-          )})</script>`
-        );
-      },
-      close() {
-        console.log("RSC stream closed, injecting close script.");
-        htmlStream.injectToStream(
-          `<script>self.__rsc_web_stream_close()</script>`
-        );
-        canClose();
-      },
-    })
-  );
+//@ts-ignore
+export const onRenderHtml: OnRenderHtmlAsync =
+  envName === "ssr" &&
+  async function (pageContext: PageContextServer) {
+    console.log("[Vike Hook] +onRenderHtml started...");
+    const { rscPayloadStream } = pageContext;
+    const [rscStreamForHtml, rscStreamForClientScript] =
+      rscPayloadStream!.tee();
 
-  const documentHtml = escapeInject`<html><head><title>Vike + RSC (Plugin + Runner)</title><script>${dangerouslySkipEscape(
-    INIT_SCRIPT
-  )}</script></head><body><div id="root">${htmlStream}</div></body></html>`;
+    const rootNode =
+      await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
+        rscStreamForHtml,
+        {
+          serverConsumerManifest: {
+            moduleMap: createModuleMap(),
+            moduleLoading: { prefix: "" },
+          },
+        }
+      );
 
-  console.log("[Vike Hook] +onRenderHtml finished.");
-  return {
-    documentHtml,
-    pageContext: { enableEagerStreaming: true },
+    const htmlStream = await renderToStream(rootNode, {
+      userAgent: (pageContext.headersOriginal as any).get("user-agent"),
+    });
+
+    const canClose = htmlStream.doNotClose();
+    rscStreamForClientScript.pipeThrough(new TextDecoderStream()).pipeTo(
+      new WritableStream({
+        write(rscChunk) {
+          console.log("Injecting RSC chunk...");
+          htmlStream.injectToStream(
+            `<script>self.__rsc_web_stream_push(${JSON.stringify(
+              rscChunk
+            )})</script>`
+          );
+        },
+        close() {
+          console.log("RSC stream closed, injecting close script.");
+          htmlStream.injectToStream(
+            `<script>self.__rsc_web_stream_close()</script>`
+          );
+          canClose();
+        },
+      })
+    );
+
+    const documentHtml = escapeInject`<html><head><title>Vike + RSC (Plugin + Runner)</title><script>${dangerouslySkipEscape(
+      INIT_SCRIPT
+    )}</script></head><body><div id="root">${htmlStream}</div></body></html>`;
+
+    console.log("[Vike Hook] +onRenderHtml finished.");
+    return {
+      documentHtml,
+      pageContext: { enableEagerStreaming: true },
+    };
   };
-};

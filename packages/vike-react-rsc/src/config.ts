@@ -35,7 +35,7 @@ const config: Config = {
       },
     },
   },
-
+  vite6BuilderApp: true,
   vite: {
     plugins: [vikeRscPlugin()],
   },

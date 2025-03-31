@@ -1,3 +1,7 @@
+import envName from "virtual:enviroment-name";
+import { assert } from "../utils/assert";
+assert(envName === "client", "Invalid environment");
+
 //@ts-ignore
 import ReactClient from "react-server-dom-webpack/client.browser";
 
