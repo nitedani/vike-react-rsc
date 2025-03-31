@@ -14,7 +14,7 @@ import { PKG_NAME } from "./constants";
 
 // State for build orchestration
 let clientReferences: Record<string, string> = {};
-const globalKey = Symbol.for("vite-plugin-vike-rsc:devServer");
+const globalKey = "vite-plugin-vike-rsc:devServer";
 
 export function getDevServerInstance(): ViteDevServer | undefined {
   return (globalThis as any)[globalKey];
@@ -166,6 +166,7 @@ export default function vikeRscPlugin(): Plugin[] {
       configureServer(server) {
         devServer = server;
         (globalThis as any)[globalKey] = devServer;
+        console.log("Set server");
 
         // Initialize runners
         try {
@@ -224,7 +225,32 @@ export default function vikeRscPlugin(): Plugin[] {
         }
       },
     },
+    createVirtualPlugin("runtime/server", function () {
+      assert(this.environment.name === "ssr");
+      if (this.environment?.mode === "dev") {
+        return `
+          const devServer = globalThis[${JSON.stringify(globalKey)}]
+          const rscRunner = devServer?.environments.rsc?.runner;
+          const serverModule = await rscRunner?.import("vike-react-rsc/__internal/runtime/server");
+          const moduleProxy = new Proxy({}, {
+            get(target, prop) {
+              return serverModule[prop];
+            }
+          });
+          export default moduleProxy;
+          `;
+      }
 
+      return `
+          const serverModule = await import("??");
+          const moduleProxy = new Proxy({}, {
+            get(target, prop) {
+              return serverModule[prop];
+            }
+          });
+          export default moduleProxy;
+        `;
+    }),
     // Create a virtual module for client references
     createVirtualPlugin("client-references", function () {
       assert(this.environment?.name !== "rsc");

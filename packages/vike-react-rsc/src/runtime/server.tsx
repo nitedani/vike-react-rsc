@@ -22,7 +22,7 @@ Object.assign(globalThis, {
   },
 });
 
-export function createBundlerConfig(): BundlerConfig {
+function createBundlerConfig(): BundlerConfig {
   return new Proxy(
     {},
     {
@@ -44,12 +44,14 @@ export function createBundlerConfig(): BundlerConfig {
   );
 }
 
-export default async function renderPageRsc(
+export async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
   console.log("[Renderer] Rendering page to RSC stream");
+
   const Page = await import(
     //TODO: Fix this hack
+    // We need to import the Page here in the rsc environment(this file)
     /* @vite-ignore */
     pageContext.configEntries.Page[0].configDefinedByFile!
   ).then((m) => m.default || m.Page);
