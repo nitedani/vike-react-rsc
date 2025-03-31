@@ -4,8 +4,10 @@ import type { PageContextServer } from "vike/types";
 import { renderToStream } from "react-streaming/server.web";
 //@ts-ignore
 import ReactServerDOMClient from "react-server-dom-webpack/client.edge";
+import { memoize, tinyassert } from "@hiogawa/utils";
 
 const INIT_SCRIPT = `
+self.__raw_import = (id) => import(id);
 self.__rsc_web_stream = new ReadableStream({
 	start(controller) {
 		self.__rsc_web_stream_push = (chunk) => { controller.enqueue(chunk); };
@@ -19,21 +21,45 @@ self.__rsc_payload_stream = self.__rsc_web_stream.pipeThrough(new TextEncoderStr
 console.log('[RSC Init Script] Payload stream setup on window.__rsc_payload_stream');
 `;
 
-const fakeRscClientManifest = { moduleMap: {}, moduleLoading: { prefix: "" } };
+function createModuleMap() {
+  return new Proxy(
+    {},
+    {
+      get(_target, id, _receiver) {
+        return new Proxy(
+          {},
+          {
+            get(_target, name, _receiver) {
+              return {
+                id,
+                name,
+                chunks: [],
+              };
+            },
+          }
+        );
+      },
+    }
+  );
+}
 
-// --- Webpack global shims ---
-if (typeof (globalThis as any).__webpack_require__ === "undefined") {
-  (globalThis as any).__webpack_require__ = (id: string) => {
-    console.error("SSR Shim __webpack_require__:", id);
-    return {};
-  };
+async function importClientReference(id: string) {
+  if (import.meta.env.DEV) {
+    return import(/* @vite-ignore */ id);
+  } else {
+    const clientReferences = await import(
+      "virtual:client-references" as string
+    );
+    const dynImport = clientReferences.default[id];
+    tinyassert(dynImport, `client reference not found '${id}'`);
+    return dynImport();
+  }
 }
-if (typeof (globalThis as any).__webpack_chunk_load__ === "undefined") {
-  (globalThis as any).__webpack_chunk_load__ = (id: string) => {
-    console.log("SSR Shim __webpack_chunk_load__:", id);
-    return Promise.resolve();
-  };
-}
+
+Object.assign(globalThis, {
+  __webpack_require__: memoize(importClientReference),
+  __webpack_chunk_load__: async () => {},
+});
 
 export async function onRenderHtml(pageContext: PageContextServer) {
   console.log("[Vike Hook] +onRenderHtml started...");
@@ -43,7 +69,12 @@ export async function onRenderHtml(pageContext: PageContextServer) {
   const rootNode =
     await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
       rscStreamForHtml,
-      { serverConsumerManifest: fakeRscClientManifest }
+      {
+        serverConsumerManifest: {
+          moduleMap: createModuleMap(),
+          moduleLoading: { prefix: "" },
+        },
+      }
     );
 
   const htmlStream = await renderToStream(rootNode, {

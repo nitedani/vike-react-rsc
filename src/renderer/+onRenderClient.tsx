@@ -1,20 +1,12 @@
-console.log("[Client] client.tsx loaded.");
-
 import React, { use } from "react";
 import ReactDOMClient from "react-dom/client";
 import type { PageContextClient } from "vike/types";
-//@ts-ignore
-import ReactServerDOMClient from "react-server-dom-webpack/client.browser";
+import { parseRscStream, parseRscString } from "../runtime/client";
 
-const fakeCallServer = (id: string, args: unknown[]) => {
-  console.error("callServer shim called, Server Actions not implemented", {
-    id,
-    args,
-  });
-  return Promise.reject(new Error("callServer not implemented"));
-};
-
+// State management for client-side navigation
 let setRscNodes_: React.Dispatch<React.SetStateAction<React.ReactNode>>;
+
+// The Root component which manages RSC nodes
 function Root({
   initialNodePromise,
 }: {
@@ -22,62 +14,63 @@ function Root({
 }) {
   const initialNode = use(initialNodePromise);
   const [rscNodes, setRscNodes] = React.useState<React.ReactNode>(initialNode);
-  setRscNodes_ = setRscNodes;
+
+  // Store the state setter for navigation updates
+  React.useEffect(() => {
+    setRscNodes_ = setRscNodes;
+  }, []);
+
   return rscNodes;
 }
 
-async function parseRscStream(
-  stream: ReadableStream<Uint8Array>
-): Promise<React.ReactNode> {
-  console.log(`[Client] Parsing RSC stream...`);
-  const rootNode =
-    await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
-      stream,
-      { callServer: fakeCallServer }
-    );
-  console.log(`[Client] RSC stream parsed.`);
-  return rootNode;
-}
-
 export async function onRenderClient(pageContext: PageContextClient) {
-  console.log("[Vike Hook] +onRenderClient called.");
+  console.log("[Vike Hook] +onRenderClient called");
 
-  if (pageContext.isHydration)
+  // Handle initial page load (hydration)
+  if (pageContext.isHydration) {
     try {
-      console.log("[Client] Hydrating root...");
+      console.log("[Client] Hydrating root");
       const container = document.getElementById("root");
       if (!container) {
         console.error("[Client] Container #root not found!");
         return;
       }
+
+      // Get the RSC payload stream that was injected by the server
       const rscPayloadStream = (window as any)
         .__rsc_payload_stream as ReadableStream<Uint8Array>;
       const initialNodePromise = parseRscStream(rscPayloadStream);
+
+      // Hydrate the root with our component
       ReactDOMClient.hydrateRoot(
         container,
         <Root initialNodePromise={initialNodePromise} />
       );
-      console.log("[Client] Hydration complete.");
+
+      console.log("[Client] Hydration complete");
     } catch (err) {
-      console.error("[Client Hook] Hydration failed:", err);
+      console.error("[Client] Hydration failed:", err);
     }
-  else if (pageContext.isClientSideNavigation)
+  }
+  // Handle client-side navigation
+  else if (pageContext.isClientSideNavigation) {
     try {
-      {
-        console.log("[Client] navigating to URL...");
-        const { rscPayloadString } = pageContext;
-        const nodes = await parseRscStream(
-          new ReadableStream<Uint8Array>({
-            start(controller) {
-              controller.enqueue(new TextEncoder().encode(rscPayloadString!));
-              controller.close();
-            },
-          })
-        );
-        setRscNodes_(nodes);
-        console.log("[Client] Navigation complete.");
+      console.log("[Client] Client-side navigation");
+
+      // Get the RSC payload string that was passed through pageContext
+      const { rscPayloadString } = pageContext;
+      if (!rscPayloadString) {
+        console.error("[Client] No RSC payload string found for navigation");
+        return;
       }
+
+      // Parse the RSC payload string and update the React tree
+      const nodes = await parseRscString(rscPayloadString);
+      setRscNodes_(nodes);
+
+      console.log("[Client] Navigation complete");
     } catch (error) {
-      console.error("[Client] Failed to fetch RSC payload:", error);
+      console.error("[Client] Failed to navigate:", error);
     }
+  }
 }

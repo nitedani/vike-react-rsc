@@ -1,10 +1,10 @@
 import vike from "vike/plugin";
-import vikeRscPluginMinimal from "./src/vite-plugin-vike-rsc-minimal";
+import vikeRscPlugin from "./src/vite-plugin-vike-rsc";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [react(), vikeRscPluginMinimal(), vike()],
+  plugins: [react(), vikeRscPlugin(), vike()],
   resolve: {
     alias: {
       "#": "/src",

@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@hiogawa/transforms':
+        specifier: ^0.0.0
+        version: 0.0.0
+      '@hiogawa/utils':
+        specifier: ^1.7.0
+        version: 1.7.0
       '@types/react':
         specifier: ^19.0.12
         version: 19.0.12
@@ -45,9 +51,9 @@ importers:
         specifier: ^6.2.3
         version: 6.2.3(@types/node@22.13.14)(terser@5.39.0)
     dependenciesMeta:
-      '@types/express':
+      '@hiogawa/transforms':
         node: /home/nitedani/.local/share/pnpm/nodejs/22.14.0/bin/node
-      express:
+      '@hiogawa/utils':
         node: /home/nitedani/.local/share/pnpm/nodejs/22.14.0/bin/node
 
 packages:
@@ -450,6 +456,12 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@hiogawa/transforms@0.0.0':
+    resolution: {integrity: sha512-FxZMXDgtqN0kjBN94r2kUmE6RfgHIcFch2lgpL0vBKTykIstk9gDhPLFmU9OMZsbwo4Q92njs+4I4UqF9fEZ+A==}
+
+  '@hiogawa/utils@1.7.0':
+    resolution: {integrity: sha512-ghiEFWBR1NENoHn+lSuW7liicTIzVPN+8Srm5UedCTw43gus0mlse6Wp2lz6GmbOXJ/CalMPp/0Tz2X8tajkAg==}
+
   '@jridgewell/gen-mapping@0.3.8':
     resolution: {integrity: sha512-imAbBGkb+ebQyxKgzv5Hu2nmROxoDOXHh80evxdoXNOrvAnVx7zimzc1Oo5h9RlfV4vPXaE2iM5pOFbvOCClWA==}
     engines: {node: '>=6.0.0'}
@@ -826,6 +838,9 @@ packages:
     resolution: {integrity: sha512-MMdARuVEQziNTeJD8DgMqmhwR11BRQ/cBP+pLtYdSTnf3MIO8fFeiINEbX36ZdNlfU/7A9f3gUw49B3oQsvwBA==}
     engines: {node: '>=4.0'}
 
+  estree-walker@3.0.3:
+    resolution: {integrity: sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==}
+
   events@3.3.0:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
     engines: {node: '>=0.8.x'}
@@ -889,6 +904,9 @@ packages:
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
 
+  is-reference@3.0.3:
+    resolution: {integrity: sha512-ixkJoqQvAP88E6wLydLGGqCJsrFUnqoH6HnaczB8XmDH1oaWU+xxdptvikTgaEhtZ53Ky6YXiBuUI2WXLMCwjw==}
+
   isbot-fast@1.2.0:
     resolution: {integrity: sha512-twjuQzy2gKMDVfKGQyQqrx6Uy4opu/fiVUTTpdqtFsd7OQijIp5oXvb27n5EemYXaijh5fomndJt/SPRLsEdSg==}
     engines: {node: '>=6.0.0'}
@@ -923,6 +941,9 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  magic-string@0.30.17:
+    resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
+
   merge-stream@2.0.0:
     resolution: {integrity: sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==}
 
@@ -951,6 +972,9 @@ packages:
 
   node-releases@2.0.19:
     resolution: {integrity: sha512-xxOWJsBKtzAq7DY0J+DTzuz58K8e7sJbdgwkbMWQe8UYB6ekmsQ45q0M/tJDsGaZmbC+l7n57UV8Hl5tHxO9uw==}
+
+  periscopic@4.0.2:
+    resolution: {integrity: sha512-sqpQDUy8vgB7ycLkendSKS6HnVz1Rneoc3Rc+ZBUCe2pbqlVuCC5vF52l0NJ1aiMg/r1qfYF9/myz8CZeI2rjA==}
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -1212,6 +1236,9 @@ packages:
 
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
+
+  zimmerframe@1.1.2:
+    resolution: {integrity: sha512-rAbqEGa8ovJy4pyBxZM70hg4pE6gDgaQ0Sl9M3enG3I0d6H4XSAM3GeNGLKnsBpuijUow064sf7ww1nutC5/3w==}
 
 snapshots:
 
@@ -1492,6 +1519,14 @@ snapshots:
 
   '@esbuild/win32-x64@0.25.1':
     optional: true
+
+  '@hiogawa/transforms@0.0.0':
+    dependencies:
+      estree-walker: 3.0.3
+      magic-string: 0.30.17
+      periscopic: 4.0.2
+
+  '@hiogawa/utils@1.7.0': {}
 
   '@jridgewell/gen-mapping@0.3.8':
     dependencies:
@@ -1934,6 +1969,10 @@ snapshots:
 
   estraverse@5.3.0: {}
 
+  estree-walker@3.0.3:
+    dependencies:
+      '@types/estree': 1.0.7
+
   events@3.3.0: {}
 
   fast-deep-equal@3.1.3: {}
@@ -1981,6 +2020,10 @@ snapshots:
 
   inherits@2.0.4: {}
 
+  is-reference@3.0.3:
+    dependencies:
+      '@types/estree': 1.0.7
+
   isbot-fast@1.2.0: {}
 
   jest-worker@27.5.1:
@@ -2005,6 +2048,10 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
+  magic-string@0.30.17:
+    dependencies:
+      '@jridgewell/sourcemap-codec': 1.5.0
+
   merge-stream@2.0.0: {}
 
   mime-db@1.52.0: {}
@@ -2022,6 +2069,12 @@ snapshots:
   neo-async@2.6.2: {}
 
   node-releases@2.0.19: {}
+
+  periscopic@4.0.2:
+    dependencies:
+      '@types/estree': 1.0.7
+      is-reference: 3.0.3
+      zimmerframe: 1.1.2
 
   picocolors@1.1.1: {}
 
@@ -2291,3 +2344,5 @@ snapshots:
       - uglify-js
 
   yallist@3.1.1: {}
+
+  zimmerframe@1.1.2: {}
