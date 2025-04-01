@@ -18,6 +18,9 @@ const config: Config = {
   onBeforeRender:
     "import:vike-react-rsc/__internal/integration/onBeforeRender:onBeforeRender",
 
+  onPageTransitionStart:
+    "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
+
   client: "import:vike-react-rsc/__internal/integration/client",
 
   passToClient: ["rscPayloadString"],

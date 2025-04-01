@@ -31,6 +31,13 @@ export const configs: Plugin[] = [
                 "react-server-dom-webpack/client.edge",
               ],
             },
+            build: {
+              rollupOptions: {
+                input: {
+                  ssr: "virtual:build-ssr-entry",
+                },
+              },
+            },
           },
           rsc: {
             resolve: {

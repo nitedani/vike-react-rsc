@@ -6,7 +6,6 @@ assert(envName === "rsc", "Invalid environment");
 import ReactServer from "react-server-dom-webpack/server.edge";
 import type { BundlerConfig, ImportManifestEntry } from "../types";
 import { tinyassert, memoize } from "@hiogawa/utils";
-import { Suspense, type ReactElement } from "react";
 import type { PageContext } from "vike/types";
 
 async function importServerReference(id: string): Promise<unknown> {
@@ -53,7 +52,7 @@ export async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
   console.log("[Renderer] Rendering page to RSC stream");
-  let Page;
+  let Page = pageContext.Page;
 
   if (import.meta.env.DEV) {
     Page = await import(
@@ -67,31 +66,18 @@ export async function renderPageRsc(
       //TODO: Fix this hack 💀
       // We need to import the Page here in the rsc environment(this file)
       /* @vite-ignore */
-      "./entries/" + (Math.random() > 1 ? "" : "") + "src_pages_index.mjs"
+      `../entries/${pageContext.pageId?.substring(1)?.replaceAll("/", "_")}.mjs`
     ).then(
       (m) => m.configValuesSerialized.Page.valueSerialized.exportValues.Page
     );
   }
 
-  console.log(Page);
-
   // Get the page shell with the Page component
-  const element = getPageElement(Page);
   const bundlerConfig = createBundlerConfig();
   const rscPayloadStream = ReactServer.renderToReadableStream(
-    element,
+    <Page />,
     bundlerConfig
   );
 
   return rscPayloadStream;
-}
-
-function getPageElement(Page: React.ComponentType): ReactElement {
-  return (
-    <div>
-      <Suspense fallback={<div>Loading page...</div>}>
-        <Page />
-      </Suspense>
-    </div>
-  );
 }

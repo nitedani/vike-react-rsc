@@ -2,25 +2,29 @@ import React, { use } from "react";
 import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import { parseRscStream, parseRscString } from "../runtime/client";
+import { Shell } from "./shell";
 
-// State management for client-side navigation
-let setRscNodes_: React.Dispatch<React.SetStateAction<React.ReactNode>>;
-
+declare global {
+  interface Window {
+     setPromise: React.Dispatch<React.SetStateAction<Promise<React.ReactNode>>>
+  }
+}
 // The Root component which manages RSC nodes
 function Root({
   initialNodePromise,
 }: {
   initialNodePromise: Promise<React.ReactNode>;
 }) {
-  const initialNode = use(initialNodePromise);
-  const [rscNodes, setRscNodes] = React.useState<React.ReactNode>(initialNode);
+  const [promise, setPromise] =
+    React.useState<Promise<React.ReactNode>>(initialNodePromise);
+  const node = use(promise);
 
   // Store the state setter for navigation updates
   React.useEffect(() => {
-    setRscNodes_ = setRscNodes;
+    window.setPromise = setPromise;
   }, []);
 
-  return rscNodes;
+  return node;
 }
 
 export const onRenderClient: OnRenderClientAsync = async function (
@@ -46,7 +50,9 @@ export const onRenderClient: OnRenderClientAsync = async function (
       // Hydrate the root with our component
       ReactDOMClient.hydrateRoot(
         container,
-        <Root initialNodePromise={initialNodePromise} />
+        <Shell>
+          <Root initialNodePromise={initialNodePromise} />
+        </Shell>
       );
 
       console.log("[Client] Hydration complete");
@@ -67,8 +73,8 @@ export const onRenderClient: OnRenderClientAsync = async function (
       }
 
       // Parse the RSC payload string and update the React tree
-      const nodes = await parseRscString(rscPayloadString);
-      setRscNodes_(nodes);
+      const nodes = parseRscString(rscPayloadString);
+      window.setPromise(nodes);
 
       console.log("[Client] Navigation complete");
     } catch (error) {
