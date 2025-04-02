@@ -48,11 +48,17 @@ function createBundlerConfig(): BundlerConfig {
   );
 }
 
+declare global {
+  var __VITE_ASSETS_MANIFEST_RSC__: {
+    [pageId: string]: { importPage: () => Promise<PageContext["Page"]> }
+  }
+}
+
 export async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
   console.log("[Renderer] Rendering page to RSC stream");
-  let Page = pageContext.Page;
+  let Page: PageContext["Page"];
 
   if (import.meta.env.DEV) {
     Page = await import(
@@ -62,17 +68,10 @@ export async function renderPageRsc(
       pageContext.configEntries.Page[0].configDefinedByFile!
     ).then((m) => m.default || m.Page);
   } else {
-    Page = await import(
-      //TODO: Fix this hack 💀
-      // We need to import the Page here in the rsc environment(this file)
-      /* @vite-ignore */
-      `../entries/${pageContext.pageId?.substring(1)?.replaceAll("/", "_")}.mjs`
-    ).then(
-      (m) => m.configValuesSerialized.Page.valueSerialized.exportValues.Page
-    );
+    const assetsManifest = __VITE_ASSETS_MANIFEST_RSC__;
+    Page = await assetsManifest[pageContext.pageId!].importPage()
   }
 
-  // Get the page shell with the Page component
   const bundlerConfig = createBundlerConfig();
   const rscPayloadStream = ReactServer.renderToReadableStream(
     <Page />,

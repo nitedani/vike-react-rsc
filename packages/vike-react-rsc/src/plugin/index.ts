@@ -4,12 +4,12 @@ import { exposeDevServer } from "./plugins/dev";
 import { virtualNormalizeReferenceIdPlugin } from "./utils";
 import { clientReferencesPlugin } from "./plugins/clientReferences";
 import { virtuals } from "./plugins/virtuals";
+import { vikeRscManifestPluginBuild } from "./plugins/injectManifestBuild";
 
 type GlobalState = {
   clientReferences: Record<string, string>;
   devServer?: ViteDevServer;
   disableClientTransform?: boolean;
-  virtualDistLoaderMapping: Record<string, string>;
 };
 
 declare global {
@@ -20,7 +20,6 @@ global.vikeReactRscGlobalState ||= {
   clientReferences: {},
   devServer: undefined,
   disableClientTransform: false,
-  virtualDistLoaderMapping: {},
 };
 
 export function getDevServerInstance(): ViteDevServer | undefined {
@@ -32,7 +31,7 @@ export default function vikeRscPlugin(): Plugin[] {
     ...configs,
     ...virtuals,
     exposeDevServer,
-
+    vikeRscManifestPluginBuild(),
     // "use client"
     ...clientReferencesPlugin(),
 

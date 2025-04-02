@@ -3,10 +3,13 @@ import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import { parseRscStream, parseRscString } from "../runtime/client";
 import { Shell } from "./shell";
+import envName from "virtual:enviroment-name"
+import { assert } from "../utils/assert";
+assert(envName === "client", "Invalid environment")
 
 declare global {
   interface Window {
-     setPromise: React.Dispatch<React.SetStateAction<Promise<React.ReactNode>>>
+    setPromise: React.Dispatch<React.SetStateAction<Promise<React.ReactNode>>>
   }
 }
 // The Root component which manages RSC nodes
