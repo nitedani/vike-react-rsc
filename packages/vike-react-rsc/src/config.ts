@@ -3,6 +3,7 @@ export { config as default };
 import type { Config } from "vike/types";
 import vikeRscPlugin from "./plugin";
 
+//@ts-expect-error
 const config: Config = {
   name: "vike-react-rsc",
   require: {
@@ -22,6 +23,10 @@ const config: Config = {
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
 
   client: "import:vike-react-rsc/__internal/integration/client",
+
+  //@ts-expect-error
+  middleware:
+    "import:vike-react-rsc/__internal/integration/serverActionMiddleware",
 
   passToClient: ["rscPayloadString"],
 

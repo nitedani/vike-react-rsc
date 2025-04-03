@@ -13,6 +13,7 @@
     "./__internal/integration/onRenderClient": "./dist/integration/onRenderClient.js",
     "./__internal/integration/onBeforeRender": "./dist/integration/onBeforeRender.js",
     "./__internal/integration/onPageTransitionStart": "./dist/integration/onPageTransitionStart.js",
+    "./__internal/integration/serverActionMiddleware": "./dist/integration/serverActionMiddleware.js",
     "./__internal/integration/client": "./dist/integration/client.js",
     "./__internal/register/browser": "./dist/register/browser.js",
     "./__internal/register/server": "./dist/register/server.js",

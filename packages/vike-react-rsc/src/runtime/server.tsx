@@ -1,22 +1,27 @@
 import envName from "virtual:enviroment-name";
-import { assert } from "../utils/assert";
-assert(envName === "rsc", "Invalid environment");
+import { tinyassert } from "@hiogawa/utils";
+tinyassert(envName === "rsc", "Invalid environment");
 
 //@ts-ignore
 import ReactServer from "react-server-dom-webpack/server.edge";
+import { memoize } from "@hiogawa/utils";
 import type { BundlerConfig, ImportManifestEntry } from "../types";
-import { tinyassert, memoize } from "@hiogawa/utils";
 import type { PageContext } from "vike/types";
+
+async function importServerAction(id: string): Promise<Function> {
+  const [file, name] = id.split("#") as [string, string];
+  const mod: any = await importServerReference(file);
+  return mod[name];
+}
 
 async function importServerReference(id: string): Promise<unknown> {
   if (import.meta.env.DEV) {
     return import(/* @vite-ignore */ id);
   } else {
-    //TODO: add "use server"
-    // const references = await import("virtual:server-references" as string);
-    // const dynImport = references.default[id];
-    // tinyassert(dynImport, `server reference not found '${id}'`);
-    // return dynImport();
+    const references = await import("virtual:server-references" as string);
+    const dynImport = references.default[id];
+    tinyassert(dynImport, `server reference not found '${id}'`);
+    return dynImport();
   }
 }
 Object.assign(globalThis, {
@@ -50,7 +55,26 @@ function createBundlerConfig(): BundlerConfig {
 
 declare global {
   var __VITE_ASSETS_MANIFEST_RSC__: {
-    [pageId: string]: { importPage: () => Promise<PageContext["Page"]> }
+    [pageId: string]: { importPage: () => Promise<PageContext["Page"]> };
+  };
+}
+
+function importPageById(
+  pageId: string,
+  //TODO: remove this argument and inject page paths in dev transform
+  // needed for out-of-context server-actions to work
+  pageContext?: PageContext
+): Promise<PageContext["Page"]> {
+  if (import.meta.env.DEV) {
+    return import(
+      //TODO: Fix this hack 💀
+      // We need to import the Page here in the rsc environment(this file)
+      /* @vite-ignore */
+      pageContext!.configEntries.Page[0].configDefinedByFile!
+    ).then((m) => m.default || m.Page);
+  } else {
+    const assetsManifest = __VITE_ASSETS_MANIFEST_RSC__;
+    return assetsManifest[pageId].importPage();
   }
 }
 
@@ -58,25 +82,37 @@ export async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
   console.log("[Renderer] Rendering page to RSC stream");
-  let Page: PageContext["Page"];
-
-  if (import.meta.env.DEV) {
-    Page = await import(
-      //TODO: Fix this hack 💀
-      // We need to import the Page here in the rsc environment(this file)
-      /* @vite-ignore */
-      pageContext.configEntries.Page[0].configDefinedByFile!
-    ).then((m) => m.default || m.Page);
-  } else {
-    const assetsManifest = __VITE_ASSETS_MANIFEST_RSC__;
-    Page = await assetsManifest[pageContext.pageId!].importPage()
-  }
-
+  //TODO: remove pageContext argument
+  const Page = await importPageById(pageContext.pageId!, pageContext);
   const bundlerConfig = createBundlerConfig();
   const rscPayloadStream = ReactServer.renderToReadableStream(
-    <Page />,
+    // TODO: add form when initial request is POST
+    { root: <Page /> },
     bundlerConfig
   );
 
   return rscPayloadStream;
+}
+
+export async function handleServerAction({
+  actionId,
+  pageId,
+  body,
+}: {
+  actionId: string;
+  pageId: string;
+  body: string | FormData;
+}): Promise<ReadableStream<Uint8Array>> {
+  console.log("[Server] Handling server action:", actionId);
+
+  const Page = await importPageById(pageId);
+  const args = await ReactServer.decodeReply(body);
+  const action = await importServerAction(actionId);
+  const returnValue = await action.apply(null, args);
+
+  const bundlerConfig = createBundlerConfig();
+  return ReactServer.renderToReadableStream(
+    { returnValue, root: <Page /> },
+    bundlerConfig
+  );
 }

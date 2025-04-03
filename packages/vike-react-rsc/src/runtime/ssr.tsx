@@ -1,8 +1,8 @@
 import envName from "virtual:enviroment-name";
-import { assert } from "../utils/assert";
-import { memoize, tinyassert } from "@hiogawa/utils";
-assert(envName === "ssr", "Invalid environment");
+import { tinyassert } from "@hiogawa/utils";
+tinyassert(envName === "ssr", "Invalid environment");
 
+import { memoize } from "@hiogawa/utils";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import { renderToStream } from "react-streaming/server.web";
 //@ts-ignore
@@ -73,7 +73,7 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   const { rscPayloadStream } = pageContext;
   const [rscStreamForHtml, rscStreamForClientScript] = rscPayloadStream!.tee();
 
-  const rootNode =
+  const payload =
     await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
       rscStreamForHtml,
       {
@@ -84,8 +84,12 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
       }
     );
 
-  const htmlStream = await renderToStream(<Shell>{rootNode}</Shell>, {
+  const htmlStream = await renderToStream(<Shell>{payload.root}</Shell>, {
     userAgent: (pageContext.headersOriginal as any).get("user-agent"),
+    streamOptions: {
+      //@ts-expect-error
+      formState: payload.formState,
+    },
   });
 
   const canClose = htmlStream.doNotClose();

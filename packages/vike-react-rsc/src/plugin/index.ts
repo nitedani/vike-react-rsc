@@ -8,6 +8,7 @@ import { vikeRscManifestPluginBuild } from "./plugins/injectManifestBuild";
 
 type GlobalState = {
   clientReferences: Record<string, string>;
+  serverReferences: Record<string, string>;
   devServer?: ViteDevServer;
   disableClientTransform?: boolean;
 };
@@ -18,6 +19,7 @@ declare global {
 
 global.vikeReactRscGlobalState ||= {
   clientReferences: {},
+  serverReferences: {},
   devServer: undefined,
   disableClientTransform: false,
 };

@@ -8,8 +8,3 @@ declare global {
     }
   }
 }
-declare global {
-  interface Window {
-    setPromise: React.Dispatch<React.SetStateAction<Promise<React.ReactNode>>>
-  }
-}
