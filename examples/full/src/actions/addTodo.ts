@@ -9,6 +9,6 @@ export const getTodos = async () => {
 export const addTodo = async (title: string) => {
   console.log("Adding todo:", title);
 
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  // await new Promise((resolve) => setTimeout(resolve, 1000));
   todos.push(title);
 };

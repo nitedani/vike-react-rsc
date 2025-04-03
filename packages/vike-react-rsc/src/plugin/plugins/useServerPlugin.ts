@@ -93,11 +93,9 @@ export const useServerPlugin = (): Plugin[] => {
     },
     // Virtual module for server references
     createVirtualPlugin("server-references", function () {
-      console.log(global.vikeReactRscGlobalState.serverReferences);
       if (this.environment.name !== "rsc" || this.environment?.mode !== "build")
         return "export default {};";
 
-      
       return [
         `export default {`,
         ...Object.entries(global.vikeReactRscGlobalState.serverReferences).map(

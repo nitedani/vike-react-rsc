@@ -6,6 +6,3 @@ const app = new Hono();
 apply(app);
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 serve(app, { port });
-
-console.log(123);
-
