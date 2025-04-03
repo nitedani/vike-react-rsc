@@ -1,7 +1,7 @@
 import { tinyassert } from "@hiogawa/utils";
 tinyassert(envName === "client", "Invalid environment");
 
-import { startTransition, use, useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import envName from "virtual:enviroment-name";
