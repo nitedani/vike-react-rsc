@@ -75,6 +75,10 @@ export const configs: Plugin[] = [
       return {
         builder: {
           async buildApp(builder) {
+            global.vikeReactRscGlobalState.disableUseClientPlugin = true;
+            // Discover server references in "use client" files
+            await builder.build(builder.environments.rsc!);
+            global.vikeReactRscGlobalState.disableUseClientPlugin = false;
             await builder.build(builder.environments.rsc!);
             await builder.build(builder.environments.client!);
             await builder.build(builder.environments.ssr!);

@@ -27,7 +27,7 @@ export const useClientPlugin = (): Plugin[] => {
       async transform(code, id) {
         if (this.environment?.name !== "rsc") return;
         if (!code.includes("use client")) return;
-        if (global.vikeReactRscGlobalState.disableClientTransform) return;
+        if (global.vikeReactRscGlobalState.disableUseClientPlugin) return;
 
         try {
           const ast = await parseAstAsync(code);

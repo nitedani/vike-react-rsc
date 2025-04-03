@@ -12,7 +12,7 @@ type GlobalState = {
   clientReferences: Record<string, string>;
   serverReferences: Record<string, string>;
   devServer?: ViteDevServer;
-  disableClientTransform?: boolean;
+  disableUseClientPlugin?: boolean;
 };
 
 declare global {
@@ -23,7 +23,7 @@ global.vikeReactRscGlobalState ||= {
   clientReferences: {},
   serverReferences: {},
   devServer: undefined,
-  disableClientTransform: false,
+  disableUseClientPlugin: false,
 };
 
 export function getDevServerInstance(): ViteDevServer | undefined {
