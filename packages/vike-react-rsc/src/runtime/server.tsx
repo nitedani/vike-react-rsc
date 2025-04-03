@@ -68,7 +68,6 @@ export async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
   console.log("[Renderer] Rendering page to RSC stream");
-  //TODO: remove pageContext argument
   const Page = await importPageById(pageContext.pageId!);
   const bundlerConfig = createBundlerConfig();
   const rscPayloadStream = ReactServer.renderToReadableStream(
@@ -90,14 +89,12 @@ export async function handleServerAction({
   body: string | FormData;
 }): Promise<ReadableStream<Uint8Array>> {
   console.log("[Server] Handling server action:", actionId);
-
-  //TODO: make this work in dev
-  const Page = await importPageById(pageId);
-  const args = await ReactServer.decodeReply(body);
-
-  const action = await importServerAction(actionId);
+  const [args, action, Page] = await Promise.all([
+    ReactServer.decodeReply(body),
+    importServerAction(actionId),
+    importPageById(pageId),
+  ]);
   const returnValue = await action.apply(null, args);
-
   const bundlerConfig = createBundlerConfig();
   return ReactServer.renderToReadableStream(
     { returnValue, root: <Page /> },
