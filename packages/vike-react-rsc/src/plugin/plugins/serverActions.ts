@@ -1,5 +1,8 @@
 // src/plugin/plugins/serverActions.ts
-import { transformDirectiveProxyExport, transformServerActionServer } from "@hiogawa/transforms";
+import {
+  transformDirectiveProxyExport,
+  transformServerActionServer,
+} from "@hiogawa/transforms";
 import { hashString } from "@hiogawa/utils";
 import path from "node:path";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
@@ -45,11 +48,13 @@ export const serverActionsPlugin = (): Plugin[] => {
               id: normalizedId,
               runtime: "$$register",
             });
-            
+
             if (!output.hasChanged()) return;
 
             global.vikeReactRscGlobalState.serverReferences[normalizedId] = id;
+
             
+
             output.prepend(`
               import { registerServerReference } from "${PKG_NAME}/__internal/register/server";
               const $$register = (value, id, name) => {
@@ -57,29 +62,33 @@ export const serverActionsPlugin = (): Plugin[] => {
                 return registerServerReference(value, id, name);
               }
             `);
+
             
             return {
               code: output.toString(),
               map: output.generateMap({ hires: "boundary" }),
             };
           } else {
-            // Client-side transformation 
+            
+            // Client-side transformation
             const output = await transformDirectiveProxyExport(ast, {
               id: normalizedId,
               runtime: "$$proxy",
               directive: "use server",
             });
-            
-            if (!output?.hasChanged()) return;
-            
+
+            if (!output) return;
+
             global.vikeReactRscGlobalState.serverReferences[normalizedId] = id;
-            
+
             const name = this.environment.name === "client" ? "browser" : "ssr";
             output.prepend(`
               import { createServerReference } from "${PKG_NAME}/__internal/register/${name}";
-              const $$proxy = (id, name) => createServerReference(${JSON.stringify(normalizedId + "#" + name)}, (...args) => callServer(...args))
+              const $$proxy = (id, name) => createServerReference(${JSON.stringify(
+                normalizedId + "#" + name
+              )}, (...args) => __vikeRscCallServer(...args))
             `);
-            
+
             return { code: output.toString(), map: { mappings: "" } };
           }
         } catch (error) {
@@ -98,9 +107,13 @@ export const serverActionsPlugin = (): Plugin[] => {
 
       return [
         `export default {`,
-        ...Object.entries(global.vikeReactRscGlobalState.serverReferences || {}).map(
+        ...Object.entries(
+          global.vikeReactRscGlobalState.serverReferences || {}
+        ).map(
           ([normalizedId, id]) =>
-            `${JSON.stringify(normalizedId)}: () => import(${JSON.stringify(id)}),\n`
+            `${JSON.stringify(normalizedId)}: () => import(${JSON.stringify(
+              id
+            )}),\n`
         ),
         `}`,
       ].join("\n");

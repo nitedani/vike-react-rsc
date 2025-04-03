@@ -4,26 +4,32 @@ tinyassert(envName === "client", "Invalid environment");
 import React, { use } from "react";
 import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
-import { parseRscStream, parseRscString } from "../runtime/client";
+import { callServer, parseRscStream, parseRscString } from "../runtime/client";
 import { Shell } from "./shell";
 import envName from "virtual:enviroment-name";
 import type { RscPayload } from "../types";
 
 declare global {
   interface Window {
-    setPayload: React.Dispatch<React.SetStateAction<Promise<RscPayload>>>;
+    __setPayloadPromise: React.Dispatch<
+      React.SetStateAction<Promise<RscPayload>>
+    >;
+    __vikeRscCallServer: typeof callServer;
+    __pageId: string;
   }
 }
+window.__vikeRscCallServer = callServer;
+
 // The Root component which manages RSC nodes
 function Root({ initialPayload }: { initialPayload: RscPayload }) {
-  const [payloadPromise, setPayload_] = React.useState<Promise<RscPayload>>(
-    Promise.resolve(initialPayload)
-  );
+  const [payloadPromise, setPayloadPromise] = React.useState<
+    Promise<RscPayload>
+  >(Promise.resolve(initialPayload));
   const node = use(payloadPromise);
 
   // Store the state setter for navigation updates
   React.useEffect(() => {
-    window.setPayload = setPayload_;
+    window.__setPayloadPromise = setPayloadPromise;
   }, []);
 
   return node.root;
@@ -32,6 +38,7 @@ function Root({ initialPayload }: { initialPayload: RscPayload }) {
 export const onRenderClient: OnRenderClientAsync = async function (
   pageContext: PageContextClient
 ) {
+  window.__pageId = pageContext.pageId!;
   console.log("[Vike Hook] +onRenderClient called");
 
   // Handle initial page load (hydration)
@@ -48,7 +55,7 @@ export const onRenderClient: OnRenderClientAsync = async function (
       const rscPayloadStream = (window as any)
         .__rsc_payload_stream as ReadableStream<Uint8Array>;
       const initialPayload = await parseRscStream(rscPayloadStream);
-      
+
       // Hydrate the root with our component
       ReactDOMClient.hydrateRoot(
         container,
@@ -79,7 +86,7 @@ export const onRenderClient: OnRenderClientAsync = async function (
 
       // Parse the RSC payload string and update the React tree
       const payload = parseRscString(rscPayloadString);
-      window.setPayload(payload);
+      window.__setPayloadPromise(payload);
 
       console.log("[Client] Navigation complete");
     } catch (error) {

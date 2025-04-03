@@ -9,7 +9,9 @@ const serverActionMiddleware: UniversalMiddleware =
   envName === "ssr" &&
   enhance(
     async (request) => {
-      const runtimeRsc = await import("virtual:runtime/server");
+      const runtimeRsc = await import("virtual:runtime/server").then(
+        (m) => m.default
+      );
       const req = request;
       const actionId = req.headers.get("x-rsc-action");
       const pageId = req.headers.get("x-vike-page-id");

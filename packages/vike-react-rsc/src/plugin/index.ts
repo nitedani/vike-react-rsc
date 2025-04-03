@@ -5,6 +5,7 @@ import { virtualNormalizeReferenceIdPlugin } from "./utils";
 import { clientReferencesPlugin } from "./plugins/clientReferences";
 import { virtuals } from "./plugins/virtuals";
 import { vikeRscManifestPluginBuild } from "./plugins/injectManifestBuild";
+import { serverActionsPlugin } from "./plugins/serverActions";
 
 type GlobalState = {
   clientReferences: Record<string, string>;
@@ -34,9 +35,8 @@ export default function vikeRscPlugin(): Plugin[] {
     ...virtuals,
     exposeDevServer,
     vikeRscManifestPluginBuild(),
-    // "use client"
     ...clientReferencesPlugin(),
-
+    ...serverActionsPlugin(),
     virtualNormalizeReferenceIdPlugin(),
 
     {

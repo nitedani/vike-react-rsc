@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+//TODO: load this from +Layout, etc..
 export const Shell = ({
   children,
 }: {
@@ -9,7 +10,7 @@ export const Shell = ({
     <div>
       <div>
         <a href="/">Home</a>
-        <a href="/about">About</a>
+        <a href="/todos">Todos</a>
       </div>
 
       <Suspense fallback="Loading...">{children}</Suspense>

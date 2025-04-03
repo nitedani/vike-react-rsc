@@ -9,20 +9,22 @@ import type { RscPayload } from "../types";
 export async function callServer(
   id: string,
   args: unknown[]
-): Promise<unknown> {
+): Promise<RscPayload> {
   console.log("[RSC Client] Calling server action:", id);
+
   // Parse the RSC payload from the response
-  const result = await ReactClient.createFromFetch<RscPayload>(
+  const result = ReactClient.createFromFetch<RscPayload>(
     fetch("/_server-action", {
       method: "POST",
       headers: {
         "x-rsc-action": id,
+        "x-vike-page-id": window.__pageId,
       },
       body: await ReactClient.encodeReply(args),
     }),
     { callServer }
   );
-  window.setPayload(result);
+  window.__setPayloadPromise(result);
   return result;
 }
 
