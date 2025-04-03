@@ -3,13 +3,13 @@ import envName from "virtual:enviroment-name";
 tinyassert(envName === "ssr", "Invalid environment");
 
 import { enhance, type UniversalMiddleware } from "@universal-middleware/core";
-import runtimeRsc from "virtual:runtime/server";
 
 //@ts-ignore
 const serverActionMiddleware: UniversalMiddleware =
   envName === "ssr" &&
   enhance(
     async (request) => {
+      const runtimeRsc = await import("virtual:runtime/server");
       const req = request;
       const actionId = req.headers.get("x-rsc-action");
       const pageId = req.headers.get("x-vike-page-id");

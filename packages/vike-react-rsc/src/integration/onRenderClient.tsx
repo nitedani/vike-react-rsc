@@ -48,7 +48,7 @@ export const onRenderClient: OnRenderClientAsync = async function (
       const rscPayloadStream = (window as any)
         .__rsc_payload_stream as ReadableStream<Uint8Array>;
       const initialPayload = await parseRscStream(rscPayloadStream);
-
+      
       // Hydrate the root with our component
       ReactDOMClient.hydrateRoot(
         container,
