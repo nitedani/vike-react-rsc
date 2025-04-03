@@ -33,17 +33,10 @@ export async function parseRscStream(
   stream: ReadableStream<Uint8Array>
 ): Promise<RscPayload> {
   console.log("[RSC Client] Parsing RSC stream...");
-
-  // Create options for RSC stream parsing
-  const options = { callServer };
-
-  // Parse the RSC stream
   const initialPayload =
-    await ReactClient.createFromReadableStream<React.ReactNode>(
-      stream,
-      options
-    );
-
+    await ReactClient.createFromReadableStream<React.ReactNode>(stream, {
+      callServer,
+    });
   console.log("[RSC Client] RSC stream parsed");
   return initialPayload;
 }
