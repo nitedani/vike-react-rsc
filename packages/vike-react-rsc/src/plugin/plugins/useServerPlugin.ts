@@ -1,15 +1,17 @@
-// src/plugin/plugins/serverActions.ts
 import {
   transformDirectiveProxyExport,
   transformServerActionServer,
 } from "@hiogawa/transforms";
-import { hashString } from "@hiogawa/utils";
-import path from "node:path";
-import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
+import {
+  parseAstAsync,
+  type Plugin,
+  type ResolvedConfig,
+  type ViteDevServer,
+} from "vite";
 import { PKG_NAME } from "../../constants";
 import { createVirtualPlugin, normalizeReferenceId } from "../utils";
 
-export const serverActionsPlugin = (): Plugin[] => {
+export const useServerPlugin = (): Plugin[] => {
   let buildMode = false;
   let resolvedConfig: ResolvedConfig;
   let devServer: ViteDevServer;
@@ -26,21 +28,14 @@ export const serverActionsPlugin = (): Plugin[] => {
       async transform(code, id) {
         if (id.includes("/.vite/")) return;
         if (!code.includes("use server")) return;
-
         try {
-          const ast = this.parse(code);
-          let normalizedId;
-
-          if (buildMode) {
-            normalizedId = hashString(path.relative(resolvedConfig.root, id));
-          } else {
-            normalizedId = await normalizeReferenceId(
-              id,
-              "rsc",
-              devServer,
-              resolvedConfig
-            );
-          }
+          const ast = await parseAstAsync(code);
+          const normalizedId = await normalizeReferenceId(
+            id,
+            "rsc",
+            devServer,
+            resolvedConfig
+          );
 
           if (this.environment.name === "rsc") {
             // Server-side transformation
@@ -53,8 +48,6 @@ export const serverActionsPlugin = (): Plugin[] => {
 
             global.vikeReactRscGlobalState.serverReferences[normalizedId] = id;
 
-            
-
             output.prepend(`
               import { registerServerReference } from "${PKG_NAME}/__internal/register/server";
               const $$register = (value, id, name) => {
@@ -63,13 +56,11 @@ export const serverActionsPlugin = (): Plugin[] => {
               }
             `);
 
-            
             return {
               code: output.toString(),
               map: output.generateMap({ hires: "boundary" }),
             };
           } else {
-            
             // Client-side transformation
             const output = await transformDirectiveProxyExport(ast, {
               id: normalizedId,
@@ -85,8 +76,8 @@ export const serverActionsPlugin = (): Plugin[] => {
             output.prepend(`
               import { createServerReference } from "${PKG_NAME}/__internal/register/${name}";
               const $$proxy = (id, name) => createServerReference(${JSON.stringify(
-                normalizedId + "#" + name
-              )}, (...args) => __vikeRscCallServer(...args))
+                normalizedId
+              )} + "#" + name, (...args) => __vikeRscCallServer(...args))
             `);
 
             return { code: output.toString(), map: { mappings: "" } };
@@ -107,9 +98,7 @@ export const serverActionsPlugin = (): Plugin[] => {
 
       return [
         `export default {`,
-        ...Object.entries(
-          global.vikeReactRscGlobalState.serverReferences || {}
-        ).map(
+        ...Object.entries(global.vikeReactRscGlobalState.serverReferences).map(
           ([normalizedId, id]) =>
             `${JSON.stringify(normalizedId)}: () => import(${JSON.stringify(
               id

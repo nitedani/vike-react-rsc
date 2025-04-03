@@ -1,18 +1,19 @@
 import { tinyassert } from "@hiogawa/utils";
 tinyassert(envName === "client", "Invalid environment");
 
-import React, { use } from "react";
+import { startTransition, use, useEffect, useState } from "react";
 import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
-import { callServer, parseRscStream, parseRscString } from "../runtime/client";
-import { Shell } from "./shell";
 import envName from "virtual:enviroment-name";
+import { callServer, parseRscStream, parseRscString } from "../runtime/client";
 import type { RscPayload } from "../types";
+import { Shell } from "./shell";
 
 declare global {
   interface Window {
-    __setPayloadPromise: React.Dispatch<
-      React.SetStateAction<Promise<RscPayload>>
+    // Promise = show fallback
+    __setPayloadOrPromise: React.Dispatch<
+      React.SetStateAction<Promise<RscPayload> | RscPayload>
     >;
     __vikeRscCallServer: typeof callServer;
     __pageId: string;
@@ -22,14 +23,18 @@ window.__vikeRscCallServer = callServer;
 
 // The Root component which manages RSC nodes
 function Root({ initialPayload }: { initialPayload: RscPayload }) {
-  const [payloadPromise, setPayloadPromise] = React.useState<
-    Promise<RscPayload>
-  >(Promise.resolve(initialPayload));
-  const node = use(payloadPromise);
+  const [payloadOrPromise, setPayloadOrPromise] = useState<
+    Promise<RscPayload> | RscPayload
+  >(initialPayload);
+
+  const node =
+    payloadOrPromise instanceof Promise
+      ? use(payloadOrPromise)
+      : payloadOrPromise;
 
   // Store the state setter for navigation updates
-  React.useEffect(() => {
-    window.__setPayloadPromise = setPayloadPromise;
+  useEffect(() => {
+    window.__setPayloadOrPromise = setPayloadOrPromise;
   }, []);
 
   return node.root;
@@ -86,7 +91,7 @@ export const onRenderClient: OnRenderClientAsync = async function (
 
       // Parse the RSC payload string and update the React tree
       const payload = parseRscString(rscPayloadString);
-      window.__setPayloadPromise(payload);
+      window.__setPayloadOrPromise(payload);
 
       console.log("[Client] Navigation complete");
     } catch (error) {

@@ -1,11 +1,12 @@
 import { type Plugin, type ViteDevServer } from "vite";
 import { configs } from "./plugins/config";
 import { exposeDevServer } from "./plugins/dev";
-import { virtualNormalizeReferenceIdPlugin } from "./utils";
-import { clientReferencesPlugin } from "./plugins/clientReferences";
-import { virtuals } from "./plugins/virtuals";
 import { vikeRscManifestPluginBuild } from "./plugins/injectManifestBuild";
-import { serverActionsPlugin } from "./plugins/serverActions";
+import { vikeRscManifestPluginDev } from "./plugins/injectManifestDev";
+import { useClientPlugin } from "./plugins/useClientPlugin";
+import { useServerPlugin } from "./plugins/useServerPlugin";
+import { virtuals } from "./plugins/virtuals";
+import { virtualNormalizeReferenceIdPlugin } from "./utils";
 
 type GlobalState = {
   clientReferences: Record<string, string>;
@@ -34,9 +35,10 @@ export default function vikeRscPlugin(): Plugin[] {
     ...configs,
     ...virtuals,
     exposeDevServer,
+    vikeRscManifestPluginDev(),
     vikeRscManifestPluginBuild(),
-    ...clientReferencesPlugin(),
-    ...serverActionsPlugin(),
+    ...useClientPlugin(),
+    ...useServerPlugin(),
     virtualNormalizeReferenceIdPlugin(),
 
     {

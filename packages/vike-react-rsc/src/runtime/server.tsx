@@ -59,23 +59,9 @@ declare global {
   };
 }
 
-function importPageById(
-  pageId: string,
-  //TODO: remove this argument and inject page paths in dev transform
-  // needed for out-of-context server-actions to work
-  pageContext?: PageContext
-): Promise<PageContext["Page"]> {
-  if (import.meta.env.DEV) {
-    return import(
-      //TODO: Fix this hack 💀
-      // We need to import the Page here in the rsc environment(this file)
-      /* @vite-ignore */
-      pageContext!.configEntries.Page[0].configDefinedByFile!
-    ).then((m) => m.default || m.Page);
-  } else {
-    const assetsManifest = __VITE_ASSETS_MANIFEST_RSC__;
-    return assetsManifest[pageId].importPage();
-  }
+function importPageById(pageId: string): Promise<PageContext["Page"]> {
+  const assetsManifest = __VITE_ASSETS_MANIFEST_RSC__;
+  return assetsManifest[pageId].importPage();
 }
 
 export async function renderPageRsc(
@@ -83,7 +69,7 @@ export async function renderPageRsc(
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
   console.log("[Renderer] Rendering page to RSC stream");
   //TODO: remove pageContext argument
-  const Page = await importPageById(pageContext.pageId!, pageContext);
+  const Page = await importPageById(pageContext.pageId!);
   const bundlerConfig = createBundlerConfig();
   const rscPayloadStream = ReactServer.renderToReadableStream(
     // TODO: add form when initial request is POST
@@ -108,6 +94,7 @@ export async function handleServerAction({
   //TODO: make this work in dev
   const Page = await importPageById(pageId);
   const args = await ReactServer.decodeReply(body);
+
   const action = await importServerAction(actionId);
   const returnValue = await action.apply(null, args);
 

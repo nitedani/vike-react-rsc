@@ -1,11 +1,16 @@
 import { transformDirectiveProxyExport } from "@hiogawa/transforms";
 import { hashString } from "@hiogawa/utils";
 import path from "node:path";
-import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
+import {
+  parseAstAsync,
+  type Plugin,
+  type ResolvedConfig,
+  type ViteDevServer,
+} from "vite";
 import { PKG_NAME } from "../../constants";
 import { createVirtualPlugin, normalizeReferenceId } from "../utils";
 
-export const clientReferencesPlugin = (): Plugin[] => {
+export const useClientPlugin = (): Plugin[] => {
   let buildMode = false;
   let resolvedConfig: ResolvedConfig;
   let devServer: ViteDevServer;
@@ -25,20 +30,13 @@ export const clientReferencesPlugin = (): Plugin[] => {
         if (global.vikeReactRscGlobalState.disableClientTransform) return;
 
         try {
-          const ast = this.parse(code);
-          let normalizedId;
-
-          if (buildMode) {
-            // For build mode, use a simpler hash-based approach
-            normalizedId = hashString(path.relative(resolvedConfig.root, id));
-          } else {
-            normalizedId = await normalizeReferenceId(
-              id,
-              "client",
-              devServer,
-              resolvedConfig
-            );
-          }
+          const ast = await parseAstAsync(code);
+          const normalizedId = await normalizeReferenceId(
+            id,
+            "client",
+            devServer,
+            resolvedConfig
+          );
 
           const output = await transformDirectiveProxyExport(ast, {
             directive: "use client",

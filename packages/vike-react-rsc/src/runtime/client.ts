@@ -1,5 +1,5 @@
-import envName from "virtual:enviroment-name";
 import { tinyassert } from "@hiogawa/utils";
+import envName from "virtual:enviroment-name";
 tinyassert(envName === "client", "Invalid environment");
 
 //@ts-ignore
@@ -13,7 +13,7 @@ export async function callServer(
   console.log("[RSC Client] Calling server action:", id);
 
   // Parse the RSC payload from the response
-  const result = ReactClient.createFromFetch<RscPayload>(
+  const result = await ReactClient.createFromFetch<RscPayload>(
     fetch("/_server-action", {
       method: "POST",
       headers: {
@@ -24,7 +24,7 @@ export async function callServer(
     }),
     { callServer }
   );
-  window.__setPayloadPromise(result);
+  window.__setPayloadOrPromise(result);
   return result;
 }
 
