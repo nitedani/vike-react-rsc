@@ -5,7 +5,7 @@ import type { OutputBundle, OutputChunk } from 'rollup';
 
 
 export function vikeRscManifestPluginBuild(): Plugin {
-    const PLACEHOLDER = '__VITE_ASSETS_MANIFEST_RSC__';
+    const PLACEHOLDER = '__VIKE_RSC_PAGES_MANIFEST__';
 
     return {
         name: 'vike-rsc-manifest-build',

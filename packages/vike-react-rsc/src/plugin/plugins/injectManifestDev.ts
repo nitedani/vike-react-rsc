@@ -4,7 +4,7 @@ import { normalizePath } from "vite";
 import { getVikeConfig } from "vike/plugin";
 
 export function vikeRscManifestPluginDev(): Plugin {
-  const PLACEHOLDER = "__VITE_ASSETS_MANIFEST_RSC__";
+  const PLACEHOLDER = "__VIKE_RSC_PAGES_MANIFEST__";
   let vikeConfig: ReturnType<typeof getVikeConfig>;
   let root: string;
   return {

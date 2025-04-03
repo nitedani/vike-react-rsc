@@ -54,13 +54,13 @@ function createBundlerConfig(): BundlerConfig {
 }
 
 declare global {
-  var __VITE_ASSETS_MANIFEST_RSC__: {
+  var __VIKE_RSC_PAGES_MANIFEST__: {
     [pageId: string]: { importPage: () => Promise<PageContext["Page"]> };
   };
 }
 
 function importPageById(pageId: string): Promise<PageContext["Page"]> {
-  const assetsManifest = __VITE_ASSETS_MANIFEST_RSC__;
+  const assetsManifest = __VIKE_RSC_PAGES_MANIFEST__;
   return assetsManifest[pageId].importPage();
 }
 
