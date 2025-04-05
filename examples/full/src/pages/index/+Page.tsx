@@ -1,5 +1,5 @@
 import Counter from "../../components/Counter";
-import { getPageContext } from "vike-react-rsc/usePageContext";
+import { getPageContext } from "vike-react-rsc/pageContext";
 
 type Film = {
   id: number;

@@ -8,7 +8,8 @@ import { renderToStream } from "react-streaming/server.web";
 //@ts-ignore
 import ReactServerDOMClient from "react-server-dom-webpack/client.edge";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
-import { PageContextProvider } from "../hooks/usePageContext/usePageContext-client";
+import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
+import runtimeRsc from "virtual:runtime/server";
 
 const INIT_SCRIPT = `
 self.__raw_import = (id) => import(id);
@@ -70,7 +71,7 @@ Object.assign(globalThis, {
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
-  const { rscPayloadStream } = pageContext;
+  const rscPayloadStream = await runtimeRsc.renderPageRsc(pageContext);
   const [rscStreamForHtml, rscStreamForClientScript] = rscPayloadStream!.tee();
 
   const payload =

@@ -35,7 +35,7 @@ export default function vikeRscPlugin(): Plugin[] {
     ...configs,
     ...virtuals,
     exposeDevServer,
-    vikeRscManifestPluginDev(),
+    // vikeRscManifestPluginDev(),
     vikeRscManifestPluginBuild(),
     ...useClientPlugin(),
     ...useServerPlugin(),

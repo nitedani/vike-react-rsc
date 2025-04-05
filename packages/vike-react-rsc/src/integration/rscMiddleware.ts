@@ -18,10 +18,6 @@ const serverActionMiddleware: UniversalMiddleware =
       const actionId = req.headers.get("x-rsc-action");
       const urlOriginal = req.headers.get("x-vike-urloriginal");
 
-      if (!actionId) {
-        return new Response("Missing x-rsc-action header", { status: 400 });
-      }
-
       if (!urlOriginal) {
         return new Response("Missing x-vike-urloriginal header", {
           status: 400,
@@ -40,15 +36,21 @@ const serverActionMiddleware: UniversalMiddleware =
 
       renderPage({
         urlOriginal,
-        handleServerAction: (pageContext: PageContextServer) =>
-          // We escape renderPage here
-          resolve(
-            runtimeRsc.handleServerAction({
-              actionId,
-              pageContext,
-              body,
-            })
-          ),
+        handleServerAction: actionId
+          ? (pageContext: PageContextServer) =>
+              // We escape renderPage here
+              resolve(
+                runtimeRsc.handleServerAction({
+                  actionId,
+                  pageContext,
+                  body,
+                })
+              )
+          : null,
+        handleNavigation: !actionId
+          ? (pageContext: PageContextServer) =>
+              resolve(runtimeRsc.renderPageRsc(pageContext))
+          : null,
       });
 
       return new Response(await promise, {
@@ -58,9 +60,9 @@ const serverActionMiddleware: UniversalMiddleware =
       });
     },
     {
-      name: "server-action-handler",
-      method: "POST",
-      path: "/_server-action",
+      name: "rsc-handler",
+      method: ["GET", "POST"],
+      path: "/_rsc",
     }
   );
 

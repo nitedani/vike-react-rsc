@@ -8,14 +8,14 @@ export default defineConfig({
     "src/integration/onRenderHtml.tsx",
     "src/integration/onRenderClient.tsx",
     "src/integration/onPageTransitionStart.tsx",
-    "src/integration/serverActionMiddleware.ts",
+    "src/integration/rscMiddleware.ts",
     "src/register/browser.tsx",
     "src/register/server.tsx",
     "src/register/ssr.tsx",
     "src/runtime/server.tsx",
     "src/runtime/ssr.tsx",
-    "src/hooks/usePageContext/usePageContext-client.tsx",
-    "src/hooks/usePageContext/usePageContext-server.tsx",
+    "src/hooks/pageContext/pageContext-client.tsx",
+    "src/hooks/pageContext/pageContext-server.tsx",
   ],
   format: ["esm"],
   external: [/^virtual:/, /^vike-react-rsc\//],
@@ -23,4 +23,4 @@ export default defineConfig({
     sourceMap: process.argv.slice(2).includes("--sourcemap"),
   },
   bundleDts: false,
-}) as any;
+});

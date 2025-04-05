@@ -8,7 +8,7 @@ import { memoize } from "@hiogawa/utils";
 import type { BundlerConfig, ImportManifestEntry } from "../types";
 import type { PageContext } from "vike/types";
 import { getPageElementRsc } from "../integration/getPageElement/getPageElement-server";
-import { providePageContext } from "../hooks/usePageContext/usePageContext-server";
+import { providePageContext } from "../hooks/pageContext/pageContext-server";
 
 async function importServerAction(id: string): Promise<Function> {
   const [file, name] = id.split("#") as [string, string];

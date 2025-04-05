@@ -1,17 +1,16 @@
 import { tinyassert } from "@hiogawa/utils";
 tinyassert(envName === "client", "Invalid environment");
 
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import envName from "virtual:enviroment-name";
-import { callServer, parseRscStream, parseRscString } from "../runtime/client";
+import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
+import { callServer, onNavigate, parseRscStream } from "../runtime/client";
 import type { RscPayload } from "../types";
-import { PageContextProvider } from "../hooks/usePageContext/usePageContext-client";
 
 declare global {
   interface Window {
-    // Promise = show fallback
     __setPayload: React.Dispatch<
       React.SetStateAction<{
         payload: RscPayload;
@@ -90,18 +89,8 @@ export const onRenderClient: OnRenderClientAsync = async function (
   else if (pageContext.isClientSideNavigation) {
     try {
       console.log("[Client] Client-side navigation");
-
-      // Get the RSC payload string that was passed through pageContext
-      const { rscPayloadString } = pageContext;
-      if (!rscPayloadString) {
-        console.error("[Client] No RSC payload string found for navigation");
-        return;
-      }
-
-      // Parse the RSC payload string and update the React tree
-      const payload = await parseRscString(rscPayloadString);
+      const payload = await onNavigate();
       window.__setPayload({ pageContext, payload });
-
       console.log("[Client] Navigation complete");
     } catch (error) {
       console.error("[Client] Failed to navigate:", error);

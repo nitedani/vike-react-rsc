@@ -1,6 +1,6 @@
 "use client";
 
-import { usePageContext } from "vike-react-rsc/usePageContext";
+import { usePageContext } from "vike-react-rsc/pageContext";
 import { useState } from "react";
 
 export default function Counter() {

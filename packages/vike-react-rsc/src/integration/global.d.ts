@@ -10,6 +10,9 @@ declare global {
       ) => ReturnType<
         typeof import("virtual:runtime/server").handleServerAction
       >;
+      handleNavigation?: (
+        pageContext: PageContext
+      ) => ReturnType<typeof import("virtual:runtime/server").renderPageRsc>;
     }
   }
 }

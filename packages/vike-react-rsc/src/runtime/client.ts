@@ -11,16 +11,16 @@ export async function callServer(
   args: unknown[]
 ): Promise<RscPayload> {
   console.log("[RSC Client] Calling server action:", id);
-
-  // Parse the RSC payload from the response
   const result = await ReactClient.createFromFetch<RscPayload>(
-    fetch("/_server-action", {
+    fetch("/_rsc", {
       method: "POST",
       headers: {
         "x-rsc-action": id,
         // Skip onRenderHtml, but get access to pageContext for RSC render
         // Make Vike think this is a "navigation", skipping onRenderHtml
-        "x-vike-urloriginal": `${window.location.pathname}/index.pageContext.json${window.location.search}`,
+        "x-vike-urloriginal": `${
+          window.location.pathname === "/" ? "" : window.location.pathname
+        }/index.pageContext.json${window.location.search}`,
       },
       body: await ReactClient.encodeReply(args),
     }),
@@ -31,6 +31,23 @@ export async function callServer(
     payload: result,
   }));
   return result.returnValue;
+}
+
+export function onNavigate(): Promise<RscPayload> {
+  console.log("[RSC Client] Navigation:", window.location.href);
+  return ReactClient.createFromFetch<RscPayload>(
+    fetch("/_rsc", {
+      method: "GET",
+      headers: {
+        // Skip onRenderHtml, but get access to pageContext for RSC render
+        // Make Vike think this is a "navigation", skipping onRenderHtml
+        "x-vike-urloriginal": `${
+          window.location.pathname === "/" ? "" : window.location.pathname
+        }/index.pageContext.json${window.location.search}`,
+      },
+    }),
+    { callServer }
+  );
 }
 
 // Function to parse an RSC stream into React nodes
@@ -44,21 +61,4 @@ export async function parseRscStream(
     });
   console.log("[RSC Client] RSC stream parsed");
   return initialPayload;
-}
-
-// Function to parse an RSC stream from string
-export async function parseRscString(content: string): Promise<RscPayload> {
-  if (!content) {
-    throw new Error("[RSC Client] Cannot parse empty RSC content");
-  }
-
-  // Create a stream from the string
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(new TextEncoder().encode(content));
-      controller.close();
-    },
-  });
-
-  return parseRscStream(stream);
 }

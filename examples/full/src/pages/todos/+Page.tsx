@@ -1,4 +1,4 @@
-import { getPageContext } from "vike-react-rsc/usePageContext";
+import { getPageContext } from "vike-react-rsc/pageContext";
 import { getTodos } from "../../actions/addTodo";
 import { Todos } from "../../components/Todos";
 
