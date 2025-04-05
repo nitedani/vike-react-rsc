@@ -10,11 +10,13 @@ async function Films() {
   const films = await fetch(
     "https://brillout.github.io/star-wars/api/films.json"
   ).then((res) => res.json() as Promise<Film[]>);
-  await new Promise((resolve) => setTimeout(resolve, 5000));
+  await new Promise((resolve) => setTimeout(resolve, 1000));
   console.log("Films fetched");
 
   return (
-    <div>
+    <div css={{
+      background: "blue"
+    }}>
       {films.map((film) => (
         <div key={film.id}>{film.title}</div>
       ))}
