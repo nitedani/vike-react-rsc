@@ -7,13 +7,16 @@ import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import envName from "virtual:enviroment-name";
 import { callServer, parseRscStream, parseRscString } from "../runtime/client";
 import type { RscPayload } from "../types";
-import { Shell } from "./shell";
+import { PageContextProvider } from "../hooks/usePageContext/usePageContext-client";
 
 declare global {
   interface Window {
     // Promise = show fallback
-    __setPayloadOrPromise: React.Dispatch<
-      React.SetStateAction<Promise<RscPayload> | RscPayload>
+    __setPayload: React.Dispatch<
+      React.SetStateAction<{
+        payload: RscPayload;
+        pageContext: PageContextClient;
+      }>
     >;
     __vikeRscCallServer: typeof callServer;
     __pageId: string;
@@ -22,22 +25,27 @@ declare global {
 window.__vikeRscCallServer = callServer;
 
 // The Root component which manages RSC nodes
-function Root({ initialPayload }: { initialPayload: RscPayload }) {
-  const [payloadOrPromise, setPayloadOrPromise] = useState<
-    Promise<RscPayload> | RscPayload
-  >(initialPayload);
+function Root({
+  initialPayload,
+  initialPageContext,
+}: {
+  initialPayload: RscPayload;
+  initialPageContext: PageContextClient;
+}) {
+  const [payload, setPayload] = useState<{
+    payload: RscPayload;
+    pageContext: PageContextClient;
+  }>({ payload: initialPayload, pageContext: initialPageContext });
 
-  const node =
-    payloadOrPromise instanceof Promise
-      ? use(payloadOrPromise)
-      : payloadOrPromise;
-
-  // Store the state setter for navigation updates
   useEffect(() => {
-    window.__setPayloadOrPromise = setPayloadOrPromise;
+    window.__setPayload = setPayload;
   }, []);
 
-  return node.root;
+  return (
+    <PageContextProvider pageContext={payload.pageContext}>
+      {payload.payload.root}
+    </PageContextProvider>
+  );
 }
 
 export const onRenderClient: OnRenderClientAsync = async function (
@@ -64,9 +72,10 @@ export const onRenderClient: OnRenderClientAsync = async function (
       // Hydrate the root with our component
       ReactDOMClient.hydrateRoot(
         container,
-        <Shell>
-          <Root initialPayload={initialPayload} />
-        </Shell>,
+        <Root
+          initialPayload={initialPayload}
+          initialPageContext={pageContext}
+        />,
         {
           formState: initialPayload.formState,
         }
@@ -90,8 +99,8 @@ export const onRenderClient: OnRenderClientAsync = async function (
       }
 
       // Parse the RSC payload string and update the React tree
-      const payload = parseRscString(rscPayloadString);
-      window.__setPayloadOrPromise(payload);
+      const payload = await parseRscString(rscPayloadString);
+      window.__setPayload({ pageContext, payload });
 
       console.log("[Client] Navigation complete");
     } catch (error) {

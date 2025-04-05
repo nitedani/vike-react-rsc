@@ -14,6 +14,8 @@ export default defineConfig({
     "src/register/ssr.tsx",
     "src/runtime/server.tsx",
     "src/runtime/ssr.tsx",
+    "src/hooks/usePageContext/usePageContext-client.tsx",
+    "src/hooks/usePageContext/usePageContext-server.tsx",
   ],
   format: ["esm"],
   external: [/^virtual:/, /^vike-react-rsc\//],

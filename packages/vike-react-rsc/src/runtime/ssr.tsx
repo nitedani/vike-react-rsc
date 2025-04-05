@@ -8,7 +8,7 @@ import { renderToStream } from "react-streaming/server.web";
 //@ts-ignore
 import ReactServerDOMClient from "react-server-dom-webpack/client.edge";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
-import { Shell } from "../integration/shell";
+import { PageContextProvider } from "../hooks/usePageContext/usePageContext-client";
 
 const INIT_SCRIPT = `
 self.__raw_import = (id) => import(id);
@@ -84,13 +84,18 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
       }
     );
 
-  const htmlStream = await renderToStream(<Shell>{payload.root}</Shell>, {
-    userAgent: (pageContext.headersOriginal as any).get("user-agent"),
-    streamOptions: {
-      //@ts-expect-error
-      formState: payload.formState,
-    },
-  });
+  const htmlStream = await renderToStream(
+    <PageContextProvider pageContext={pageContext}>
+      {payload.root}
+    </PageContextProvider>,
+    {
+      userAgent: pageContext.headers?.["user-agent"],
+      streamOptions: {
+        //@ts-expect-error
+        formState: payload.formState,
+      },
+    }
+  );
 
   const canClose = htmlStream.doNotClose();
   rscStreamForClientScript.pipeThrough(new TextDecoderStream()).pipeTo(

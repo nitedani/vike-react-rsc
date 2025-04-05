@@ -4,5 +4,6 @@ import vikeReactRsc from "vike-react-rsc/config";
 
 export default {
   extends: [vikeServer, vikeReactRsc],
-  server: { entry: "./src/server.ts", standalone: true },
+  server: { entry: "./src/server.ts", standalone: false },
+  // prerender: { keepDistServer: true },
 } satisfies Config;

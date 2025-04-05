@@ -8,6 +8,12 @@ export const onBeforeRender: OnBeforeRenderAsync =
   envName === "ssr" &&
   async function (pageContext: PageContextServer) {
     console.log("[Vike Hook] +onBeforeRender called.");
+    if (pageContext.handleServerAction) {
+      // We escape Vike here (see serverActionMiddleware)
+      pageContext.handleServerAction(pageContext);
+      return;
+    }
+
     const rscPayloadStream = await runtimeRsc.renderPageRsc(pageContext);
     const rscPayloadString = pageContext.isClientSideNavigation
       ? await streamToString(rscPayloadStream)

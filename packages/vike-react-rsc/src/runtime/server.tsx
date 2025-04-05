@@ -7,6 +7,8 @@ import ReactServer from "react-server-dom-webpack/server.edge";
 import { memoize } from "@hiogawa/utils";
 import type { BundlerConfig, ImportManifestEntry } from "../types";
 import type { PageContext } from "vike/types";
+import { getPageElementRsc } from "../integration/getPageElement/getPageElement-server";
+import { providePageContext } from "../hooks/usePageContext/usePageContext-server";
 
 async function importServerAction(id: string): Promise<Function> {
   const [file, name] = id.split("#") as [string, string];
@@ -53,51 +55,49 @@ function createBundlerConfig(): BundlerConfig {
   );
 }
 
-declare global {
-  var __VIKE_RSC_PAGES_MANIFEST__: {
-    [pageId: string]: { importPage: () => Promise<PageContext["Page"]> };
-  };
-}
-
-function importPageById(pageId: string): Promise<PageContext["Page"]> {
-  const assetsManifest = __VIKE_RSC_PAGES_MANIFEST__;
-  return assetsManifest[pageId].importPage();
-}
-
 export async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
   console.log("[Renderer] Rendering page to RSC stream");
-  const Page = await importPageById(pageContext.pageId!);
   const bundlerConfig = createBundlerConfig();
-  const rscPayloadStream = ReactServer.renderToReadableStream(
-    // TODO: add form when initial request is POST
-    { root: <Page /> },
-    bundlerConfig
+  const root = await getPageElementRsc(pageContext);
+  return providePageContext(pageContext, () =>
+    ReactServer.renderToReadableStream(
+      // TODO: add form when initial request is POST
+      {
+        root,
+      },
+      bundlerConfig
+    )
   );
-
-  return rscPayloadStream;
 }
 
 export async function handleServerAction({
   actionId,
-  pageId,
+  pageContext,
   body,
 }: {
   actionId: string;
-  pageId: string;
+  pageContext: PageContext;
   body: string | FormData;
 }): Promise<ReadableStream<Uint8Array>> {
   console.log("[Server] Handling server action:", actionId);
-  const [args, action, Page] = await Promise.all([
+  const [args, action, root] = await Promise.all([
     ReactServer.decodeReply(body),
     importServerAction(actionId),
-    importPageById(pageId),
+    getPageElementRsc(pageContext),
   ]);
-  const returnValue = await action.apply(null, args);
+  const returnValue = await providePageContext(pageContext, () =>
+    action.apply(null, args)
+  );
   const bundlerConfig = createBundlerConfig();
-  return ReactServer.renderToReadableStream(
-    { returnValue, root: <Page /> },
-    bundlerConfig
+  return providePageContext(pageContext, () =>
+    ReactServer.renderToReadableStream(
+      {
+        returnValue,
+        root,
+      },
+      bundlerConfig
+    )
   );
 }

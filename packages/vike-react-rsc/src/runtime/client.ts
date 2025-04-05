@@ -18,14 +18,19 @@ export async function callServer(
       method: "POST",
       headers: {
         "x-rsc-action": id,
-        "x-vike-page-id": window.__pageId,
+        // Skip onRenderHtml, but get access to pageContext for RSC render
+        // Make Vike think this is a "navigation", skipping onRenderHtml
+        "x-vike-urloriginal": `${window.location.pathname}/index.pageContext.json${window.location.search}`,
       },
       body: await ReactClient.encodeReply(args),
     }),
     { callServer }
   );
-  window.__setPayloadOrPromise(result);
-  return result;
+  window.__setPayload((current) => ({
+    pageContext: current.pageContext,
+    payload: result,
+  }));
+  return result.returnValue;
 }
 
 // Function to parse an RSC stream into React nodes

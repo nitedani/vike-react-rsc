@@ -53,6 +53,9 @@ importers:
 
   packages/vike-react-rsc:
     dependencies:
+      '@brillout/json-serializer':
+        specifier: ^0.5.15
+        version: 0.5.15
       '@hiogawa/transforms':
         specifier: ^0.0.0
         version: 0.0.0

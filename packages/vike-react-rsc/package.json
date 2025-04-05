@@ -19,7 +19,11 @@
     "./__internal/register/server": "./dist/register/server.js",
     "./__internal/register/ssr": "./dist/register/ssr.js",
     "./__internal/runtime/server": "./dist/runtime/server.js",
-    "./__internal/runtime/ssr": "./dist/runtime/ssr.js"
+    "./__internal/runtime/ssr": "./dist/runtime/ssr.js",
+    "./usePageContext": {
+      "react-server": "./dist/hooks/usePageContext/usePageContext-server.js",
+      "default": "./dist/hooks/usePageContext/usePageContext-client.js"
+    }
   },
   "files": [
     "dist"
@@ -30,23 +34,24 @@
   "peerDependencies": {
     "react": "*",
     "react-dom": "*",
-    "vite": "*",
-    "vike": "*"
+    "vike": "*",
+    "vite": "*"
   },
   "dependencies": {
+    "@brillout/json-serializer": "^0.5.15",
     "@hiogawa/transforms": "^0.0.0",
     "@hiogawa/utils": "^1.7.0",
     "react-server-dom-webpack": "^19.1.0",
     "react-streaming": "^0.3.50"
   },
   "devDependencies": {
-    "typescript": "^5.8.2",
-    "vike": "^0.4.227",
-    "vite": "^6.2.3",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
-    "tsdown": "^0.6.10"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tsdown": "^0.6.10",
+    "typescript": "^5.8.2",
+    "vike": "^0.4.227",
+    "vite": "^6.2.3"
   }
 }

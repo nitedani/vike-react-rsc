@@ -14,6 +14,7 @@ export function vikeRscManifestPluginBuild(): Plugin {
             return environment.name === "rsc"
         },
         generateBundle(outputOptions, bundle: OutputBundle): void {
+            
             // Find chunks that contain our placeholder
             const placeholderChunks: OutputChunk[] = [];
 
@@ -25,6 +26,7 @@ export function vikeRscManifestPluginBuild(): Plugin {
                 if (output.type !== 'chunk') continue;
 
                 const chunk = output as OutputChunk;
+                console.log(chunk.facadeModuleId);
 
                 // Check if this is a page entry
                 if (chunk.isEntry && chunk.facadeModuleId) {

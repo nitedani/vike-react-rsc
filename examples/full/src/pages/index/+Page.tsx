@@ -1,4 +1,5 @@
 import Counter from "../../components/Counter";
+import { getPageContext } from "vike-react-rsc/usePageContext";
 
 type Film = {
   id: number;
@@ -22,10 +23,13 @@ async function Films() {
 }
 
 export default async function Page() {
+  const ctx = getPageContext();
+  console.log(ctx.pageId);
+
   return (
     <>
       <h1>Home</h1>
-      <a href="/about">Go to about</a>
+      <a href="/todos">Go to todos</a>
       <Films />
       <div>
         <Counter />

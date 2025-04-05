@@ -42,9 +42,22 @@ const config: Config = {
         client: false,
       },
     },
+    Wrapper: {
+      env: { client: true, server: true },
+      cumulative: true,
+    },
+    Layout: {
+      env: { server: true, client: true },
+      cumulative: true,
+    },
+    Loading: {
+      env: { server: true, client: true },
+    },
   },
   vite6BuilderApp: true,
   vite: {
     plugins: [vikeRscPlugin()],
   },
 } satisfies Config;
+
+import "./types/Config.js";

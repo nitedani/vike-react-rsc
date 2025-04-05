@@ -3,6 +3,8 @@ import envName from "virtual:enviroment-name";
 tinyassert(envName === "ssr", "Invalid environment");
 
 import { enhance, type UniversalMiddleware } from "@universal-middleware/core";
+import { renderPage } from "vike/server";
+import type { PageContextServer } from "vike/types";
 
 //@ts-ignore
 const serverActionMiddleware: UniversalMiddleware =
@@ -14,14 +16,16 @@ const serverActionMiddleware: UniversalMiddleware =
       );
       const req = request;
       const actionId = req.headers.get("x-rsc-action");
-      const pageId = req.headers.get("x-vike-page-id");
+      const urlOriginal = req.headers.get("x-vike-urloriginal");
 
       if (!actionId) {
-        return new Response("Missing action ID", { status: 400 });
+        return new Response("Missing x-rsc-action header", { status: 400 });
       }
 
-      if (!pageId) {
-        return new Response("Missing page ID", { status: 400 });
+      if (!urlOriginal) {
+        return new Response("Missing x-vike-urloriginal header", {
+          status: 400,
+        });
       }
 
       const contentType = req.headers.get("content-type");
@@ -29,13 +33,27 @@ const serverActionMiddleware: UniversalMiddleware =
         ? await req.formData()
         : await req.text();
 
-      const actionResultStream = await runtimeRsc.handleServerAction({
-        actionId,
-        pageId,
-        body,
+      const { promise, resolve } =
+        Promise.withResolvers<
+          Awaited<ReturnType<typeof runtimeRsc.handleServerAction>>
+        >();
+
+      const handleServerAction = async (pageContext: PageContextServer) => {
+        const actionResultStream = await runtimeRsc.handleServerAction({
+          actionId,
+          pageContext,
+          body,
+        });
+        // We escape renderPage here
+        resolve(actionResultStream);
+      };
+
+      renderPage({
+        urlOriginal,
+        handleServerAction,
       });
 
-      return new Response(actionResultStream, {
+      return new Response(await promise, {
         headers: {
           "content-type": "text/x-component;charset=utf-8",
         },
