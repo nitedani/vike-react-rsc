@@ -14,7 +14,7 @@ async function Films() {
   ).then((res) => res.json() as Promise<Film[]>);
   
   // Simulate a longer loading time to showcase the loading state
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  await new Promise((resolve) => setTimeout(resolve, 2000));
   console.log("Films fetched");
 
   return (

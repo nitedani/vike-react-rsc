@@ -1,5 +1,4 @@
 "use server";
-import { getPageContext } from "vike-react-rsc/pageContext";
 
 interface Todo {
   id: string;
@@ -18,9 +17,6 @@ export const getTodos = async () => {
 export const addTodo = async (title: string) => {
   console.log("Adding todo:", title);
 
-  const ctx = getPageContext();
-  console.log("PageContext in action handler", ctx.pageId);
-
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -36,9 +32,6 @@ export const addTodo = async (title: string) => {
 
 export const deleteTodo = async (id: string) => {
   console.log("Deleting todo:", id);
-
-  const ctx = getPageContext();
-  console.log("PageContext in delete handler", ctx.pageId);
 
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 300));
