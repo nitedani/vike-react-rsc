@@ -38,15 +38,15 @@ const serverActionMiddleware: UniversalMiddleware =
           Awaited<ReturnType<typeof runtimeRsc.handleServerAction>>
         >();
 
-      const handleServerAction = async (pageContext: PageContextServer) => {
-        const actionResultStream = await runtimeRsc.handleServerAction({
-          actionId,
-          pageContext,
-          body,
-        });
+      const handleServerAction = (pageContext: PageContextServer) =>
         // We escape renderPage here
-        resolve(actionResultStream);
-      };
+        resolve(
+          runtimeRsc.handleServerAction({
+            actionId,
+            pageContext,
+            body,
+          })
+        );
 
       renderPage({
         urlOriginal,
