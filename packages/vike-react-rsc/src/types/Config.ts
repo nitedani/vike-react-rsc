@@ -13,6 +13,13 @@ declare global {
       Page?: () => React.ReactNode;
 
       /**
+       * Add arbitrary `<head>` tags.
+       *
+       * https://vike.dev/Head
+       */
+      Head?: Head
+
+      /**
        * A component that defines the visual layout common to several pages.
        *
        * Technically: the `<Layout>` component wraps the root component `<Page>`.
@@ -38,10 +45,12 @@ declare global {
     interface ConfigResolved {
       Wrapper?: Wrapper[];
       Layout?: Layout[];
+      Head?: Head[]
     }
   }
 }
 
+export type Head = React.ReactNode | (() => React.ReactNode)
 type Wrapper = (props: { children: React.ReactNode }) => React.ReactNode;
 type Layout = Wrapper;
 type Loading = {

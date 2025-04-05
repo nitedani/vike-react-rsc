@@ -10,6 +10,10 @@ import ReactServerDOMClient from "react-server-dom-webpack/client.edge";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
 import runtimeRsc from "virtual:runtime/server";
+import type { Head } from "../types/Config";
+import { isReactElement } from "../utils/isReactElement";
+import { renderToStaticMarkup } from 'react-dom/server'
+import React from "react";
 
 const INIT_SCRIPT = `
 self.__raw_import = (id) => import(id);
@@ -119,12 +123,55 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
     })
   );
 
-  const documentHtml = escapeInject`<html><head><title>Vike + RSC (Plugin + Runner)</title><script>${dangerouslySkipEscape(
-    INIT_SCRIPT
-  )}</script></head><body><div id="root">${htmlStream}</div></body></html>`;
+  const headHtml = getHeadHtml(pageContext)
+
+  const documentHtml = escapeInject`<!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <script>${dangerouslySkipEscape(INIT_SCRIPT)}</script>
+        ${headHtml}
+      </head>
+      <body>
+        <div id="root">${htmlStream}</div>
+      </body>
+    </html>`
+
 
   return {
     documentHtml,
     pageContext: { enableEagerStreaming: true },
   };
 };
+
+function getHeadHtml(pageContext: PageContextServer) {
+  const headElementsHtml = dangerouslySkipEscape(
+    [
+      // Added by +Head
+      ...(pageContext.config.Head ?? []),
+    ]
+      .filter((Head) => Head !== null && Head !== undefined)
+      .map((Head) => getHeadElementHtml(Head, pageContext))
+      .join('\n'),
+  )
+
+  const headHtml = escapeInject`
+    ${headElementsHtml}
+  `
+  return headHtml
+}
+
+function getHeadElementHtml(Head: NonNullable<Head>, pageContext: PageContextServer): string {
+  let headElement: React.ReactNode
+  if (isReactElement(Head)) {
+    headElement = Head
+  } else {
+    headElement = (
+      <PageContextProvider pageContext={pageContext}>
+        <Head />
+      </PageContextProvider>
+    )
+  }
+
+  return renderToStaticMarkup(headElement)
+}

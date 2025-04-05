@@ -39,6 +39,10 @@ const config: Config = {
         client: false,
       },
     },
+    Head: {
+      env: { server: true },
+      cumulative: true,
+    },
     Wrapper: {
       env: { client: true, server: true },
       cumulative: true,
