@@ -10,7 +10,7 @@ async function Films() {
   const films = await fetch(
     "https://brillout.github.io/star-wars/api/films.json"
   ).then((res) => res.json() as Promise<Film[]>);
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  await new Promise((resolve) => setTimeout(resolve, 5000));
   console.log("Films fetched");
 
   return (

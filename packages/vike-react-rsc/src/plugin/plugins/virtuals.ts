@@ -1,6 +1,7 @@
 import type { Plugin } from "vite";
 import { createVirtualPlugin } from "../utils";
 import { PKG_NAME } from "../../constants";
+import path from "path";
 
 const importRsc = `
               import * as serverModule from "${PKG_NAME}/__internal/runtime/server";
@@ -82,10 +83,20 @@ export const virtuals: Plugin[] = [
     },
     renderChunk(code, chunk) {
       if (code.includes("__VIRTUAL_BUILD_ENTRY__")) {
-        //TODO: make this reliable
+        const importerPath = path.join(
+          this.environment.config.build.outDir,
+          chunk.fileName
+        );
+
         code = code
-          .replaceAll("__VIRTUAL_BUILD_ENTRY__?server", "../../server/ssr.mjs")
-          .replaceAll("__VIRTUAL_BUILD_ENTRY__?rsc", "../../rsc/index.mjs");
+          .replaceAll(
+            "__VIRTUAL_BUILD_ENTRY__?server",
+            path.relative(path.dirname(importerPath), "dist/server/ssr.mjs")
+          )
+          .replaceAll(
+            "__VIRTUAL_BUILD_ENTRY__?rsc",
+            path.relative(path.dirname(importerPath), "dist/rsc/index.mjs")
+          );
 
         return { code };
       }
