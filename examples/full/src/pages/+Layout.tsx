@@ -60,20 +60,50 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <a href="/" css={{
               textDecoration: 'none',
               color: '#333',
-              fontWeight: 500,
-              ':hover': { color: '#0070f3' }
+              fontWeight: 600,
+              padding: '0.5rem 0.75rem',
+              borderRadius: '8px',
+              transition: 'all 0.2s ease',
+              ':hover': {
+                color: '#0070f3',
+                backgroundColor: 'rgba(0, 112, 243, 0.05)'
+              }
             }}>Home</a>
             <a href="/todos" css={{
               textDecoration: 'none',
               color: '#333',
-              fontWeight: 500,
-              ':hover': { color: '#0070f3' }
-            }}>Todos</a>
+              fontWeight: 600,
+              padding: '0.5rem 0.75rem',
+              borderRadius: '8px',
+              transition: 'all 0.2s ease',
+              ':hover': {
+                color: '#0070f3',
+                backgroundColor: 'rgba(0, 112, 243, 0.05)'
+              }
+            }}>Tasks</a>
+            <a href="/data" css={{
+              textDecoration: 'none',
+              color: '#333',
+              fontWeight: 600,
+              padding: '0.5rem 0.75rem',
+              borderRadius: '8px',
+              transition: 'all 0.2s ease',
+              ':hover': {
+                color: '#0070f3',
+                backgroundColor: 'rgba(0, 112, 243, 0.05)'
+              }
+            }}>Data</a>
             <a href="https://github.com/nitedani/vike-react-rsc" target="_blank" css={{
               textDecoration: 'none',
               color: '#333',
-              fontWeight: 500,
-              ':hover': { color: '#0070f3' }
+              fontWeight: 600,
+              padding: '0.5rem 0.75rem',
+              borderRadius: '8px',
+              transition: 'all 0.2s ease',
+              ':hover': {
+                color: '#0070f3',
+                backgroundColor: 'rgba(0, 112, 243, 0.05)'
+              }
             }}>GitHub</a>
           </nav>
         </div>
