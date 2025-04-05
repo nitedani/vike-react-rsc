@@ -1,9 +1,10 @@
-"use client";
+// "use client";
 
 // import { useState } from "react";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-//   useState();
+  // const [state, setState] = useState(0);
+
   return (
     <div
       style={{

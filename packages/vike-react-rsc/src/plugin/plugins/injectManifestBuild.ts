@@ -3,7 +3,10 @@ import path from 'path';
 import { normalizePath } from 'vite';
 import type { OutputBundle, OutputChunk } from 'rollup';
 
-
+/**
+ * Vite plugin that generates a manifest for React Server Components during build.
+ * Creates a mapping of page IDs to their corresponding config loaders.
+ */
 export function vikeRscManifestPluginBuild(): Plugin {
     const PLACEHOLDER = '__VIKE_RSC_PAGES_MANIFEST__';
 
@@ -11,10 +14,9 @@ export function vikeRscManifestPluginBuild(): Plugin {
         name: 'vike-rsc-manifest-build',
         apply: 'build',
         applyToEnvironment(environment) {
-            return environment.name === "rsc"
+            return environment.name === "rsc";
         },
         generateBundle(outputOptions, bundle: OutputBundle): void {
-            
             // Find chunks that contain our placeholder
             const placeholderChunks: OutputChunk[] = [];
 
@@ -26,7 +28,6 @@ export function vikeRscManifestPluginBuild(): Plugin {
                 if (output.type !== 'chunk') continue;
 
                 const chunk = output as OutputChunk;
-                console.log(chunk.facadeModuleId);
 
                 // Check if this is a page entry
                 if (chunk.isEntry && chunk.facadeModuleId) {
@@ -48,35 +49,9 @@ export function vikeRscManifestPluginBuild(): Plugin {
 
             // Process each placeholder chunk
             for (const chunk of placeholderChunks) {
-                // Generate manifest for dynamic imports
-                let manifestContent = '{';
-                let isFirst = true;
-
-                for (const entry of Object.values(pageEntries)) {
-                    if (!isFirst) {
-                        manifestContent += ',';
-                    }
-                    isFirst = false;
-
-                    // Calculate relative path from placeholder chunk to entry
-                    const chunkDir = path.dirname(chunk.fileName);
-                    const entryPath = path.relative(chunkDir, entry.fileName);
-
-                    // Normalize path to POSIX format
-                    const normalizedPath = normalizePath(entryPath);
-                    const importPath = normalizedPath.startsWith('.')
-                        ? normalizedPath
-                        : `./${normalizedPath}`;
-
-                    // Create a dynamic import function for this page
-                    manifestContent += `
-  "${entry.pageId}": {
-    importPage: () => import("${importPath}").then(m => m.configValuesSerialized.Page.valueSerialized.exportValues).then(m => m.default || m.Page)
-  }`;
-                }
-
-                manifestContent += '\n}';
-
+                // Generate manifest with IIFE and helper function
+                const manifestContent = generateManifestCode(pageEntries, chunk.fileName);
+                
                 // Replace placeholder in chunk code
                 chunk.code = chunk.code.replace(
                     new RegExp(PLACEHOLDER, 'g'),
@@ -85,4 +60,70 @@ export function vikeRscManifestPluginBuild(): Plugin {
             }
         }
     };
+}
+
+/**
+ * Generates the manifest code with an IIFE containing a helper function
+ * and the page entries map.
+ * 
+ * @param pageEntries - Record of page entries with their metadata
+ * @param chunkFileName - The file name of the current chunk
+ * @returns The generated manifest code as a string
+ */
+function generateManifestCode(
+    pageEntries: Record<string, { chunkName: string, fileName: string, pageId: string }>,
+    chunkFileName: string
+): string {
+    // Start of IIFE
+    let code = `(function() {
+  /**
+   * Helper function that extracts config values from the imported module
+   * @param {Object} module - The imported module containing configValuesSerialized
+   * @returns {Object} - The extracted configuration object
+   */
+  function extractConfig(module) {
+    return Object.fromEntries(
+      Object.entries(module.configValuesSerialized).map(([key, value]) => [
+        key,
+        [Array.isArray(value.valueSerialized)
+          ? value.valueSerialized.map(v => v.exportValues?.default || v.exportValues?.[key])
+          : value.valueSerialized.exportValues?.default || value.valueSerialized.exportValues?.[key]].flat(1)
+      ])
+    );
+  }
+
+  return {`;
+
+    // Add page entries
+    let isFirst = true;
+    const chunkDir = path.dirname(chunkFileName);
+
+    for (const entry of Object.values(pageEntries)) {
+        if (!isFirst) {
+            code += ',';
+        }
+        isFirst = false;
+
+        // Calculate relative path from placeholder chunk to entry
+        const entryPath = path.relative(chunkDir, entry.fileName);
+        
+        // Normalize path to POSIX format for cross-platform compatibility
+        const normalizedPath = normalizePath(entryPath);
+        const importPath = normalizedPath.startsWith('.')
+            ? normalizedPath
+            : `./${normalizedPath}`;
+
+        // Create a getConfig function that uses the helper
+        code += `
+    "${entry.pageId}": {
+      getConfig: () => import("${importPath}").then(extractConfig)
+    }`;
+    }
+
+    // Close the IIFE
+    code += `
+  };
+})()`;
+
+    return code;
 }
