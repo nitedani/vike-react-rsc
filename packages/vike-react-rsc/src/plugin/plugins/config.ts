@@ -49,11 +49,6 @@ export const configs: Plugin[] = [
             },
           },
           rsc: {
-            // Doesn't work, see [VITE-ENV-CONFIG-DIRTY-HACK]
-            // @ts-ignore
-            vitePluginServerEntry: {
-              disableServerEntryEmit: true
-            },
             resolve: {
               conditions: ["react-server"],
               noExternal: [
@@ -81,15 +76,20 @@ export const configs: Plugin[] = [
         },
       };
     },
-    configResolved(c) {
-      // See [VITE-ENV-CONFIG-DIRTY-HACK]
-      if (c.build.outDir === distRsc) {
-        // @ts-ignore
-        c.vitePluginServerEntry ??= {}
-        c.vitePluginServerEntry.disableServerEntryEmit = true
-      }
-    },
     sharedDuringBuild: false,
+  },
+  {
+    name: "vike-rsc:config-rsc",
+    applyToEnvironment(env) {
+      return env.name === 'rsc'
+    },
+    config() {
+      return {
+        vitePluginServerEntry: {
+          disableServerEntryEmit: true
+        }
+      }
+    }
   },
   {
     name: "vike-rsc:config:post",
