@@ -17,6 +17,7 @@ export const configs: Plugin[] = [
     },
     config(): UserConfig {
       return {
+        bla2: 23,
         environments: {
           client: {
             optimizeDeps: {
@@ -40,6 +41,11 @@ export const configs: Plugin[] = [
             },
           },
           rsc: {
+            // @ts-expect-error
+            bla: 123,
+    vitePluginServerEntry: {
+      disableServerEntryEmit: true
+    },
             resolve: {
               conditions: ["react-server"],
               noExternal: [
@@ -66,6 +72,18 @@ export const configs: Plugin[] = [
           },
         },
       };
+    },
+    configResolved(c) {
+      c.envPrefix
+      console.log('configResolved')
+      // @ts-ignore
+      console.log('c.bla', c.bla)
+      // @ts-ignore
+      console.log('this.environment',this?.environment)
+      // @ts-ignore
+      console.log('c.bla2', c.bla2)
+      console.log('c.build.outDir', c.build.outDir)
+      console.log()
     },
     sharedDuringBuild: false,
   },
