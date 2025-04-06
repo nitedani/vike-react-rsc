@@ -6,6 +6,7 @@ tinyassert(envName === "client", "Invalid environment");
 import ReactClient from "react-server-dom-webpack/client.browser";
 import type { RscPayload } from "../types";
 import type { PageContext } from "vike/types";
+import { startTransition } from "react";
 
 export async function callServer(
   id: string,
@@ -27,10 +28,12 @@ export async function callServer(
     }),
     { callServer }
   );
-  window.__setPayload((current) => ({
-    pageContext: current.pageContext,
-    payload: result,
-  }));
+  startTransition(() => {
+    window.__setPayload((current) => ({
+      pageContext: current.pageContext,
+      payload: result,
+    }));
+  });
   return result.returnValue;
 }
 

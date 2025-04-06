@@ -1,10 +1,6 @@
-"use client";
-
-import { useState } from "react";
+import MobileMenuClient from '../components/MobileMenuClient';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-
   return (
     <div css={{
       fontFamily: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -20,7 +16,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         boxSizing: 'border-box'
       }
     }}>
-      {/* No fixed div needed */}
       <header css={{
         padding: '1rem 0',
         borderBottom: '1px solid #eaeaea',
@@ -41,14 +36,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <a href="/" css={{ textDecoration: 'none', color: '#0070f3' }}>Vike RSC</a>
         </div>
 
-        <div css={{
-          '@media (max-width: 768px)': {
-            display: menuOpen ? 'flex' : 'none',
-            flexDirection: 'column',
-            width: '100%',
-            gap: '0.5rem'
-          }
-        }}>
+        <MobileMenuClient>
           <nav css={{
             display: 'flex',
             gap: '1.5rem',
@@ -118,26 +106,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               }
             }}>GitHub</a>
           </nav>
-        </div>
-
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          css={{
-            display: 'none',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '0.5rem',
-            '@media (max-width: 768px)': {
-              display: 'block',
-              position: 'absolute',
-              top: '1rem',
-              right: '1rem'
-            }
-          }}
-        >
-          {menuOpen ? '✕' : '☰'}
-        </button>
+        </MobileMenuClient>
       </header>
 
       <main css={{ flex: 1, padding: '2rem 0', width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
