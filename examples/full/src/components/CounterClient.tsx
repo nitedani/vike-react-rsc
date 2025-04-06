@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { usePageContext } from "vike-react-rsc/pageContext";
 import { incrementCount, getCount } from "../actions/counter";
 
 interface CounterClientProps {
@@ -11,9 +10,8 @@ interface CounterClientProps {
 export default function CounterClient({ initialCount }: CounterClientProps) {
   const [count, setCount] = useState(initialCount);
   const [isPending, startTransition] = useTransition();
-  const ctx = usePageContext();
-  console.log(ctx.pageId);
 
+  // Increment without re-rendering the page
   const handleIncrement = () => {
     startTransition(async () => {
       // Call the server action to increment the count
@@ -22,6 +20,7 @@ export default function CounterClient({ initialCount }: CounterClientProps) {
     });
   };
 
+  // Refresh without re-rendering the page
   const handleRefresh = () => {
     startTransition(async () => {
       // Get the latest count from the server without incrementing
@@ -52,6 +51,8 @@ export default function CounterClient({ initialCount }: CounterClientProps) {
           {count}
         </div>
       </div>
+
+
 
       <button
         onClick={() => {

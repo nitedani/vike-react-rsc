@@ -60,25 +60,26 @@ export async function Page() {
             <h3 css={sharedStyles.featureHeading}>Adding a Task</h3>
             <p css={sharedStyles.featureParagraph}>
               When you type a task and click "Add", the client sends a request to the server action.
-              The server executes the action, updates the data, re-renders the page, and sends back a new RSC payload.
+              The server executes the action, updates the data, calls the <code>rerender()</code> function,
+              and sends back a new RSC payload with the updated UI.
             </p>
           </div>
 
           <div css={sharedStyles.featureCard}>
             <div css={sharedStyles.featureNumber}>2</div>
-            <h3 css={sharedStyles.featureHeading}>Completing a Task</h3>
+            <h3 css={sharedStyles.featureHeading}>Server Actions with Rerender</h3>
             <p css={sharedStyles.featureParagraph}>
-              Clicking the checkbox sends a request to the server. While waiting for the response,
-              the client shows a loading indicator. The server updates the task and sends a new RSC payload.
+              Each todo action (add, toggle, delete) explicitly calls <code>rerender()</code> to update the UI.
+              Without this call, the server would return only the action result without re-rendering the page.
             </p>
           </div>
 
           <div css={sharedStyles.featureCard}>
             <div css={sharedStyles.featureNumber}>3</div>
-            <h3 css={sharedStyles.featureHeading}>Deleting a Task</h3>
+            <h3 css={sharedStyles.featureHeading}>RSC Payload Caching</h3>
             <p css={sharedStyles.featureParagraph}>
-              The delete button triggers a server action request. The client shows a loading state
-              while the server processes the deletion and returns a new RSC payload with the updated list.
+              The app uses client-side caching of RSC payloads based on the <code>staleTime</code> configuration.
+              This reduces server load by reusing cached payloads during navigation when they're still fresh.
             </p>
           </div>
         </div>

@@ -17,7 +17,7 @@ declare global {
        *
        * https://vike.dev/Head
        */
-      Head?: Head
+      Head?: Head;
 
       /**
        * A component that defines the visual layout common to several pages.
@@ -41,19 +41,24 @@ declare global {
        * https://vike.dev/Loading
        */
       Loading?: Loading | ImportString;
+
+      rsc?: RscConfig;
     }
     interface ConfigResolved {
       Wrapper?: Wrapper[];
       Layout?: Layout[];
-      Head?: Head[]
+      Head?: Head[];
     }
   }
 }
 
-export type Head = React.ReactNode | (() => React.ReactNode)
+export type Head = React.ReactNode | (() => React.ReactNode);
 type Wrapper = (props: { children: React.ReactNode }) => React.ReactNode;
 type Layout = Wrapper;
 type Loading = {
   component?: () => React.ReactNode;
   layout?: () => React.ReactNode;
+};
+type RscConfig = {
+  staleTime?: number;
 };

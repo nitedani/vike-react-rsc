@@ -35,6 +35,12 @@ const config: Config = {
 
   // https://vike.dev/meta
   meta: {
+    rsc: {
+      env: {
+        server: true,
+        client: false,
+      },
+    },
     onBeforeRender: {
       env: {
         server: true,

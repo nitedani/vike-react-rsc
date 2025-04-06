@@ -6,7 +6,7 @@ import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import envName from "virtual:enviroment-name";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
-import { callServer, onNavigate, parseRscStream } from "../runtime/client";
+import { callServer, parseRscStream } from "../runtime/client";
 import type { RscPayload } from "../types";
 
 declare global {
@@ -18,6 +18,7 @@ declare global {
       }>
     >;
     __vikeRscCallServer: typeof callServer;
+
     __pageId: string;
     __navigationPromise: Promise<RscPayload>;
   }

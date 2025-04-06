@@ -9,6 +9,7 @@ import type { BundlerConfig, ImportManifestEntry } from "../types";
 import type { PageContext } from "vike/types";
 import { getPageElementRsc } from "../integration/getPageElement/getPageElement-server";
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
+import { AsyncLocalStorage } from "async_hooks";
 
 async function importServerAction(id: string): Promise<Function> {
   const [file, name] = id.split("#") as [string, string];
@@ -72,6 +73,22 @@ export async function renderPageRsc(
   );
 }
 
+// Server action context to track whether a re-render is needed
+const serverActionContext = new AsyncLocalStorage<{ shouldRerender: boolean }>();
+
+/**
+ * Call this function within a server action to trigger a re-render of the page
+ * If not called, the server action will only return the action result without re-rendering
+ */
+export function rerender(): void {
+  const context = serverActionContext.getStore();
+  if (context) {
+    context.shouldRerender = true;
+  } else {
+    console.warn("[Server] rerender() called outside of a server action context");
+  }
+}
+
 export async function handleServerAction({
   actionId,
   pageContext,
@@ -82,22 +99,45 @@ export async function handleServerAction({
   body: string | FormData;
 }): Promise<ReadableStream<Uint8Array>> {
   console.log("[Server] Handling server action:", actionId);
-  const [args, action, root] = await Promise.all([
+
+  // Create context for this server action execution
+  const context = { shouldRerender: false };
+
+  // Decode arguments and get the action function
+  const [args, action] = await Promise.all([
     ReactServer.decodeReply(body),
     importServerAction(actionId),
-    getPageElementRsc(pageContext),
   ]);
-  const returnValue = await providePageContext(pageContext, () =>
-    action.apply(null, args)
+
+  // Execute the action within the server action context
+  const returnValue = await serverActionContext.run(context, () =>
+    providePageContext(pageContext, () => action.apply(null, args))
   );
+
   const bundlerConfig = createBundlerConfig();
-  return providePageContext(pageContext, () =>
-    ReactServer.renderToReadableStream(
-      {
-        returnValue,
-        root,
-      },
-      bundlerConfig
-    )
-  );
+
+  // Only include the root component if rerender was called
+  if (context.shouldRerender) {
+    console.log("[Server] Re-rendering page after server action");
+    const root = await getPageElementRsc(pageContext);
+    return providePageContext(pageContext, () =>
+      ReactServer.renderToReadableStream(
+        {
+          returnValue,
+          root,
+        },
+        bundlerConfig
+      )
+    );
+  } else {
+    console.log("[Server] Returning server action result without re-rendering");
+    return providePageContext(pageContext, () =>
+      ReactServer.renderToReadableStream(
+        {
+          returnValue,
+        },
+        bundlerConfig
+      )
+    );
+  }
 }

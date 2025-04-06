@@ -1,5 +1,7 @@
 "use server";
 
+import { rerender } from "vike-react-rsc/server";
+
 interface Todo {
   id: string;
   title: string;
@@ -28,6 +30,9 @@ export const addTodo = async (title: string) => {
   };
 
   todos.push(newTodo);
+
+  // Call rerender to update the UI
+  rerender();
 };
 
 export const deleteTodo = async (id: string) => {
@@ -40,6 +45,9 @@ export const deleteTodo = async (id: string) => {
   if (index !== -1) {
     todos.splice(index, 1);
   }
+
+  // Call rerender to update the UI
+  rerender();
 };
 
 export const toggleTodo = async (id: string) => {
@@ -52,4 +60,7 @@ export const toggleTodo = async (id: string) => {
   if (todo) {
     todo.completed = !todo.completed;
   }
+
+  // Call rerender to update the UI
+  rerender();
 };

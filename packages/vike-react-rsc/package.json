@@ -9,6 +9,7 @@
   },
   "exports": {
     "./config": "./dist/config.js",
+    "./server": "./dist/server.js",
     "./pageContext": {
       "react-server": "./dist/hooks/pageContext/pageContext-server.js",
       "default": "./dist/hooks/pageContext/pageContext-client.js"

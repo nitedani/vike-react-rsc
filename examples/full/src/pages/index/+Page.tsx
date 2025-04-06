@@ -310,10 +310,10 @@ export default async function Page() {
             }}>
               3
             </div>
-            <h3 css={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem', color: '#333' }}>Server Actions</h3>
+            <h3 css={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem', color: '#333' }}>Optimized Server Actions</h3>
             <p css={{ color: '#666', lineHeight: 1.7, fontSize: '1.1rem' }}>
-              The Tasks demo shows server actions. When triggered, the server executes the action,
-              re-renders the page, and sends a new RSC payload to update the UI.
+              The counter above demonstrates optimized server actions. When clicked, the server executes the action
+              but doesn't re-render the page, returning only the result for better performance.
             </p>
           </div>
         </div>
