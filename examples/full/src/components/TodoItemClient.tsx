@@ -38,12 +38,13 @@ export default function TodoItemClient({ todo }: { todo: Todo }) {
       justifyContent: 'space-between',
       transition: 'all 0.3s ease',
       opacity: isDeleting ? 0.5 : 1,
+      height: '60px', // Fixed height for consistency
       ':hover': {
         transform: 'translateY(-3px)',
         boxShadow: '0 8px 15px rgba(0, 0, 0, 0.08)'
       }
     }}>
-      <div css={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+      <div css={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, overflow: 'hidden' }}>
         <button
           onClick={handleToggle}
           disabled={isToggling}
@@ -86,7 +87,10 @@ export default function TodoItemClient({ todo }: { todo: Todo }) {
           color: todo.completed ? '#999' : '#333',
           textDecoration: todo.completed ? 'line-through' : 'none',
           transition: 'all 0.2s ease',
-          wordBreak: 'break-word'
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: '100%'
         }}>
           {todo.title}
         </span>

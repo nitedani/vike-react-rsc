@@ -29,6 +29,7 @@ export default function TodoFormClient() {
         display: "flex",
         gap: "0.75rem",
         alignItems: "center",
+        position: "relative",
         "@media (max-width: 768px)": {
           flexDirection: "column",
           gap: "1rem",
@@ -48,6 +49,7 @@ export default function TodoFormClient() {
           fontSize: "1rem",
           width: "100%",
           transition: "all 0.3s ease",
+          boxShadow: "0 2px 10px rgba(0, 0, 0, 0.03)",
           ":focus": {
             outline: "none",
             borderColor: "#0070f3",
@@ -70,6 +72,7 @@ export default function TodoFormClient() {
           whiteSpace: "nowrap",
           transition: "all 0.3s ease",
           boxShadow: "0 4px 14px rgba(0, 118, 255, 0.39)",
+          minWidth: "120px",
           "@media (max-width: 768px)": {
             width: "100%",
           },
