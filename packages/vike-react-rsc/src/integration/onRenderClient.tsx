@@ -19,6 +19,7 @@ declare global {
     >;
     __vikeRscCallServer: typeof callServer;
     __pageId: string;
+    __navigationPromise: Promise<RscPayload>;
   }
 }
 window.__vikeRscCallServer = callServer;
@@ -88,8 +89,8 @@ export const onRenderClient: OnRenderClientAsync = async function (
   // Handle client-side navigation
   else if (pageContext.isClientSideNavigation) {
     try {
-      console.log("[Client] Client-side navigation");
-      const payload = await onNavigate();
+      console.log("[Client] Client-side navigation", window.__navigationPromise);
+      const payload = await window.__navigationPromise;
       window.__setPayload({ pageContext, payload });
       console.log("[Client] Navigation complete");
     } catch (error) {

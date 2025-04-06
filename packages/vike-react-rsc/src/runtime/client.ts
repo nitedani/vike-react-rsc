@@ -5,6 +5,7 @@ tinyassert(envName === "client", "Invalid environment");
 //@ts-ignore
 import ReactClient from "react-server-dom-webpack/client.browser";
 import type { RscPayload } from "../types";
+import type { PageContext } from "vike/types";
 
 export async function callServer(
   id: string,
@@ -33,17 +34,17 @@ export async function callServer(
   return result.returnValue;
 }
 
-export function onNavigate(): Promise<RscPayload> {
-  console.log("[RSC Client] Navigation:", window.location.href);
-  return ReactClient.createFromFetch<RscPayload>(
+export function onNavigate(pageContext: PageContext): void {
+  console.log("[RSC Client] Navigation:", pageContext.urlPathname);
+  window.__navigationPromise = ReactClient.createFromFetch<RscPayload>(
     fetch("/_rsc", {
       method: "GET",
       headers: {
         // Skip onRenderHtml, but get access to pageContext for RSC render
         // Make Vike think this is a "navigation", skipping onRenderHtml
         "x-vike-urloriginal": `${
-          window.location.pathname === "/" ? "" : window.location.pathname
-        }/index.pageContext.json${window.location.search}`,
+          pageContext.urlPathname === "/" ? "" : pageContext.urlPathname
+        }/index.pageContext.json${pageContext.urlParsed.searchOriginal || ""}`,
       },
     }),
     { callServer }
