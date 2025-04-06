@@ -86,6 +86,7 @@ export const configs: Plugin[] = [
     config() {
       return {
         vitePluginServerEntry: {
+          // dist/rsc/ shouldn't include server code (Express.js, Hono, ...)
           disableServerEntryEmit: true
         }
       }
