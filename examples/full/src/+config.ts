@@ -1,9 +1,8 @@
 import type { Config } from "vike/types";
-import vikeServer from "vike-server/config";
 import vikeReactRsc from "vike-react-rsc/config";
+import vikeCloudflare from "vike-cloudflare/config";
 
 export default {
-  extends: [vikeServer, vikeReactRsc],
-  server: { entry: "./src/server.ts", standalone: false },
-  // prerender: { keepDistServer: true },
+  extends: [vikeCloudflare, vikeReactRsc],
+  server: { entry: "./src/server.ts" },
 } satisfies Config;

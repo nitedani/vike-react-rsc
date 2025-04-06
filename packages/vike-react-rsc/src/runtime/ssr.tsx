@@ -12,7 +12,8 @@ import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
 import runtimeRsc from "virtual:runtime/server";
 import type { Head } from "../types/Config";
 import { isReactElement } from "../utils/isReactElement";
-import { renderToStaticMarkup } from 'react-dom/server'
+//@ts-ignore
+import { renderToStaticMarkup } from 'react-dom/server.edge'
 import React from "react";
 
 const INIT_SCRIPT = `

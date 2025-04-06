@@ -1,8 +1,14 @@
 import { Hono } from "hono";
-import { apply } from "vike-server/hono";
-import { serve } from "vike-server/hono/serve";
+import { apply } from "vike-cloudflare/hono";
+import { serve } from "vike-cloudflare/hono/serve";
 
-const app = new Hono();
-apply(app);
-const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-serve(app, { port });
+function startServer() {
+  const app = new Hono();
+  const port = process.env.PORT || 3000;
+
+  apply(app);
+
+  return serve(app, { port: +port });
+}
+
+export default startServer();
