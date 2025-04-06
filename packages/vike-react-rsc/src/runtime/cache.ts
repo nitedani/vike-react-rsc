@@ -86,3 +86,18 @@ export function cachePayload(pageContext: PageContext, payload: RscPayload): voi
   });
   console.log("[RSC Cache] Stored payload for", cacheKey);
 }
+
+/**
+ * Invalidate the cache entry for a specific page
+ */
+export function invalidateCache(pageContext: PageContext): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const cacheKey = getCacheKey(pageContext);
+  if (window.__rscCache.has(cacheKey)) {
+    window.__rscCache.delete(cacheKey);
+    console.log("[RSC Cache] Invalidated cache for", cacheKey);
+  }
+}

@@ -19,7 +19,7 @@ declare global {
     >;
     __vikeRscCallServer: typeof callServer;
 
-    __pageId: string;
+    __pageContext: PageContextClient;
     __navigationPromise: Promise<RscPayload>;
   }
 }
@@ -52,7 +52,7 @@ function Root({
 export const onRenderClient: OnRenderClientAsync = async function (
   pageContext: PageContextClient
 ) {
-  window.__pageId = pageContext.pageId!;
+  window.__pageContext = pageContext
   console.log("[Vike Hook] +onRenderClient called");
 
   // Handle initial page load (hydration)

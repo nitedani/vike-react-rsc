@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vike dev",
     "build": "vike build",
-    "start": "NODE_ENV=production node dist/server/index.standalone.mjs",
+    "start": "NODE_ENV=production node dist/server/index.js",
     "preview": "vike build && cross-env NODE_ENV=production wrangler pages dev",
     "deploy": "vike build && cross-env NODE_ENV=production wrangler pages deploy"
   },

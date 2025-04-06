@@ -5,9 +5,15 @@ tinyassert(envName === "client", "Invalid environment");
 //@ts-ignore
 import ReactClient from "react-server-dom-webpack/client.browser";
 import type { RscPayload } from "../types";
-import type { PageContext } from "vike/types";
-import { getCachedPayload, cachePayload } from "./cache";
+import type { PageContextClient } from "vike/types";
+import { getCachedPayload, cachePayload, invalidateCache } from "./cache";
 import { startTransition } from "react";
+
+function getVikeUrlOriginal(pageContext: PageContextClient) {
+  return `${
+    pageContext.urlPathname === "/" ? "" : pageContext.urlPathname
+  }/index.pageContext.json${pageContext.urlParsed.searchOriginal || ""}`;
+}
 
 export async function callServer(
   id: string,
@@ -21,9 +27,7 @@ export async function callServer(
         "x-rsc-action": id,
         // Skip onRenderHtml, but get access to pageContext for RSC render
         // Make Vike think this is a "navigation", skipping onRenderHtml
-        "x-vike-urloriginal": `${
-          window.location.pathname === "/" ? "" : window.location.pathname
-        }/index.pageContext.json${window.location.search}`,
+        "x-vike-urloriginal": getVikeUrlOriginal(window.__pageContext),
       },
       body: await ReactClient.encodeReply(args),
     }),
@@ -50,12 +54,19 @@ export async function callServer(
     });
   } else {
     console.log("[RSC Client] Server action returned without re-render");
+
+    // Invalidate the cache for the current page since we assume a mutation was done
+    if (typeof window !== "undefined" && window.__pageContext) {
+      invalidateCache(window.__pageContext);
+    }
   }
 
   return result.returnValue;
 }
 
-export async function onNavigate(pageContext: PageContext): Promise<void> {
+export async function onNavigate(
+  pageContext: PageContextClient
+): Promise<void> {
   console.log("[RSC Client] Navigation:", pageContext.urlPathname);
 
   // No need to configure cache - staleTime is read directly from pageContext
@@ -75,9 +86,7 @@ export async function onNavigate(pageContext: PageContext): Promise<void> {
       headers: {
         // Skip onRenderHtml, but get access to pageContext for RSC render
         // Make Vike think this is a "navigation", skipping onRenderHtml
-        "x-vike-urloriginal": `${
-          pageContext.urlPathname === "/" ? "" : pageContext.urlPathname
-        }/index.pageContext.json${pageContext.urlParsed.searchOriginal || ""}`,
+        "x-vike-urloriginal": getVikeUrlOriginal(pageContext),
       },
     }),
     { callServer }
