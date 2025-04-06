@@ -25,7 +25,7 @@ export const Todos = ({ todos }: { todos: Todo[] }) => {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       onAddTodo();
     }
@@ -77,7 +77,7 @@ export const Todos = ({ todos }: { todos: Todo[] }) => {
           type="text"
           ref={inputRef}
           placeholder="What needs to be done?"
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyDown}
           css={{
             flex: 1,
             padding: '1rem 1.25rem',
@@ -126,14 +126,10 @@ export const Todos = ({ todos }: { todos: Todo[] }) => {
         >
           {isAdding ? (
             <span css={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-              <svg css={{
+              <svg style={{
                 width: '16px',
                 height: '16px',
-                animation: 'spin 1s linear infinite',
-                '@keyframes spin': {
-                  '0%': { transform: 'rotate(0deg)' },
-                  '100%': { transform: 'rotate(360deg)' }
-                }
+                animation: 'spin 1s linear infinite'
               }} viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="32" strokeDashoffset="8" />
               </svg>
@@ -152,7 +148,7 @@ export const Todos = ({ todos }: { todos: Todo[] }) => {
           borderRadius: '12px',
           border: '2px dashed #ddd'
         }}>
-          <svg css={{ width: '50px', height: '50px', marginBottom: '1rem', color: '#ccc' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg style={{ width: '50px', height: '50px', marginBottom: '1rem', color: '#ccc' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M11 19H6.2c-1.12 0-1.68 0-2.108-.218a2 2 0 0 1-.874-.874C3 17.48 3 16.92 3 15.8V8.2c0-1.12 0-1.68.218-2.108a2 2 0 0 1 .874-.874C4.52 5 5.08 5 6.2 5h11.6c1.12 0 1.68 0 2.108.218a2 2 0 0 1 .874.874C21 6.52 21 7.08 21 8.2V11M17 21v-6M14 18h6M10 9H6m4 4H6" />
           </svg>
           <p css={{ fontSize: '1.1rem', fontWeight: '500' }}>No tasks yet. Add one to get started!</p>
@@ -209,7 +205,7 @@ export const Todos = ({ todos }: { todos: Todo[] }) => {
                   }}
                 >
                   {togglingIds.has(todo.id) ? (
-                    <div css={{
+                    <div style={{
                       width: '10px',
                       height: '10px',
                       borderRadius: '50%',
@@ -259,7 +255,7 @@ export const Todos = ({ todos }: { todos: Todo[] }) => {
                 }}
               >
                 {deletingIds.has(todo.id) ? (
-                  <svg css={{
+                  <svg style={{
                     width: '16px',
                     height: '16px',
                     animation: 'spin 0.7s linear infinite',
