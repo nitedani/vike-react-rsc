@@ -84,6 +84,10 @@ export const configs: Plugin[] = [
       console.log('c.bla2', c.bla2)
       console.log('c.build.outDir', c.build.outDir)
       console.log()
+      if (c.build.outDir === 'dist/rsc') {
+        // @ts-ignore
+        c.vitePluginServerEntry.disableServerEntryEmit = true
+      }
     },
     sharedDuringBuild: false,
   },
