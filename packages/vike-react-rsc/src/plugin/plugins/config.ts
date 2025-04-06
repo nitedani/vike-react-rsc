@@ -1,5 +1,14 @@
 import { PKG_NAME } from "../../constants";
 import type { Plugin, UserConfig } from "vite";
+import type { VitePluginServerEntryOptions } from '@brillout/vite-plugin-server-entry/plugin'
+
+const distRsc = 'dist/rsc'
+
+declare module 'vite' {
+  interface UserConfig {
+    vitePluginServerEntry?: VitePluginServerEntryOptions
+  }
+}
 
 export const configs: Plugin[] = [
   {
@@ -40,6 +49,11 @@ export const configs: Plugin[] = [
             },
           },
           rsc: {
+            // Doesn't work, see [VITE-ENV-CONFIG-DIRTY-HACK]
+            // @ts-ignore
+            vitePluginServerEntry: {
+              disableServerEntryEmit: true
+            },
             resolve: {
               conditions: ["react-server"],
               noExternal: [
@@ -57,7 +71,7 @@ export const configs: Plugin[] = [
               ],
             },
             build: {
-              outDir: "dist/rsc",
+              outDir: distRsc,
               ssr: true,
               rollupOptions: {
                 input: { index: "virtual:build-rsc-entry" },
@@ -66,6 +80,14 @@ export const configs: Plugin[] = [
           },
         },
       };
+    },
+    configResolved(c) {
+      // See [VITE-ENV-CONFIG-DIRTY-HACK]
+      if (c.build.outDir === distRsc) {
+        // @ts-ignore
+        c.vitePluginServerEntry ??= {}
+        c.vitePluginServerEntry.disableServerEntryEmit = true
+      }
     },
     sharedDuringBuild: false,
   },
