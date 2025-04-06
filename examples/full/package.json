@@ -25,7 +25,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "typescript": "^5.8.2",
-    "vike": "^0.4.227",
+    "vike": "0.4.228-commit-1553dee",
     "vike-cloudflare": "^0.2.3",
     "vike-react-rsc": "^1.0.0",
     "vike-server": "^1.0.8",

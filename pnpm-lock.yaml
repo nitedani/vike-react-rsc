@@ -45,17 +45,17 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
       vike:
-        specifier: ^0.4.227
-        version: 0.4.227(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
+        specifier: 0.4.228-commit-1553dee
+        version: 0.4.228-commit-1553dee(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
       vike-cloudflare:
         specifier: ^0.2.3
-        version: 0.2.3(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(vike@0.4.227(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
+        version: 0.2.3(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(vike@0.4.228-commit-1553dee(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
       vike-react-rsc:
         specifier: link:../../packages/vike-react-rsc
         version: link:../../packages/vike-react-rsc
       vike-server:
         specifier: ^1.0.8
-        version: 1.0.8(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(hono@4.7.5)(vike@0.4.227(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
+        version: 1.0.8(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(hono@4.7.5)(vike@0.4.228-commit-1553dee(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
       vite:
         specifier: ^6.2.3
         version: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)
@@ -107,8 +107,8 @@ importers:
         specifier: ^5.8.2
         version: 5.8.2
       vike:
-        specifier: ^0.4.227
-        version: 0.4.227(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
+        specifier: 0.4.228-commit-1553dee
+        version: 0.4.228-commit-1553dee(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
       vite:
         specifier: ^6.2.3
         version: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)
@@ -230,6 +230,9 @@ packages:
 
   '@brillout/vite-plugin-server-entry@0.7.1':
     resolution: {integrity: sha512-f4Mf4/5Lc8ScQwx15EkVfp34Zmt0o4pDG6zvNWxMNyCToUTs31RDCiXtIGTWck2AOIAiBkEeuM6vK0cA7cuU1Q==}
+
+  '@brillout/vite-plugin-server-entry@0.7.5':
+    resolution: {integrity: sha512-OHMTJrAY2gGFA231VnUrGM/gZNkhZAa5cCYA7BQ7V0EGDBOIUxMmTxmrSdnUWfbzLG7H5CP+x19mfwGNnoy52Q==}
 
   '@cloudflare/kv-asset-handler@0.3.4':
     resolution: {integrity: sha512-YLPHc8yASwjNkmcDMQMY35yiWjoKAKnhUbPRszBRS0YgH+IXtsMp61j+yTcnCE3oO2DgP0U3iejLC8FTtKDC8Q==}
@@ -2560,8 +2563,8 @@ packages:
       vite:
         optional: true
 
-  vike@0.4.227:
-    resolution: {integrity: sha512-poAckU/7H0oJlevVveWLE7isv81fZYilKpiW55UWPsSC5gnuAJflUevuQ4kWvQEiURh8L5BsggrzOCHHN4Vrhw==}
+  vike@0.4.228-commit-1553dee:
+    resolution: {integrity: sha512-GP9w3OcDEhhhW0JmR9ZRWArXb8ekJpu+OU+0Tv7/EOaEosvastDs9M0RNBLyA6d8ez2BDYcF7cC/lXUDSqJ6YA==}
     engines: {node: '>=18.0.0'}
     hasBin: true
     peerDependencies:
@@ -2822,6 +2825,11 @@ snapshots:
   '@brillout/require-shim@0.1.2': {}
 
   '@brillout/vite-plugin-server-entry@0.7.1':
+    dependencies:
+      '@brillout/import': 0.2.6
+      '@brillout/picocolors': 1.0.26
+
+  '@brillout/vite-plugin-server-entry@0.7.5':
     dependencies:
       '@brillout/import': 0.2.6
       '@brillout/picocolors': 1.0.26
@@ -5064,11 +5072,11 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vike-cloudflare@0.2.3(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(vike@0.4.227(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)):
+  vike-cloudflare@0.2.3(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(vike@0.4.228-commit-1553dee(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)):
     dependencies:
       hono: 4.7.5
-      vike: 0.4.227(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
-      vike-server: 1.0.8(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(hono@4.7.5)(vike@0.4.227(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
+      vike: 0.4.228-commit-1553dee(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
+      vike-server: 1.0.8(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(hono@4.7.5)(vike@0.4.228-commit-1553dee(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
       vite: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)
     optionalDependencies:
       '@hattip/adapter-cloudflare-workers': 0.0.49
@@ -5080,7 +5088,7 @@ snapshots:
       - fastify
       - h3
 
-  vike-server@1.0.8(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(hono@4.7.5)(vike@0.4.227(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)):
+  vike-server@1.0.8(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(hono@4.7.5)(vike@0.4.228-commit-1553dee(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)):
     dependencies:
       '@brillout/picocolors': 1.0.26
       '@brillout/vite-plugin-server-entry': 0.7.1
@@ -5094,7 +5102,7 @@ snapshots:
       '@universal-middleware/hono': 0.4.7(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(hono@4.7.5)
       '@universal-middleware/sirv': 0.1.13
       esbuild: 0.25.1
-      vike: 0.4.227(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
+      vike: 0.4.228-commit-1553dee(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0))
     optionalDependencies:
       vite: 6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)
     transitivePeerDependencies:
@@ -5106,18 +5114,19 @@ snapshots:
       - h3
       - hono
 
-  vike@0.4.227(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)):
+  vike@0.4.228-commit-1553dee(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)):
     dependencies:
       '@brillout/import': 0.2.6
       '@brillout/json-serializer': 0.5.15
       '@brillout/picocolors': 1.0.26
       '@brillout/require-shim': 0.1.2
-      '@brillout/vite-plugin-server-entry': 0.7.1
+      '@brillout/vite-plugin-server-entry': 0.7.5
       acorn: 8.14.1
       cac: 6.7.14
       es-module-lexer: 1.6.0
       esbuild: 0.24.2
       json5: 2.2.3
+      magic-string: 0.30.17
       picomatch: 4.0.2
       semver: 7.7.1
       sirv: 3.0.1
