@@ -6,6 +6,9 @@
     "pnpm": {
         "overrides": {
             "vike-react-rsc": "link:./packages/vike-react-rsc/"
+        },
+        "patchedDependencies": {
+            "vike": "patches/vike.patch"
         }
     },
     "devDependencies": {

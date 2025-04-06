@@ -1,0 +1,14 @@
+diff --git a/dist/esm/node/plugin/plugins/build/handleAssetsManifest.js b/dist/esm/node/plugin/plugins/build/handleAssetsManifest.js
+index 36d8ae2f0539b78b9e8974b67c90b18c1c6aef9b..4b5b11a1059c224c5770c9602ae68f4ef0a734fe 100644
+--- a/dist/esm/node/plugin/plugins/build/handleAssetsManifest.js
++++ b/dist/esm/node/plugin/plugins/build/handleAssetsManifest.js
+@@ -303,6 +303,9 @@ async function handleAssetsManifest(config, viteEnv, options, bundle) {
+         await writeAssetsManifestFile(outDirs, assetsJsonFilePath, config);
+     }
+     if (isViteServerBuild(config, viteEnv)) {
++        if (!assetsJsonFilePath) {
++            return
++        }
+         assert(assetsJsonFilePath);
+         // Replace __VITE_ASSETS_MANIFEST__ in all server-side bundles
+         await set_macro_ASSETS_MANIFEST(options, bundle, assetsJsonFilePath);
