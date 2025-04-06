@@ -46,6 +46,7 @@
     "react-streaming": "^0.4.2"
   },
   "devDependencies": {
+    "@brillout/vite-plugin-server-entry": "^0.7.5",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
     "react": "^19.1.0",

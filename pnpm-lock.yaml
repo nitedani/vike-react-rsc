@@ -91,6 +91,9 @@ importers:
         specifier: ^0.4.2
         version: 0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
     devDependencies:
+      '@brillout/vite-plugin-server-entry':
+        specifier: ^0.7.5
+        version: 0.7.5
       '@types/react':
         specifier: ^19.0.12
         version: 19.0.12
@@ -230,9 +233,6 @@ packages:
 
   '@brillout/require-shim@0.1.2':
     resolution: {integrity: sha512-3I4LRHnVZXoSAsEoni5mosq9l6eiJED58d9V954W4CIZ88AUfYBanWGBGbJG3NztaRTpFHEA6wB3Hn93BmmJdg==}
-
-  '@brillout/vite-plugin-server-entry@0.7.1':
-    resolution: {integrity: sha512-f4Mf4/5Lc8ScQwx15EkVfp34Zmt0o4pDG6zvNWxMNyCToUTs31RDCiXtIGTWck2AOIAiBkEeuM6vK0cA7cuU1Q==}
 
   '@brillout/vite-plugin-server-entry@0.7.5':
     resolution: {integrity: sha512-OHMTJrAY2gGFA231VnUrGM/gZNkhZAa5cCYA7BQ7V0EGDBOIUxMmTxmrSdnUWfbzLG7H5CP+x19mfwGNnoy52Q==}
@@ -2856,11 +2856,6 @@ snapshots:
 
   '@brillout/require-shim@0.1.2': {}
 
-  '@brillout/vite-plugin-server-entry@0.7.1':
-    dependencies:
-      '@brillout/import': 0.2.6
-      '@brillout/picocolors': 1.0.26
-
   '@brillout/vite-plugin-server-entry@0.7.5':
     dependencies:
       '@brillout/import': 0.2.6
@@ -5143,7 +5138,7 @@ snapshots:
   vike-server@1.0.8(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(hono@4.7.5)(vike@0.4.228-commit-1553dee(react-streaming@0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.3(@types/node@22.13.14)(jiti@2.4.2)(terser@5.39.0)):
     dependencies:
       '@brillout/picocolors': 1.0.26
-      '@brillout/vite-plugin-server-entry': 0.7.1
+      '@brillout/vite-plugin-server-entry': 0.7.5
       '@universal-middleware/compress': 0.2.22
       '@universal-middleware/core': 0.4.5(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(hono@4.7.5)
       '@universal-middleware/elysia': 0.4.6(@cloudflare/workers-types@4.20250405.0)(@hattip/core@0.0.49)(hono@4.7.5)

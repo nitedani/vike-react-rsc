@@ -1,5 +1,14 @@
 import { PKG_NAME } from "../../constants";
 import type { Plugin, UserConfig } from "vite";
+import type { VitePluginServerEntryOptions } from '@brillout/vite-plugin-server-entry/plugin'
+
+const distRsc = 'dist/rsc'
+
+declare module 'vite' {
+  interface UserConfig {
+    vitePluginServerEntry?: VitePluginServerEntryOptions
+  }
+}
 
 export const configs: Plugin[] = [
   {
@@ -17,7 +26,6 @@ export const configs: Plugin[] = [
     },
     config(): UserConfig {
       return {
-        bla2: 23,
         environments: {
           client: {
             optimizeDeps: {
@@ -41,11 +49,11 @@ export const configs: Plugin[] = [
             },
           },
           rsc: {
-            // @ts-expect-error
-            bla: 123,
-    vitePluginServerEntry: {
-      disableServerEntryEmit: true
-    },
+            // Doesn't work, see [VITE-ENV-CONFIG-DIRTY-HACK]
+            // @ts-ignore
+            vitePluginServerEntry: {
+              disableServerEntryEmit: true
+            },
             resolve: {
               conditions: ["react-server"],
               noExternal: [
@@ -63,7 +71,7 @@ export const configs: Plugin[] = [
               ],
             },
             build: {
-              outDir: "dist/rsc",
+              outDir: distRsc,
               ssr: true,
               rollupOptions: {
                 input: { index: "virtual:build-rsc-entry" },
@@ -74,18 +82,10 @@ export const configs: Plugin[] = [
       };
     },
     configResolved(c) {
-      c.envPrefix
-      console.log('configResolved')
-      // @ts-ignore
-      console.log('c.bla', c.bla)
-      // @ts-ignore
-      console.log('this.environment',this?.environment)
-      // @ts-ignore
-      console.log('c.bla2', c.bla2)
-      console.log('c.build.outDir', c.build.outDir)
-      console.log()
-      if (c.build.outDir === 'dist/rsc') {
+      // See [VITE-ENV-CONFIG-DIRTY-HACK]
+      if (c.build.outDir === distRsc) {
         // @ts-ignore
+        c.vitePluginServerEntry ??= {}
         c.vitePluginServerEntry.disableServerEntryEmit = true
       }
     },
