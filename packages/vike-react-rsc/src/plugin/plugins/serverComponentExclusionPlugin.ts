@@ -4,7 +4,7 @@ import {
   retrieveAssetsDev,
   styleFileRE,
 } from "../../runtime/retrieveAssetsDev";
-import { retrieveAssetsProd, buildCssDependencyGraph } from "../../runtime/retrieveAssetsProd";
+import { retrieveAssetsProd, buildCssDependencyGraph, collectDependencies } from "../../runtime/retrieveAssetsProd";
 import { hasDirective } from "@hiogawa/transforms";
 
 // Define styleFileRE here to match CSS file extensions
@@ -15,61 +15,25 @@ import { hasDirective } from "@hiogawa/transforms";
  */
 export const serverComponentExclusionPlugin = (): Plugin[] => {
   let devServer: ViteDevServer;
-  // Store direct CSS imports for each module
-  const cssImportMapBuild: { [importer: string]: string[] } = {};
-  // Store JavaScript module dependencies
-  const jsImportMapBuild: { [importer: string]: string[] } = {};
+  // Create dependency collector
+  const dependencyCollector = collectDependencies(styleFileRE);
   // Store the complete CSS dependency graph
-  let cssImportGraph: { [importer: string]: Set<string> } = {};
-  // Store original source paths for resolved IDs
-  const originalSourceMap: { [resolvedId: string]: string } = {};
+  let cssImportGraph: Record<string, Set<string>> = {};
 
   return [
+    // Use the dependency collector plugin
+    dependencyCollector.plugin,
     {
-      name: "vike-rsc:discover-css-build2",
+      name: "vike-rsc:build-css-graph",
       apply: "build",
       enforce: "pre",
       applyToEnvironment(environment) {
         return environment.name === "rsc";
       },
-      resolveId: {
-        order: "pre",
-        async handler(source, importer, options) {
-          if (!importer) return;
-
-          // Skip virtual modules and node_modules
-          if (source.includes('\0') || source.includes('node_modules')) return;
-
-          try {
-            // Try to resolve the source to get the full path
-            const resolved = await this.resolve(source, importer, { skipSelf: true, ...options });
-            if (!resolved) return;
-
-            const resolvedId = resolved.id;
-
-            // Store the original source path for this resolved ID
-            originalSourceMap[resolvedId] = source;
-
-            if (styleFileRE.test(resolvedId)) {
-              // Record direct CSS imports
-              cssImportMapBuild[importer] ??= [];
-              cssImportMapBuild[importer].push(resolvedId);
-            } else if (
-              resolvedId.endsWith('.js') || resolvedId.endsWith('.jsx') ||
-              resolvedId.endsWith('.ts') || resolvedId.endsWith('.tsx') ||
-              resolvedId.endsWith('.mjs') || resolvedId.endsWith('.cjs')
-            ) {
-              // Record JavaScript module dependencies
-              jsImportMapBuild[importer] ??= [];
-              jsImportMapBuild[importer].push(resolvedId);
-            }
-          } catch (error) {
-            // Silently ignore resolution errors
-          }
-        },
-      },
       // Build the complete CSS dependency graph after all modules are processed
       buildEnd() {
+        // Get the collected dependencies
+        const { cssImportMapBuild, jsImportMapBuild } = dependencyCollector.getResult();
         // Build the complete CSS dependency graph using the utility function
         cssImportGraph = buildCssDependencyGraph(cssImportMapBuild, jsImportMapBuild);
       },
@@ -159,6 +123,7 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
             );
           } else {
             // Use retrieveAssetsProd to get properly formatted CSS paths
+            const { originalSourceMap } = dependencyCollector.getResult();
             cssIds = retrieveAssetsProd(
               id,
               cssImportGraph,

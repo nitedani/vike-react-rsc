@@ -1,10 +1,12 @@
 import CounterClient from './CounterClient';
 import { getCount } from '../../actions/counter';
 import { counterStyles } from './styles';
+import { sharedUtil } from "./sharedUtil";
 
 export default async function Counter() {
   // Get the initial count from the server
   const counterState = await getCount();
+  sharedUtil();
 
   return (
     <div css={counterStyles.container}>
