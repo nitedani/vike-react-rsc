@@ -1,8 +1,3 @@
-"use client";
-
-import React from 'react';
-import { useTransition } from 'react';
-
 interface PageInfo {
   name: string;
   path: string;
@@ -33,8 +28,6 @@ const pages: PageInfo[] = [
 ];
 
 export default function GuideNavigation({ currentPath }: { currentPath: string }) {
-  const [isPending, startTransition] = useTransition();
-  
   // Find the current page index
   const currentIndex = pages.findIndex(page => page.path === currentPath);
   

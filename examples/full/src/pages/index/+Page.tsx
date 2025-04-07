@@ -1,4 +1,4 @@
-import Counter from "../../components/Counter";
+import Counter from "../../components/Counter/Counter";
 import { getPageContext } from "vike-react-rsc/pageContext";
 
 export default async function Page() {

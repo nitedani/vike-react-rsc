@@ -1,61 +1,14 @@
 import { getPageContext } from "vike-react-rsc/pageContext";
 import { sharedStyles } from "../../styles/shared";
-import { MovieDetailsClient } from "../../components/MovieDetailsClient";
-
-type Film = {
-  id: number;
-  title: string;
-  director?: string;
-  releaseDate?: string;
-  openingCrawl?: string;
-};
+import { FilmGrid } from "../../components/Film/FilmGrid";
 
 async function Films() {
-  const films = await fetch(
-    "https://brillout.github.io/star-wars/api/films.json"
-  ).then((res) => res.json() as Promise<Film[]>);
-
-  // Simulate a longer loading time to showcase the loading state
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  console.log("Films fetched");
-
   return (
     <div css={{
       marginTop: '2rem',
       width: '100%'
     }}>
-      <div css={sharedStyles.cardGrid}>
-        {films.map((film) => (
-          <div
-            key={film.id}
-            css={sharedStyles.card}
-          >
-            <h3 css={sharedStyles.cardTitle}>{film.title}</h3>
-
-            {film.director && (
-              <p css={sharedStyles.cardMetadata}>
-                <strong>Director:</strong> {film.director}
-              </p>
-            )}
-
-            {film.releaseDate && (
-              <p css={sharedStyles.cardMetadata}>
-                <strong>Released:</strong> {film.releaseDate}
-              </p>
-            )}
-
-            {film.openingCrawl && (
-              <p css={sharedStyles.cardDescription}>
-                {film.openingCrawl}
-              </p>
-            )}
-
-            <div css={sharedStyles.cardButtonContainer}>
-              <MovieDetailsClient id={film.id} />
-            </div>
-          </div>
-        ))}
-      </div>
+      <FilmGrid listMode={true} />
     </div>
   );
 }

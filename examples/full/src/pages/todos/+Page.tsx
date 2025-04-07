@@ -1,5 +1,5 @@
 import { getTodos } from "../../actions/addTodo";
-import { Todos } from "../../components/Todos";
+import { Todos } from "../../components/Todo/Todos";
 import { sharedStyles } from "../../styles/shared";
 
 export async function Page() {

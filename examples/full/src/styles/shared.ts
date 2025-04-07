@@ -121,76 +121,6 @@ export const sharedStyles = {
     fontWeight: 'bold'
   },
 
-  // Card styles for film cards
-  card: {
-    padding: '1.5rem',
-    borderRadius: '16px',
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    width: '100%',
-    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05)',
-    transition: 'all 0.3s ease',
-    backgroundColor: 'white',
-    ':hover': {
-      transform: 'translateY(-10px)',
-      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
-    }
-  },
-
-  // Card title
-  cardTitle: {
-    fontSize: '1.5rem',
-    fontWeight: '600',
-    marginBottom: '0.5rem',
-    color: '#333',
-    borderBottom: '2px solid #0070f3',
-    paddingBottom: '0.5rem'
-  },
-
-  // Card metadata
-  cardMetadata: {
-    color: '#666',
-    marginBottom: '0.5rem',
-    fontSize: '0.9rem'
-  },
-
-  // Card description
-  cardDescription: {
-    color: '#666',
-    lineHeight: 1.6,
-    fontSize: '0.95rem',
-    flex: 1,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    display: '-webkit-box',
-    WebkitLineClamp: 4,
-    WebkitBoxOrient: 'vertical'
-  },
-
-  // Card button container
-  cardButtonContainer: {
-    marginTop: 'auto',
-    paddingTop: '1rem'
-  },
-
-  // Card button
-  cardButton: {
-    backgroundColor: 'transparent',
-    color: '#0070f3',
-    border: '1px solid #0070f3',
-    borderRadius: '50px',
-    padding: '0.5rem 1rem',
-    fontSize: '0.9rem',
-    fontWeight: '500',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    ':hover': {
-      backgroundColor: '#0070f3',
-      color: 'white'
-    }
-  },
-
   // Back link
   backLink: {
     display: 'inline-flex',
@@ -206,14 +136,5 @@ export const sharedStyles = {
       backgroundColor: 'rgba(0, 112, 243, 0.05)',
       transform: 'translateY(-2px)'
     }
-  },
-
-  // Card grid
-  cardGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '1.5rem',
-    marginTop: '2rem',
-    gridAutoRows: '1fr' // Ensure all rows have the same height
   }
 };
