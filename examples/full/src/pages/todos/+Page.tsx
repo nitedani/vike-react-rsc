@@ -24,10 +24,10 @@ export async function Page() {
           </a>
 
           <a
-            href="/data"
+            href="/suspense"
             css={sharedStyles.backLink}
           >
-            Data Fetching Demo <span css={{ marginLeft: '0.5rem' }}>→</span>
+            Suspense Demo <span css={{ marginLeft: '0.5rem' }}>→</span>
           </a>
         </div>
       </section>
@@ -84,6 +84,8 @@ export async function Page() {
           </div>
         </div>
       </section>
+
+
     </div>
   );
 }

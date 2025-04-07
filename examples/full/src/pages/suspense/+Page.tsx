@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { getPageContext } from "vike-react-rsc/pageContext";
 import { sharedStyles } from "../../styles/shared";
+import { MovieDetailsClient } from "../../components/MovieDetailsClient";
 
 // Use shared styles for consistency
 
@@ -52,9 +53,7 @@ async function FilmCard({ id }: { id: number }) {
       )}
 
       <div css={sharedStyles.cardButtonContainer}>
-        <button css={sharedStyles.cardButton}>
-          View Details
-        </button>
+        <MovieDetailsClient id={id} />
       </div>
     </div>
   );
@@ -183,9 +182,13 @@ export default async function Page() {
           Each part of the page can load independently without blocking the rest of the content.
         </p>
 
-        <div css={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
-          <a href="/" css={sharedStyles.backLink}>
-            <span css={{ marginRight: '0.5rem' }}>←</span> Back to Home
+        <div css={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <a href="/todos" css={sharedStyles.backLink}>
+            <span css={{ marginRight: '0.5rem' }}>←</span> Tasks App
+          </a>
+
+          <a href="/data" css={sharedStyles.backLink}>
+            Loading Demo <span css={{ marginLeft: '0.5rem' }}>→</span>
           </a>
         </div>
       </section>
@@ -241,6 +244,8 @@ export default async function Page() {
           </div>
         </div>
       </section>
+
+
     </div>
   );
 }

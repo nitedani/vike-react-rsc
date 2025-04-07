@@ -98,7 +98,10 @@ export async function handleServerAction({
   pageContext: PageContext;
   body: string | FormData;
 }): Promise<ReadableStream<Uint8Array>> {
-  console.log("[Server] Handling server action:", actionId);
+  // Check if this is a server component call
+  const isServerComponentCall = pageContext.headers?.['x-rsc-component-call'] === 'true';
+
+  console.log("[Server] Handling server action:", actionId, isServerComponentCall ? "(from server component)" : "");
 
   // Create context for this server action execution
   const context = { shouldRerender: false };

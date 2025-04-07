@@ -81,74 +81,6 @@ export default async function Page() {
           marginTop: '1rem'
         }}>
           <a
-            href="/todos"
-            css={{
-              backgroundColor: '#0070f3',
-              color: 'white',
-              textDecoration: 'none',
-              padding: '1rem 2rem',
-              borderRadius: '50px',
-              fontWeight: '600',
-              fontSize: '1.1rem',
-              transition: 'all 0.3s ease',
-              boxShadow: '0 4px 14px rgba(0, 118, 255, 0.39)',
-              ':hover': {
-                backgroundColor: '#005cc5',
-                transform: 'translateY(-5px)',
-                boxShadow: '0 6px 20px rgba(0, 118, 255, 0.23)'
-              }
-            }}
-          >
-            Try Todos App
-          </a>
-
-          <a
-            href="/suspense"
-            css={{
-              backgroundColor: '#fff',
-              color: '#0070f3',
-              textDecoration: 'none',
-              padding: '1rem 2rem',
-              borderRadius: '50px',
-              fontWeight: '600',
-              fontSize: '1.1rem',
-              transition: 'all 0.3s ease',
-              border: '2px solid #0070f3',
-              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)',
-              ':hover': {
-                backgroundColor: 'rgba(0, 112, 243, 0.05)',
-                transform: 'translateY(-5px)',
-                boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)'
-              }
-            }}
-          >
-            Suspense Demo
-          </a>
-
-          <a
-            href="/data"
-            css={{
-              backgroundColor: '#f8f9fa',
-              color: '#333',
-              textDecoration: 'none',
-              padding: '1rem 2rem',
-              borderRadius: '50px',
-              fontWeight: '600',
-              fontSize: '1.1rem',
-              transition: 'all 0.3s ease',
-              border: '2px solid #e9ecef',
-              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.05)',
-              ':hover': {
-                backgroundColor: '#e9ecef',
-                transform: 'translateY(-5px)',
-                boxShadow: '0 6px 20px rgba(0, 0, 0, 0.1)'
-              }
-            }}
-          >
-            Loading Demo
-          </a>
-
-          <a
             href="https://github.com/nitedani/vike-react-rsc"
             target="_blank"
             css={{
@@ -175,6 +107,36 @@ export default async function Page() {
               <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
             </svg>
             GitHub
+          </a>
+
+          <a
+            href="/todos"
+            css={{
+              backgroundColor: '#0070f3',
+              color: 'white',
+              textDecoration: 'none',
+              padding: '1rem 2rem',
+              borderRadius: '50px',
+              fontWeight: '600',
+              fontSize: '1.1rem',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 14px rgba(0, 118, 255, 0.39)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              ':hover': {
+                backgroundColor: '#005cc5',
+                transform: 'translateY(-5px)',
+                boxShadow: '0 6px 20px rgba(0, 118, 255, 0.23)'
+              }
+            }}
+          >
+            <svg style={{ width: '20px', height: '20px' }} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+              <path d="M12 8v8"/>
+              <path d="M8 12h8"/>
+            </svg>
+            Start Tour
           </a>
         </div>
       </section>
@@ -318,6 +280,8 @@ export default async function Page() {
           </div>
         </div>
       </section>
+
+
     </div>
   );
 }

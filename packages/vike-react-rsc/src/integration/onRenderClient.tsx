@@ -8,21 +8,22 @@ import envName from "virtual:enviroment-name";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
 import { callServer, parseRscStream } from "../runtime/client";
 import type { RscPayload } from "../types";
+import { getGlobalClientState } from "../runtime/client/globalState";
 
+// Initialize the global client state
+const globalState = getGlobalClientState();
+
+// Set up the callServer function in the global state
+globalState.vikeRscCallServer = callServer;
+
+// We still need to expose the callServer function on the window for plugins
 declare global {
   interface Window {
-    __setPayload: React.Dispatch<
-      React.SetStateAction<{
-        payload: RscPayload;
-        pageContext: PageContextClient;
-      }>
-    >;
     __vikeRscCallServer: typeof callServer;
-
-    __pageContext: PageContextClient;
-    __navigationPromise: Promise<RscPayload>;
   }
 }
+
+// Set up the window property needed by plugins
 window.__vikeRscCallServer = callServer;
 
 // The Root component which manages RSC nodes
@@ -39,7 +40,8 @@ function Root({
   }>({ payload: initialPayload, pageContext: initialPageContext });
 
   useEffect(() => {
-    window.__setPayload = setPayload;
+    // Store the setPayload function in the global state
+    globalState.setPayload = setPayload;
   }, []);
 
   return (
@@ -52,7 +54,8 @@ function Root({
 export const onRenderClient: OnRenderClientAsync = async function (
   pageContext: PageContextClient
 ) {
-  window.__pageContext = pageContext
+  // Store the page context in the global state
+  globalState.pageContext = pageContext;
   console.log("[Vike Hook] +onRenderClient called");
 
   // Handle initial page load (hydration)
@@ -90,9 +93,13 @@ export const onRenderClient: OnRenderClientAsync = async function (
   // Handle client-side navigation
   else if (pageContext.isClientSideNavigation) {
     try {
-      console.log("[Client] Client-side navigation", window.__navigationPromise);
-      const payload = await window.__navigationPromise;
-      window.__setPayload({ pageContext, payload });
+      console.log("[Client] Client-side navigation", globalState.navigationPromise);
+      if (globalState.navigationPromise) {
+        const payload = await globalState.navigationPromise;
+        globalState.setPayload?.({ pageContext, payload });
+      } else {
+        console.error("[Client] No navigation promise found");
+      }
       console.log("[Client] Navigation complete");
     } catch (error) {
       console.error("[Client] Failed to navigate:", error);

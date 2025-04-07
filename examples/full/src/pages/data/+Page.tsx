@@ -1,5 +1,6 @@
 import { getPageContext } from "vike-react-rsc/pageContext";
 import { sharedStyles } from "../../styles/shared";
+import { MovieDetailsClient } from "../../components/MovieDetailsClient";
 
 type Film = {
   id: number;
@@ -50,9 +51,7 @@ async function Films() {
             )}
 
             <div css={sharedStyles.cardButtonContainer}>
-              <button css={sharedStyles.cardButton}>
-                View Details
-              </button>
+              <MovieDetailsClient id={film.id} />
             </div>
           </div>
         ))}
@@ -76,9 +75,13 @@ export default async function Page() {
           Unlike component-level Suspense, this shows a loading state for the entire page.
         </p>
 
-        <div css={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+        <div css={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <a href="/suspense" css={sharedStyles.backLink}>
+            <span css={{ marginRight: '0.5rem' }}>←</span> Suspense Demo
+          </a>
+
           <a href="/" css={sharedStyles.backLink}>
-            <span css={{ marginRight: '0.5rem' }}>←</span> Back to Home
+            Back to Home <span css={{ marginLeft: '0.5rem' }}>→</span>
           </a>
         </div>
       </section>
@@ -134,6 +137,8 @@ export default async function Page() {
           </div>
         </div>
       </section>
+
+
     </div>
   );
 }

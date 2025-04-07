@@ -75,9 +75,15 @@ export const useServerPlugin = (): Plugin[] => {
             const name = this.environment.name === "client" ? "browser" : "ssr";
             output.prepend(`
               import { createServerReference } from "${PKG_NAME}/__internal/register/${name}";
-              const $$proxy = (id, name) => createServerReference(${JSON.stringify(
-                normalizedId
-              )} + "#" + name, (...args) => __vikeRscCallServer(...args))
+              const $$proxy = (id, name) => {
+                  const r = createServerReference(${JSON.stringify(
+                    normalizedId
+                  )} + "#" + name, (...args) =>{ "${normalizedId}"; return __vikeRscCallServer(...args)})
+                  Object.defineProperty(r, "name", { value: ${JSON.stringify(
+                    normalizedId
+                  )}});
+                  return r;
+              }
             `);
 
             return { code: output.toString(), map: { mappings: "" } };

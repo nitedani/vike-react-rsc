@@ -2,12 +2,19 @@ import { tinyassert } from "@hiogawa/utils";
 import envName from "virtual:enviroment-name";
 tinyassert(envName === "client", "Invalid environment");
 
+import React, { startTransition } from "react";
 //@ts-ignore
 import ReactClient from "react-server-dom-webpack/client.browser";
-import type { RscPayload } from "../types";
 import type { PageContextClient } from "vike/types";
-import { getCachedPayload, cachePayload, invalidateCache } from "./cache";
-import { startTransition } from "react";
+import type { RscPayload } from "../types";
+import {
+  cachePayload,
+  getCachedPayload,
+  invalidateCache,
+  clearPendingServerComponentRequests,
+  invalidateServerComponentCache,
+} from "./cache";
+import { getGlobalClientState } from "./client/globalState";
 
 function getVikeUrlOriginal(pageContext: PageContextClient) {
   return `${
@@ -19,7 +26,14 @@ export async function callServer(
   id: string,
   args: unknown[]
 ): Promise<RscPayload> {
-  console.log("[RSC Client] Calling server action:", id);
+  const globalState = getGlobalClientState();
+  const isRscCall = globalState.isRscCall;
+  console.log(
+    "[RSC Client] Calling server action:",
+    id,
+    isRscCall ? "(from server component)" : ""
+  );
+
   const result = await ReactClient.createFromFetch<RscPayload>(
     fetch("/_rsc", {
       method: "POST",
@@ -27,7 +41,9 @@ export async function callServer(
         "x-rsc-action": id,
         // Skip onRenderHtml, but get access to pageContext for RSC render
         // Make Vike think this is a "navigation", skipping onRenderHtml
-        "x-vike-urloriginal": getVikeUrlOriginal(window.__pageContext),
+        "x-vike-urloriginal": getVikeUrlOriginal(globalState.pageContext!),
+        // Add a header to indicate if this is a server component call
+        ...(isRscCall ? { "x-rsc-component-call": "true" } : {}),
       },
       body: await ReactClient.encodeReply(args),
     }),
@@ -41,7 +57,7 @@ export async function callServer(
 
     startTransition(() => {
       // Update the UI with the new payload
-      window.__setPayload((current) => {
+      globalState.setPayload?.((current) => {
         // Cache the result for future navigation
         cachePayload(current.pageContext, result);
 
@@ -55,10 +71,19 @@ export async function callServer(
   } else {
     console.log("[RSC Client] Server action returned without re-render");
 
-    // Invalidate the cache for the current page since we assume a mutation was done
-    if (typeof window !== "undefined" && window.__pageContext) {
-      invalidateCache(window.__pageContext);
+    // If this is a server action (not a server component call), invalidate caches
+    if (!isRscCall && typeof window !== "undefined") {
+      // Invalidate the main RSC cache for the current page if we have a page context
+      if (globalState.pageContext) {
+        invalidateCache(globalState.pageContext);
+      }
     }
+  }
+
+  if (!isRscCall) {
+    // Always invalidate the server component cache for server actions
+    // This is necessary because server actions might change data that server components depend on
+    invalidateServerComponentCache();
   }
 
   return result.returnValue;
@@ -69,12 +94,18 @@ export async function onNavigate(
 ): Promise<void> {
   console.log("[RSC Client] Navigation:", pageContext.urlPathname);
 
+  const globalState = getGlobalClientState();
+
+  // Clear any pending server component requests when navigating
+  // This ensures we don't have stale requests when moving between pages
+  clearPendingServerComponentRequests();
+
   // No need to configure cache - staleTime is read directly from pageContext
 
   // Check for cached payload
   const cachedPayload = getCachedPayload(pageContext);
   if (cachedPayload) {
-    window.__navigationPromise = Promise.resolve(cachedPayload);
+    globalState.navigationPromise = Promise.resolve(cachedPayload);
     return;
   }
 
@@ -93,7 +124,7 @@ export async function onNavigate(
   );
 
   // Store the promise
-  window.__navigationPromise = fetchPromise;
+  globalState.navigationPromise = fetchPromise;
   cachePayload(pageContext, await fetchPromise);
 }
 
