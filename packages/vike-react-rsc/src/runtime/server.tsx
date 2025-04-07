@@ -10,6 +10,7 @@ import type { PageContext } from "vike/types";
 import { getPageElementRsc } from "../integration/getPageElement/getPageElement-server";
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
 import { AsyncLocalStorage } from "async_hooks";
+import { retrieveAssetsDev } from "./retrieveAssetsDev";
 
 async function importServerAction(id: string): Promise<Function> {
   const [file, name] = id.split("#") as [string, string];
@@ -19,7 +20,15 @@ async function importServerAction(id: string): Promise<Function> {
 
 async function importServerReference(id: string): Promise<unknown> {
   if (import.meta.env.DEV) {
-    return import(/* @vite-ignore */ id);
+    const res = await import(/* @vite-ignore */ id);
+    // const moduleGraph = global.vikeReactRscGlobalState.devServer!.environments.rsc.moduleGraph
+    // const assets = await retrieveAssetsDev([id], moduleGraph)
+    // console.log({id, assets});
+    
+    return {
+      ...res,
+      // $$assets: assets,
+    };
   } else {
     const references = await import("virtual:server-references" as string);
     const dynImport = references.default[id];

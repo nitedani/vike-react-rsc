@@ -10,12 +10,34 @@ import {
 } from "vite";
 import { PKG_NAME } from "../../constants";
 import { createVirtualPlugin, normalizeReferenceId } from "../utils";
+import {
+  retrieveAssetsDev,
+  styleFileRE,
+} from "../../runtime/retrieveAssetsDev";
 
 export const useServerPlugin = (): Plugin[] => {
   let buildMode = false;
   let resolvedConfig: ResolvedConfig;
   let devServer: ViteDevServer;
+  const cssImportMapBuild: { [importer: string]: string[] } = {};
   return [
+    {
+      name: "vike-rsc:discover-css-build",
+      apply: "build",
+      enforce: "pre",
+      applyToEnvironment(environment) {
+        return environment.name === "rsc";
+      },
+      resolveId: {
+        order: "pre",
+        handler(source, importer) {
+          if (styleFileRE.test(source) && importer) {
+            cssImportMapBuild[importer] ??= [];
+            cssImportMapBuild[importer].push(source);
+          }
+        },
+      },
+    },
     {
       name: "vike-rsc:transform-server-directive",
       configResolved(config) {
@@ -71,6 +93,32 @@ export const useServerPlugin = (): Plugin[] => {
             if (!output) return;
 
             global.vikeReactRscGlobalState.serverReferences[normalizedId] = id;
+
+            if (devServer) {
+              await devServer?.environments.rsc.warmupRequest(id);
+              const cssIds = await retrieveAssetsDev(
+                [
+                  ...Object.keys(
+                    global.vikeReactRscGlobalState.serverReferences
+                  ),
+                ],
+                global.vikeReactRscGlobalState.devServer!.environments.rsc
+                  .moduleGraph
+              );
+              for (const id of cssIds) {
+                // bridge the gap between client > server reference
+                // css will be picked up by Vike's own retrieveAssetsDev
+                output.prepend(`import "${id}";`);
+              }
+            } else if (this.environment.name === "client") {
+              // how do we "bridge the gap" so that the client actually imports the css imported by the server?
+              // we should have knowledge of the imported css by the rsc envirnonment build at this point
+              // and then just prepend it to the client code here
+              // Vike will discover it on build
+              for (const cssId of cssImportMapBuild[id] ?? []) {
+                output.prepend(`import "${cssId}";`);
+              }
+            }
 
             const name = this.environment.name === "client" ? "browser" : "ssr";
             output.prepend(`

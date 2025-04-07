@@ -1,3 +1,5 @@
+"use server";
+
 // Server component that fetches and displays detailed movie information
 import { sharedStyles } from "../styles/shared";
 

@@ -13,8 +13,9 @@ import runtimeRsc from "virtual:runtime/server";
 import type { Head } from "../types/Config";
 import { isReactElement } from "../utils/isReactElement";
 //@ts-ignore
-import { renderToStaticMarkup } from 'react-dom/server.edge'
+import { renderToStaticMarkup } from "react-dom/server.edge";
 import React from "react";
+import { retrieveAssetsDev } from "./retrieveAssetsDev";
 
 const INIT_SCRIPT = `
 self.__raw_import = (id) => import(id);
@@ -123,9 +124,9 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
       },
     })
   );
-
-  const headHtml = getHeadHtml(pageContext)
-
+  const headHtml = getHeadHtml(pageContext);
+  // const css = await getCss();
+  
   const documentHtml = escapeInject`<!DOCTYPE html>
     <html>
       <head>
@@ -136,8 +137,7 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
       <body>
         <div id="root">${htmlStream}</div>
       </body>
-    </html>`
-
+    </html>`;
 
   return {
     documentHtml,
@@ -153,26 +153,41 @@ function getHeadHtml(pageContext: PageContextServer) {
     ]
       .filter((Head) => Head !== null && Head !== undefined)
       .map((Head) => getHeadElementHtml(Head, pageContext))
-      .join('\n'),
-  )
+      .join("\n")
+  );
 
   const headHtml = escapeInject`
     ${headElementsHtml}
-  `
-  return headHtml
+  `;
+  return headHtml;
 }
 
-function getHeadElementHtml(Head: NonNullable<Head>, pageContext: PageContextServer): string {
-  let headElement: React.ReactNode
+function getHeadElementHtml(
+  Head: NonNullable<Head>,
+  pageContext: PageContextServer
+): string {
+  let headElement: React.ReactNode;
   if (isReactElement(Head)) {
-    headElement = Head
+    headElement = Head;
   } else {
     headElement = (
       <PageContextProvider pageContext={pageContext}>
         <Head />
       </PageContextProvider>
-    )
+    );
   }
 
-  return renderToStaticMarkup(headElement)
+  return renderToStaticMarkup(headElement);
+}
+
+async function getCss() {
+  if (import.meta.env.DEV) {
+    const cssIds = await retrieveAssetsDev(
+      [...Object.keys(global.vikeReactRscGlobalState.serverReferences)],
+      global.vikeReactRscGlobalState.devServer!.environments.rsc.moduleGraph
+    );
+    return dangerouslySkipEscape(cssIds.map((id) => `<link rel="stylesheet" type="text/css" href="${id}?direct">`).join("\n"));
+  }
+
+  return dangerouslySkipEscape("");
 }
