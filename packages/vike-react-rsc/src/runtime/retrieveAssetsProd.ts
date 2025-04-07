@@ -19,6 +19,8 @@ interface CssDependencyManagerOptions {
   environmentName?: string;
   // Whether to log debug information
   debug?: boolean;
+  // Client references to track dependencies for
+  clientReferences?: Record<string, string>;
 }
 
 // Default options
@@ -37,6 +39,8 @@ interface CssDependencyManager {
   graphBuilderPlugin: Plugin;
   // Get CSS dependencies for a module
   getCssDependencies(id: string): string[];
+  // Check if a module is a dependency of any client reference
+  isClientDependency(id: string): boolean;
 }
 
 /**
@@ -52,7 +56,11 @@ function createCssDependencyManager(options: CssDependencyManagerOptions = {}): 
   const originalSourceMap: OriginalSourceMap = {};
   let cssImportGraph: CssDependencyGraph = {};
 
-  // Build the complete CSS dependency graph
+  // Track client reference dependencies
+  const clientReferences = opts.clientReferences || {};
+  const clientDependencies = new Set<string>();
+
+  // Build the complete CSS dependency graph and client dependency graph
   function buildGraph() {
     const graph: CssDependencyGraph = {};
     const processedModules = new Set<string>();
@@ -87,11 +95,40 @@ function createCssDependencyManager(options: CssDependencyManagerOptions = {}): 
       }
     };
 
-    // Process all modules
+    // Process all modules for CSS dependencies
     const allModuleIds = [...new Set([...Object.keys(cssImportMapBuild), ...Object.keys(jsImportMapBuild)])];
     for (const moduleId of allModuleIds) {
       collectCssDependencies(moduleId);
     }
+
+    // Build client reference dependency graph
+    const buildClientDependencyGraph = () => {
+      // Function to recursively collect client dependencies
+      const collectClientDependencies = (moduleId: string, visited = new Set<string>()) => {
+        if (visited.has(moduleId)) return;
+        visited.add(moduleId);
+
+        // Mark this module as a client dependency
+        clientDependencies.add(moduleId);
+
+        // Process JS dependencies recursively
+        for (const jsImport of jsImportMapBuild[moduleId] || []) {
+          collectClientDependencies(jsImport, new Set(visited));
+        }
+      };
+
+      // Start from all client references
+      for (const clientRefPath of Object.values(clientReferences)) {
+        collectClientDependencies(clientRefPath, new Set());
+      }
+
+      if (opts.debug) {
+        console.log(`[CSS Dependency Manager] Found ${clientDependencies.size} client reference dependencies`);
+      }
+    };
+
+    // Build the client dependency graph
+    buildClientDependencyGraph();
 
     if (opts.debug) {
       const totalCssImports = Object.values(graph).reduce((sum, set) => sum + set.size, 0);
@@ -195,6 +232,9 @@ function createCssDependencyManager(options: CssDependencyManagerOptions = {}): 
         console.log(`[CSS Dependency Manager] Found ${cssIds.length} CSS dependencies for ${id}`);
       }
       return formatCssPaths(id, cssIds);
+    },
+    isClientDependency(id: string): boolean {
+      return clientDependencies.has(id);
     }
   };
 }

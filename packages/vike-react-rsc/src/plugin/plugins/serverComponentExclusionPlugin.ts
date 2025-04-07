@@ -16,10 +16,14 @@ import { hasDirective } from "@hiogawa/transforms";
 export const serverComponentExclusionPlugin = (): Plugin[] => {
   let devServer: ViteDevServer;
 
+  // Debug mode
+  const debug = true;
+
   // Create CSS dependency manager with options
   const cssDependencyManager = createCssDependencyManager({
     styleFileRE,
-    debug: true
+    debug,
+    clientReferences: global.vikeReactRscGlobalState.clientReferences
   });
 
   return [
@@ -78,7 +82,7 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
 
           const boundaries = [
             // In build mode these are guaranteed to exist here
-            // They are crated by the first two rsc builds
+            // They are created by the first two rsc builds
             // And now we are in the client build, followed by the rsc builds
             ...Object.values(global.vikeReactRscGlobalState.clientReferences),
             ...Object.values(global.vikeReactRscGlobalState.serverReferences),
@@ -87,6 +91,14 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
           // If our id is either a "use client" or "use server" file
           // We don't want to strip those, they are already transformed by the other plugins
           if (boundaries.includes(id)) {
+            return null;
+          }
+
+          // If this module is a dependency of a client reference, don't strip it
+          if (cssDependencyManager.isClientDependency(id)) {
+            if (debug) {
+              console.log(`[RSC Plugin] Preserving client dependency in client bundle: ${relPath}`);
+            }
             return null;
           }
 
