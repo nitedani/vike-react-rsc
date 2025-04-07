@@ -15,7 +15,6 @@ import { isReactElement } from "../utils/isReactElement";
 //@ts-ignore
 import { renderToStaticMarkup } from "react-dom/server.edge";
 import React from "react";
-import { retrieveAssetsDev } from "./retrieveAssetsDev";
 
 const INIT_SCRIPT = `
 self.__raw_import = (id) => import(id);
@@ -124,9 +123,9 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
       },
     })
   );
+
   const headHtml = getHeadHtml(pageContext);
-  // const css = await getCss();
-  
+
   const documentHtml = escapeInject`<!DOCTYPE html>
     <html>
       <head>
@@ -178,16 +177,4 @@ function getHeadElementHtml(
   }
 
   return renderToStaticMarkup(headElement);
-}
-
-async function getCss() {
-  if (import.meta.env.DEV) {
-    const cssIds = await retrieveAssetsDev(
-      [...Object.keys(global.vikeReactRscGlobalState.serverReferences)],
-      global.vikeReactRscGlobalState.devServer!.environments.rsc.moduleGraph
-    );
-    return dangerouslySkipEscape(cssIds.map((id) => `<link rel="stylesheet" type="text/css" href="${id}?direct">`).join("\n"));
-  }
-
-  return dangerouslySkipEscape("");
 }
