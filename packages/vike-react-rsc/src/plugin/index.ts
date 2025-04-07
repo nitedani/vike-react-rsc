@@ -41,7 +41,7 @@ export default function vikeRscPlugin(): Plugin[] {
     ...useClientPlugin(),
     ...useServerPlugin(),
     virtualNormalizeReferenceIdPlugin(),
-    serverComponentExclusionPlugin(),
+    ...serverComponentExclusionPlugin(),
     {
       name: "rsc-misc",
       transform(code, id, _options) {

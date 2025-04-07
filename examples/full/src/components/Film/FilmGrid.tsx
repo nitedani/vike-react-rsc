@@ -1,5 +1,3 @@
-"use server";
-
 import { Suspense } from "react";
 import { filmStyles } from "./styles";
 import { FilmCard } from "./FilmCard";

@@ -1,5 +1,3 @@
-"use server";
-
 import { filmStyles } from "./styles";
 import { FilmDetailsClient } from "./FilmDetailsClient";
 
