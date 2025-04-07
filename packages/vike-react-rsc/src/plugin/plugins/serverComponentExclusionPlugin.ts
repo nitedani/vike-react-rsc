@@ -26,7 +26,7 @@ export const serverComponentExclusionPlugin = (): Plugin => {
       if (this.environment?.name !== "client") {
         return null;
       }
-
+      if (!code) return null;
       // Skip virtual modules, node_modules, CSS files, and non-JS/TS files
       if (
         id.includes("\0") ||
@@ -38,26 +38,6 @@ export const serverComponentExclusionPlugin = (): Plugin => {
       }
 
       try {
-        // return null
-        // Skip if no code provided
-        if (!code) return null;
-
-        // More accurate detection of directives using regex
-        // Look for directives at the top of the file
-        const useClientMatch = /^\s*['"]use client['"];?/m.test(code);
-        const useServerMatch = /^\s*['"]use server['"];?/m.test(code);
-
-        if (code.includes("$$proxy")) {
-          return;
-        }
-        // If it has 'use client', it's a client component - let it through
-        if (useClientMatch) {
-          return null;
-        }
-        // If it has 'use server', it's a server action - already handled by useServerPlugin
-        if (useServerMatch) {
-          return null;
-        }
         const relPath = path.relative(this.environment.config.root, id);
         if (relPath.startsWith("..") || path.isAbsolute(relPath)) {
           return null;
@@ -106,7 +86,6 @@ export const serverComponentExclusionPlugin = (): Plugin => {
           cssIds = [];
         }
 
-        console.log({ cssIds });
 
         // Create a minimal proxy module
         let proxyCode = "";
@@ -126,7 +105,7 @@ export {};
 `;
 
         console.log(
-          `[RSC Plugin] Excluded server component from ${this.environment?.name} bundle: ${relPath}`
+          `[RSC Plugin] Excluded server component from client bundle: ${relPath}, css: ${cssIds.length}`
         );
 
         return {
