@@ -3,7 +3,6 @@ import MobileMenuClient from '../components/MobileMenuClient';
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div css={{
-      fontFamily: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       color: '#333',
       maxWidth: '1200px',
       margin: '0 auto',

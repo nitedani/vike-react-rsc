@@ -11,12 +11,13 @@ function MovieDetailsLoading() {
   return (
     <div
       css={{
-        padding: "2rem",
-        borderRadius: "16px",
-        backgroundColor: "#f9f9f9",
-        boxShadow: "0 10px 30px rgba(0, 0, 0, 0.1)",
+        padding: "1.5rem",
+        borderRadius: "12px",
+        backgroundColor: "white",
+        boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
         maxWidth: "800px",
         margin: "0 auto",
+        minHeight: "800px", // Match the actual component height
         animation: "pulse 1.5s infinite ease-in-out",
         "@keyframes pulse": {
           "0%": { opacity: 0.7 },
@@ -28,28 +29,19 @@ function MovieDetailsLoading() {
       {/* Title placeholder */}
       <div
         css={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
           marginBottom: "1.5rem",
-          borderBottom: "2px solid #eaeaea",
-          paddingBottom: "1rem",
+          borderBottom: "2px solid #0070f3",
+          paddingBottom: "0.75rem",
+          display: "flex",
+          justifyContent: "center",
         }}
       >
         <div
           css={{
             height: "38px",
-            width: "200px",
-            backgroundColor: "#eaeaea",
+            width: "250px",
+            backgroundColor: "#e9ecef",
             borderRadius: "4px",
-          }}
-        />
-        <div
-          css={{
-            backgroundColor: "#eaeaea",
-            borderRadius: "50%",
-            width: "50px",
-            height: "50px",
           }}
         />
       </div>
@@ -60,7 +52,7 @@ function MovieDetailsLoading() {
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
           gap: "1rem",
-          marginBottom: "2rem",
+          marginBottom: "1.5rem",
         }}
       >
         {[1, 2, 3].map((i) => (
@@ -69,7 +61,7 @@ function MovieDetailsLoading() {
               css={{
                 height: "20px",
                 width: "100px",
-                backgroundColor: "#eaeaea",
+                backgroundColor: "#e9ecef",
                 borderRadius: "4px",
                 marginBottom: "0.5rem",
               }}
@@ -78,7 +70,7 @@ function MovieDetailsLoading() {
               css={{
                 height: "24px",
                 width: "150px",
-                backgroundColor: "#eaeaea",
+                backgroundColor: "#e9ecef",
                 borderRadius: "4px",
               }}
             />
@@ -87,34 +79,22 @@ function MovieDetailsLoading() {
       </div>
 
       {/* Crawl placeholder */}
-      <div css={{ marginBottom: "2rem" }}>
+      <div css={{ marginBottom: "1.5rem", marginTop: "1.5rem" }}>
         <div
           css={{
             height: "24px",
             width: "150px",
-            backgroundColor: "#eaeaea",
+            backgroundColor: "#e9ecef",
             borderRadius: "4px",
             marginBottom: "1rem",
           }}
         />
         <div
           css={{
-            backgroundColor: "#eaeaea",
-            height: "200px",
+            backgroundColor: "#f8f9fa",
+            height: "400px",
             borderRadius: "8px",
-          }}
-        />
-      </div>
-
-      {/* Button placeholder */}
-      <div css={sharedStyles.cardButtonContainer}>
-        <div
-          css={{
-            height: "38px",
-            width: "120px",
-            backgroundColor: "#eaeaea",
-            borderRadius: "50px",
-            margin: "0 auto",
+            border: "1px solid #e9ecef",
           }}
         />
       </div>
@@ -131,46 +111,71 @@ export function MovieDetailsClient({ id }: { id: number }) {
   // Modal content
   const modalContent = showDetails && (
     <div
+      onClick={() => setShowDetails(false)}
       css={{
         position: "fixed",
         top: 0,
         left: 0,
         width: "100%",
         height: "100%",
-        backgroundColor: "rgba(0, 0, 0, 0.75)",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
         zIndex: 1000,
         padding: "20px",
+        paddingTop: "40px", // Ensure there's always space at the top
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start", // Align to the top instead of center
         justifyContent: "center",
-        overflow: "hidden", // Prevent body scrolling when modal is open
+        overflow: "auto", // Allow scrolling
+        animation: "backdropFade 0.2s ease-in",
+        "@keyframes backdropFade": {
+          "0%": { opacity: 0 },
+          "100%": { opacity: 1 }
+        }
       }}
     >
       <div
+        onClick={(e) => e.stopPropagation()} // Prevent clicks from closing the modal
         css={{
           backgroundColor: "white",
-          borderRadius: "8px",
+          borderRadius: "12px",
           width: "100%",
           maxWidth: "800px",
-          maxHeight: "90vh", // Limit height to 90% of viewport
           position: "relative",
-          padding: "20px",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)",
-          overflow: "auto", // Add scrolling to the modal content
+          padding: "0", // Remove padding as MovieDetails has its own padding
+          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
+          maxHeight: "calc(100vh - 80px)", // Limit height to viewport minus padding
+          overflowY: "auto", // Allow scrolling within the modal
+          animation: "modalEnter 0.3s ease-out",
+          "@keyframes modalEnter": {
+            "0%": { opacity: 0, transform: "scale(0.95)" },
+            "100%": { opacity: 1, transform: "scale(1)" }
+          }
         }}
       >
         <button
           onClick={() => setShowDetails(false)}
           css={{
             position: "absolute",
-            top: "10px",
-            right: "10px",
-            background: "none",
-            border: "none",
-            fontSize: "24px",
+            top: "15px",
+            right: "15px",
+            zIndex: 10,
+            background: "white",
+            border: "1px solid #e1e4e8",
+            borderRadius: "50px",
+            width: "30px",
+            height: "30px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "18px",
             cursor: "pointer",
             color: "#666",
-            zIndex: 1,
+            transition: "all 0.2s ease",
+            ":hover": {
+              background: "#0070f3",
+              color: "white",
+              border: "1px solid #0070f3"
+            }
           }}
         >
           ×
