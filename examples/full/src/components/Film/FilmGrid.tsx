@@ -12,9 +12,16 @@ function FilmCardSkeleton() {
       filmStyles.card,
       filmStyles.cardSkeleton
     ]}>
+      {/* Episode badge skeleton */}
+      <div css={filmStyles.skeletonEpisodeBadge} />
+
+      {/* Title skeleton */}
       <div css={filmStyles.skeletonTitle} />
+
+      {/* Metadata skeleton */}
       <div css={filmStyles.skeletonMetadata} />
-      <div css={filmStyles.skeletonMetadata} />
+
+      {/* Button skeleton */}
       <div css={filmStyles.cardButtonContainer}>
         <div css={filmStyles.skeletonButton} />
       </div>

@@ -83,14 +83,16 @@ export const sharedStyles = {
 
   // Feature card
   featureCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#f8f9fa',
     padding: '1.5rem',
     borderRadius: '12px',
-    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05)',
+    border: '1px solid #e9ecef',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
     transition: 'all 0.3s ease',
     ':hover': {
       transform: 'translateY(-5px)',
-      boxShadow: '0 15px 35px rgba(0, 0, 0, 0.1)'
+      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
+      borderColor: '#ddd'
     }
   },
 

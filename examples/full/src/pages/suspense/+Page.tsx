@@ -46,41 +46,12 @@ export default async function Page() {
       {/* How It Works Section */}
       <section css={sharedStyles.section}>
         <h2 css={sharedStyles.sectionHeading}>How Suspense Works</h2>
-
-        <div css={sharedStyles.featureGrid}>
-          {/* Feature 1 */}
-          <div css={sharedStyles.featureCard}>
-            <div css={sharedStyles.featureNumber}>1</div>
-            <h3 css={sharedStyles.featureHeading}>Server-Side Suspense</h3>
-            <p css={sharedStyles.featureParagraph}>
-              When the page loads, the server starts rendering components. When a component suspends
-              (like the film cards fetching data), the server shows a fallback while continuing to process.
-            </p>
-          </div>
-
-          {/* Feature 2 */}
-          <div css={sharedStyles.featureCard}>
-            <div css={sharedStyles.featureNumber}>2</div>
-            <h3 css={sharedStyles.featureHeading}>RSC Streaming</h3>
-            <p css={sharedStyles.featureParagraph}>
-              As each film's data resolves on the server, it sends that component's data to the client via
-              the RSC protocol. The client then updates just that part of the page with the real content.
-            </p>
-          </div>
-
-          {/* Feature 3 */}
-          <div css={sharedStyles.featureCard}>
-            <div css={sharedStyles.featureNumber}>3</div>
-            <h3 css={sharedStyles.featureHeading}>Selective Hydration</h3>
-            <p css={sharedStyles.featureParagraph}>
-              Each film card is processed independently. This allows the page to show content progressively
-              as it becomes available, rather than waiting for all data to load at once.
-            </p>
-          </div>
-        </div>
+        <p css={sharedStyles.paragraph}>
+          React Suspense allows components to "suspend" rendering while they load data.
+          This creates a smoother user experience by showing loading states only for the
+          specific components that are loading, rather than the entire page.
+        </p>
       </section>
-
-
     </div>
   );
 }

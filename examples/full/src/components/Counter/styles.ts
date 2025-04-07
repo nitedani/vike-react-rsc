@@ -8,8 +8,8 @@ export const counterStyles = {
     alignItems: 'center',
     padding: '3rem',
     borderRadius: '16px',
-    background: 'linear-gradient(145deg, #ffffff, #f0f0f0)',
-    boxShadow: '20px 20px 60px #d9d9d9, -20px -20px 60px #ffffff',
+    backgroundColor: 'white',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05)',
     maxWidth: '400px',
     margin: '0 auto',
     position: 'relative',
@@ -68,37 +68,20 @@ export const counterStyles = {
     color: 'white',
     border: 'none',
     borderRadius: '50px',
-    padding: '1rem 2.5rem',
-    fontSize: '1.1rem',
+    padding: '1rem 2rem',
+    fontSize: '1rem',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-    position: 'relative',
-    overflow: 'hidden',
-    zIndex: 1,
-    '&::before': {
-      content: '""',
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      width: '300%',
-      height: '300%',
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-      borderRadius: '50%',
-      transform: 'translate(-50%, -50%) scale(0)',
-      transition: 'transform 0.6s ease-out',
-      zIndex: -1
-    },
+    transition: 'all 0.2s ease',
+    boxShadow: '0 4px 14px rgba(0, 118, 255, 0.39)',
     ':hover': {
-      transform: 'translateY(-3px)',
-      boxShadow: '0 10px 20px rgba(0, 112, 243, 0.3)',
-      '&::before': {
-        transform: 'translate(-50%, -50%) scale(1)'
-      }
+      backgroundColor: '#005cc5',
+      transform: 'translateY(-2px)',
+      boxShadow: '0 6px 20px rgba(0, 118, 255, 0.23)'
     },
     ':active': {
-      transform: 'translateY(-1px)',
-      boxShadow: '0 5px 10px rgba(0, 112, 243, 0.2)'
+      transform: 'translateY(0)',
+      boxShadow: '0 3px 8px rgba(0, 118, 255, 0.23)'
     }
   },
 

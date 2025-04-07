@@ -7,8 +7,8 @@ export const todoStyles = {
     margin: '0 auto',
     padding: '2rem',
     borderRadius: '16px',
-    background: 'linear-gradient(145deg, #ffffff, #f0f0f0)',
-    boxShadow: '20px 20px 60px #d9d9d9, -20px -20px 60px #ffffff',
+    backgroundColor: 'white',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.05)',
     '@media (max-width: 768px)': {
       padding: '1.5rem'
     }
@@ -135,15 +135,17 @@ export const todoStyles = {
   todoItem: {
     display: 'flex',
     alignItems: 'center',
-    padding: '1rem',
-    borderRadius: '8px',
-    backgroundColor: 'white',
-    boxShadow: '0 2px 10px rgba(0, 0, 0, 0.05)',
+    padding: '1rem 1.25rem',
+    borderRadius: '12px',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #e9ecef',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
     gap: '1rem',
     transition: 'all 0.2s ease',
     ':hover': {
-      boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
-      transform: 'translateY(-2px)'
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+      transform: 'translateY(-2px)',
+      borderColor: '#ddd'
     }
   },
 

@@ -27,26 +27,20 @@ export async function FilmCard({ id }: { id: number }) {
 
   return (
     <div css={filmStyles.card}>
+      {/* Episode badge */}
+      <div css={filmStyles.cardEpisodeBadge}>Episode {film.id}</div>
+
+      {/* Film title */}
       <h3 css={filmStyles.cardTitle}>{film.title}</h3>
 
-      {film.director && (
+      {/* Film metadata */}
+      <div css={filmStyles.cardMetadataContainer}>
         <p css={filmStyles.cardMetadata}>
-          <strong>Director:</strong> {film.director}
+          <span css={filmStyles.metadataLabel}>Director:</span> {film.director}
         </p>
-      )}
+      </div>
 
-      {film.releaseDate && (
-        <p css={filmStyles.cardMetadata}>
-          <strong>Released:</strong> {film.releaseDate}
-        </p>
-      )}
-
-      {film.openingCrawl && (
-        <p css={filmStyles.cardDescription}>
-          {film.openingCrawl}
-        </p>
-      )}
-
+      {/* View details button */}
       <div css={filmStyles.cardButtonContainer}>
         <FilmDetailsClient id={id} />
       </div>
