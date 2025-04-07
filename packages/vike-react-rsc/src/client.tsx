@@ -1,2 +1,2 @@
 // Export client-side utilities
-export { rsc } from "./runtime/ssr&client";
+export { rsc } from "./runtime/rscBridge";
