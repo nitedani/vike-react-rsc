@@ -4,7 +4,7 @@ import {
   retrieveAssetsDev,
   styleFileRE,
 } from "../../runtime/retrieveAssetsDev";
-import { retrieveAssetsProd, buildCssDependencyGraph, collectDependencies } from "../../runtime/retrieveAssetsProd";
+import { createCssDependencyManager } from "../../runtime/retrieveAssetsProd";
 import { hasDirective } from "@hiogawa/transforms";
 
 // Define styleFileRE here to match CSS file extensions
@@ -15,29 +15,17 @@ import { hasDirective } from "@hiogawa/transforms";
  */
 export const serverComponentExclusionPlugin = (): Plugin[] => {
   let devServer: ViteDevServer;
-  // Create dependency collector
-  const dependencyCollector = collectDependencies(styleFileRE);
-  // Store the complete CSS dependency graph
-  let cssImportGraph: Record<string, Set<string>> = {};
+
+  // Create CSS dependency manager with options
+  const cssDependencyManager = createCssDependencyManager({
+    styleFileRE,
+    debug: true
+  });
 
   return [
-    // Use the dependency collector plugin
-    dependencyCollector.plugin,
-    {
-      name: "vike-rsc:build-css-graph",
-      apply: "build",
-      enforce: "pre",
-      applyToEnvironment(environment) {
-        return environment.name === "rsc";
-      },
-      // Build the complete CSS dependency graph after all modules are processed
-      buildEnd() {
-        // Get the collected dependencies
-        const { cssImportMapBuild, jsImportMapBuild } = dependencyCollector.getResult();
-        // Build the complete CSS dependency graph using the utility function
-        cssImportGraph = buildCssDependencyGraph(cssImportMapBuild, jsImportMapBuild);
-      },
-    },
+    // Use the dependency collector and graph builder plugins
+    cssDependencyManager.collectorPlugin,
+    cssDependencyManager.graphBuilderPlugin,
     {
       name: "vike-rsc:server-component-exclusion",
       // enforce: "pre", // Run before other plugins
@@ -122,13 +110,8 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
                 .moduleGraph
             );
           } else {
-            // Use retrieveAssetsProd to get properly formatted CSS paths
-            const { originalSourceMap } = dependencyCollector.getResult();
-            cssIds = retrieveAssetsProd(
-              id,
-              cssImportGraph,
-              originalSourceMap
-            );
+            // Use the dependency manager to get CSS dependencies
+            cssIds = cssDependencyManager.getCssDependencies(id);
 
             // Log only when CSS dependencies are found
             if (cssIds.length > 0) {

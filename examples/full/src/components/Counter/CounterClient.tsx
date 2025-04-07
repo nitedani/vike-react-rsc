@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { incrementCount, getCount } from "../../actions/counter";
 import { counterStyles } from "./styles";
-import { sharedUtil } from "./sharedUtil";
+// import { sharedUtil } from "./sharedUtil";
 
 interface CounterClientProps {
   initialCount: number;
@@ -13,7 +13,7 @@ export default function CounterClient({ initialCount }: CounterClientProps) {
   const [count, setCount] = useState(initialCount);
   const [isPending, startTransition] = useTransition();
 
-  sharedUtil();
+  // sharedUtil();
   // Increment without re-rendering the page
   const handleIncrement = () => {
     startTransition(async () => {
