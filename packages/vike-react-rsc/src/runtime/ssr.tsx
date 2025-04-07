@@ -114,11 +114,32 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
           )})</script>`
         );
       },
-      close() {
+      async close() {
         console.log("RSC stream closed, injecting close script.");
         htmlStream.injectToStream(
           `<script>self.__rsc_web_stream_close()</script>`
         );
+
+        // without wait, the following is not injected and the response is closed:
+        // <script id="vike_pageContext" type="application/json">
+        //     {
+        //         "_urlRewrite": null,
+        //         "pageId": "/src/pages/index",
+        //         "routeParams": {
+        //         }
+        //     }</script>
+        // <script type="module" async>
+        //     import RefreshRuntime from "/@react-refresh"
+        //     RefreshRuntime.injectIntoGlobalHook(window)
+        //     window.$RefreshReg$ = () => {}
+        //     window.$RefreshSig$ = () => (type) => type
+        //     window.__vite_plugin_react_preamble_installed__ = true
+        //     import "/@vite/client";
+        //     import "/@fs/home/nitedani/projects/vike-react-rsc/examples/full/src/+client.ts";
+        //     import "/@fs/home/nitedani/projects/vike-react-rsc/node_modules/vike/dist/esm/client/client-routing-runtime/entry.js";
+        // </script>
+        // TODO: why is this needed?
+        await new Promise((resolve) => setTimeout(resolve, 50));
         canClose();
       },
     })
