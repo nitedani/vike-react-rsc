@@ -11,6 +11,7 @@ export const filmStyles = {
     padding: '1.5rem',
     borderRadius: '12px',
     height: '100%',
+    minHeight: "220px",
     display: 'flex',
     flexDirection: 'column',
     width: '100%',
@@ -128,10 +129,11 @@ export const filmStyles = {
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     zIndex: 1000,
     display: 'flex',
-    alignItems: 'center', // Center vertically
+    alignItems: 'flex-start', // Align to top to allow bottom overflow
     justifyContent: 'center',
-    padding: '40px', // Padding all around
-    overflow: 'auto', // Allow scrolling on the body
+    padding: '40px 40px 80px 40px', // More padding at bottom for scrolling
+    overflowY: 'auto', // Allow scrolling when content overflows
+    overflowX: 'hidden', // Prevent horizontal scrolling
     animation: 'backdropFade 0.25s ease-in',
     '@keyframes backdropFade': {
       '0%': { opacity: 0 },
@@ -141,23 +143,29 @@ export const filmStyles = {
 
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: '12px',
+    borderRadius: '8px',
     width: '100%',
     maxWidth: '800px',
-    maxHeight: 'calc(100vh - 80px)', // Ensure it doesn't overflow the viewport
+    height: 'auto',
+    minHeight: '650px', // Set a minimum height to match skeleton
     position: 'relative',
-    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
-    animation: 'modalEnter 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)', // Bouncy animation
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+    overflow: 'hidden', // Hide any content that overflows
+    marginTop: '40px', // Add top margin to prevent overflow at top of viewport
+    animation: 'modalEnter 0.2s ease-out',
+    '@media (max-width: 768px)': {
+      margin: '20px', // Smaller margins on mobile
+    },
     '@keyframes modalEnter': {
-      '0%': { opacity: 0, transform: 'scale(0.95) translateY(20px)' },
-      '100%': { opacity: 1, transform: 'scale(1) translateY(0)' }
+      '0%': { opacity: 0, transform: 'translateY(10px)' },
+      '100%': { opacity: 1, transform: 'translateY(0)' }
     }
   },
 
   // Film details styles for the modal
   filmDetailsContainer: {
     padding: '2rem',
-    minHeight: '780px',
+    height: '100%', // Take full height of parent
     display: 'flex',
     flexDirection: 'column',
     position: 'relative'
@@ -184,19 +192,15 @@ export const filmStyles = {
   },
 
   infoItem: {
-    backgroundColor: '#f8f9fa',
-    padding: '1rem',
-    borderRadius: '8px',
-    border: '1px solid #e9ecef',
+    marginBottom: '1rem',
   },
 
   infoLabel: {
     color: '#0070f3',
     fontSize: '0.9rem',
     fontWeight: '600',
-    marginBottom: '0.5rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
+    marginBottom: '0.25rem',
+    display: 'block',
   },
 
   infoValue: {
@@ -238,24 +242,20 @@ export const filmStyles = {
     top: '15px',
     right: '15px',
     zIndex: 10,
-    background: 'white',
-    border: '1px solid #e1e4e8',
+    background: 'transparent',
+    border: 'none',
     borderRadius: '50%',
     width: '32px',
     height: '32px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '18px',
+    fontSize: '24px',
     cursor: 'pointer',
     color: '#666',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
     transition: 'all 0.2s ease',
     ':hover': {
-      background: '#0070f3',
-      color: 'white',
-      border: '1px solid #0070f3',
-      boxShadow: '0 2px 8px rgba(0, 112, 243, 0.3)'
+      color: '#333',
     }
   },
 
@@ -281,11 +281,12 @@ export const filmStyles = {
   },
 
   skeletonTitle: {
-    height: '30px',
-    width: '70%',
-    backgroundColor: '#eaeaea',
+    height: '40px',
+    width: '60%',
+    backgroundColor: '#f5f5f5',
     borderRadius: '4px',
-    marginBottom: '0.75rem'
+    marginBottom: '2rem',
+    alignSelf: 'center' // Center the title like in the modal
   },
 
   skeletonMetadata: {
@@ -306,36 +307,26 @@ export const filmStyles = {
   // Modal skeleton styles
   modalSkeleton: {
     padding: '2rem',
-    minHeight: '780px',
+    maxHeight: 'calc(100vh - 80px)',
     display: 'flex',
     flexDirection: 'column',
-    position: 'relative'
-  },
-
-  skeletonInfoGrid: {
-    width: '100%',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '1.5rem',
-    marginBottom: '2rem',
-    '@media (max-width: 768px)': {
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))'
-    }
+    position: 'relative',
+    height: '100%'
   },
 
   skeletonInfoItem: {
-    height: '80px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
-    border: '1px solid #e9ecef'
+    height: '50px',
+    backgroundColor: '#f5f5f5',
+    borderRadius: '4px',
+    marginBottom: '1rem',
+    width: '60%'
   },
 
   skeletonContent: {
     width: '100%',
-    height: '400px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '8px',
-    border: '1px solid #e9ecef',
-    flex: 1
+    backgroundColor: '#f5f5f5',
+    borderRadius: '4px',
+    flex: 1,
+    minHeight: '600px' // Make it tall enough to match the modal content
   }
 };

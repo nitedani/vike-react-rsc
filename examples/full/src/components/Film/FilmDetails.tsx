@@ -39,23 +39,19 @@ export async function FilmDetails({ id }: { id: number }) {
         {film.title}
       </h2>
 
-      {/* Film metadata in a grid */}
-      <div css={filmStyles.infoGrid}>
-        <div css={filmStyles.infoItem}>
-          <p css={filmStyles.infoLabel}>Director</p>
-          <p css={filmStyles.infoValue}>{film.director}</p>
-        </div>
-        <div css={filmStyles.infoItem}>
-          <p css={filmStyles.infoLabel}>Producer</p>
-          <p css={filmStyles.infoValue}>{film.producer}</p>
-        </div>
-        <div css={filmStyles.infoItem}>
-          <p css={filmStyles.infoLabel}>Release Date</p>
-          <p css={filmStyles.infoValue}>{film.release_date}</p>
-        </div>
+      <div css={filmStyles.infoItem}>
+        <span css={filmStyles.infoLabel}>Director</span>
+        <div css={filmStyles.infoValue}>{film.director}</div>
+      </div>
+      <div css={filmStyles.infoItem}>
+        <span css={filmStyles.infoLabel}>Producer</span>
+        <div css={filmStyles.infoValue}>{film.producer}</div>
+      </div>
+      <div css={filmStyles.infoItem}>
+        <span css={filmStyles.infoLabel}>Release Date</span>
+        <div css={filmStyles.infoValue}>{film.release_date}</div>
       </div>
 
-      {/* Opening crawl section */}
       <div css={filmStyles.crawlSection}>
         <h3 css={filmStyles.sectionTitle}>
           Opening Crawl
