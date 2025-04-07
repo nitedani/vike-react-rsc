@@ -1,3 +1,5 @@
+"use client"
+
 //TODO: Delete this file
 // Error in dev:
 // 11:41:28 AM [vike][request(1)][Error] An error was thrown:

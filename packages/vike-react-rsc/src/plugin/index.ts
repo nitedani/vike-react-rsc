@@ -7,6 +7,7 @@ import { useClientPlugin } from "./plugins/useClientPlugin";
 import { useServerPlugin } from "./plugins/useServerPlugin";
 import { virtuals } from "./plugins/virtuals";
 import { virtualNormalizeReferenceIdPlugin } from "./utils";
+import { serverComponentExclusionPlugin } from "./plugins/serverComponentExclusionPlugin";
 
 type GlobalState = {
   clientReferences: Record<string, string>;
@@ -40,7 +41,7 @@ export default function vikeRscPlugin(): Plugin[] {
     ...useClientPlugin(),
     ...useServerPlugin(),
     virtualNormalizeReferenceIdPlugin(),
-
+    serverComponentExclusionPlugin(),
     {
       name: "rsc-misc",
       transform(code, id, _options) {

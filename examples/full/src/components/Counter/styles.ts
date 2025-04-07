@@ -1,3 +1,4 @@
+"use client";
 // Counter component styles
 
 export const counterStyles = {

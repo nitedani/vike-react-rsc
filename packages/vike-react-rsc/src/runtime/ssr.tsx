@@ -107,7 +107,7 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   rscStreamForClientScript.pipeThrough(new TextDecoderStream()).pipeTo(
     new WritableStream({
       write(rscChunk) {
-        console.log("Injecting RSC chunk...");
+        // console.log("Injecting RSC chunk...");
         htmlStream.injectToStream(
           `<script>self.__rsc_web_stream_push(${JSON.stringify(
             rscChunk
@@ -139,7 +139,7 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
         //     import "/@fs/home/nitedani/projects/vike-react-rsc/node_modules/vike/dist/esm/client/client-routing-runtime/entry.js";
         // </script>
         // TODO: why is this needed?
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        await new Promise((resolve) => setTimeout(resolve, 200));
         canClose();
       },
     })
