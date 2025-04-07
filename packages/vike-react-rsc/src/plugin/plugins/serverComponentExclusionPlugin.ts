@@ -4,6 +4,7 @@ import {
   retrieveAssetsDev,
   styleFileRE,
 } from "../../runtime/retrieveAssetsDev";
+import { retrieveAssetsProd, buildCssDependencyGraph } from "../../runtime/retrieveAssetsProd";
 import { hasDirective } from "@hiogawa/transforms";
 
 // Define styleFileRE here to match CSS file extensions
@@ -14,7 +15,14 @@ import { hasDirective } from "@hiogawa/transforms";
  */
 export const serverComponentExclusionPlugin = (): Plugin[] => {
   let devServer: ViteDevServer;
+  // Store direct CSS imports for each module
   const cssImportMapBuild: { [importer: string]: string[] } = {};
+  // Store JavaScript module dependencies
+  const jsImportMapBuild: { [importer: string]: string[] } = {};
+  // Store the complete CSS dependency graph
+  let cssImportGraph: { [importer: string]: Set<string> } = {};
+  // Store original source paths for resolved IDs
+  const originalSourceMap: { [resolvedId: string]: string } = {};
 
   return [
     {
@@ -26,12 +34,44 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
       },
       resolveId: {
         order: "pre",
-        handler(source, importer) {
-          if (styleFileRE.test(source) && importer) {
-            cssImportMapBuild[importer] ??= [];
-            cssImportMapBuild[importer].push(source);
+        async handler(source, importer, options) {
+          if (!importer) return;
+
+          // Skip virtual modules and node_modules
+          if (source.includes('\0') || source.includes('node_modules')) return;
+
+          try {
+            // Try to resolve the source to get the full path
+            const resolved = await this.resolve(source, importer, { skipSelf: true, ...options });
+            if (!resolved) return;
+
+            const resolvedId = resolved.id;
+
+            // Store the original source path for this resolved ID
+            originalSourceMap[resolvedId] = source;
+
+            if (styleFileRE.test(resolvedId)) {
+              // Record direct CSS imports
+              cssImportMapBuild[importer] ??= [];
+              cssImportMapBuild[importer].push(resolvedId);
+            } else if (
+              resolvedId.endsWith('.js') || resolvedId.endsWith('.jsx') ||
+              resolvedId.endsWith('.ts') || resolvedId.endsWith('.tsx') ||
+              resolvedId.endsWith('.mjs') || resolvedId.endsWith('.cjs')
+            ) {
+              // Record JavaScript module dependencies
+              jsImportMapBuild[importer] ??= [];
+              jsImportMapBuild[importer].push(resolvedId);
+            }
+          } catch (error) {
+            // Silently ignore resolution errors
           }
         },
+      },
+      // Build the complete CSS dependency graph after all modules are processed
+      buildEnd() {
+        // Build the complete CSS dependency graph using the utility function
+        cssImportGraph = buildCssDependencyGraph(cssImportMapBuild, jsImportMapBuild);
       },
     },
     {
@@ -118,11 +158,16 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
                 .moduleGraph
             );
           } else {
-            // TODO: build discovery of css in the current module id
-            // this only does it top-level afaik
-            cssIds = [];
-            for (const cssId of cssImportMapBuild[id] ?? []) {
-              cssIds.push(cssId);
+            // Use retrieveAssetsProd to get properly formatted CSS paths
+            cssIds = retrieveAssetsProd(
+              id,
+              cssImportGraph,
+              originalSourceMap
+            );
+
+            // Log only when CSS dependencies are found
+            if (cssIds.length > 0) {
+              console.log(`[RSC Plugin] Found ${cssIds.length} CSS dependencies for ${id}`);
             }
           }
 
@@ -134,6 +179,9 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
             proxyCode +=
               cssIds.map((cssPath) => `import "${cssPath}";`).join("\n") + "\n";
           }
+
+          console.log(cssIds);
+
 
           // Add empty exports to satisfy imports
           proxyCode += `
