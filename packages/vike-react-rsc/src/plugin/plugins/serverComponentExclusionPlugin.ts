@@ -21,7 +21,6 @@ export const serverComponentExclusionPlugin = (): Plugin => {
       devServer = server;
     },
     async transform(code, id: string) {
-      // Only apply to client and SSR environments
       if (this.environment?.name !== "client") {
         return null;
       }
@@ -120,6 +119,9 @@ export const serverComponentExclusionPlugin = (): Plugin => {
 
         // Add CSS imports
         if (cssIds.length > 0) {
+          for (const cssId of cssIds) {
+            this.addWatchFile(cssId);
+          }
           proxyCode +=
             cssIds.map((cssPath) => `import "${cssPath}";`).join("\n") + "\n";
         }

@@ -65,26 +65,6 @@ function clientDepTrackerPlugin(): Plugin {
     resolveId: {
       order: "pre",
       async handler(source, importer, options) {
-        // TODO: remove this hidden complexity:
-        // Why this works? The client components are also part of the rsc module graph,
-        // the important part is that we need to resolve all client dependencies here, before getting to the
-        // client transform hook in serverComponentExclusionPlugin
-        // BUILD: we build the rsc bundle first, then the client bundle, then the ssr bundle, rsc build resolves the deps
-        // SERVE: Vike loads the ssr deps of the page, including the client components and transitive ones
-        const runIn = command === "build" ? "rsc" : "ssr";
-        if (this.environment.name !== runIn) {
-          return;
-        }
-
-        // we need to have the useClientPlugin enabled to build client references that we must not strip
-        // from the client bundle
-        if (
-          runIn === "rsc" &&
-          !global.vikeReactRscGlobalState.disableUseClientPlugin
-        ) {
-          return;
-        }
-
         // Skip if no importer, virtual modules, or node_modules
         if (
           !importer ||
