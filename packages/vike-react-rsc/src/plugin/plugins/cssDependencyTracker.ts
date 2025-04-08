@@ -1,4 +1,4 @@
-export { createCssDependencyManager };
+export { createCssDependencyTracker };
 
 import path from "path";
 import type { Plugin } from "vite";
@@ -9,8 +9,8 @@ type JsImportMap = Record<string, string[]>;
 type OriginalSourceMap = Record<string, string>;
 type CssDependencyGraph = Record<string, Set<string>>;
 
-// Options for the dependency manager
-interface CssDependencyManagerOptions {
+// Options for the CSS dependency tracker
+interface CssDependencyTrackerOptions {
   // Regular expression to identify CSS files
   styleFileRE?: RegExp;
   // Regular expression to identify JS/TS files
@@ -19,34 +19,30 @@ interface CssDependencyManagerOptions {
   environmentName?: string;
   // Whether to log debug information
   debug?: boolean;
-  // Client references to track dependencies for
-  clientReferences?: Record<string, string>;
 }
 
 // Default options
-const defaultOptions: CssDependencyManagerOptions = {
+const defaultOptions: CssDependencyTrackerOptions = {
   styleFileRE: /\.(css|less|sass|scss|styl|stylus|pcss|postcss)($|\?)/,
   jsFileRE: /\.(jsx?|tsx?|m?js|cjs)$/,
   environmentName: "rsc",
   debug: false
 };
 
-// Interface for the dependency manager
-interface CssDependencyManager {
+// Interface for the CSS dependency tracker
+interface CssDependencyTracker {
   // Plugin to collect dependencies
   collectorPlugin: Plugin;
   // Plugin to build the dependency graph
   graphBuilderPlugin: Plugin;
   // Get CSS dependencies for a module
   getCssDependencies(id: string): string[];
-  // Check if a module is a dependency of any client reference
-  isClientDependency(id: string): boolean;
 }
 
 /**
- * Creates a CSS dependency manager for handling CSS imports in build mode
+ * Creates a CSS dependency tracker for handling CSS imports in build mode
  */
-function createCssDependencyManager(options: CssDependencyManagerOptions = {}): CssDependencyManager {
+function createCssDependencyTracker(options: CssDependencyTrackerOptions = {}): CssDependencyTracker {
   // Merge options with defaults
   const opts = { ...defaultOptions, ...options };
 
@@ -56,12 +52,8 @@ function createCssDependencyManager(options: CssDependencyManagerOptions = {}): 
   const originalSourceMap: OriginalSourceMap = {};
   let cssImportGraph: CssDependencyGraph = {};
 
-  // Track client reference dependencies
-  const clientReferences = opts.clientReferences || {};
-  const clientDependencies = new Set<string>();
-
-  // Build the complete CSS dependency graph and client dependency graph
-  function buildGraph() {
+  // Build the complete CSS dependency graph
+  function buildGraph(): CssDependencyGraph {
     const graph: CssDependencyGraph = {};
     const processedModules = new Set<string>();
 
@@ -101,38 +93,9 @@ function createCssDependencyManager(options: CssDependencyManagerOptions = {}): 
       collectCssDependencies(moduleId);
     }
 
-    // Build client reference dependency graph
-    const buildClientDependencyGraph = () => {
-      // Function to recursively collect client dependencies
-      const collectClientDependencies = (moduleId: string, visited = new Set<string>()) => {
-        if (visited.has(moduleId)) return;
-        visited.add(moduleId);
-
-        // Mark this module as a client dependency
-        clientDependencies.add(moduleId);
-
-        // Process JS dependencies recursively
-        for (const jsImport of jsImportMapBuild[moduleId] || []) {
-          collectClientDependencies(jsImport, new Set(visited));
-        }
-      };
-
-      // Start from all client references
-      for (const clientRefPath of Object.values(clientReferences)) {
-        collectClientDependencies(clientRefPath, new Set());
-      }
-
-      if (opts.debug) {
-        console.log(`[CSS Dependency Manager] Found ${clientDependencies.size} client reference dependencies`);
-      }
-    };
-
-    // Build the client dependency graph
-    buildClientDependencyGraph();
-
     if (opts.debug) {
       const totalCssImports = Object.values(graph).reduce((sum, set) => sum + set.size, 0);
-      console.log(`[CSS Dependency Manager] Built graph with ${Object.keys(graph).length} modules and ${totalCssImports} CSS imports`);
+      console.log(`[CSS Dependency Tracker] Built graph with ${Object.keys(graph).length} modules and ${totalCssImports} CSS imports`);
     }
 
     return graph;
@@ -169,7 +132,7 @@ function createCssDependencyManager(options: CssDependencyManagerOptions = {}): 
 
   // Create the dependency collector plugin
   const collectorPlugin: Plugin = {
-    name: "vike-rsc:collect-dependencies",
+    name: "vike-rsc:collect-css-dependencies",
     apply: "build",
     enforce: "pre",
     applyToEnvironment(environment) {
@@ -222,19 +185,16 @@ function createCssDependencyManager(options: CssDependencyManagerOptions = {}): 
     }
   };
 
-  // Return the dependency manager interface
+  // Return the CSS dependency tracker interface
   return {
     collectorPlugin,
     graphBuilderPlugin,
     getCssDependencies(id: string): string[] {
       const cssIds = Array.from(cssImportGraph[id] || new Set());
       if (opts.debug && cssIds.length > 0) {
-        console.log(`[CSS Dependency Manager] Found ${cssIds.length} CSS dependencies for ${id}`);
+        console.log(`[CSS Dependency Tracker] Found ${cssIds.length} CSS dependencies for ${id}`);
       }
       return formatCssPaths(id, cssIds);
-    },
-    isClientDependency(id: string): boolean {
-      return clientDependencies.has(id);
     }
   };
 }

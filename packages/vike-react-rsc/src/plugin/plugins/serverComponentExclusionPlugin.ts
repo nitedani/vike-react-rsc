@@ -1,45 +1,55 @@
-import { parseAstAsync, type Plugin, type ViteDevServer } from "vite";
+import { parseAstAsync, type Plugin } from "vite";
 import path from "path";
-import {
-  retrieveAssetsDev,
-  styleFileRE,
-} from "../../runtime/retrieveAssetsDev";
-import { createCssDependencyManager } from "../../runtime/retrieveAssetsProd";
 import { hasDirective } from "@hiogawa/transforms";
+import { createCssDependencyTracker } from "./cssDependencyTracker";
+import { createClientDependencyTracker } from "./clientDependencyTracker";
 
-// Define styleFileRE here to match CSS file extensions
+// Regular expression to identify CSS files
+const styleFileRE = /\.(css|less|sass|scss|styl|stylus|pcss|postcss)($|\?)/;
 
 /**
  * Plugin to exclude server components from client and SSR bundles
  * while preserving CSS imports for proper styling.
  */
 export const serverComponentExclusionPlugin = (): Plugin[] => {
-  let devServer: ViteDevServer;
-
   // Debug mode
   const debug = true;
 
-  // Create CSS dependency manager with options
-  const cssDependencyManager = createCssDependencyManager({
+  // Create CSS dependency tracker
+  const cssDependencyTracker = createCssDependencyTracker({
     styleFileRE,
     debug,
-    clientReferences: global.vikeReactRscGlobalState.clientReferences
+    environmentName: "rsc",
   });
 
+  // Create client dependency tracker
+  const clientDependencyTracker = createClientDependencyTracker({
+    debug,
+    environmentName: "rsc",
+    clientReferences: global.vikeReactRscGlobalState?.clientReferences || {},
+  });
+
+  // Log initialization
+  if (debug) {
+    console.log("[RSC Plugin] Initialized dependency trackers");
+  }
+
   return [
-    // Use the dependency collector and graph builder plugins
-    cssDependencyManager.collectorPlugin,
-    cssDependencyManager.graphBuilderPlugin,
+    // Use the CSS dependency tracker plugins
+    cssDependencyTracker.collectorPlugin,
+    cssDependencyTracker.graphBuilderPlugin,
+    // Use the client dependency tracker plugins
+    clientDependencyTracker.collectorPlugin,
+    clientDependencyTracker.graphBuilderPlugin,
     {
       name: "vike-rsc:server-component-exclusion",
+      apply: "build", // Only apply during build
       // enforce: "pre", // Run before other plugins
 
       applyToEnvironment(environment) {
         return environment.name === "client";
       },
-      configureServer(server) {
-        devServer = server;
-      },
+      // Build mode only - no configureServer needed
       async transform(code, id: string) {
         // Only apply to client and SSR environments
         if (this.environment?.name !== "client") {
@@ -62,23 +72,7 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
             return null;
           }
 
-          if (devServer) {
-            try {
-              // Try to load the module fully in the rsc env in development
-              const mod = await devServer?.environments.rsc.transformRequest(
-                id
-              );
-              const deps = new Set(mod?.deps ?? []);
-              for (const dep of deps) {
-                const mod = await devServer?.environments.rsc.transformRequest(
-                  dep
-                );
-                for (const element of mod?.deps ?? []) {
-                  deps.add(element);
-                }
-              }
-            } catch (e) {}
-          }
+          // Build mode only - no development mode code needed
 
           const boundaries = [
             // In build mode these are guaranteed to exist here
@@ -95,9 +89,11 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
           }
 
           // If this module is a dependency of a client reference, don't strip it
-          if (cssDependencyManager.isClientDependency(id)) {
+          if (clientDependencyTracker.isClientDependency(id)) {
             if (debug) {
-              console.log(`[RSC Plugin] Preserving client dependency in client bundle: ${relPath}`);
+              console.log(
+                `[RSC Plugin] Preserving client dependency in client bundle: ${relPath}`
+              );
             }
             return null;
           }
@@ -113,22 +109,14 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
             return null;
           }
 
-          let cssIds: string[] = [];
-          if (devServer) {
-            // At this point we should have all the css imports
-            cssIds = await retrieveAssetsDev(
-              [id],
-              global.vikeReactRscGlobalState.devServer!.environments.rsc
-                .moduleGraph
-            );
-          } else {
-            // Use the dependency manager to get CSS dependencies
-            cssIds = cssDependencyManager.getCssDependencies(id);
+          // Get CSS dependencies using the CSS dependency tracker
+          const cssIds = cssDependencyTracker.getCssDependencies(id);
 
-            // Log only when CSS dependencies are found
-            if (cssIds.length > 0) {
-              console.log(`[RSC Plugin] Found ${cssIds.length} CSS dependencies for ${id}`);
-            }
+          // Log only when CSS dependencies are found
+          if (cssIds.length > 0 && debug) {
+            console.log(
+              `[RSC Plugin] Found ${cssIds.length} CSS dependencies for ${id}`
+            );
           }
 
           // Create a minimal proxy module
@@ -139,9 +127,6 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
             proxyCode +=
               cssIds.map((cssPath) => `import "${cssPath}";`).join("\n") + "\n";
           }
-
-          console.log(cssIds);
-
 
           // Add empty exports to satisfy imports
           proxyCode += `
