@@ -47,6 +47,7 @@ export default function vikeRscPlugin(): PluginOption[] {
     serverComponentExclusionPlugin(),
     {
       name: "rsc-misc",
+      enforce: "pre",
       transform(code, id, _options) {
         if (
           this.environment?.name === "rsc" &&
@@ -65,6 +66,37 @@ export default function vikeRscPlugin(): PluginOption[] {
           return { code, map: null };
         }
         return;
+      },
+      hotUpdate: {
+        order: "pre",
+        handler(ctx) {
+          if (this.environment.name === "rsc") {
+            console.log("[RSC Plugin] Hot update");
+
+            const cliendIds = new Set(
+              Object.values(global.vikeReactRscGlobalState.clientReferences)
+            );
+            const ids = ctx.modules
+              .map((mod) => mod.id)
+              .filter((v) => v !== null);
+
+            if (ids.length > 0) {
+              // client reference id is also in react server module graph,
+              // but we skip RSC HMR for this case since Client HMR handles it.
+              if (ids.some((id) => cliendIds.has(id))) {
+                return [];
+              } else {
+                ctx.server.environments.client.hot.send({
+                  type: "custom",
+                  event: "rsc:update",
+                  data: {
+                    file: ctx.file,
+                  },
+                });
+              }
+            }
+          }
+        },
       },
     },
   ];

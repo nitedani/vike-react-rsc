@@ -9,7 +9,7 @@ import type { BundlerConfig, ImportManifestEntry } from "../types";
 import type { PageContext } from "vike/types";
 import { getPageElementRsc } from "../integration/getPageElement/getPageElement-server";
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
-import { AsyncLocalStorage } from "async_hooks";
+import { provideServerActionContext } from "./serverActionContext";
 
 async function importServerAction(id: string): Promise<Function> {
   const [file, name] = id.split("#") as [string, string];
@@ -73,22 +73,6 @@ export async function renderPageRsc(
   );
 }
 
-// Server action context to track whether a re-render is needed
-const serverActionContext = new AsyncLocalStorage<{ shouldRerender: boolean }>();
-
-/**
- * Call this function within a server action to trigger a re-render of the page
- * If not called, the server action will only return the action result without re-rendering
- */
-export function rerender(): void {
-  const context = serverActionContext.getStore();
-  if (context) {
-    context.shouldRerender = true;
-  } else {
-    console.warn("[Server] rerender() called outside of a server action context");
-  }
-}
-
 export async function handleServerAction({
   actionId,
   pageContext,
@@ -113,7 +97,7 @@ export async function handleServerAction({
   ]);
 
   // Execute the action within the server action context
-  const returnValue = await serverActionContext.run(context, () =>
+  const returnValue = await provideServerActionContext(context, () =>
     providePageContext(pageContext, () => action.apply(null, args))
   );
 

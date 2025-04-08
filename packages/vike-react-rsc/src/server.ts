@@ -1,2 +1,2 @@
 // Export server-side utilities
-export { rerender } from './runtime/server';
+export { rerender } from './runtime/serverActionContext';

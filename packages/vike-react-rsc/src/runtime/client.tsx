@@ -89,9 +89,24 @@ export async function callServer(
   return result.returnValue;
 }
 
-export async function onNavigate(
+if (import.meta.hot) {
+  import.meta.hot.on("rsc:update", async () => {
+    const globalState = getGlobalClientState();
+    invalidateCache(getGlobalClientState().pageContext!);
+    invalidateServerComponentCache();
+    const payload = await onNavigate(globalState.pageContext!);
+    globalState.setPayload?.((current) => {
+      return {
+        pageContext: current.pageContext,
+        payload,
+      };
+    });
+  });
+}
+
+export function onNavigate(
   pageContext: PageContextClient
-): Promise<void> {
+): Promise<RscPayload> {
   console.log("[RSC Client] Navigation:", pageContext.urlPathname);
 
   const globalState = getGlobalClientState();
@@ -100,13 +115,11 @@ export async function onNavigate(
   // This ensures we don't have stale requests when moving between pages
   clearPendingServerComponentRequests();
 
-  // No need to configure cache - staleTime is read directly from pageContext
-
   // Check for cached payload
   const cachedPayload = getCachedPayload(pageContext);
   if (cachedPayload) {
     globalState.navigationPromise = Promise.resolve(cachedPayload);
-    return;
+    return Promise.resolve(cachedPayload);
   }
 
   // No cache hit, fetch from server
@@ -125,7 +138,10 @@ export async function onNavigate(
 
   // Store the promise
   globalState.navigationPromise = fetchPromise;
-  cachePayload(pageContext, await fetchPromise);
+  fetchPromise.then((payload: RscPayload) => {
+    cachePayload(pageContext, payload);
+  });
+  return fetchPromise;
 }
 
 // Function to parse an RSC stream into React nodes
