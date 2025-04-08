@@ -69,7 +69,6 @@ function cssTrackerPlugin(): Plugin {
         }
       },
     },
-    sharedDuringBuild: true,
     buildEnd() {
       if (!global.vikeReactRscGlobalState.disableUseClientPlugin) {
         staticGraph = buildGraph();

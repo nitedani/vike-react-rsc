@@ -8,16 +8,18 @@ type JsImportMap = Record<string, string[]>;
 const jsFileRE = /\.(jsx?|tsx?|m?js|cjs)$/;
 
 /**
- * Creates a client dependency tracker for handling client component dependencies in build mode
+ * Creates a client dependency tracker for handling client component dependencies
+ * Works in both development and build modes with on-demand dependency tracking
  */
 function clientDepTrackerPlugin(): Plugin {
-  // Merge options with defaults
   // Internal state
   const jsImportMapBuild: JsImportMap = {};
-  const clientDependencies = new Set<string>();
+  let staticGraph: Set<string> | null = null;
 
-  // Build the client dependency graph
-  function buildGraph(): void {
+  // Build the client dependency graph and return the client dependencies set
+  function buildGraph(): Set<string> {
+    const clientDependencies = new Set<string>();
+
     // Function to recursively collect client dependencies
     const collectClientDependencies = (
       moduleId: string,
@@ -37,7 +39,7 @@ function clientDepTrackerPlugin(): Plugin {
 
     // Start from all client references
     for (const clientRefPath of Object.values(
-      global.vikeReactRscGlobalState.clientReferences
+      global.vikeReactRscGlobalState.clientReferences || {}
     )) {
       collectClientDependencies(clientRefPath, new Set());
     }
@@ -47,22 +49,42 @@ function clientDepTrackerPlugin(): Plugin {
         `[Client Dependency Tracker] Found ${clientDependencies.size} client reference dependencies`
       );
     }
+
+    return clientDependencies;
   }
 
+  let command: "build" | "serve";
   // Create a unified plugin for collection and graph building
   const plugin: Plugin = {
     name: "vike-rsc:client-dependency-tracker",
-    apply: "build",
     enforce: "pre",
-    applyToEnvironment(environment) {
-      return environment.name === "rsc";
+    apply(_, v) {
+      command = v.command;
+      return true;
     },
     resolveId: {
       order: "pre",
       async handler(source, importer, options) {
-        if (!global.vikeReactRscGlobalState.disableUseClientPlugin) {
+        // TODO: remove this hidden complexity:
+        // Why this works? The client components are also part of the rsc module graph,
+        // the important part is that we need to resolve all client dependencies here, before getting to the
+        // client transform hook in serverComponentExclusionPlugin
+        // BUILD: we build the rsc bundle first, then the client bundle, then the ssr bundle, rsc build resolves the deps
+        // SERVE: Vike loads the ssr deps of the page, including the client components and transitive ones
+        const runIn = command === "build" ? "rsc" : "ssr";
+        if (this.environment.name !== runIn) {
           return;
         }
+
+        // we need to have the useClientPlugin enabled to build client references that we must not strip
+        // from the client bundle
+        if (
+          runIn === "rsc" &&
+          !global.vikeReactRscGlobalState.disableUseClientPlugin
+        ) {
+          return;
+        }
+
         // Skip if no importer, virtual modules, or node_modules
         if (
           !importer ||
@@ -86,7 +108,9 @@ function clientDepTrackerPlugin(): Plugin {
 
           // Check file type and record in appropriate collection
           if (jsFileRE?.test(resolvedId)) {
-            jsImportMapBuild[importer].push(resolvedId);
+            if (!jsImportMapBuild[importer].includes(resolvedId)) {
+              jsImportMapBuild[importer].push(resolvedId);
+            }
           }
         } catch (error) {
           // Silently ignore resolution errors
@@ -94,18 +118,25 @@ function clientDepTrackerPlugin(): Plugin {
       },
     },
     buildEnd() {
-      if (!global.vikeReactRscGlobalState.disableUseClientPlugin) {
-        buildGraph();
+      if (
+        this.environment.name === "rsc" &&
+        !global.vikeReactRscGlobalState.disableUseClientPlugin
+      ) {
+        staticGraph = buildGraph();
       }
     },
   };
 
   global.vikeReactRscGlobalState.isClientDependency = (id: string): boolean => {
+    // Build the graph on-demand to ensure we have the latest dependencies
+    // In build mode, we build it only once
+    const dependencies = staticGraph || buildGraph();
+
     // Check if the module is a client reference
     if (
-      Object.values(global.vikeReactRscGlobalState.clientReferences).includes(
-        id
-      )
+      Object.values(
+        global.vikeReactRscGlobalState.clientReferences || {}
+      ).includes(id)
     ) {
       if (true) {
         console.log(`[Client Dependency Tracker] ${id} is a client reference`);
@@ -114,11 +145,12 @@ function clientDepTrackerPlugin(): Plugin {
     }
 
     // Check if the module is a dependency of a client reference
-    const isClientDep = clientDependencies.has(id);
+    const isClientDep = dependencies.has(id);
     if (isClientDep && true) {
       console.log(`[Client Dependency Tracker] ${id} is a client dependency`);
     }
     return isClientDep;
   };
+
   return plugin;
 }

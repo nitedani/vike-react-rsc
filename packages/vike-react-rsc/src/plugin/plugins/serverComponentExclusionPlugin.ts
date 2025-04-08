@@ -1,6 +1,6 @@
 import { hasDirective } from "@hiogawa/transforms";
 import path from "path";
-import { parseAstAsync, type Plugin } from "vite";
+import { parseAstAsync, type Plugin, type ViteDevServer } from "vite";
 
 // Regular expression to identify CSS files
 const styleFileRE = /\.(css|less|sass|scss|styl|stylus|pcss|postcss)($|\?)/;
@@ -11,14 +11,15 @@ const styleFileRE = /\.(css|less|sass|scss|styl|stylus|pcss|postcss)($|\?)/;
  */
 export const serverComponentExclusionPlugin = (): Plugin => {
   const debug = true;
-
+  let devServer: ViteDevServer;
   return {
     name: "vike-rsc:server-component-exclusion",
-    apply: "build",
     applyToEnvironment(environment) {
       return environment.name === "client";
     },
-
+    configureServer(server) {
+      devServer = server;
+    },
     async transform(code, id: string) {
       // Only apply to client and SSR environments
       if (this.environment?.name !== "client") {
@@ -41,18 +42,12 @@ export const serverComponentExclusionPlugin = (): Plugin => {
           return null;
         }
 
-        // Get client and server references
-        const clientRefs =
-          global.vikeReactRscGlobalState?.clientReferences || {};
-        const serverRefs =
-          global.vikeReactRscGlobalState?.serverReferences || {};
-
         const boundaries = [
           // In build mode these are guaranteed to exist here
           // They are created by the first two rsc builds
           // And now we are in the client build, followed by the rsc builds
-          ...Object.values(clientRefs),
-          ...Object.values(serverRefs),
+          ...Object.values(global.vikeReactRscGlobalState.clientReferences),
+          ...Object.values(global.vikeReactRscGlobalState.serverReferences),
         ];
 
         // If our id is either a "use client" or "use server" file
