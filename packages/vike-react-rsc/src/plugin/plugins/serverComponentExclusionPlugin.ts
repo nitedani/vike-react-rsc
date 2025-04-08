@@ -82,7 +82,30 @@ export const serverComponentExclusionPlugin = (): Plugin => {
           return null;
         }
 
-        // Get CSS dependencies using the universal dependency manager
+        if (devServer) {
+          try {
+            // Try to load the module fully in the rsc env in development
+            // before getting its css assets
+            const mod = await devServer?.environments.rsc.transformRequest(id);
+            const deps = new Set(mod?.deps ?? []);
+            for (const dep of deps) {
+              try {
+                const mod = await devServer?.environments.rsc.transformRequest(
+                  dep
+                );
+                for (const element of mod?.deps ?? []) {
+                  deps.add(element);
+                }
+              } catch (error) {
+                console.warn(`[RSC Plugin] Failed to load ${dep} in rsc env`);
+              }
+            }
+          } catch (e) {
+            console.warn(`[RSC Plugin] Failed to load ${id} in rsc env`);
+          }
+        }
+
+        // Get CSS dependencies of the excluded rsc module
         const cssIds = global.vikeReactRscGlobalState.getCssDependencies(id);
 
         // Log only when CSS dependencies are found
