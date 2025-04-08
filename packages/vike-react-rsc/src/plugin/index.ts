@@ -1,19 +1,22 @@
-import { type Plugin, type PluginOption, type ViteDevServer } from "vite";
+import { type PluginOption, type ViteDevServer } from "vite";
+import { clientDepTrackerPlugin } from "./plugins/clientDepTrackerPlugin";
 import { configs } from "./plugins/config";
+import { cssTrackerPlugin } from "./plugins/cssTrackerPlugin";
 import { exposeDevServer } from "./plugins/dev";
 import { vikeRscManifestPluginBuild } from "./plugins/injectManifestBuild";
-import { vikeRscManifestPluginDev } from "./plugins/injectManifestDev";
+import { serverComponentExclusionPlugin } from "./plugins/serverComponentExclusionPlugin";
 import { useClientPlugin } from "./plugins/useClientPlugin";
 import { useServerPlugin } from "./plugins/useServerPlugin";
 import { virtuals } from "./plugins/virtuals";
 import { virtualNormalizeReferenceIdPlugin } from "./utils";
-import { serverComponentExclusionPlugin } from "./plugins/serverComponentExclusionPlugin";
 
 type GlobalState = {
   clientReferences: Record<string, string>;
   serverReferences: Record<string, string>;
   devServer?: ViteDevServer;
   disableUseClientPlugin?: boolean;
+  getCssDependencies(id: string): string[];
+  isClientDependency(id: string): boolean;
 };
 
 declare global {
@@ -25,11 +28,9 @@ global.vikeReactRscGlobalState ||= {
   serverReferences: {},
   devServer: undefined,
   disableUseClientPlugin: false,
+  getCssDependencies: () => [],
+  isClientDependency: () => false,
 };
-
-export function getDevServerInstance(): ViteDevServer | undefined {
-  return global.vikeReactRscGlobalState.devServer;
-}
 
 export default function vikeRscPlugin(): PluginOption[] {
   return [
@@ -38,10 +39,12 @@ export default function vikeRscPlugin(): PluginOption[] {
     exposeDevServer,
     // vikeRscManifestPluginDev(),
     vikeRscManifestPluginBuild(),
+    cssTrackerPlugin(),
+    clientDepTrackerPlugin(),
     ...useClientPlugin(),
     ...useServerPlugin(),
     virtualNormalizeReferenceIdPlugin(),
-    ...serverComponentExclusionPlugin(),
+    serverComponentExclusionPlugin(),
     {
       name: "rsc-misc",
       transform(code, id, _options) {

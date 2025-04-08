@@ -11,32 +11,12 @@ import {
 import { PKG_NAME } from "../../constants";
 import { createVirtualPlugin, normalizeReferenceId } from "../utils";
 
-// Regular expression to identify CSS files
-const styleFileRE = /\.(css|less|sass|scss|styl|stylus|pcss|postcss)($|\?)/;
-
 export const useServerPlugin = (): Plugin[] => {
   let buildMode = false;
   let resolvedConfig: ResolvedConfig;
   let devServer: ViteDevServer;
-  const cssImportMapBuild: { [importer: string]: string[] } = {};
+
   return [
-    {
-      name: "vike-rsc:discover-css-build",
-      apply: "build",
-      enforce: "pre",
-      applyToEnvironment(environment) {
-        return environment.name === "rsc";
-      },
-      resolveId: {
-        order: "pre",
-        handler(source, importer) {
-          if (styleFileRE.test(source) && importer) {
-            cssImportMapBuild[importer] ??= [];
-            cssImportMapBuild[importer].push(source);
-          }
-        },
-      },
-    },
     {
       name: "vike-rsc:transform-server-directive",
       configResolved(config) {
@@ -93,11 +73,11 @@ export const useServerPlugin = (): Plugin[] => {
 
             global.vikeReactRscGlobalState.serverReferences[normalizedId] = id;
 
-            // TODO: rewrite this
-            if (this.environment.name === "client") {
-              for (const cssId of cssImportMapBuild[id] ?? []) {
-                output.prepend(`import "${cssId}";`);
-              }
+            await devServer?.environments.rsc.warmupRequest(id);
+            for (const cssId of global.vikeReactRscGlobalState.getCssDependencies(
+              id
+            )) {
+              output.prepend(`import "${cssId}";`);
             }
 
             const name = this.environment.name === "client" ? "browser" : "ssr";
