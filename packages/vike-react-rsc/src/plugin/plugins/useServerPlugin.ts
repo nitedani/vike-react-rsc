@@ -10,10 +10,9 @@ import {
 } from "vite";
 import { PKG_NAME } from "../../constants";
 import { createVirtualPlugin, normalizeReferenceId } from "../utils";
-import {
-  retrieveAssetsDev,
-  styleFileRE,
-} from "../../runtime/retrieveAssetsDev";
+
+// Regular expression to identify CSS files
+const styleFileRE = /\.(css|less|sass|scss|styl|stylus|pcss|postcss)($|\?)/;
 
 export const useServerPlugin = (): Plugin[] => {
   let buildMode = false;
@@ -94,33 +93,12 @@ export const useServerPlugin = (): Plugin[] => {
 
             global.vikeReactRscGlobalState.serverReferences[normalizedId] = id;
 
-            // TODO: rewrite this (this proxies css for our rsc utility,
-            // which renders server components dynamically in client components)
-            // if (devServer) {
-            //   await devServer?.environments.rsc.warmupRequest(id);
-            //   const cssIds = await retrieveAssetsDev(
-            //     [
-            //       ...Object.keys(
-            //         global.vikeReactRscGlobalState.serverReferences
-            //       ),
-            //     ],
-            //     global.vikeReactRscGlobalState.devServer!.environments.rsc
-            //       .moduleGraph
-            //   );
-            //   for (const id of cssIds) {
-            //     // bridge the gap between client > server reference
-            //     // css will be picked up by Vike's own retrieveAssetsDev
-            //     output.prepend(`import "${id}";`);
-            //   }
-            // } else if (this.environment.name === "client") {
-            //   // how do we "bridge the gap" so that the client actually imports the css imported by the server?
-            //   // we should have knowledge of the imported css by the rsc envirnonment build at this point
-            //   // and then just prepend it to the client code here
-            //   // Vike will discover it on build
-            //   for (const cssId of cssImportMapBuild[id] ?? []) {
-            //     output.prepend(`import "${cssId}";`);
-            //   }
-            // }
+            // TODO: rewrite this
+            if (this.environment.name === "client") {
+              for (const cssId of cssImportMapBuild[id] ?? []) {
+                output.prepend(`import "${cssId}";`);
+              }
+            }
 
             const name = this.environment.name === "client" ? "browser" : "ssr";
             output.prepend(`

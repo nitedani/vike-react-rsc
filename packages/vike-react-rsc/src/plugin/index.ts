@@ -1,4 +1,4 @@
-import { type Plugin, type ViteDevServer } from "vite";
+import { type Plugin, type PluginOption, type ViteDevServer } from "vite";
 import { configs } from "./plugins/config";
 import { exposeDevServer } from "./plugins/dev";
 import { vikeRscManifestPluginBuild } from "./plugins/injectManifestBuild";
@@ -31,7 +31,7 @@ export function getDevServerInstance(): ViteDevServer | undefined {
   return global.vikeReactRscGlobalState.devServer;
 }
 
-export default function vikeRscPlugin(): Plugin[] {
+export default function vikeRscPlugin(): PluginOption[] {
   return [
     ...configs,
     ...virtuals,

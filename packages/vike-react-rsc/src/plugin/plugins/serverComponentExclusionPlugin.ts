@@ -1,11 +1,12 @@
-import { parseAstAsync, type Plugin } from "vite";
-import path from "path";
 import { hasDirective } from "@hiogawa/transforms";
-import { createCssDependencyTracker } from "./cssDependencyTracker";
-import { createClientDependencyTracker } from "./clientDependencyTracker";
+import path from "path";
+import { parseAstAsync, type Plugin } from "vite";
+import { createDependencyManager } from "../../runtime/dependencyManager";
 
 // Regular expression to identify CSS files
 const styleFileRE = /\.(css|less|sass|scss|styl|stylus|pcss|postcss)($|\?)/;
+
+// Global state is accessed via global.vikeReactRscGlobalState
 
 /**
  * Plugin to exclude server components from client and SSR bundles
@@ -15,41 +16,27 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
   // Debug mode
   const debug = true;
 
-  // Create CSS dependency tracker
-  const cssDependencyTracker = createCssDependencyTracker({
+  // Create universal dependency manager with options
+  const dependencyManager = createDependencyManager({
     styleFileRE,
     debug,
-    environmentName: "rsc",
+    clientReferences: global.vikeReactRscGlobalState.clientReferences,
   });
-
-  // Create client dependency tracker
-  const clientDependencyTracker = createClientDependencyTracker({
-    debug,
-    environmentName: "rsc",
-    clientReferences: global.vikeReactRscGlobalState?.clientReferences || {},
-  });
-
-  // Log initialization
-  if (debug) {
-    console.log("[RSC Plugin] Initialized dependency trackers");
-  }
 
   return [
-    // Use the CSS dependency tracker plugins
-    cssDependencyTracker.collectorPlugin,
-    cssDependencyTracker.graphBuilderPlugin,
-    // Use the client dependency tracker plugins
-    clientDependencyTracker.collectorPlugin,
-    clientDependencyTracker.graphBuilderPlugin,
+    // Use the dependency collector and graph builder plugins
+    dependencyManager.collectorPlugin,
+    dependencyManager.graphBuilderPlugin,
     {
       name: "vike-rsc:server-component-exclusion",
-      apply: "build", // Only apply during build
-      // enforce: "pre", // Run before other plugins
-
+      apply: "build",
       applyToEnvironment(environment) {
         return environment.name === "client";
       },
-      // Build mode only - no configureServer needed
+      configureServer(server) {
+        // Update the dependency manager with the dev server
+        dependencyManager.devServer = server;
+      },
       async transform(code, id: string) {
         // Only apply to client and SSR environments
         if (this.environment?.name !== "client") {
@@ -72,14 +59,16 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
             return null;
           }
 
-          // Build mode only - no development mode code needed
+          // Get client and server references
+          const clientRefs = global.vikeReactRscGlobalState?.clientReferences || {};
+          const serverRefs = global.vikeReactRscGlobalState?.serverReferences || {};
 
           const boundaries = [
             // In build mode these are guaranteed to exist here
             // They are created by the first two rsc builds
             // And now we are in the client build, followed by the rsc builds
-            ...Object.values(global.vikeReactRscGlobalState.clientReferences),
-            ...Object.values(global.vikeReactRscGlobalState.serverReferences),
+            ...Object.values(clientRefs),
+            ...Object.values(serverRefs),
           ];
 
           // If our id is either a "use client" or "use server" file
@@ -89,34 +78,33 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
           }
 
           // If this module is a dependency of a client reference, don't strip it
-          if (clientDependencyTracker.isClientDependency(id)) {
+          if (dependencyManager.isClientDependency(id)) {
             if (debug) {
-              console.log(
-                `[RSC Plugin] Preserving client dependency in client bundle: ${relPath}`
-              );
+              console.log(`[RSC Plugin] Preserving client dependency in client bundle: ${relPath}`);
             }
             return null;
-          }
+          } 
 
-          // let's also check if it has a "use client" or "use server" directive,
-          // this is needed for files that aren't part of the rsc modulegraph
-          // for example Vike config files, etc..
+          // Parse the AST to check for directives and imports
           const ast = await parseAstAsync(code);
+
+          // Check if it has a "use client" or "use server" directive
           if (
             hasDirective(ast.body, "use client") ||
             hasDirective(ast.body, "use server")
           ) {
+            if (debug) {
+              console.log(`[RSC Plugin] ${relPath} has use client/server directive, preserving in client bundle`);
+            }
             return null;
           }
 
-          // Get CSS dependencies using the CSS dependency tracker
-          const cssIds = cssDependencyTracker.getCssDependencies(id);
+          // Get CSS dependencies using the universal dependency manager
+          const cssIds = dependencyManager.getCssDependencies(id);
 
           // Log only when CSS dependencies are found
-          if (cssIds.length > 0 && debug) {
-            console.log(
-              `[RSC Plugin] Found ${cssIds.length} CSS dependencies for ${id}`
-            );
+          if (debug && cssIds.length > 0) {
+            console.log(`[RSC Plugin] Found ${cssIds.length} CSS dependencies for ${id}`);
           }
 
           // Create a minimal proxy module
