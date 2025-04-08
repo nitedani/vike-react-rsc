@@ -1,5 +1,3 @@
-"use client";
-
 // Film component styles
 
 export const filmStyles = {

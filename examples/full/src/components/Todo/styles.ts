@@ -1,5 +1,3 @@
-"use client";
-
 // Todo component styles
 
 export const todoStyles = {
