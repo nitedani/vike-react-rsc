@@ -53,15 +53,10 @@ function clientDepTrackerPlugin(): Plugin {
     return clientDependencies;
   }
 
-  let command: "build" | "serve";
   // Create a unified plugin for collection and graph building
   const plugin: Plugin = {
     name: "vike-rsc:client-dependency-tracker",
     enforce: "pre",
-    apply(_, v) {
-      command = v.command;
-      return true;
-    },
     resolveId: {
       order: "pre",
       async handler(source, importer, options) {

@@ -96,11 +96,11 @@ export const serverComponentExclusionPlugin = (): Plugin => {
                   deps.add(element);
                 }
               } catch (error) {
-                console.warn(`[RSC Plugin] Failed to load ${dep} in rsc env`);
+                console.log(`[RSC Plugin] Failed to load ${dep} in rsc env`);
               }
             }
           } catch (e) {
-            console.warn(`[RSC Plugin] Failed to load ${id} in rsc env`);
+            console.log(`[RSC Plugin] Failed to load ${id} in rsc env`);
           }
         }
 
@@ -119,9 +119,6 @@ export const serverComponentExclusionPlugin = (): Plugin => {
 
         // Add CSS imports
         if (cssIds.length > 0) {
-          for (const cssId of cssIds) {
-            this.addWatchFile(cssId);
-          }
           proxyCode +=
             cssIds.map((cssPath) => `import "${cssPath}";`).join("\n") + "\n";
         }

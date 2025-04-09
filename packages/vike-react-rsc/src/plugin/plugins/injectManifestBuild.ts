@@ -16,7 +16,7 @@ export function vikeRscManifestPluginBuild(): Plugin {
         applyToEnvironment(environment) {
             return environment.name === "rsc";
         },
-        generateBundle(outputOptions, bundle: OutputBundle): void {
+        generateBundle(_outputOptions, bundle: OutputBundle): void {
             // Find chunks that contain our placeholder
             const placeholderChunks: OutputChunk[] = [];
 
@@ -51,7 +51,7 @@ export function vikeRscManifestPluginBuild(): Plugin {
             for (const chunk of placeholderChunks) {
                 // Generate manifest with IIFE and helper function
                 const manifestContent = generateManifestCode(pageEntries, chunk.fileName);
-                
+
                 // Replace placeholder in chunk code
                 chunk.code = chunk.code.replace(
                     new RegExp(PLACEHOLDER, 'g'),
@@ -65,7 +65,7 @@ export function vikeRscManifestPluginBuild(): Plugin {
 /**
  * Generates the manifest code with an IIFE containing a helper function
  * and the page entries map.
- * 
+ *
  * @param pageEntries - Record of page entries with their metadata
  * @param chunkFileName - The file name of the current chunk
  * @returns The generated manifest code as a string
@@ -106,7 +106,7 @@ function generateManifestCode(
 
         // Calculate relative path from placeholder chunk to entry
         const entryPath = path.relative(chunkDir, entry.fileName);
-        
+
         // Normalize path to POSIX format for cross-platform compatibility
         const normalizedPath = normalizePath(entryPath);
         const importPath = normalizedPath.startsWith('.')

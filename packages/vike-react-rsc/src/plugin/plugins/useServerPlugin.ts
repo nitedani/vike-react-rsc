@@ -12,7 +12,6 @@ import { PKG_NAME } from "../../constants";
 import { createVirtualPlugin, normalizeReferenceId } from "../utils";
 
 export const useServerPlugin = (): Plugin[] => {
-  let buildMode = false;
   let resolvedConfig: ResolvedConfig;
   let devServer: ViteDevServer;
 
@@ -21,7 +20,7 @@ export const useServerPlugin = (): Plugin[] => {
       name: "vike-rsc:transform-server-directive",
       configResolved(config) {
         resolvedConfig = config;
-        buildMode = config.command === "build";
+        // Command is build or serve
       },
       configureServer(server) {
         devServer = server;

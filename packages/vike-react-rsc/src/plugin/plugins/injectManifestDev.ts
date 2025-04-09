@@ -17,7 +17,7 @@ export function vikeRscManifestPluginDev(): Plugin {
     applyToEnvironment(environment) {
       return environment.name === "rsc";
     },
-    transform(code, id, options) {
+    transform(code, _id) {
       if (!code.includes(PLACEHOLDER)) return;
       if (this.environment.name !== "rsc") return;
 

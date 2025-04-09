@@ -1,6 +1,5 @@
 import { transformDirectiveProxyExport } from "@hiogawa/transforms";
-import { hashString } from "@hiogawa/utils";
-import path from "node:path";
+// No additional imports needed
 import {
   parseAstAsync,
   type Plugin,
@@ -11,7 +10,6 @@ import { PKG_NAME } from "../../constants";
 import { createVirtualPlugin, normalizeReferenceId } from "../utils";
 
 export const useClientPlugin = (): Plugin[] => {
-  let buildMode = false;
   let resolvedConfig: ResolvedConfig;
   let devServer: ViteDevServer;
   return [
@@ -19,7 +17,7 @@ export const useClientPlugin = (): Plugin[] => {
       name: "vike-rsc:transform-client-directive",
       configResolved(config) {
         resolvedConfig = config;
-        buildMode = config.command === "build";
+        // Command is build or serve
       },
       configureServer(server) {
         devServer = server;

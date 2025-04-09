@@ -8,7 +8,7 @@
     "dev": "vike dev",
     "build": "vike build",
     "start": "NODE_ENV=production node dist/server/index.js",
-    "preview": "vike build && cross-env NODE_ENV=production wrangler pages dev",
+    "preview": "vike build && cross-env NODE_ENV=production wrangler pages dev --port 3000",
     "deploy": "vike build && cross-env NODE_ENV=production wrangler pages deploy"
   },
   "keywords": [],
@@ -31,7 +31,7 @@
     "vike-react-rsc": "^1.0.0",
     "vike-server": "^1.0.8",
     "vite": "^6.2.3",
-    "vite-plugin-compiled-react": "1.2.0",
+    "vite-plugin-compiled-react": "1.3.0",
     "wrangler": "^4.7.2"
   },
   "devDependencies": {
