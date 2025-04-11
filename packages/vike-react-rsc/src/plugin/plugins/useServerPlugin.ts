@@ -32,12 +32,12 @@ export const useServerPlugin = (): Plugin[] => {
           const ast = await parseAstAsync(code);
           const normalizedId = await normalizeReferenceId(
             id,
-            "rsc",
+            "ssr",
             devServer,
             resolvedConfig
           );
 
-          if (this.environment.name === "rsc") {
+          if (this.environment.name === "ssr") {
             // Server-side transformation
             const { output } = await transformServerActionServer(code, ast, {
               id: normalizedId,
@@ -72,7 +72,7 @@ export const useServerPlugin = (): Plugin[] => {
 
             global.vikeReactRscGlobalState.serverReferences[normalizedId] = id;
 
-            await devServer?.environments.rsc.warmupRequest(id);
+            await devServer?.environments.ssr.warmupRequest(id);
             for (const cssId of global.vikeReactRscGlobalState.getCssDependencies(
               id
             )) {
@@ -106,7 +106,7 @@ export const useServerPlugin = (): Plugin[] => {
     },
     // Virtual module for server references
     createVirtualPlugin("server-references", function () {
-      if (this.environment.name !== "rsc" || this.environment?.mode !== "build")
+      if (this.environment.name !== "ssr" || this.environment?.mode !== "build")
         return "export default {};";
 
       return [

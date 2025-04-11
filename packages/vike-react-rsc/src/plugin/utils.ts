@@ -16,7 +16,7 @@ function hashString(value: string): string {
 
 async function normalizeReferenceId(
   id: string,
-  name: "client" | "rsc",
+  name: "client" | "rsc" | "ssr",
   server: ViteDevServer,
   config: ResolvedConfig
 ): Promise<string> {

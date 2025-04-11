@@ -24,7 +24,7 @@ function cssTrackerPlugin(): Plugin {
   const plugin: Plugin = {
     name: "vike-rsc:collect-css-dependencies",
     applyToEnvironment(environment) {
-      return environment.name === "rsc";
+      return environment.name === "ssr";
     },
     resolveId: {
       order: "pre",

@@ -21,14 +21,14 @@ export const virtuals: Plugin[] = [
   createVirtualPlugin("build-rsc-entry", () => importRsc),
   createVirtualPlugin("build-ssr-entry", () => importSsr),
   createVirtualPlugin("runtime/ssr", function () {
-    if (this.environment.name === "ssr") {
+    if (this.environment.name === "rsc") {
       return importSsr;
     }
 
     if (this.environment.mode === "dev") {
       return `
             const devServer = global.vikeReactRscGlobalState.devServer;
-            const ssrRunner = devServer?.environments.ssr?.runner;
+            const ssrRunner = devServer?.environments.rsc?.runner;
             const ssrModule = await ssrRunner?.import("${PKG_NAME}/__internal/runtime/ssr");
             const moduleProxy = new Proxy({}, {
               get(target, prop) {
@@ -46,14 +46,14 @@ export const virtuals: Plugin[] = [
         `;
   }),
   createVirtualPlugin("runtime/server", function () {
-    if (this.environment.name === "rsc") {
+    if (this.environment.name === "ssr") {
       return importRsc;
     }
 
     if (this.environment.mode === "dev") {
       return `
             const devServer = global.vikeReactRscGlobalState.devServer;
-            const serverRunner = devServer?.environments.rsc?.runner;
+            const serverRunner = devServer?.environments.ssr?.runner;
             const serverModule = await serverRunner?.import("${PKG_NAME}/__internal/runtime/server");
             const moduleProxy = new Proxy({}, {
               get(target, prop) {

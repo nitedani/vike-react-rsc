@@ -1,6 +1,6 @@
 import envName from "virtual:enviroment-name";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "rsc", "Invalid environment");
+tinyassert(envName === "ssr", "Invalid environment");
 
 //@ts-ignore
 import ReactServer from "react-server-dom-webpack/server.edge";

@@ -1,6 +1,6 @@
 import envName from "virtual:enviroment-name";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "rsc", "Invalid environment");
+tinyassert(envName === "ssr", "Invalid environment");
 
 export { getPageElementRsc };
 
@@ -75,11 +75,11 @@ async function getPageElementRsc(
     throw new Error("Missing pageId in production environment");
   }
 
-  const config = await getPageConfig(pageContext);
-  Page = config.Page?.[0] ?? Page;
-  Layout = config.Layout ?? Layout;
-  Wrapper = config.Wrapper ?? Wrapper;
-  Loading = config.Loading?.[0] ?? Loading;
+  // const config = await getPageConfig(pageContext);
+  Page = pageContext.Page
+  Layout = pageContext.config.Layout ?? Layout;
+  Wrapper = pageContext.config.Wrapper ?? Wrapper;
+  Loading = pageContext.config.Loading ?? Loading;
 
   let page = Page ? <Page /> : null;
   // Wrapping

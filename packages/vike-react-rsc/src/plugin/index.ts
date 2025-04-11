@@ -41,13 +41,13 @@ export default function vikeRscPlugin(): PluginOption[] {
     exposeDevServer,
     // vikeRscManifestPluginDev(),
     vikeRscManifestPluginBuild(),
-    cssTrackerPlugin(),
+    // cssTrackerPlugin(),
     clientDepTrackerPlugin(),
     ...useClientPlugin(),
     ...useServerPlugin(),
     virtualNormalizeReferenceIdPlugin(),
     serverComponentExclusionPlugin(),
     replaceWebpackRequirePlugin(),
-    hmrPlugin(),
+    // hmrPlugin(),
   ];
 }

@@ -94,7 +94,7 @@ function clientDepTrackerPlugin(): Plugin {
     },
     buildEnd() {
       if (
-        this.environment.name === "rsc" &&
+        this.environment.name === "ssr" &&
         !global.vikeReactRscGlobalState.disableUseClientPlugin
       ) {
         staticGraph = buildGraph();

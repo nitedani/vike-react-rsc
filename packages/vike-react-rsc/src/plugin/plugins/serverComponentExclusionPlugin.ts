@@ -85,11 +85,11 @@ export const serverComponentExclusionPlugin = (): Plugin => {
           try {
             // Try to load the module fully in the rsc env in development
             // before getting its css assets
-            const mod = await devServer?.environments.rsc.transformRequest(id);
+            const mod = await devServer?.environments.ssr.transformRequest(id);
             const deps = new Set(mod?.deps ?? []);
             for (const dep of deps) {
               try {
-                const mod = await devServer?.environments.rsc.transformRequest(
+                const mod = await devServer?.environments.ssr.transformRequest(
                   dep
                 );
                 for (const element of mod?.deps ?? []) {

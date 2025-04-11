@@ -23,7 +23,7 @@ export const useClientPlugin = (): Plugin[] => {
         devServer = server;
       },
       async transform(code, id) {
-        if (this.environment?.name !== "rsc") return;
+        if (this.environment?.name !== "ssr") return;
         if (!code.includes("use client")) return;
         if (global.vikeReactRscGlobalState.disableUseClientPlugin) return;
 
@@ -66,7 +66,7 @@ export const useClientPlugin = (): Plugin[] => {
     },
     // Create a virtual module for client references
     createVirtualPlugin("client-references", function () {
-      if (this.environment.name === "rsc" && this.environment?.mode !== "build")
+      if (this.environment.name === "ssr" && this.environment?.mode !== "build")
         return "export default {};";
 
       return [

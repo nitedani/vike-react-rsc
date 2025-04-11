@@ -6,7 +6,7 @@ export const replaceWebpackRequirePlugin = (): Plugin => {
     enforce: "pre",
     transform(code, id, _options) {
       if (
-        this.environment?.name === "rsc" &&
+        this.environment?.name === "ssr" &&
         id.includes("react-server-dom-webpack")
       ) {
         // rename webpack markers in rsc runtime

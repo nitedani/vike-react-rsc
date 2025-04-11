@@ -1,6 +1,6 @@
 import envName from "virtual:enviroment-name";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "ssr", "Invalid environment");
+tinyassert(envName === "rsc", "Invalid environment");
 
 import { memoize } from "@hiogawa/utils";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
@@ -55,7 +55,11 @@ function createModuleMap() {
 
 async function importClientReference(id: string) {
   if (import.meta.env.DEV) {
-    return import(/* @vite-ignore */ id);
+    console.log("[RSC] Importing client reference", id);
+    const v = await import(/* @vite-ignore */ id);
+    console.log("[RSC] Imported client reference", id, v)
+    return v;
+    
   } else {
     const clientReferences = await import(
       "virtual:client-references" as string
@@ -74,9 +78,9 @@ Object.assign(globalThis, {
 });
 
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
-  pageContext: PageContextServer
+  pageContext: PageContextServer,
+  rscPayloadStream?: ReadableStream<Uint8Array>
 ) {
-  const rscPayloadStream = await runtimeRsc.renderPageRsc(pageContext);
   const [rscStreamForHtml, rscStreamForClientScript] = rscPayloadStream!.tee();
 
   const payload =
@@ -100,6 +104,7 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
         //@ts-expect-error
         formState: payload.formState,
       },
+      // disable: true
     }
   );
 
@@ -145,14 +150,13 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
     })
   );
 
-  const headHtml = getHeadHtml(pageContext);
+  // const headHtml = getHeadHtml(pageContext);
 
   const documentHtml = escapeInject`<!DOCTYPE html>
     <html>
       <head>
         <meta charset="UTF-8" />
         <script>${dangerouslySkipEscape(INIT_SCRIPT)}</script>
-        ${headHtml}
       </head>
       <body>
         <div id="root">${htmlStream}</div>
