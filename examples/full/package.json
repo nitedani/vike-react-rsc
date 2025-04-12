@@ -31,7 +31,7 @@
     "vike-react-rsc": "^1.0.0",
     "vike-server": "^1.0.8",
     "vite": "^6.2.3",
-    "vite-plugin-compiled-react": "1.3.0",
+    "vite-plugin-compiled-react": "1.3.1",
     "wrangler": "^4.7.2"
   },
   "devDependencies": {

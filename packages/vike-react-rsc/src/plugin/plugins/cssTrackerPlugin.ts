@@ -6,7 +6,8 @@ import type { Plugin } from "vite";
 type CssImportMap = Record<string, string[]>;
 type JsImportMap = Record<string, string[]>;
 type OriginalSourceMap = Record<string, string>;
-type CssDependencyGraph = Record<string, Set<string>>;
+type CssImportInfo = { importee: string; importer: string };
+type CssDependencyGraph = Record<string, Set<CssImportInfo>>;
 
 const styleFileRE = /\.(css|less|sass|scss|styl|stylus|pcss|postcss)($|\?)/;
 const jsFileRE = /\.(jsx?|tsx?|m?js|cjs)$/;
@@ -77,6 +78,7 @@ function cssTrackerPlugin(): Plugin {
   };
 
   let staticGraph: CssDependencyGraph | null = null;
+
   // Function to compute the CSS dependency graph on-demand
   function buildGraph(): CssDependencyGraph {
     const graph: CssDependencyGraph = {};
@@ -94,18 +96,18 @@ function cssTrackerPlugin(): Plugin {
       // Initialize CSS imports set if not exists
       graph[moduleId] = graph[moduleId] || new Set();
 
-      // Add direct CSS imports
+      // Add direct CSS imports with their importer information
       for (const cssImport of cssImportMapBuild[moduleId] || []) {
-        graph[moduleId].add(cssImport);
+        graph[moduleId].add({ importee: cssImport, importer: moduleId });
       }
 
       // Process JS dependencies recursively
       for (const jsImport of jsImportMapBuild[moduleId] || []) {
         collectCssDependencies(jsImport, new Set(visited));
 
-        // Add CSS imports from the imported module
-        for (const cssImport of graph[jsImport] || []) {
-          graph[moduleId].add(cssImport);
+        // Add CSS imports from the imported module, preserving original importer info
+        for (const cssImportInfo of graph[jsImport] || []) {
+          graph[moduleId].add(cssImportInfo);
         }
       }
     };
@@ -136,23 +138,120 @@ function cssTrackerPlugin(): Plugin {
     return graph;
   }
 
+  global.vikeReactRscGlobalState.pruneCssRegistry = (id: string) => {
+    // Set to track processed modules to avoid circular references
+    const removedModuleIds = new Set<string>();
+
+    // Recursive function to remove a module and its dependencies
+    function removeModuleAndDependencies(moduleId: string) {
+      if (removedModuleIds.has(moduleId)) return;
+      removedModuleIds.add(moduleId);
+
+      // Get JS dependencies before deleting the module
+      const jsDependencies = [...(jsImportMapBuild[moduleId] || [])];
+
+      // Remove this module from the import maps
+      delete cssImportMapBuild[moduleId];
+      delete jsImportMapBuild[moduleId];
+
+      // Recursively remove all JS dependencies
+      for (const jsDepId of jsDependencies) {
+        removeModuleAndDependencies(jsDepId);
+      }
+    }
+
+    // Start removal from the specified ID
+    removeModuleAndDependencies(id);
+
+    // Clean up any references to deleted modules in remaining entries
+    for (const [moduleId, jsDeps] of Object.entries(jsImportMapBuild)) {
+      jsImportMapBuild[moduleId] = jsDeps.filter(
+        (depId) => !removedModuleIds.has(depId)
+      );
+    }
+
+    // Reset the static graph since it's now outdated
+    staticGraph = null;
+
+    if (true) {
+      console.log(
+        `[CSS Dependency Tracker] Removed module ${id} and ${
+          removedModuleIds.size - 1
+        } dependencies from the graph`
+      );
+    }
+  };
+
   global.vikeReactRscGlobalState.getCssDependencies = (
     id: string
-  ): string[] => {
+  ): {
+    cssIds: string[];
+    jsIds: string[];
+    cssDirectImporterMap: Record<string, string[]>;
+    jsDirectImporterMap: Record<string, string[]>;
+  } => {
     // Build the graph on-demand to ensure we have the latest dependencies
     // In build mode, we build it only once
     const graph = staticGraph || buildGraph();
 
-    const cssIds = Array.from(graph[id] || new Set());
+    // Get CSS dependency information from the graph
+    const cssImportInfos = Array.from(graph[id] || new Set());
 
-    if (true && cssIds.length > 0) {
+    // Extract CSS IDs and build the source map
+    const cssIds = new Set<string>();
+    const jsIds = new Set<string>();
+    const cssDirectImporterMap: Record<string, string[]> = {};
+    const jsDirectImporterMap: Record<string, string[]> = {};
+
+    // Process CSS imports to build both maps
+    for (const { importee, importer } of cssImportInfos) {
+      cssIds.add(importee);
+      jsIds.add(importer);
+
+      // Add to CSS -> JS importers map
+      if (!cssDirectImporterMap[importee]) {
+        cssDirectImporterMap[importee] = [];
+      }
+      if (!cssDirectImporterMap[importee].includes(importer)) {
+        cssDirectImporterMap[importee].push(importer);
+      }
+
+      // Add to JS -> CSS imports map
+      if (!jsDirectImporterMap[importer]) {
+        jsDirectImporterMap[importer] = [];
+      }
+      if (!jsDirectImporterMap[importer].includes(importee)) {
+        jsDirectImporterMap[importer].push(importee);
+      }
+    }
+
+    const uniqueCssIds = Array.from(cssIds);
+
+    if (true && uniqueCssIds.length > 0) {
       console.log(
-        `[CSS Dependency Tracker] Found ${cssIds.length} CSS dependencies for ${id}`
+        `[CSS Dependency Tracker] Found ${uniqueCssIds.length} CSS dependencies for ${id} from ${jsIds.size} JS modules`
       );
     }
 
-    // Convert resolved IDs to original source paths
-    return cssIds.map((cssId) => originalSourceMap[cssId] || cssId);
+    // Convert resolved CSS IDs to original source paths
+    const originalCssIds = uniqueCssIds.map(
+      (cssId) =>  cssId.replace('\0', '')
+    );
+
+    // Convert CSS IDs to original paths in jsDirectImporterMap too
+    const normalizedJsDirectImporterMap: Record<string, string[]> = {};
+    for (const [jsId, cssImports] of Object.entries(jsDirectImporterMap)) {
+      normalizedJsDirectImporterMap[jsId] = cssImports.map(
+        (cssId) => cssId.replace('\0', '')
+      );
+    }
+
+    return {
+      cssIds: originalCssIds,
+      jsIds: Array.from(jsIds),
+      cssDirectImporterMap,
+      jsDirectImporterMap,
+    };
   };
 
   // Return the CSS dependency tracker interface

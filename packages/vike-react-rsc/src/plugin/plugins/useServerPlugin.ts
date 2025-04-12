@@ -75,7 +75,7 @@ export const useServerPlugin = (): Plugin[] => {
             await devServer?.environments.rsc.warmupRequest(id);
             for (const cssId of global.vikeReactRscGlobalState.getCssDependencies(
               id
-            )) {
+            ).cssIds) {
               output.prepend(`import "${cssId}";`);
             }
 

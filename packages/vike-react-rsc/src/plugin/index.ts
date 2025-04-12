@@ -17,8 +17,20 @@ type GlobalState = {
   serverReferences: Record<string, string>;
   devServer?: ViteDevServer;
   disableUseClientPlugin?: boolean;
-  getCssDependencies(id: string): string[];
+  getCssDependencies(id: string): {
+    cssIds: string[];
+    jsIds: string[];
+    jsDirectImporterMap: Record<string, string[]>;
+    cssDirectImporterMap: Record<string, string[]>;
+  };
+  pruneCssRegistry(id: string): void;
   isClientDependency(id: string): boolean;
+  excludedModuleMap: {
+    [moduleId: string]: {
+      root: string;
+      cssIds: string[];
+    };
+  };
 };
 
 declare global {
@@ -30,8 +42,15 @@ global.vikeReactRscGlobalState ||= {
   serverReferences: {},
   devServer: undefined,
   disableUseClientPlugin: false,
-  getCssDependencies: () => [],
+  getCssDependencies: () => ({
+    cssIds: [],
+    jsIds: [],
+    jsDirectImporterMap: {},
+    cssDirectImporterMap: {},
+  }),
+  pruneCssRegistry: () => {},
   isClientDependency: () => false,
+  excludedModuleMap: {},
 };
 
 export default function vikeRscPlugin(): PluginOption[] {

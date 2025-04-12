@@ -73,8 +73,8 @@ importers:
         specifier: ^6.2.3
         version: 6.2.5(@types/node@22.14.0)(jiti@2.4.2)(terser@5.39.0)
       vite-plugin-compiled-react:
-        specifier: 1.3.0
-        version: 1.3.0(@compiled/react@0.18.3(react@19.1.0))(@vitejs/plugin-react@4.3.4(vite@6.2.5(@types/node@22.14.0)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.5(@types/node@22.14.0)(jiti@2.4.2)(terser@5.39.0))
+        specifier: 1.3.1
+        version: 1.3.1(@compiled/react@0.18.3(react@19.1.0))(@vitejs/plugin-react@4.3.4(vite@6.2.5(@types/node@22.14.0)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.5(@types/node@22.14.0)(jiti@2.4.2)(terser@5.39.0))
       wrangler:
         specifier: ^4.7.2
         version: 4.7.2(@cloudflare/workers-types@4.20250406.0)
@@ -2926,8 +2926,8 @@ packages:
       vite:
         optional: true
 
-  vite-plugin-compiled-react@1.3.0:
-    resolution: {integrity: sha512-2+dqJTatdodRNEDtXpPE17u310PJyQdsuTBcUqAlknqbsAcwyZ8pLLonjDYSdBF9is+5l7y2cVUmd3ERJiJ0sQ==}
+  vite-plugin-compiled-react@1.3.1:
+    resolution: {integrity: sha512-RewxZHCMTnxC1Zi1UPMSTh0JSEqFAkVYaalkpmfecefv62VfJ3zq+NTiRuQOzsRGBfWQlKdgdvsDgkZMxVJokQ==}
     peerDependencies:
       '@compiled/react': '*'
       '@vitejs/plugin-react': '*'
@@ -5768,7 +5768,7 @@ snapshots:
       react-streaming: 0.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       vite: 6.2.5(@types/node@22.14.0)(jiti@2.4.2)(terser@5.39.0)
 
-  vite-plugin-compiled-react@1.3.0(@compiled/react@0.18.3(react@19.1.0))(@vitejs/plugin-react@4.3.4(vite@6.2.5(@types/node@22.14.0)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.5(@types/node@22.14.0)(jiti@2.4.2)(terser@5.39.0)):
+  vite-plugin-compiled-react@1.3.1(@compiled/react@0.18.3(react@19.1.0))(@vitejs/plugin-react@4.3.4(vite@6.2.5(@types/node@22.14.0)(jiti@2.4.2)(terser@5.39.0)))(vite@6.2.5(@types/node@22.14.0)(jiti@2.4.2)(terser@5.39.0)):
     dependencies:
       '@babel/types': 7.27.0
       '@compiled/babel-plugin': 0.37.1

@@ -104,9 +104,18 @@ export const serverComponentExclusionPlugin = (): Plugin => {
           }
         }
 
-        // Get CSS dependencies of the excluded rsc module
-        const cssIds = global.vikeReactRscGlobalState.getCssDependencies(id);
-
+        const res = global.vikeReactRscGlobalState.getCssDependencies(id);
+        for (const [excludedChildModule, directImportedCss] of Object.entries(
+          res.jsDirectImporterMap
+        )) {
+          global.vikeReactRscGlobalState.excludedModuleMap[
+            excludedChildModule
+          ] = {
+            root: id,
+            cssIds: directImportedCss ?? [],
+          };
+        }
+        const cssIds = res.cssIds;
         // Log only when CSS dependencies are found
         if (debug && cssIds.length > 0) {
           console.log(
@@ -129,6 +138,9 @@ export const serverComponentExclusionPlugin = (): Plugin => {
 // Original file: ${id}
 export default {};
 export {};
+if (import.meta.hot) {
+        import.meta.hot.accept();
+}
 `;
 
         console.log(
