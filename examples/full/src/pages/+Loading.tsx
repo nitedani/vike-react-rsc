@@ -1,5 +1,3 @@
-"use client"
-
 export const Loading = {
   layout: () => (
     <div css={{

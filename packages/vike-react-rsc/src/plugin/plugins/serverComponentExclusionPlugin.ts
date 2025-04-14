@@ -1,13 +1,6 @@
 import { hasDirective } from "@hiogawa/transforms";
 import path from "path";
-import {
-  DevEnvironment,
-  EnvironmentModuleNode,
-  isCSSRequest,
-  parseAstAsync,
-  type Plugin,
-  type ViteDevServer,
-} from "vite";
+import { parseAstAsync, type Plugin, type ViteDevServer } from "vite";
 
 // Regular expression to identify CSS files
 const styleFileRE = /\.(css|less|sass|scss|styl|stylus|pcss|postcss)($|\?)/;
@@ -89,28 +82,22 @@ export const serverComponentExclusionPlugin = (): Plugin[] => {
             return null;
           }
 
-          // Create a minimal proxy module
-          let proxyCode = "";
-
-          // Add empty exports to satisfy imports
-          proxyCode += `
+          const proxyCode = `
 // Server component asset proxy (original code excluded from client bundle)
 // Original file: ${id}
 export default {};
 export {};
 ${
   devServer
-    ? 'import "virtual:css-proxy.css?id=' + encodeURIComponent(id) + '"'
-    : 'import "virtual:css-proxy?id=' + encodeURIComponent(id) + '"'
+    ? // Vite adds the hmr code to virtual .css files
+      'import "virtual:css-proxy.css?id=' + encodeURIComponent(id) + '"'
+    : // Don't need that in build
+      'import "virtual:css-proxy?id=' + encodeURIComponent(id) + '"'
 }
 if (import.meta.hot) {
         import.meta.hot.accept();
 }
 `;
-
-          console.log(
-            `[RSC Plugin] Excluded server component from client bundle: ${relPath}`
-          );
 
           return {
             code: proxyCode,
@@ -128,128 +115,48 @@ if (import.meta.hot) {
     },
     {
       name: "vike-rsc:css-proxy",
-      resolveId(source, importer, options) {
+      resolveId(source) {
         if (source.startsWith("virtual:css-proxy")) {
           return "\0" + source;
         }
       },
-      async load(id, options) {
+      async load(id) {
         if (!id.includes("virtual:css-proxy")) {
           return;
         }
-        // const decoded = decodeURIComponent(id);
         const parsedUrl = new URL(id);
-        console.log(parsedUrl);
-
         const externalId = parsedUrl.searchParams.get("id")!;
-        if (!devServer) {
-          const res =
-            global.vikeReactRscGlobalState.getCssDependencies(externalId);
-          const cssIds = res.cssIds;
-          // Log only when CSS dependencies are found
-          if (debug && cssIds.length > 0) {
-            console.log(
-              `[RSC Plugin] Found ${cssIds.length} CSS dependencies for ${externalId}`
-            );
-          }
-          if (cssIds.length > 0) {
-            return (
-              cssIds.map((cssPath) => `import "${cssPath}";`).join("\n") + "\n"
-            );
-          }
-          return "export default {};";
-        } else {
-          try {
-            console.log({ externalId });
+        const res = await global.vikeReactRscGlobalState.getCssDependencies(
+          externalId
+        );
+        console.log(res);
 
-            // Try to load the module fully in the rsc env in development
-            // before getting its css assets
-            // devServer?.environments.rsc.moduleGraph.invalidateModule(
-            //   devServer?.environments.rsc.moduleGraph.getModuleById(externalId)!
-            // );
-            const mod = await devServer?.environments.rsc.transformRequest(
-              externalId
-            );
-            const deps = new Set(mod?.deps ?? []);
-            for (const dep of deps) {
-              try {
-                // devServer?.environments.rsc.moduleGraph.invalidateModule(
-                //   devServer?.environments.rsc.moduleGraph.getModuleById(dep)!
-                // );
-                const mod = await devServer?.environments.rsc.transformRequest(
-                  dep
-                );
-                for (const element of mod?.deps ?? []) {
-                  deps.add(element);
-                }
-              } catch (error) {
-                console.log(`[RSC Plugin] Failed to load ${dep} in rsc env`);
-              }
-            }
-          } catch (e) {
-            console.log(`[RSC Plugin] Failed to load ${externalId} in rsc env`);
-          }
-          // const res =
-          //   global.vikeReactRscGlobalState.getCssDependencies(externalId);
-          // const cssIds = res.cssIds;
-          // // Log only when CSS dependencies are found
-          // if (debug && cssIds.length > 0) {
-          //   console.log(
-          //     `[RSC Plugin] Found ${cssIds.length} CSS dependencies for ${externalId}`
-          //   );
-          // }
-          // for (const [excludedChildModule, directImportedCss] of Object.entries(
-          //   res.jsDirectImporterMap
-          // )) {
-          //   global.vikeReactRscGlobalState.excludedModuleMap[
-          //     excludedChildModule
-          //   ] = {
-          //     root: externalId,
-          //   };
-          // }
-
-          const cssIds = await collectStyleUrls(devServer.environments.rsc, {
-            entries: [externalId],
-          });
-
-          const cssStrings = (await Promise.all(
-            cssIds.map((id) =>
-              devServer.environments.client
-                .transformRequest(id + "?direct")
-                .then((res) => res?.code)
-            )
-          ).then((res) => res.filter(Boolean))) as string[];
-
-          return cssStrings.join("\n");
+        const cssIds = res.cssIds;
+        if (debug && cssIds.length > 0) {
+          console.log(
+            `[RSC Plugin] Found ${cssIds.length} CSS dependencies for ${externalId}`
+          );
         }
+
+        // Build mode
+        if (!devServer) {
+          return (
+            cssIds.map((cssPath) => `import "${cssPath}";`).join("\n") + "\n"
+          );
+        }
+
+        // On hmr we backtrack to this module(css proxy) and invalidate it on the client
+        global.vikeReactRscGlobalState.excludedModuleMap[externalId] =
+          res.jsIds;
+        const cssStrings = (await Promise.all(
+          cssIds.map((url) =>
+            devServer.environments.client
+              .transformRequest(url + "?direct")
+              .then((res) => res?.code)
+          )
+        ).then((res) => res.filter(Boolean))) as string[];
+        return cssStrings.join("\n");
       },
     },
   ];
 };
-
-async function collectStyleUrls(
-  server: DevEnvironment,
-  { entries }: { entries: string[] }
-) {
-  const visited = new Set<EnvironmentModuleNode>();
-
-  async function traverse(url: string) {
-    const [, id] = await server.moduleGraph.resolveUrl(url);
-    const mod = server.moduleGraph.getModuleById(id);
-    if (!mod || visited.has(mod)) {
-      return;
-    }
-    visited.add(mod);
-    await Promise.all(
-      [...mod.importedModules].map((childMod) => traverse(childMod.url))
-    );
-  }
-
-  // ensure import analysis is ready for top entries
-  await Promise.all(entries.map((e) => server.transformRequest(e)));
-
-  // traverse
-  await Promise.all(entries.map((url) => traverse(url)));
-
-  return [...visited].map((mod) => mod.url).filter((url) => isCSSRequest(url));
-}

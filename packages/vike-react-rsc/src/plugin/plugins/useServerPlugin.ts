@@ -71,11 +71,14 @@ export const useServerPlugin = (): Plugin[] => {
             if (!output) return;
 
             global.vikeReactRscGlobalState.serverReferences[normalizedId] = id;
+            // await devServer?.environments.rsc.warmupRequest(id);
 
-            await devServer?.environments.rsc.warmupRequest(id);
-            for (const cssId of global.vikeReactRscGlobalState.getCssDependencies(
+            const res = await global.vikeReactRscGlobalState.getCssDependencies(
               id
-            ).cssIds) {
+            );
+            console.log(res);
+            
+            for (const cssId of res.cssIds) {
               output.prepend(`import "${cssId}";`);
             }
 

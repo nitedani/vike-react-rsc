@@ -1,6 +1,7 @@
 export { cssTrackerPlugin };
 
-import type { Plugin } from "vite";
+import { tinyassert } from "@hiogawa/utils";
+import type { DevEnvironment, Plugin } from "vite";
 
 // Type definitions
 type CssImportMap = Record<string, string[]>;
@@ -21,11 +22,16 @@ function cssTrackerPlugin(): Plugin {
   const jsImportMapBuild: JsImportMap = {};
   const originalSourceMap: OriginalSourceMap = {};
 
+  let root: string;
+
   // Create the dependency collector plugin
   const plugin: Plugin = {
     name: "vike-rsc:collect-css-dependencies",
     applyToEnvironment(environment) {
       return environment.name === "rsc";
+    },
+    configResolved(config) {
+      root = config.root;
     },
     resolveId: {
       order: "pre",
@@ -182,14 +188,18 @@ function cssTrackerPlugin(): Plugin {
     }
   };
 
-  global.vikeReactRscGlobalState.getCssDependencies = (
+  global.vikeReactRscGlobalState.getCssDependencies = async (
     id: string
-  ): {
+  ): Promise<{
     cssIds: string[];
     jsIds: string[];
-    cssDirectImporterMap: Record<string, string[]>;
-    jsDirectImporterMap: Record<string, string[]>;
-  } => {
+  }> => {
+    if (!staticGraph) {
+      await traverse(
+        global.vikeReactRscGlobalState.devServer!.environments.rsc,
+        id
+      );
+    }
     // Build the graph on-demand to ensure we have the latest dependencies
     // In build mode, we build it only once
     const graph = staticGraph || buildGraph();
@@ -200,29 +210,11 @@ function cssTrackerPlugin(): Plugin {
     // Extract CSS IDs and build the source map
     const cssIds = new Set<string>();
     const jsIds = new Set<string>();
-    const cssDirectImporterMap: Record<string, string[]> = {};
-    const jsDirectImporterMap: Record<string, string[]> = {};
 
-    // Process CSS imports to build both maps
+    // Process CSS imports to collect unique IDs
     for (const { importee, importer } of cssImportInfos) {
       cssIds.add(importee);
       jsIds.add(importer);
-
-      // Add to CSS -> JS importers map
-      if (!cssDirectImporterMap[importee]) {
-        cssDirectImporterMap[importee] = [];
-      }
-      if (!cssDirectImporterMap[importee].includes(importer)) {
-        cssDirectImporterMap[importee].push(importer);
-      }
-
-      // Add to JS -> CSS imports map
-      if (!jsDirectImporterMap[importer]) {
-        jsDirectImporterMap[importer] = [];
-      }
-      if (!jsDirectImporterMap[importer].includes(importee)) {
-        jsDirectImporterMap[importer].push(importee);
-      }
     }
 
     const uniqueCssIds = Array.from(cssIds);
@@ -234,26 +226,64 @@ function cssTrackerPlugin(): Plugin {
     }
 
     // Convert resolved CSS IDs to original source paths
-    const originalCssIds = uniqueCssIds.map(
-      (cssId) =>  cssId.replace('\0', '')
+    const normalizedCss = await Promise.all(
+      uniqueCssIds.map((cssId) =>
+        normalizeId({
+          id: cssId,
+          server: global.vikeReactRscGlobalState.devServer?.environments.rsc,
+          root,
+        })
+      )
     );
 
-    // Convert CSS IDs to original paths in jsDirectImporterMap too
-    const normalizedJsDirectImporterMap: Record<string, string[]> = {};
-    for (const [jsId, cssImports] of Object.entries(jsDirectImporterMap)) {
-      normalizedJsDirectImporterMap[jsId] = cssImports.map(
-        (cssId) => cssId.replace('\0', '')
-      );
-    }
+    const normalizedJs = await Promise.all(
+      Array.from(jsIds).map((jsId) =>
+        normalizeId({
+          id: jsId,
+          server: global.vikeReactRscGlobalState.devServer?.environments.rsc,
+          root,
+        })
+      )
+    );
 
     return {
-      cssIds: originalCssIds,
-      jsIds: Array.from(jsIds),
-      cssDirectImporterMap,
-      jsDirectImporterMap,
+      cssIds: normalizedCss,
+      jsIds: normalizedJs,
     };
   };
 
   // Return the CSS dependency tracker interface
   return plugin;
+}
+
+async function traverse(server: DevEnvironment, entry: string) {
+  try {
+    const mod = await server.transformRequest(entry);
+    const deps = new Set(mod?.deps ?? []);
+    for (const dep of deps) {
+      try {
+        const mod = await server.transformRequest(dep);
+        for (const element of mod?.deps ?? []) {
+          deps.add(element);
+        }
+      } catch (error) {}
+    }
+  } catch (e) {}
+}
+
+async function normalizeId({
+  id,
+  server,
+  root,
+}: {
+  id: string;
+  server?: DevEnvironment;
+  root?: string;
+}) {
+  root ??= server?.config.root;
+  tinyassert(root);
+  if (id.startsWith(root)) {
+    id = id.slice(root.length);
+  }
+  return id.replace("\0", "");
 }

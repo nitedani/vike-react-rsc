@@ -17,19 +17,14 @@ type GlobalState = {
   serverReferences: Record<string, string>;
   devServer?: ViteDevServer;
   disableUseClientPlugin?: boolean;
-  getCssDependencies(id: string): {
+  getCssDependencies(id: string): Promise<{
     cssIds: string[];
     jsIds: string[];
-    jsDirectImporterMap: Record<string, string[]>;
-    cssDirectImporterMap: Record<string, string[]>;
-  };
+  }>;
   pruneCssRegistry(id: string): void;
   isClientDependency(id: string): boolean;
   excludedModuleMap: {
-    [moduleId: string]: {
-      root: string;
-      cssIds: string[];
-    };
+    [moduleId: string]: string[];
   };
 };
 
@@ -42,11 +37,9 @@ global.vikeReactRscGlobalState ||= {
   serverReferences: {},
   devServer: undefined,
   disableUseClientPlugin: false,
-  getCssDependencies: () => ({
+  getCssDependencies: async () => ({
     cssIds: [],
     jsIds: [],
-    jsDirectImporterMap: {},
-    cssDirectImporterMap: {},
   }),
   pruneCssRegistry: () => {},
   isClientDependency: () => false,
