@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { incrementCount, getCount } from "../../actions/counter";
 import { counterStyles } from "./styles";
 import { sharedUtil } from "./sharedUtil";
-
 interface CounterClientProps {
   initialCount: number;
 }
@@ -34,7 +33,7 @@ export default function CounterClient({ initialCount }: CounterClientProps) {
 
   return (
     <>
-      <div css={counterStyles.displayContainer}>
+      <div css={counterStyles.displayContainer} className="shared-client">
         <div
           css={[counterStyles.number, isPending && counterStyles.numberPending]}
         >

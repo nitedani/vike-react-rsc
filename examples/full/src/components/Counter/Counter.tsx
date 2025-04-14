@@ -9,7 +9,7 @@ export default async function Counter() {
   sharedUtil();
 
   return (
-    <div css={counterStyles.container}>
+    <div css={counterStyles.container} className="shared-client">
       <div css={counterStyles.gradientBar} />
 
       <CounterClient initialCount={counterState.count} />
