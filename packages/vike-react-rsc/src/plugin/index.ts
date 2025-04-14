@@ -65,7 +65,7 @@ export default function vikeRscPlugin(): PluginOption[] {
     ...useClientPlugin(),
     ...useServerPlugin(),
     virtualNormalizeReferenceIdPlugin(),
-    serverComponentExclusionPlugin(),
+    ...serverComponentExclusionPlugin(),
     replaceWebpackRequirePlugin(),
     hmrPlugin(),
   ];
