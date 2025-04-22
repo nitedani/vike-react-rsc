@@ -1,4 +1,3 @@
-"use client"
 import { Hono } from "hono";
 import { apply } from "vike-cloudflare/hono";
 import { serve } from "vike-cloudflare/hono/serve";
