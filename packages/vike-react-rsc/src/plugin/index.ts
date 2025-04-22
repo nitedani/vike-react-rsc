@@ -10,7 +10,6 @@ import { useServerPlugin } from "./plugins/useServerPlugin";
 import { virtuals } from "./plugins/virtuals";
 import { virtualNormalizeReferenceIdPlugin } from "./utils";
 import { hmrPlugin } from "./plugins/hmrPlugin";
-// import { replaceWebpackRequirePlugin } from "./plugins/replaceWebpackRequirePlugin";
 import rscCore from "@hiogawa/vite-rsc/core/plugin"
 
 type GlobalState = {
@@ -60,8 +59,7 @@ export default function vikeRscPlugin(): PluginOption[] {
     ...useServerPlugin(),
     virtualNormalizeReferenceIdPlugin(),
     ...serverComponentExclusionPlugin(),
-    // replaceWebpackRequirePlugin(),
     hmrPlugin(),
-    rscCore(),
+    rscCore(), // this only patches `__webpack_require__.u` on browser
   ];
 }

@@ -3,8 +3,6 @@ import envName from "virtual:enviroment-name";
 tinyassert(envName === "client", "Invalid environment");
 
 import React, { startTransition } from "react";
-//@ts-ignore
-// import ReactClient from "react-server-dom-webpack/client.browser";
 import * as ReactClient from "@hiogawa/vite-rsc/react/browser";
 import type { PageContextClient } from "vike/types";
 import type { RscPayload } from "../types";
@@ -47,8 +45,7 @@ export async function callServer(
         ...(isRscCall ? { "x-rsc-component-call": "true" } : {}),
       },
       body: await ReactClient.encodeReply(args),
-    }),
-    // { callServer }
+    })
   );
 
   // Only update the UI if the response contains a root component
@@ -91,8 +88,6 @@ export async function callServer(
 }
 
 ReactClient.setServerCallback(callServer)
-// console.log("[callServer]")
-// console.log(ReactClient.setServerCallback(callServer));
 
 if (import.meta.hot) {
   import.meta.hot.on("rsc:update", async () => {
@@ -138,7 +133,6 @@ export function onNavigate(
         "x-vike-urloriginal": getVikeUrlOriginal(pageContext),
       },
     }),
-    // { callServer }
   );
 
   // Store the promise
@@ -155,11 +149,7 @@ export async function parseRscStream(
 ): Promise<RscPayload> {
   console.log("[RSC Client] Parsing RSC stream...");
   const initialPayload =
-    await ReactClient.createFromReadableStream<React.ReactNode>(stream,
-    //   {
-    //   callServer,
-    // }
-  );
+    await ReactClient.createFromReadableStream<React.ReactNode>(stream);
   console.log("[RSC Client] RSC stream parsed");
   return initialPayload;
 }

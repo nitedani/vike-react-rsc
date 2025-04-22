@@ -1,4 +1,4 @@
-import { memoize, tinyassert } from "@hiogawa/utils";
+import { tinyassert } from "@hiogawa/utils";
 import * as ReactClient from "@hiogawa/vite-rsc/react/browser";
 
 async function importClientRefrence(id: string) {
@@ -16,9 +16,5 @@ async function importClientRefrence(id: string) {
 }
 
 ReactClient.setRequireModule({ load: importClientRefrence })
-// Object.assign(globalThis, {
-//   __webpack_require__: memoize(importClientRefrence),
-//   __webpack_chunk_load__: async () => {},
-// });
 
 export {};
