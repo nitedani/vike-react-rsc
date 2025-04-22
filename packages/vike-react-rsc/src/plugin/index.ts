@@ -60,6 +60,8 @@ export default function vikeRscPlugin(): PluginOption[] {
     virtualNormalizeReferenceIdPlugin(),
     ...serverComponentExclusionPlugin(),
     hmrPlugin(),
-    rscCore(), // this only patches `__webpack_require__.u` on browser
+    // this only patches `__webpack_require__.u` on browser.
+    // it's supposed to be not necessary with `react-server-dom-vite`.
+    rscCore(),
   ];
 }
