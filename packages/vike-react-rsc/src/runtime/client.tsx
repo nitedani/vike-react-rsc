@@ -4,7 +4,8 @@ tinyassert(envName === "client", "Invalid environment");
 
 import React, { startTransition } from "react";
 //@ts-ignore
-import ReactClient from "react-server-dom-webpack/client.browser";
+// import ReactClient from "react-server-dom-webpack/client.browser";
+import * as ReactClient from "@hiogawa/vite-rsc/react/browser";
 import type { PageContextClient } from "vike/types";
 import type { RscPayload } from "../types";
 import {

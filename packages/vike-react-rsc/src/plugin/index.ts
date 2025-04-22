@@ -10,7 +10,8 @@ import { useServerPlugin } from "./plugins/useServerPlugin";
 import { virtuals } from "./plugins/virtuals";
 import { virtualNormalizeReferenceIdPlugin } from "./utils";
 import { hmrPlugin } from "./plugins/hmrPlugin";
-import { replaceWebpackRequirePlugin } from "./plugins/replaceWebpackRequirePlugin";
+// import { replaceWebpackRequirePlugin } from "./plugins/replaceWebpackRequirePlugin";
+import rscCore from "@hiogawa/vite-rsc/core/plugin"
 
 type GlobalState = {
   clientReferences: Record<string, string>;
@@ -59,7 +60,8 @@ export default function vikeRscPlugin(): PluginOption[] {
     ...useServerPlugin(),
     virtualNormalizeReferenceIdPlugin(),
     ...serverComponentExclusionPlugin(),
-    replaceWebpackRequirePlugin(),
+    // replaceWebpackRequirePlugin(),
     hmrPlugin(),
+    rscCore(),
   ];
 }
