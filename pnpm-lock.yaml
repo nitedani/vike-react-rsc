@@ -108,8 +108,8 @@ importers:
         specifier: ^0.7.5
         version: 0.7.7
       '@hiogawa/vite-rsc':
-        specifier: 0.0.1-pre.1
-        version: 0.0.1-pre.1(react-dom@19.1.0(react@19.1.0))(react-server-dom-webpack@19.1.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(webpack@5.99.6))(react@19.1.0)(vite@6.3.2(@types/node@22.14.1)(jiti@2.4.2)(terser@5.39.0))
+        specifier: 0.0.1-pre.2
+        version: 0.0.1-pre.2(react-dom@19.1.0(react@19.1.0))(react-server-dom-webpack@19.1.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(webpack@5.99.6))(react@19.1.0)(vite@6.3.2(@types/node@22.14.1)(jiti@2.4.2)(terser@5.39.0))
       '@types/react':
         specifier: ^19.0.12
         version: 19.1.2
@@ -812,8 +812,8 @@ packages:
   '@hiogawa/utils@1.7.0':
     resolution: {integrity: sha512-ghiEFWBR1NENoHn+lSuW7liicTIzVPN+8Srm5UedCTw43gus0mlse6Wp2lz6GmbOXJ/CalMPp/0Tz2X8tajkAg==}
 
-  '@hiogawa/vite-rsc@0.0.1-pre.1':
-    resolution: {integrity: sha512-CHE0DELjkcbISecUKKTYHbuKL7EobyKN8BtBUu6iHupaIbWjnpjwjv3UIcPU3MxBX358MMT7fpovor2fnI+Uzg==}
+  '@hiogawa/vite-rsc@0.0.1-pre.2':
+    resolution: {integrity: sha512-YYMDglO8P7wUg38lhPMaQwAyXx7Fw3qrEFwsxECqlI8wSDNhnID3RGdoVeFmNZhn8jkBsQP0A9MLkb25goBskw==}
     peerDependencies:
       react: '*'
       react-dom: '*'
@@ -3845,7 +3845,7 @@ snapshots:
 
   '@hiogawa/utils@1.7.0': {}
 
-  '@hiogawa/vite-rsc@0.0.1-pre.1(react-dom@19.1.0(react@19.1.0))(react-server-dom-webpack@19.1.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(webpack@5.99.6))(react@19.1.0)(vite@6.3.2(@types/node@22.14.1)(jiti@2.4.2)(terser@5.39.0))':
+  '@hiogawa/vite-rsc@0.0.1-pre.2(react-dom@19.1.0(react@19.1.0))(react-server-dom-webpack@19.1.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(webpack@5.99.6))(react@19.1.0)(vite@6.3.2(@types/node@22.14.1)(jiti@2.4.2)(terser@5.39.0))':
     dependencies:
       '@hiogawa/transforms': 0.0.0
       '@mjackson/node-fetch-server': 0.6.1

@@ -48,7 +48,7 @@ export async function callServer(
       },
       body: await ReactClient.encodeReply(args),
     }),
-    { callServer }
+    // { callServer }
   );
 
   // Only update the UI if the response contains a root component
@@ -89,6 +89,10 @@ export async function callServer(
 
   return result.returnValue;
 }
+
+ReactClient.setServerCallback(callServer)
+// console.log("[callServer]")
+// console.log(ReactClient.setServerCallback(callServer));
 
 if (import.meta.hot) {
   import.meta.hot.on("rsc:update", async () => {
@@ -134,7 +138,7 @@ export function onNavigate(
         "x-vike-urloriginal": getVikeUrlOriginal(pageContext),
       },
     }),
-    { callServer }
+    // { callServer }
   );
 
   // Store the promise
@@ -151,9 +155,11 @@ export async function parseRscStream(
 ): Promise<RscPayload> {
   console.log("[RSC Client] Parsing RSC stream...");
   const initialPayload =
-    await ReactClient.createFromReadableStream<React.ReactNode>(stream, {
-      callServer,
-    });
+    await ReactClient.createFromReadableStream<React.ReactNode>(stream,
+    //   {
+    //   callServer,
+    // }
+  );
   console.log("[RSC Client] RSC stream parsed");
   return initialPayload;
 }

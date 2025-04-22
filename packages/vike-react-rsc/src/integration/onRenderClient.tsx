@@ -14,17 +14,17 @@ import { getGlobalClientState } from "../runtime/client/globalState";
 const globalState = getGlobalClientState();
 
 // Set up the callServer function in the global state
-globalState.vikeRscCallServer = callServer;
+// globalState.vikeRscCallServer = callServer;
 
-// We still need to expose the callServer function on the window for plugins
-declare global {
-  interface Window {
-    __vikeRscCallServer: typeof callServer;
-  }
-}
+// // We still need to expose the callServer function on the window for plugins
+// declare global {
+//   interface Window {
+//     __vikeRscCallServer: typeof callServer;
+//   }
+// }
 
-// Set up the window property needed by plugins
-window.__vikeRscCallServer = callServer;
+// // Set up the window property needed by plugins
+// window.__vikeRscCallServer = callServer;
 
 // The Root component which manages RSC nodes
 function Root({
