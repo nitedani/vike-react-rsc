@@ -6,25 +6,12 @@ import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import envName from "virtual:enviroment-name";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
-import { callServer, parseRscStream } from "../runtime/client";
+import { parseRscStream } from "../runtime/client";
 import type { RscPayload } from "../types";
 import { getGlobalClientState } from "../runtime/client/globalState";
 
 // Initialize the global client state
 const globalState = getGlobalClientState();
-
-// Set up the callServer function in the global state
-globalState.vikeRscCallServer = callServer;
-
-// We still need to expose the callServer function on the window for plugins
-declare global {
-  interface Window {
-    __vikeRscCallServer: typeof callServer;
-  }
-}
-
-// Set up the window property needed by plugins
-window.__vikeRscCallServer = callServer;
 
 // The Root component which manages RSC nodes
 function Root({

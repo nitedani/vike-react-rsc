@@ -2,20 +2,11 @@ import envName from "virtual:enviroment-name";
 import { tinyassert } from "@hiogawa/utils";
 tinyassert(envName === "rsc", "Invalid environment");
 
-//@ts-ignore
-import ReactServer from "react-server-dom-webpack/server.edge";
-import { memoize } from "@hiogawa/utils";
-import type { BundlerConfig, ImportManifestEntry } from "../types";
+import * as ReactServer from "@hiogawa/vite-rsc/react/rsc";
 import type { PageContext } from "vike/types";
 import { getPageElementRsc } from "../integration/getPageElement/getPageElement-server";
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
 import { provideServerActionContext } from "./serverActionContext";
-
-async function importServerAction(id: string): Promise<Function> {
-  const [file, name] = id.split("#") as [string, string];
-  const mod: any = await importServerReference(file);
-  return mod[name];
-}
 
 async function importServerReference(id: string): Promise<unknown> {
   if (import.meta.env.DEV) {
@@ -27,40 +18,15 @@ async function importServerReference(id: string): Promise<unknown> {
     return dynImport();
   }
 }
-Object.assign(globalThis, {
-  __vite_react_server_webpack_require__: memoize(importServerReference),
-  __vite_react_server_webpack_chunk_load__: () => {
-    throw new Error("__webpack_chunk_load__");
-  },
-});
 
-function createBundlerConfig(): BundlerConfig {
-  return new Proxy(
-    {},
-    {
-      get(_target, $$id, _receiver) {
-        tinyassert(typeof $$id === "string");
-        let [id, name] = $$id.split("#");
-        tinyassert(id);
-        tinyassert(name);
-        return {
-          id,
-          name,
-          // TODO: preinit not working?
-          // `ReactDOMSharedInternals.d.X` seems no-op due to null request context?
-          chunks: [id, id],
-          async: true,
-        } satisfies ImportManifestEntry;
-      },
-    }
-  );
-}
+ReactServer.setRequireModule({
+  load: importServerReference,
+})
 
 export async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
   console.log("[Renderer] Rendering page to RSC stream");
-  const bundlerConfig = createBundlerConfig();
   const root = await getPageElementRsc(pageContext);
   return providePageContext(pageContext, () =>
     ReactServer.renderToReadableStream(
@@ -68,7 +34,6 @@ export async function renderPageRsc(
       {
         root,
       },
-      bundlerConfig
     )
   );
 }
@@ -93,15 +58,13 @@ export async function handleServerAction({
   // Decode arguments and get the action function
   const [args, action] = await Promise.all([
     ReactServer.decodeReply(body),
-    importServerAction(actionId),
+    ReactServer.loadServerAction(actionId)
   ]);
 
   // Execute the action within the server action context
   const returnValue = await provideServerActionContext(context, () =>
     providePageContext(pageContext, () => action.apply(null, args))
   );
-
-  const bundlerConfig = createBundlerConfig();
 
   // Only include the root component if rerender was called
   if (context.shouldRerender) {
@@ -113,7 +76,6 @@ export async function handleServerAction({
           returnValue,
           root,
         },
-        bundlerConfig
       )
     );
   } else {
@@ -123,7 +85,6 @@ export async function handleServerAction({
         {
           returnValue,
         },
-        bundlerConfig
       )
     );
   }
