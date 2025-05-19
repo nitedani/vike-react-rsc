@@ -30,4 +30,5 @@ Example deployed on Cloudflare: [vike-cloudflare-hono-demo.pages.dev](https://vi
 
 ## See also
 
-- [#31768 - React server dom vite (comment)](https://github.com/facebook/react/pull/31768#issuecomment-2781613102)
+- [facebook/react#31768 - React server dom vite (comment `@hi-ogawa`)](https://github.com/facebook/react/pull/31768#issuecomment-2849829321)
+- [facebook/react#31768 - React server dom vite (comment `@brillout`)](https://github.com/facebook/react/pull/31768#issuecomment-2781613102)
