@@ -18,7 +18,7 @@ React RSC integration for [Vike](https://vike.dev).
 
 ## Goal
 
-- Feature parity with [`vike-react`](https://vike.dev/vike-react) + RSC features.
+- Feature parity with [`vike-react`](https://vike.dev/vike-react).
 - Progressive adoption for `vike-react` users: replace `vike-react` with `vike-react-rsc` then progressively start using RSC on a component-by-component basis.
 
 ## Demo
