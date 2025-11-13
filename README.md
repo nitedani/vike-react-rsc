@@ -14,7 +14,7 @@ React RSC integration for [Vike](https://vike.dev).
 - **Caching**
 - **Automatic server integration**
   - Works with any server: Express.js, Hono, etc. (powered by [universal-middleware](https://github.com/magne4000/universal-middleware))
-  - Fully automatic (zero-config) if you use [`vike-server`](https://vike.dev/server)
+  - Fully automatic (zero-config) if you use [`vike-server`](https://vike.dev/vike-server)
 
 ## Goal
 
