@@ -27,8 +27,3 @@ Example: [examples/full/](examples/full/)
 Example deployed on Cloudflare: [vike-cloudflare-hono-demo.pages.dev](https://vike-cloudflare-hono-demo.pages.dev)  
 > [!NOTE]
 > Network requests are artificially slowed down to showcase RSC features such as progressive hydration.
-
-## See also
-
-- [facebook/react#31768 - React server dom vite (comment `@hi-ogawa`)](https://github.com/facebook/react/pull/31768#issuecomment-2849829321)
-- [facebook/react#31768 - React server dom vite (comment `@brillout`)](https://github.com/facebook/react/pull/31768#issuecomment-2781613102)
