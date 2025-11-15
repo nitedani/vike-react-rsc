@@ -1,12 +1,12 @@
 import { PKG_NAME } from "../../constants";
-import type { Plugin, UserConfig } from "vite";
-import type { VitePluginServerEntryOptions } from '@brillout/vite-plugin-server-entry/plugin'
+import { defaultServerConditions, type Plugin, type UserConfig } from "vite";
+import type { VitePluginServerEntryOptions } from "@brillout/vite-plugin-server-entry/plugin";
 
-const distRsc = 'dist/rsc'
+const distRsc = "dist/rsc";
 
-declare module 'vite' {
+declare module "vite" {
   interface UserConfig {
-    vitePluginServerEntry?: VitePluginServerEntryOptions
+    vitePluginServerEntry?: VitePluginServerEntryOptions;
   }
 }
 
@@ -14,31 +14,50 @@ export const configs: Plugin[] = [
   {
     name: "vike-rsc:config:pre",
     enforce: "pre",
-    configEnvironment() {
-      return {
-        resolve: {
-          noExternal: [PKG_NAME],
-        },
-        optimizeDeps: {
-          include: ["react"],
-        },
-      };
-    },
     config(): UserConfig {
+      const noExternal = [
+        "react",
+        "react-dom",
+        PKG_NAME,
+        "@vitejs/plugin-rsc",
+        "react-streaming",
+      ];
+
       return {
         environments: {
           client: {
             optimizeDeps: {
-              include: ["react-server-dom-webpack/client.browser"],
-              exclude: ["react-server-dom-webpack", "virtual:enviroment-name"],
+              include: [
+                "react-dom/client",
+                "@vitejs/plugin-rsc/vendor/react-server-dom/client.browser",
+              ],
+              exclude: [
+                PKG_NAME,
+                "@vitejs/plugin-rsc",
+                "virtual:enviroment-name",
+              ],
             },
           },
           ssr: {
             optimizeDeps: {
               include: [
+                "react",
+                "react-dom",
+                "react/jsx-runtime",
+                "react/jsx-dev-runtime",
                 "react-dom/server.edge",
-                "react-server-dom-webpack/client.edge",
+                "react-dom/static.edge",
+                "react-streaming/server.web",
+                "@vitejs/plugin-rsc/vendor/react-server-dom/client.edge",
               ],
+              exclude: [
+                PKG_NAME,
+                "@vitejs/plugin-rsc",
+                "virtual:enviroment-name",
+              ],
+            },
+            resolve: {
+              noExternal,
             },
             build: {
               rollupOptions: {
@@ -50,19 +69,22 @@ export const configs: Plugin[] = [
           },
           rsc: {
             resolve: {
-              conditions: ["react-server"],
-              noExternal: [
-                "react",
-                "react/jsx-runtime",
-                "react/jsx-dev-runtime",
-                "react-server-dom-webpack",
-              ],
+              conditions: ["react-server", ...defaultServerConditions],
+              noExternal,
             },
             optimizeDeps: {
               include: [
+                "react",
+                "react-dom",
                 "react/jsx-runtime",
                 "react/jsx-dev-runtime",
-                "react-server-dom-webpack/server.edge",
+                "@vitejs/plugin-rsc/vendor/react-server-dom/server.edge",
+                "@vitejs/plugin-rsc/vendor/react-server-dom/client.edge",
+              ],
+              exclude: [
+                PKG_NAME,
+                "@vitejs/plugin-rsc",
+                "virtual:enviroment-name",
               ],
             },
             build: {
@@ -81,16 +103,16 @@ export const configs: Plugin[] = [
   {
     name: "vike-rsc:config-rsc",
     applyToEnvironment(env) {
-      return env.name === 'rsc'
+      return env.name === "rsc";
     },
     config() {
       return {
         vitePluginServerEntry: {
           // dist/rsc/ shouldn't include server code (Express.js, Hono, ...)
-          disableServerEntryEmit: true
-        }
-      }
-    }
+          disableServerEntryEmit: true,
+        },
+      };
+    },
   },
   {
     name: "vike-rsc:config:post",

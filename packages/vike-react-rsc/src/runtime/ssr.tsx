@@ -2,11 +2,9 @@ import envName from "virtual:enviroment-name";
 import { tinyassert } from "@hiogawa/utils";
 tinyassert(envName === "ssr", "Invalid environment");
 
-import { memoize } from "@hiogawa/utils";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import { renderToStream } from "react-streaming/server.web";
-//@ts-ignore
-import ReactServerDOMClient from "react-server-dom-webpack/client.edge";
+import * as ReactServerDOMClient from "@vitejs/plugin-rsc/react/ssr";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
 import runtimeRsc from "virtual:runtime/server";
@@ -15,6 +13,8 @@ import { isReactElement } from "../utils/isReactElement";
 //@ts-ignore
 import { renderToStaticMarkup } from "react-dom/server.edge";
 import React from "react";
+import type { RscPayload } from "../types";
+
 
 const INIT_SCRIPT = `
 self.__raw_import = (id) => import(id);
@@ -31,28 +31,6 @@ self.__rsc_payload_stream = self.__rsc_web_stream.pipeThrough(new TextEncoderStr
 console.log('[RSC Init Script] Payload stream setup on window.__rsc_payload_stream');
 `;
 
-function createModuleMap() {
-  return new Proxy(
-    {},
-    {
-      get(_target, id, _receiver) {
-        return new Proxy(
-          {},
-          {
-            get(_target, name, _receiver) {
-              return {
-                id,
-                name,
-                chunks: [],
-              };
-            },
-          }
-        );
-      },
-    }
-  );
-}
-
 async function importClientReference(id: string) {
   if (import.meta.env.DEV) {
     return import(/* @vite-ignore */ id);
@@ -68,9 +46,8 @@ async function importClientReference(id: string) {
   }
 }
 
-Object.assign(globalThis, {
-  __webpack_require__: memoize(importClientReference),
-  __webpack_chunk_load__: async () => {},
+ReactServerDOMClient.setRequireModule({
+  load: importClientReference,
 });
 
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
@@ -80,15 +57,9 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   const [rscStreamForHtml, rscStreamForClientScript] = rscPayloadStream!.tee();
 
   const payload =
-    await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
-      rscStreamForHtml,
-      {
-        serverConsumerManifest: {
-          moduleMap: createModuleMap(),
-          moduleLoading: { prefix: "" },
-        },
-      }
-    );
+    (await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
+      rscStreamForHtml
+    )) as RscPayload;
 
   const htmlStream = await renderToStream(
     <PageContextProvider pageContext={pageContext}>
@@ -97,13 +68,13 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
     {
       userAgent: pageContext.headers?.["user-agent"],
       streamOptions: {
-        //@ts-expect-error
         formState: payload.formState,
       },
     }
   );
 
   const canClose = htmlStream.doNotClose();
+  //@ts-ignore
   rscStreamForClientScript.pipeThrough(new TextDecoderStream()).pipeTo(
     new WritableStream({
       write(rscChunk) {

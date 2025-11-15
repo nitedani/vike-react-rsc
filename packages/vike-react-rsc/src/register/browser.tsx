@@ -1,4 +1,1 @@
-//@ts-ignore
-import ReactClient from "react-server-dom-webpack/client.browser";
-export const createServerReference =
-  ReactClient.createServerReference as unknown;
+export { createServerReference, callServer } from "@vitejs/plugin-rsc/react/browser"

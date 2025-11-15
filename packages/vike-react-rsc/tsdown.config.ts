@@ -20,7 +20,7 @@ export default defineConfig({
     "src/hooks/pageContext/pageContext-server.tsx",
   ],
   format: ["esm"],
-  external: [/^virtual:/, /^vike-react-rsc\//],
+  external: [/^virtual:/, /^vike-react-rsc\//, /^@vitejs\/plugin-rsc\//],
   dts: {
     sourceMap: process.argv.slice(2).includes("--sourcemap"),
   },
