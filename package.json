@@ -5,8 +5,7 @@
     "type": "module",
     "pnpm": {
         "overrides": {
-            "vike-react-rsc": "link:./packages/vike-react-rsc/",
-            "rollup": "4.38.0"
+            "vike-react-rsc": "link:./packages/vike-react-rsc/"
         }
     },
     "devDependencies": {

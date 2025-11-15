@@ -43,18 +43,18 @@
     "@brillout/json-serializer": "^0.5.15",
     "@hiogawa/transforms": "^0.0.0",
     "@hiogawa/utils": "^1.7.0",
-    "react-server-dom-webpack": "^19.1.0",
-    "react-streaming": "^0.4.2"
+    "react-server-dom-webpack": "^19.2.0",
+    "react-streaming": "^0.4.12"
   },
   "devDependencies": {
     "@brillout/vite-plugin-server-entry": "^0.7.5",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "tsdown": "^0.6.10",
     "typescript": "^5.8.2",
-    "vike": "0.4.228-commit-1553dee",
-    "vite": "^6.2.3"
+    "vike": "0.4.246",
+    "vite": "^7.2.2"
   }
 }

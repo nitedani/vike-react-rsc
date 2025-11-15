@@ -4,7 +4,7 @@ import { serve } from "vike-cloudflare/hono/serve";
 
 function startServer() {
   const app = new Hono();
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 3111;
 
   apply(app);
 
