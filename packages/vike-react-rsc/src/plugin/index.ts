@@ -1,4 +1,5 @@
 import { type PluginOption, type ViteDevServer } from "vite";
+import { clientInputBridge } from "./plugins/clientInputBridge";
 import { configs } from "./plugins/config";
 import { exposeDevServer } from "./plugins/dev";
 import { vikeRscManifestPluginBuild } from "./plugins/injectManifestBuild";
@@ -24,11 +25,15 @@ export default function vikeRscPlugin(): PluginOption[] {
     ...virtuals,
     exposeDevServer,
     vikeRscManifestPluginBuild(),
+    clientInputBridge(),
     ...rsc({
       serverHandler: false,
       loadModuleDevProxy: false,
       validateImports: false,
       useBuildAppHook: true,
+      // Vike owns the HTML, so the client build has no index.html entry chunk for
+      // plugin-rsc to bootstrap from.
+      customClientEntry: true,
     }),
   ];
 }

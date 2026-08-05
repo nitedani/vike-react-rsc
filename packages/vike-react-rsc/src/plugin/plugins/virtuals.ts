@@ -88,14 +88,15 @@ export const virtuals: Plugin[] = [
           chunk.fileName
         );
 
+        // These must match the filenames the ssr and rsc environments actually emit.
         code = code
           .replaceAll(
             "__VIRTUAL_BUILD_ENTRY__?server",
-            path.relative(path.dirname(importerPath), "dist/server/ssr.mjs")
+            path.relative(path.dirname(importerPath), "dist/server/ssr.js")
           )
           .replaceAll(
             "__VIRTUAL_BUILD_ENTRY__?rsc",
-            path.relative(path.dirname(importerPath), "dist/rsc/index.mjs")
+            path.relative(path.dirname(importerPath), "dist/rsc/index.js")
           );
 
         return { code };

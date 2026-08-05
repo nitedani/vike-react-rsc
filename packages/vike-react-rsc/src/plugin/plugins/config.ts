@@ -1,6 +1,9 @@
 import { PKG_NAME } from "../../constants";
 import { defaultServerConditions, type Plugin, type UserConfig } from "vite";
-import type { VitePluginServerEntryOptions } from "@brillout/vite-plugin-server-entry/plugin";
+import {
+  serverEntryVirtualId,
+  type VitePluginServerEntryOptions,
+} from "@brillout/vite-plugin-server-entry/plugin";
 
 const distRsc = "dist/rsc";
 
@@ -63,6 +66,12 @@ export const configs: Plugin[] = [
               rollupOptions: {
                 input: {
                   ssr: "virtual:build-ssr-entry",
+                  // @brillout/vite-plugin-server-entry gates its own input injection on
+                  // the ROOT build.ssr flag, which is false under plugin-rsc's
+                  // multi-environment build, but gates the hooks that consume that input
+                  // per-environment (consumer !== 'client'). So it asserts in
+                  // generateBundle for an entry it never injected. Declare it ourselves.
+                  entry: serverEntryVirtualId,
                 },
               },
             },
