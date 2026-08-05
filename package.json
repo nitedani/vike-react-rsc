@@ -7,7 +7,8 @@
         "overrides": {
             "vike-react-rsc": "link:./packages/vike-react-rsc/",
             "baseline-browser-mapping": "^2.11.12",
-            "caniuse-lite": "^1.0.30001806"
+            "caniuse-lite": "^1.0.30001806",
+            "react-server-dom-webpack": "^19.2.8"
         }
     },
     "devDependencies": {
