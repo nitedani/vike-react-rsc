@@ -54,24 +54,39 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   );
 
   const canClose = htmlStream.doNotClose();
-  //@ts-ignore
-  rscStreamForClientScript.pipeThrough(new TextDecoderStream()).pipeTo(
-    new WritableStream({
-      write(rscChunk) {
-        htmlStream.injectToStream(
-          `<script>self.__rsc_web_stream_push(${JSON.stringify(
-            rscChunk
-          )})</script>`
-        );
-      },
-      close() {
-        htmlStream.injectToStream(
-          `<script>self.__rsc_web_stream_close()</script>`
-        );
-        canClose();
-      },
-    })
-  );
+  // doNotClose() holds the HTML response open; releasing it more than once, or
+  // never, are both bugs. Every exit path from the pipe goes through here.
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    canClose();
+  };
+
+  rscStreamForClientScript
+    //@ts-ignore
+    .pipeThrough(new TextDecoderStream())
+    .pipeTo(
+      new WritableStream({
+        write(rscChunk) {
+          htmlStream.injectToStream(
+            `<script>self.__rsc_web_stream_push(${JSON.stringify(
+              rscChunk
+            )})</script>`
+          );
+        },
+        // Only reached when the payload streamed to completion. A truncated
+        // payload must not get the close marker: the client would treat it as
+        // a whole one and hydrate against a partial tree.
+        close() {
+          htmlStream.injectToStream(
+            `<script>self.__rsc_web_stream_close()</script>`
+          );
+        },
+      })
+    )
+    .catch(() => {})
+    .finally(release);
 
   const headHtml = getHeadHtml(pageContext);
 
