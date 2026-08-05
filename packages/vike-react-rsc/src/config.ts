@@ -22,10 +22,9 @@ const config: Config = {
   onPageTransitionStart:
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
 
-  client: "import:vike-react-rsc/__internal/integration/client",
-
   //@ts-expect-error
-  middleware: "import:vike-react-rsc/__internal/integration/rscMiddleware",
+  middleware:
+    "import:vike-react-rsc/__internal/integration/rscMiddleware:default",
 
   passToClient: ["rscPayloadString"],
 
