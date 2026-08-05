@@ -6,12 +6,8 @@ import {
   fetchHtml,
   page,
   autoRetry,
+  getServerUrl,
 } from "@brillout/test-e2e";
-
-// Custom getServerUrl function that respects our environment variable
-function getServerUrl() {
-  return process.env.SERVER_URL || "http://localhost:3000";
-}
 
 const titleDefault = "Vike React Server Components";
 const pages = {
@@ -41,19 +37,18 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   const isPreview = cmd === "pnpm run preview";
 
   run(cmd, {
-    doNotFailOnWarning: true,
-    serverIsReadyMessage: (log) => {
-      // For preview mode, wait for wrangler to be fully ready
-      if (isPreview) {
-        return log.includes('Ready on http://localhost:3000');
-      }
-      // For dev mode
-      return log.includes('Local:') ||
-             log.includes('Server running at') ||
-             log.includes('ready in');
-    },
-    // Add more time for the preview build
-    additionalTimeout: isPreview ? 60000 : 0
+    serverIsReadyMessage: (log) =>
+      log.includes("Local:") || log.includes("ready in"),
+    // The preview run builds before it serves.
+    additionalTimeout: isPreview ? 60000 : 0,
+    // Emitted by react-dom while servicing @vitejs/plugin-rsc's preloadDeps().
+    // The href is a Vite dep-optimizer artifact, so it is dev-only, and a
+    // preload the browser rejects is simply not performed — hydration still
+    // completes. Neither this example nor vike-react-rsc emits any preload,
+    // and the server-rendered HTML contains none.
+    tolerateError: ({ logSource, logText }) =>
+      logSource === "Browser Warning" &&
+      logText.includes("<link rel=preload> must have a valid `as` value"),
   });
 
   testPages();

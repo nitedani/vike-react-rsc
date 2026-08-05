@@ -6,22 +6,24 @@ settings:
 
 overrides:
   vike-react-rsc: link:./packages/vike-react-rsc/
+  baseline-browser-mapping: ^2.11.12
+  caniuse-lite: ^1.0.30001806
 
 importers:
 
   .:
     devDependencies:
       '@brillout/test-e2e':
-        specifier: ^0.6.8
-        version: 0.6.19
+        specifier: ^0.6.23
+        version: 0.6.23
       '@brillout/test-types':
         specifier: ^0.1.15
         version: 0.1.15(typescript@5.9.3)
       playwright:
-        specifier: ^1.51.1
-        version: 1.56.1
+        specifier: ^1.62.1
+        version: 1.62.1
       typescript:
-        specifier: ^5.8.2
+        specifier: ^5.9.3
         version: 5.9.3
 
   examples/full:
@@ -221,8 +223,8 @@ packages:
   '@brillout/picocolors@1.0.31':
     resolution: {integrity: sha512-xFCPBefU/AevF8XkwXSd/jIHA0fWw+mZ/gd5x2WOc5ysG7keHnU8m0gwY2Bvq5lvTyjwT4tiyow6fnMoYdmSqw==}
 
-  '@brillout/test-e2e@0.6.19':
-    resolution: {integrity: sha512-+SrDlK67lGBmBWkHnAwt/e+M/Glc57LL4WgIQeSsDbgQZ9gZ8LIhcl0QjyizsPJGJp0Aw8CqaDxZdDPYOL7Psg==}
+  '@brillout/test-e2e@0.6.23':
+    resolution: {integrity: sha512-qtWFnI/tRt3A9+ymdBatCxeyCTJgZNYYqhI9VKmewMEXevEGZoUmV4SWOzSUqkQlOMdn1AEQuDCkqOh/JgfJjQ==}
     hasBin: true
 
   '@brillout/test-types@0.1.15':
@@ -1073,8 +1075,9 @@ packages:
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
-  baseline-browser-mapping@2.8.28:
-    resolution: {integrity: sha512-gYjt7OIqdM0PcttNYP2aVrr2G0bMALkBaoehD4BuRGjAOtipg0b6wHg1yNL+s5zSnLZZrGHOw4IrND8CD+3oIQ==}
+  baseline-browser-mapping@2.11.12:
+    resolution: {integrity: sha512-r7WnVImvVCeFpf2DOXfy41aPWzeNg3H/A2X4dKmy1QL0MSyyk/e7z8ihJ3N6Nn2PsdhkVlqnEfnUE4a05P2aTA==}
+    engines: {node: '>=6.0.0'}
     hasBin: true
 
   boolbase@1.0.0:
@@ -1106,8 +1109,8 @@ packages:
   caniuse-api@3.0.0:
     resolution: {integrity: sha512-bsTwuIg/BZZK/vreVTYYbSWoe2F+71P7K5QGEX+pT250DZbfU1MQ5prOKpPR+LL6uWKK3KMwMCAS74QB3Um1uw==}
 
-  caniuse-lite@1.0.30001754:
-    resolution: {integrity: sha512-x6OeBXueoAceOmotzx3PO4Zpt4rzpeIFsSr6AAePTZxSkXiYDUmpypEl7e2+8NCd9bD7bXjqyef8CJYPC1jfxg==}
+  caniuse-lite@1.0.30001806:
+    resolution: {integrity: sha512-72Cuvd95zbSYPKq6Fhg8eDJRlzgWDf7/mtoZv6Qe/DYNCEBdNxoA3+rZAU2ZhGCpZlns3EssFavaZomckT5Uuw==}
 
   chai@4.5.0:
     resolution: {integrity: sha512-RITGBfijLkBddZvnn8jdqoTypxvqbOLYQkGGxXzeFjVHvudaPw0HNFD9x928/eUwYWd2dPCugVqspGALTZZQKw==}
@@ -1658,9 +1661,14 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright@1.56.1:
-    resolution: {integrity: sha512-aFi5B0WovBHTEvpM3DzXTUaeN6eN0qWnTkKx4NQaH4Wvcmc153PdaY2UBdSYKaGYw+UyWXSVyxDUg5DoPEttjw==}
-    engines: {node: '>=18'}
+  playwright-core@1.62.1:
+    resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.62.1:
+    resolution: {integrity: sha512-0M+L3LAD8/nm554LOla9Ayx0j0tmFZ0FBcoQ7F1VuVHpM/XpiC8RcDzBQB8W5+hA8L22THxELzeF+2WcUzvcLg==}
+    engines: {node: '>=20'}
     hasBin: true
 
   pngjs@6.0.0:
@@ -2391,10 +2399,10 @@ snapshots:
 
   '@brillout/picocolors@1.0.31': {}
 
-  '@brillout/test-e2e@0.6.19':
+  '@brillout/test-e2e@0.6.23':
     dependencies:
       '@brillout/part-regex': 0.1.4
-      '@brillout/picocolors': 1.0.29
+      '@brillout/picocolors': 1.0.31
       chai: 4.5.0
       esbuild: 0.23.1
       fast-glob: 3.3.3
@@ -3200,7 +3208,7 @@ snapshots:
   autoprefixer@10.4.22(postcss@8.5.6):
     dependencies:
       browserslist: 4.28.0
-      caniuse-lite: 1.0.30001754
+      caniuse-lite: 1.0.30001806
       fraction.js: 5.3.4
       normalize-range: 0.1.2
       picocolors: 1.1.1
@@ -3217,7 +3225,7 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  baseline-browser-mapping@2.8.28: {}
+  baseline-browser-mapping@2.11.12: {}
 
   boolbase@1.0.0: {}
 
@@ -3231,8 +3239,8 @@ snapshots:
 
   browserslist@4.28.0:
     dependencies:
-      baseline-browser-mapping: 2.8.28
-      caniuse-lite: 1.0.30001754
+      baseline-browser-mapping: 2.11.12
+      caniuse-lite: 1.0.30001806
       electron-to-chromium: 1.5.253
       node-releases: 2.0.27
       update-browserslist-db: 1.1.4(browserslist@4.28.0)
@@ -3246,11 +3254,11 @@ snapshots:
   caniuse-api@3.0.0:
     dependencies:
       browserslist: 4.28.0
-      caniuse-lite: 1.0.30001754
+      caniuse-lite: 1.0.30001806
       lodash.memoize: 4.1.2
       lodash.uniq: 4.5.0
 
-  caniuse-lite@1.0.30001754: {}
+  caniuse-lite@1.0.30001806: {}
 
   chai@4.5.0:
     dependencies:
@@ -3777,9 +3785,11 @@ snapshots:
 
   playwright-core@1.56.1: {}
 
-  playwright@1.56.1:
+  playwright-core@1.62.1: {}
+
+  playwright@1.62.1:
     dependencies:
-      playwright-core: 1.56.1
+      playwright-core: 1.62.1
     optionalDependencies:
       fsevents: 2.3.2
 
