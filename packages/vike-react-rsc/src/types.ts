@@ -4,6 +4,13 @@ export type RscPayload = {
   root?: React.ReactNode;
   formState?: ReactFormState;
   returnValue?: unknown;
+  redirect?: {
+    url: string;
+    statusCode: number;
+  };
+  error?: {
+    reason: "not-found" | "error" | "base-missing";
+  };
 };
 
 /**

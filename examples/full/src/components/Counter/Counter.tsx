@@ -1,3 +1,5 @@
+// Release gate: plugin-rsc must keep this Server Component out of browser graphs.
+import "server-only";
 import CounterClient from './CounterClient';
 import { getCount } from '../../actions/counter';
 import { counterStyles } from './styles';

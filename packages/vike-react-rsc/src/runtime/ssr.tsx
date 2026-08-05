@@ -1,17 +1,16 @@
-import envName from "virtual:environment-name";
+import { environmentName } from "vike/runtime";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "ssr", "Invalid environment");
+tinyassert(environmentName === "ssr", "Invalid environment");
 
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import { renderToStream } from "react-streaming/server.web";
-import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr'
+import { createFromReadableStream } from "@vitejs/plugin-rsc/ssr";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
 import runtimeRsc from "virtual:runtime/server";
 import type { Head } from "../types/Config";
 import { isReactElement } from "../utils/isReactElement";
-//@ts-ignore
-import { renderToStaticMarkup } from "react-dom/server.edge";
+import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 import type { RscPayload } from "../types";
 
@@ -55,23 +54,28 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
 
   // doNotClose() holds the HTML response open until the RSC payload finishes piping in.
   const canClose = htmlStream.doNotClose();
+  const decoder = new TextDecoder();
+
+  const injectRscChunk = (rscChunk: string) => {
+    if (!rscChunk) return;
+    htmlStream.injectToStream(
+      `<script>self.__rsc_web_stream_push(${JSON.stringify(
+        rscChunk
+      )})</script>`
+    );
+  };
 
   rscStreamForClientScript
-    //@ts-ignore
-    .pipeThrough(new TextDecoderStream())
     .pipeTo(
-      new WritableStream({
+      new WritableStream<Uint8Array>({
         write(rscChunk) {
-          htmlStream.injectToStream(
-            `<script>self.__rsc_web_stream_push(${JSON.stringify(
-              rscChunk
-            )})</script>`
-          );
+          injectRscChunk(decoder.decode(rscChunk, { stream: true }));
         },
         // Only reached when the payload streamed to completion. A truncated
         // payload must not get the close marker: the client would treat it as
         // a whole one and hydrate against a partial tree.
         close() {
+          injectRscChunk(decoder.decode());
           htmlStream.injectToStream(
             `<script>self.__rsc_web_stream_close()</script>`
           );

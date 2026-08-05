@@ -1,9 +1,6 @@
 import { PKG_NAME } from "../../constants";
 import { defaultServerConditions, type Plugin, type UserConfig } from "vite";
-import {
-  serverEntryVirtualId,
-  type VitePluginServerEntryOptions,
-} from "@brillout/vite-plugin-server-entry/plugin";
+import { type VitePluginServerEntryOptions } from "@brillout/vite-plugin-server-entry/plugin";
 
 const distRsc = "dist/rsc";
 
@@ -18,14 +15,6 @@ export const configs: Plugin[] = [
     name: "vike-rsc:config:pre",
     enforce: "pre",
     config(): UserConfig {
-      const noExternal = [
-        "react",
-        "react-dom",
-        PKG_NAME,
-        "@vitejs/plugin-rsc",
-        "react-streaming",
-      ];
-
       return {
         environments: {
           client: {
@@ -36,7 +25,6 @@ export const configs: Plugin[] = [
               exclude: [
                 PKG_NAME,
                 "@vitejs/plugin-rsc",
-                "virtual:environment-name",
               ],
             },
           },
@@ -54,22 +42,12 @@ export const configs: Plugin[] = [
               exclude: [
                 PKG_NAME,
                 "@vitejs/plugin-rsc",
-                "virtual:environment-name",
               ],
-            },
-            resolve: {
-              noExternal,
             },
             build: {
               rollupOptions: {
                 input: {
                   ssr: "virtual:build-ssr-entry",
-                  // @brillout/vite-plugin-server-entry gates its own input injection on
-                  // the ROOT build.ssr flag, which is false under plugin-rsc's
-                  // multi-environment build, but gates the hooks that consume that input
-                  // per-environment (consumer !== 'client'). So it asserts in
-                  // generateBundle for an entry it never injected. Declare it ourselves.
-                  entry: serverEntryVirtualId,
                 },
               },
             },
@@ -77,7 +55,6 @@ export const configs: Plugin[] = [
           rsc: {
             resolve: {
               conditions: ["react-server", ...defaultServerConditions],
-              noExternal,
             },
             optimizeDeps: {
               include: [
@@ -89,7 +66,6 @@ export const configs: Plugin[] = [
               exclude: [
                 PKG_NAME,
                 "@vitejs/plugin-rsc",
-                "virtual:environment-name",
               ],
             },
             build: {
@@ -100,20 +76,6 @@ export const configs: Plugin[] = [
               },
             },
           },
-        },
-      };
-    },
-  },
-  {
-    name: "vike-rsc:config-rsc",
-    applyToEnvironment(env) {
-      return env.name === "rsc";
-    },
-    config() {
-      return {
-        vitePluginServerEntry: {
-          // dist/rsc/ shouldn't include server code (Express.js, Hono, ...)
-          disableServerEntryEmit: true,
         },
       };
     },

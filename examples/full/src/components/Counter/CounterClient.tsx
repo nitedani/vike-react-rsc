@@ -1,5 +1,7 @@
 "use client";
 
+// Release gate: plugin-rsc must turn this module into a reference in the RSC graph.
+import "client-only";
 import { useState, useTransition } from "react";
 import { incrementCount, getCount } from "../../actions/counter";
 import { counterStyles } from "./styles";

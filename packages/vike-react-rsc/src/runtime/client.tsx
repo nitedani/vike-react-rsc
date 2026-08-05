@@ -1,6 +1,6 @@
 import { tinyassert } from "@hiogawa/utils";
-import envName from "virtual:environment-name";
-tinyassert(envName === "client", "Invalid environment");
+import { environmentName } from "vike/runtime";
+tinyassert(environmentName === "client", "Invalid environment");
 
 import React, { startTransition } from "react";
 import {
@@ -19,70 +19,83 @@ import {
   invalidateServerComponentCache,
 } from "./cache";
 import { getGlobalClientState } from "./client/globalState";
+import { RSC_CONTENT_TYPE } from "../constants";
 
-function getVikeUrlOriginal(pageContext: PageContextClient) {
-  return `${
-    pageContext.urlPathname === "/" ? "" : pageContext.urlPathname
-  }/index.pageContext.json${pageContext.urlParsed.searchOriginal || ""}`;
+async function resolveRscPayload(
+  payloadPromise: PromiseLike<RscPayload>
+): Promise<RscPayload> {
+  const payload = await payloadPromise;
+  if (payload.redirect) {
+    window.location.assign(payload.redirect.url);
+    // Keep the Flight thenable pending while the browser replaces this document.
+    return new Promise<never>(() => {});
+  }
+  if (payload.error) {
+    throw new Error(
+      `[vike-react-rsc] RSC request failed: ${payload.error.reason}`
+    );
+  }
+  return payload;
 }
 
-async function callServer(
-  id: string,
-  args: unknown[]
+type RscFetchOptions = Omit<RequestInit, "headers"> & {
+  headers?: Record<string, string>;
+};
+
+function fetchRscPayload(
+  url: string,
+  options: RscFetchOptions
 ): Promise<RscPayload> {
+  return resolveRscPayload(
+    createFromFetch<RscPayload>(
+      fetch(url, {
+        ...options,
+        headers: {
+          accept: RSC_CONTENT_TYPE,
+          ...options.headers,
+        },
+      })
+    )
+  );
+}
+
+async function callServer(id: string, args: unknown[]): Promise<unknown> {
   const globalState = getGlobalClientState();
   const isRscCall = globalState.isRscCall;
 
-  const result = await createFromFetch<RscPayload>(
-    fetch("/_rsc", {
-      method: "POST",
-      headers: {
-        "x-rsc-action": id,
-        // Skip onRenderHtml, but get access to pageContext for RSC render
-        // Make Vike think this is a "navigation", skipping onRenderHtml
-        "x-vike-urloriginal": getVikeUrlOriginal(globalState.pageContext!),
-        // Add a header to indicate if this is a server component call
-        ...(isRscCall ? { "x-rsc-component-call": "true" } : {}),
-      },
-      body: await encodeReply(args),
-    })
-  );
+  tinyassert(globalState.pageContext, "Missing page context");
+  const result = await fetchRscPayload(globalState.pageContext.urlOriginal, {
+    method: "POST",
+    headers: {
+      "x-rsc-action": id,
+      ...(isRscCall ? { "x-rsc-component-call": "true" } : {}),
+    },
+    body: await encodeReply(args),
+  });
 
-  // Only update the UI if the response contains a root component
-  // This happens when the server action called rerender()
   if (result.root) {
-
     startTransition(() => {
-      // Update the UI with the new payload
       globalState.setPayload?.((current) => {
-        // Cache the result for future navigation
         cachePayload(current.pageContext, result);
-
-        // Update the payload
         return {
           pageContext: current.pageContext,
           payload: result,
         };
       });
     });
-  } else {
-
-    // If this is a server action (not a server component call), invalidate caches
-    if (!isRscCall && typeof window !== "undefined") {
-      // Invalidate the main RSC cache for the current page if we have a page context
-      if (globalState.pageContext) {
-        invalidateCache(globalState.pageContext);
-      }
-    }
+  } else if (
+    !isRscCall &&
+    typeof window !== "undefined" &&
+    globalState.pageContext
+  ) {
+    invalidateCache(globalState.pageContext);
   }
 
   if (!isRscCall) {
-    // Always invalidate the server component cache for server actions
-    // This is necessary because server actions might change data that server components depend on
     invalidateServerComponentCache();
   }
 
-  return result.returnValue as RscPayload;
+  return result.returnValue;
 }
 
 setServerCallback(callServer);
@@ -102,36 +115,21 @@ if (import.meta.hot) {
   });
 }
 
-export function onNavigate(
-  pageContext: PageContextClient
-): Promise<RscPayload> {
-
+export function onNavigate(pageContext: PageContextClient): Promise<RscPayload> {
   const globalState = getGlobalClientState();
 
-  // Clear any pending server component requests when navigating
-  // This ensures we don't have stale requests when moving between pages
   clearPendingServerComponentRequests();
 
-  // Check for cached payload
   const cachedPayload = getCachedPayload(pageContext);
   if (cachedPayload) {
     globalState.navigationPromise = Promise.resolve(cachedPayload);
     return Promise.resolve(cachedPayload);
   }
 
-  // No cache hit, fetch from server
-  const fetchPromise = createFromFetch<RscPayload>(
-    fetch("/_rsc", {
-      method: "GET",
-      headers: {
-        // Skip onRenderHtml, but get access to pageContext for RSC render
-        // Make Vike think this is a "navigation", skipping onRenderHtml
-        "x-vike-urloriginal": getVikeUrlOriginal(pageContext),
-      },
-    })
-  );
+  const fetchPromise = fetchRscPayload(pageContext.urlOriginal, {
+    method: "GET",
+  });
 
-  // Store the promise
   globalState.navigationPromise = fetchPromise;
   fetchPromise.then((payload: RscPayload) => {
     cachePayload(pageContext, payload);
@@ -139,7 +137,6 @@ export function onNavigate(
   return fetchPromise;
 }
 
-// Function to parse an RSC stream into React nodes
 export async function parseRscStream(
   stream: ReadableStream<Uint8Array>
 ): Promise<RscPayload> {

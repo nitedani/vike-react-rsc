@@ -1,12 +1,13 @@
-import envName from "virtual:environment-name";
+import { environmentName } from "vike/runtime";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "rsc", "Invalid environment");
+tinyassert(environmentName === "rsc", "Invalid environment");
 
 import { renderToReadableStream, decodeReply, loadServerAction } from '@vitejs/plugin-rsc/rsc'
 import type { PageContext } from "vike/types";
-import { getPageElementRsc } from "../integration/getPageElement/getPageElement-server";
+import { getPageElementRsc } from "../integration/getPageElement-server";
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
 import { provideServerActionContext } from "./serverActionContext";
+import type { RscPayload } from "../types";
 
 // A client that navigates away mid-stream cancels the response, which aborts the
 // Flight render. React reports that through onError exactly like a render failure,
@@ -44,6 +45,12 @@ export async function renderPageRsc(
   );
 }
 
+export function renderRscPayload(
+  payload: RscPayload
+): ReadableStream<Uint8Array<ArrayBufferLike>> {
+  return renderToReadableStream(payload, renderOptions);
+}
+
 export async function handleServerAction({
   actionId,
   pageContext,
@@ -67,28 +74,10 @@ export async function handleServerAction({
     providePageContext(pageContext, () => action.apply(null, args))
   );
 
-  // Only include the root component if rerender was called
-  if (context.shouldRerender) {
-    const root = await getPageElementRsc(pageContext);
-    return providePageContext(pageContext, () =>
-      renderToReadableStream(
-        {
-          returnValue,
-          root,
-        },
-        renderOptions
-      )
-    );
-  } else {
-    return providePageContext(pageContext, () =>
-      renderToReadableStream(
-        {
-          returnValue,
-        },
-        renderOptions
-      )
-    );
-  }
+  const payload: RscPayload = context.shouldRerender
+    ? { returnValue, root: await getPageElementRsc(pageContext) }
+    : { returnValue };
+  return providePageContext(pageContext, () => renderRscPayload(payload));
 }
 
 if (import.meta.hot) {

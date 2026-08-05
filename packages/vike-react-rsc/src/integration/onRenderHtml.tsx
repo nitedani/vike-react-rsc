@@ -1,10 +1,12 @@
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
-import envName from "virtual:environment-name";
+import { environmentName } from "vike/runtime";
 import runtimeSsr from "virtual:runtime/ssr";
+import { tinyassert } from "@hiogawa/utils";
 
-//@ts-ignore
-export const onRenderHtml: OnRenderHtmlAsync =
-  envName === "ssr" &&
-  async function (pageContext: PageContextServer) {
-    return runtimeSsr.onRenderHtmlSsr(pageContext);
-  };
+tinyassert(environmentName === "ssr", "Invalid environment");
+
+export const onRenderHtml: OnRenderHtmlAsync = async function (
+  pageContext: PageContextServer
+) {
+  return runtimeSsr.onRenderHtmlSsr(pageContext);
+};

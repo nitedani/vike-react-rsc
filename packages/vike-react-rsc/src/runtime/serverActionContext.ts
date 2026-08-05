@@ -1,6 +1,6 @@
-import envName from "virtual:environment-name";
+import { environmentName } from "vike/runtime";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "rsc", "Invalid environment");
+tinyassert(environmentName === "rsc", "Invalid environment");
 
 export { rerender };
 export { provideServerActionContext };
