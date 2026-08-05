@@ -111,7 +111,7 @@ async function getPageElementRsc(
   // Wrapping
   const addSuspense = (el: React.ReactElement | null) => {
     if (!Loading?.layout) return el;
-    return <Suspense fallback={<Loading.layout />}>{page}</Suspense>;
+    return <Suspense fallback={<Loading.layout />}>{el}</Suspense>;
   };
   page = addSuspense(page);
   [
