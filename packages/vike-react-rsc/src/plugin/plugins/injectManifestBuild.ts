@@ -1,7 +1,7 @@
 import type { Plugin } from 'vite';
 import path from 'path';
 import { normalizePath } from 'vite';
-import type { OutputBundle, OutputChunk } from 'rollup';
+import type { OutputBundle, OutputChunk } from 'rolldown';
 
 /**
  * Vite plugin that generates a manifest for React Server Components during build.
