@@ -53,15 +53,8 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
     }
   );
 
+  // doNotClose() holds the HTML response open until the RSC payload finishes piping in.
   const canClose = htmlStream.doNotClose();
-  // doNotClose() holds the HTML response open; releasing it more than once, or
-  // never, are both bugs. Every exit path from the pipe goes through here.
-  let released = false;
-  const release = () => {
-    if (released) return;
-    released = true;
-    canClose();
-  };
 
   rscStreamForClientScript
     //@ts-ignore
@@ -85,8 +78,16 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
         },
       })
     )
-    .catch(() => {})
-    .finally(release);
+    .catch((err) => {
+      // The payload is truncated either way, but a failure here is a server fault and
+      // must not be mistaken for the client having gone away.
+      console.error(
+        "[vike-react-rsc] Failed piping the RSC payload into the HTML stream:",
+        err
+      );
+    })
+    // Runs once, on both paths: the response must never be left held open.
+    .finally(canClose);
 
   const headHtml = getHeadHtml(pageContext);
 

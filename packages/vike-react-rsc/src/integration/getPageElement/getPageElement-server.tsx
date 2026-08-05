@@ -17,7 +17,6 @@ type ConfigMap = {
 declare global {
   var __VIKE_RSC_PAGES_MANIFEST__: {
     [pageId: string]: {
-      importPage: () => Promise<PageContext["Page"]>;
       getConfig: () => Promise<ConfigMap>;
     };
   };
@@ -46,21 +45,24 @@ async function getPageConfig(pageContext: PageContext) {
     const components = (
       await Promise.all(
         configEntries.map(async ({ configDefinedByFile }) => {
-          // Only configs whose value comes from a module can be imported; the rest
-          // (inline values in +config.js) are carried on pageContext.config already.
-          if (
-            !configDefinedByFile ||
-            !/[tj]sx?$/.test(configDefinedByFile) ||
-            !(key in pageContext.config)
-          ) {
-            return null;
+          // No defining file means the value was written inline in +config.js; it is
+          // already on pageContext.config and there is nothing to import.
+          if (!configDefinedByFile) return null;
+
+          const filePath = configDefinedByFile.split("?")[0]!;
+          if (!/[tj]sx?$/.test(filePath)) {
+            throw new Error(
+              `[vike-react-rsc] Page '${pageContext.pageId}' defines config '${key}' in ` +
+                `'${configDefinedByFile}', which is not a module this renderer can import. ` +
+                `Only .js/.jsx/.ts/.tsx are supported.`
+            );
           }
-          const module = await import(/* @vite-ignore */ configDefinedByFile);
+          const module = await import(/* @vite-ignore */ filePath);
           const value = module[key] ?? module.default;
           if (value === undefined) {
             throw new Error(
-              `[vike-react-rsc] '${configDefinedByFile}' is where Vike says config ` +
-                `'${key}' is defined, but it exports neither '${key}' nor a default.`
+              `[vike-react-rsc] Page '${pageContext.pageId}' defines config '${key}' in ` +
+                `'${filePath}', but that file exports neither '${key}' nor a default.`
             );
           }
           return value;
@@ -77,7 +79,6 @@ async function getPageConfig(pageContext: PageContext) {
 async function getPageElementRsc(
   pageContext: PageContext
 ): Promise<React.ReactElement> {
-  let Page: PageContext["Page"] = () => <></>;
   let Layout: PageContext["config"]["Layout"] = [];
   let Wrapper: PageContext["config"]["Wrapper"] = [];
   let Loading: PageContext["config"]["Loading"] = {};
@@ -87,7 +88,14 @@ async function getPageElementRsc(
   }
 
   const config = await getPageConfig(pageContext);
-  Page = config.Page?.[0] ?? Page;
+  const Page = config.Page?.[0];
+  if (!Page) {
+    // Rendering an empty fragment here produces a blank page that looks like a
+    // styling bug rather than a missing Page config.
+    throw new Error(
+      `[vike-react-rsc] Page '${pageContext.pageId}' resolved no Page component.`
+    );
+  }
   Layout = config.Layout ?? Layout;
   Wrapper = config.Wrapper ?? Wrapper;
   Loading = config.Loading?.[0] ?? Loading;

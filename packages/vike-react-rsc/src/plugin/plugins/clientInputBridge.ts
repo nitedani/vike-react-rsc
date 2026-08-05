@@ -57,7 +57,18 @@ export function clientInputBridge(): Plugin {
 
         const build = clientEnv.config.build;
         const existing = normalizeRollupInput(build.rollupOptions?.input);
-        // Entries already declared for the client environment win over the projection.
+        // Two entries sharing a name but not a target means one would be dropped, and
+        // which one is an accident of merge order.
+        for (const [name, target] of Object.entries(existing)) {
+          const projected = rootInput[name];
+          if (projected !== undefined && projected !== target) {
+            throw new Error(
+              `[vike-react-rsc] Client entry '${name}' is declared twice with different ` +
+                `targets: Vike computed '${projected}', the client environment already ` +
+                `had '${target}'.`
+            );
+          }
+        }
         (build.rollupOptions ??= {}).input = { ...rootInput, ...existing };
       },
     },

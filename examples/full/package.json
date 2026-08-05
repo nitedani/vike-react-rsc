@@ -18,6 +18,7 @@
     "@compiled/react": "^1.0.0",
     "@types/react": "^19.2.18",
     "@universal-deploy/node": "^0.1.9",
+    "@universal-middleware/hono": "^0.4.21",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
     "@vitejs/plugin-rsc": "^0.5.32",

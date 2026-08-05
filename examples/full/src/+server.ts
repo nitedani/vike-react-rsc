@@ -1,10 +1,13 @@
+import { apply } from "@universal-middleware/hono";
 import { Hono } from "hono";
 import vike from "vike/fetch";
 
 const app = new Hono();
 
-// Vike handles every route it owns; anything added above this line wins.
-app.all("*", (c) => vike.fetch(c.req.raw));
+// vike/fetch is a universal-middleware handler taking (request, context, runtime),
+// not a bare fetch — apply() is what supplies the latter two. Routes registered
+// before this call take precedence over Vike's.
+apply(app, [vike.fetch]);
 
 export default {
   fetch: app.fetch,

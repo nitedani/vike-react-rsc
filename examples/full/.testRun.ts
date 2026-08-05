@@ -61,9 +61,11 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
 function testResponseTail() {
   test("Response tail is complete and ordered", async () => {
     const html = await fetchHtml("/");
+    // Match the INVOCATIONS, not the bootstrap script that defines these functions —
+    // the definitions sit in <head> and would satisfy the ordering trivially.
     const positions = [
-      ["rsc chunk", html.indexOf("__rsc_web_stream_push")],
-      ["rsc close marker", html.indexOf("__rsc_web_stream_close()")],
+      ["rsc chunk", html.indexOf("<script>self.__rsc_web_stream_push(")],
+      ["rsc close marker", html.indexOf("<script>self.__rsc_web_stream_close()")],
       ["pageContext", html.indexOf('id="vike_pageContext"')],
       ["client entry", html.search(/<script[^>]*type="module"/)],
     ] as const;
@@ -145,13 +147,28 @@ function testCounter() {
   test("Counter functionality", async () => {
     await page.goto(getServerUrl() + "/");
 
-    // Just verify the page loads with the increment button
+    // The client component's display container; its only child holds the count.
+    const readCount = async () =>
+      Number(await page.textContent("[data-shared-util-client] div"));
+
     await autoRetry(
       async () => {
-        const body = await page.textContent("body");
-        expect(body).to.include("Increment");
+        expect(await page.textContent("body")).to.include("Increment");
       },
       { timeout: 5000 }
+    );
+
+    // The value, not the label: a server action that runs but never updates the
+    // client leaves the button in place and the number unchanged. The click is
+    // retried because one landing before hydration is a no-op, and the count is
+    // server-side global state, so assert it grew rather than pinning an absolute.
+    const before = await readCount();
+    await autoRetry(
+      async () => {
+        await page.click('button:has-text("Increment")');
+        expect(await readCount()).to.be.greaterThan(before);
+      },
+      { timeout: 15000 }
     );
   });
 }

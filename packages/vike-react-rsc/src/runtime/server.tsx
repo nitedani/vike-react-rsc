@@ -12,9 +12,20 @@ import { provideServerActionContext } from "./serverActionContext";
 // Flight render. React reports that through onError exactly like a render failure,
 // and the default handler prints it. Navigating away is normal operation, so these
 // are dropped while anything else still surfaces.
+//
+// AbortError only counts when the platform raised it: an application throwing its own
+// `new Error()` named AbortError — an aborted fetch inside a Server Component, say — is
+// a render failure and has to stay visible.
 function isClientDisconnect(error: unknown): boolean {
-  const { code, name } = (error ?? {}) as { code?: unknown; name?: unknown };
-  return code === "ERR_STREAM_PREMATURE_CLOSE" || name === "AbortError";
+  if (
+    typeof DOMException !== "undefined" &&
+    error instanceof DOMException &&
+    error.name === "AbortError"
+  ) {
+    return true;
+  }
+  const { code } = (error ?? {}) as { code?: unknown };
+  return code === "ERR_STREAM_PREMATURE_CLOSE";
 }
 
 const renderOptions = {
