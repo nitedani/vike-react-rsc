@@ -7,7 +7,7 @@ import vikeRscPlugin from "./plugin";
 const config: Config = {
   name: "vike-react-rsc",
   require: {
-    vike: ">=0.4.182",
+    vike: ">=0.4.260",
   },
   // https://vike.dev/onRenderHtml
   onRenderHtml:

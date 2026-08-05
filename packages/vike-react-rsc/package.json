@@ -35,10 +35,10 @@
   "license": "MIT",
   "peerDependencies": {
     "@vitejs/plugin-rsc": "^0.5.32",
-    "react": "*",
-    "react-dom": "*",
-    "vike": "*",
-    "vite": "*"
+    "react": ">=19.2.8 <20",
+    "react-dom": ">=19.2.8 <20",
+    "vike": ">=0.4.260",
+    "vite": ">=8.0.0"
   },
   "dependencies": {
     "@hiogawa/transforms": "^0.0.0",
