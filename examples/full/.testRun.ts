@@ -9,27 +9,18 @@ import {
   getServerUrl,
 } from "@brillout/test-e2e";
 
-const titleDefault = "Vike React Server Components";
 const pages = {
   "/": {
-    title: titleDefault,
     text: "Vike React Server Components",
-    counter: true,
   },
   "/todos": {
-    title: "Task Manager",
     text: "A powerful todo application built with Vike React Server Components",
-    todoForm: true,
   },
   "/suspense": {
-    title: "Suspense Demo",
     text: "Component-Level Suspense",
-    filmGrid: true,
   },
   "/data": {
-    title: "Page Loading States",
     text: "Page-Level Loading",
-    filmGrid: true,
   },
 } as const;
 
@@ -37,18 +28,22 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   const isPreview = cmd === "pnpm run preview";
 
   run(cmd, {
+    serverUrl: process.env.SERVER_URL,
     serverIsReadyMessage: (log) =>
       log.includes("Local:") || log.includes("ready in"),
-    // The preview run builds before it serves.
+    // `pnpm run preview` builds before it serves.
     additionalTimeout: isPreview ? 60000 : 0,
     // Emitted by react-dom while servicing @vitejs/plugin-rsc's preloadDeps().
     // The href is a Vite dep-optimizer artifact, so it is dev-only, and a
     // preload the browser rejects is simply not performed — hydration still
     // completes. Neither this example nor vike-react-rsc emits any preload,
-    // and the server-rendered HTML contains none.
-    tolerateError: ({ logSource, logText }) =>
-      logSource === "Browser Warning" &&
-      logText.includes("<link rel=preload> must have a valid `as` value"),
+    // and the server-rendered HTML contains none. Only proven for dev; the
+    // preview lane must not silently inherit the tolerance.
+    tolerateError: isPreview
+      ? undefined
+      : ({ logSource, logText }) =>
+          logSource === "Browser Warning" &&
+          logText.includes("<link rel=preload> must have a valid `as` value"),
   });
 
   testPages();
@@ -64,17 +59,7 @@ function testPages() {
   });
 }
 
-function testPage({
-  url,
-  text,
-}: {
-  url: string;
-  title: string;
-  text: string;
-  counter?: true;
-  todoForm?: true;
-  filmGrid?: true;
-}) {
+function testPage({ url, text }: { url: string; text: string }) {
   test(url + " (HTML)", async () => {
     const html = await fetchHtml(url);
     expect(html).to.include(text);
@@ -192,8 +177,3 @@ function testFilmGrid() {
     ); // Longer timeout for film data loading
   });
 }
-
-// function getTitle(html: string) {
-//   const title = html.match(/<title>(.*?)<\/title>/i)?.[1]
-//   return title
-// }

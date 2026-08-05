@@ -31,14 +31,12 @@ export function rsc<P, T extends React.ReactElement<any>>(
 
         if (pendingRequest) {
           // If there's already a request in flight, subscribe to it
-          console.log(`[RSC Client] Reusing pending request for ${c.name || 'UnknownComponent'}`, rest);
           pendingRequest.then((result) => {
             // Update state with the fresh result
             setComp(result);
           });
         } else {
           // No pending request, create a new one
-          console.log(`[RSC Client] ${cachedComponent ? 'Revalidating' : 'Fetching'} server component ${c.name || 'UnknownComponent'}`, rest);
 
           // Mark the component as being revalidated
           if (cachedComponent) {

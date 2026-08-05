@@ -26,8 +26,6 @@ const config: Config = {
   middleware:
     "import:vike-react-rsc/__internal/integration/rscMiddleware:default",
 
-  passToClient: ["rscPayloadString"],
-
   // https://vike.dev/clientRouting
   clientRouting: true,
   hydrationCanBeAborted: true,

@@ -12,7 +12,6 @@ import { provideServerActionContext } from "./serverActionContext";
 export async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
-  console.log("[Renderer] Rendering page to RSC stream");
   const root = await getPageElementRsc(pageContext);
   return providePageContext(pageContext, () =>
     renderToReadableStream(
@@ -33,16 +32,6 @@ export async function handleServerAction({
   pageContext: PageContext;
   body: string | FormData;
 }): Promise<ReadableStream<Uint8Array>> {
-  // Check if this is a server component call
-  const isServerComponentCall =
-    pageContext.headers?.["x-rsc-component-call"] === "true";
-
-  console.log(
-    "[Server] Handling server action:",
-    actionId,
-    isServerComponentCall ? "(from server component)" : ""
-  );
-
   // Create context for this server action execution
   const context = { shouldRerender: false };
 
@@ -59,7 +48,6 @@ export async function handleServerAction({
 
   // Only include the root component if rerender was called
   if (context.shouldRerender) {
-    console.log("[Server] Re-rendering page after server action");
     const root = await getPageElementRsc(pageContext);
     return providePageContext(pageContext, () =>
       renderToReadableStream({
@@ -68,7 +56,6 @@ export async function handleServerAction({
       })
     );
   } else {
-    console.log("[Server] Returning server action result without re-rendering");
     return providePageContext(pageContext, () =>
       renderToReadableStream({
         returnValue,

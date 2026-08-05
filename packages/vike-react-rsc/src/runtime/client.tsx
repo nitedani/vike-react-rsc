@@ -32,11 +32,6 @@ export async function callServer(
 ): Promise<RscPayload> {
   const globalState = getGlobalClientState();
   const isRscCall = globalState.isRscCall;
-  console.log(
-    "[RSC Client] Calling server action:",
-    id,
-    isRscCall ? "(from server component)" : ""
-  );
 
   const result = await createFromFetch<RscPayload>(
     fetch("/_rsc", {
@@ -56,7 +51,6 @@ export async function callServer(
   // Only update the UI if the response contains a root component
   // This happens when the server action called rerender()
   if (result.root) {
-    console.log("[RSC Client] Server action triggered re-render");
 
     startTransition(() => {
       // Update the UI with the new payload
@@ -72,7 +66,6 @@ export async function callServer(
       });
     });
   } else {
-    console.log("[RSC Client] Server action returned without re-render");
 
     // If this is a server action (not a server component call), invalidate caches
     if (!isRscCall && typeof window !== "undefined") {
@@ -112,7 +105,6 @@ if (import.meta.hot) {
 export function onNavigate(
   pageContext: PageContextClient
 ): Promise<RscPayload> {
-  console.log("[RSC Client] Navigation:", pageContext.urlPathname);
 
   const globalState = getGlobalClientState();
 
@@ -128,7 +120,6 @@ export function onNavigate(
   }
 
   // No cache hit, fetch from server
-  console.log("[RSC Client] Fetching RSC payload for", pageContext.urlPathname);
   const fetchPromise = createFromFetch<RscPayload>(
     fetch("/_rsc", {
       method: "GET",
@@ -152,10 +143,8 @@ export function onNavigate(
 export async function parseRscStream(
   stream: ReadableStream<Uint8Array>
 ): Promise<RscPayload> {
-  console.log("[RSC Client] Parsing RSC stream...");
   const initialPayload = await createFromReadableStream<React.ReactNode>(
     stream
   );
-  console.log("[RSC Client] RSC stream parsed");
   return initialPayload as RscPayload;
 }

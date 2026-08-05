@@ -23,7 +23,9 @@ React RSC integration for [Vike](https://vike.dev).
 
 ## Demo
 
-Example: [examples/full/](examples/full/)  
-It demonstrates local development (`pnpm dev`) and a production build served by Node.js (`pnpm build && pnpm preview`, via [`@universal-deploy/node`](https://github.com/photon-js/universal-deploy)).  
+Example: [examples/full/](examples/full/)
+
+It demonstrates local development (`pnpm dev`) and a production build served by Node.js (`pnpm preview`, via [`@universal-deploy/node`](https://github.com/photon-js/universal-deploy)).
+
 > [!NOTE]
 > Network requests are artificially slowed down to showcase RSC features such as progressive hydration.

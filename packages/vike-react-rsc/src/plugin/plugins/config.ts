@@ -114,14 +114,4 @@ export const configs: Plugin[] = [
       };
     },
   },
-  {
-    name: "vike-rsc:config:post",
-    enforce: "post",
-    
-    configResolved(config) {
-      console.log(config.environments.ssr!.build.rollupOptions.input);
-      
-    },
-
-  },
 ];

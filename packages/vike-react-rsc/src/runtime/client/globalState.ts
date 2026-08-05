@@ -29,9 +29,6 @@ export interface GlobalClientState {
       pageContext: PageContextClient;
     }>
   >;
-
-  // Reference to the callServer function
-  vikeRscCallServer?: Function;
 }
 
 // Cache entry type

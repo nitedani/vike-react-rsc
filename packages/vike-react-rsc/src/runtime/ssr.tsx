@@ -28,7 +28,6 @@ if (!self.TextEncoderStream) {
   self.TextEncoderStream = class { _controller; encoder = new TextEncoder(); readable = new ReadableStream({ start: c => this._controller = c }); writable = new WritableStream({ write: chunk => this._controller.enqueue(this.encoder.encode(chunk)), close: () => this._controller.close() }); };
 }
 self.__rsc_payload_stream = self.__rsc_web_stream.pipeThrough(new TextEncoderStream());
-console.log('[RSC Init Script] Payload stream setup on window.__rsc_payload_stream');
 `;
 
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
@@ -59,7 +58,6 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   rscStreamForClientScript.pipeThrough(new TextDecoderStream()).pipeTo(
     new WritableStream({
       write(rscChunk) {
-        // console.log("Injecting RSC chunk...");
         htmlStream.injectToStream(
           `<script>self.__rsc_web_stream_push(${JSON.stringify(
             rscChunk
@@ -67,7 +65,6 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
         );
       },
       async close() {
-        console.log("RSC stream closed, injecting close script.");
         htmlStream.injectToStream(
           `<script>self.__rsc_web_stream_close()</script>`
         );

@@ -43,12 +43,10 @@ export const onRenderClient: OnRenderClientAsync = async function (
 ) {
   // Store the page context in the global state
   globalState.pageContext = pageContext;
-  console.log("[Vike Hook] +onRenderClient called");
 
   // Handle initial page load (hydration)
   if (pageContext.isHydration) {
     try {
-      console.log("[Client] Hydrating root");
       const container = document.getElementById("root");
       if (!container) {
         console.error("[Client] Container #root not found!");
@@ -72,7 +70,6 @@ export const onRenderClient: OnRenderClientAsync = async function (
         }
       );
 
-      console.log("[Client] Hydration complete");
     } catch (err) {
       console.error("[Client] Hydration failed:", err);
     }
@@ -80,14 +77,12 @@ export const onRenderClient: OnRenderClientAsync = async function (
   // Handle client-side navigation
   else if (pageContext.isClientSideNavigation) {
     try {
-      console.log("[Client] Client-side navigation", globalState.navigationPromise);
       if (globalState.navigationPromise) {
         const payload = await globalState.navigationPromise;
         globalState.setPayload?.({ pageContext, payload });
       } else {
         console.error("[Client] No navigation promise found");
       }
-      console.log("[Client] Navigation complete");
     } catch (error) {
       console.error("[Client] Failed to navigate:", error);
     }

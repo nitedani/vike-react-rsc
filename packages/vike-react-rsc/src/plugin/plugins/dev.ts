@@ -9,7 +9,6 @@ export const exposeDevServer: Plugin = {
         (server.environments.rsc as RunnableDevEnvironment).runner;
       if (server.environments.ssr)
         (server.environments.ssr as RunnableDevEnvironment).runner;
-      console.log("[RSC Plugin] Dev server runners initialized");
     } catch (e) {
       console.error("[RSC Plugin] Failed to initialize runners:", e);
     }
