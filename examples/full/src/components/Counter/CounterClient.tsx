@@ -12,7 +12,6 @@ export default function CounterClient({ initialCount }: CounterClientProps) {
   const [count, setCount] = useState(initialCount);
   const [isPending, startTransition] = useTransition();
 
-  sharedUtil();
   // Increment without re-rendering the page
   const handleIncrement = () => {
     startTransition(async () => {
@@ -33,7 +32,11 @@ export default function CounterClient({ initialCount }: CounterClientProps) {
 
   return (
     <>
-      <div css={counterStyles.displayContainer} className="shared-client">
+      <div
+        css={counterStyles.displayContainer}
+        className="shared-client"
+        data-shared-util-client={sharedUtil()}
+      >
         <div
           css={[counterStyles.number, isPending && counterStyles.numberPending]}
         >

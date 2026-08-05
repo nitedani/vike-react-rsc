@@ -1,6 +1,6 @@
 import React, { type ComponentType, useEffect } from "react";
 import { usePageContext } from "../hooks/pageContext/pageContext-client";
-import { getCachedServerComponent, cacheServerComponent, markServerComponentRevalidating } from "./cache";
+import { getCachedServerComponent, cacheServerComponent } from "./cache";
 import { getGlobalClientState } from "./client/globalState";
 
 export function rsc<P, T extends React.ReactElement<any>>(
@@ -24,55 +24,35 @@ export function rsc<P, T extends React.ReactElement<any>>(
     useEffect(() => {
       const globalState = getGlobalClientState();
 
-      // Function to fetch or revalidate the component
       const fetchOrRevalidate = () => {
-        // Check if there's already a pending request for this component
+        // pendingRequests owns de-duplication: concurrent renders of the same
+        // component subscribe to the in-flight promise instead of refetching.
         const pendingRequest = globalState.pendingRequests.get(cacheKey);
 
         if (pendingRequest) {
-          // If there's already a request in flight, subscribe to it
-          pendingRequest.then((result) => {
-            // Update state with the fresh result
-            setComp(result);
-          });
-        } else {
-          // No pending request, create a new one
+          pendingRequest.then(setComp);
+          return;
+        }
 
-          // Mark the component as being revalidated
-          if (cachedComponent) {
-            markServerComponentRevalidating(cacheKey);
-          }
+        // Tells callServer this fetch originates from a client component.
+        globalState.isRscCall = true;
+        const serverComponentPromise = c(rest as P);
+        globalState.isRscCall = false;
 
-          // Set the flag to indicate this is an RSC call from a client component
-          globalState.isRscCall = true;
-
-          // Create the promise for the server component
-          const serverComponentPromise = c(rest as P);
-
-          // Reset the flag immediately after creating the promise
-          globalState.isRscCall = false;
-
-          // Process the promise result
-          const requestPromise = serverComponentPromise.then((result) => {
-            // Cache the fresh result
+        const requestPromise = serverComponentPromise
+          .then((result) => {
             cacheServerComponent(cacheKey, result, pageContext);
-            // Remove this request from the pending requests map
             globalState.pendingRequests.delete(cacheKey);
-            // Return the result for other subscribers
             return result;
-          }).catch((error) => {
-            // If there's an error, remove from pending requests
+          })
+          .catch((error) => {
             console.error("[RSC Client] Error fetching server component:", error);
             globalState.pendingRequests.delete(cacheKey);
             throw error;
           });
 
-          // Add the promise to the pending requests map
-          globalState.pendingRequests.set(cacheKey, requestPromise);
-
-          // Subscribe to the promise
-          requestPromise.then(setComp);
-        }
+        globalState.pendingRequests.set(cacheKey, requestPromise);
+        requestPromise.then(setComp);
       };
 
       // If we don't have a cached component or it's stale, fetch/revalidate

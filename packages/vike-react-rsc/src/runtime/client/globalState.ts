@@ -36,7 +36,6 @@ export interface CacheEntry {
   payload: RscPayload;
   timestamp: number;
   isStale?: boolean;
-  revalidating?: boolean;
 }
 
 // Get or initialize the global client state
