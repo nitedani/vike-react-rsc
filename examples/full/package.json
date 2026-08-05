@@ -24,7 +24,7 @@
     "hono": "^4.13.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vike": "^0.4.260",
     "vike-react-rsc": "^1.0.0",
     "vite": "^8.2.0",
