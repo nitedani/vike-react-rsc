@@ -8,6 +8,21 @@ import { getPageElementRsc } from "../integration/getPageElement/getPageElement-
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
 import { provideServerActionContext } from "./serverActionContext";
 
+// A client that navigates away mid-stream cancels the response, which aborts the
+// Flight render. React reports that through onError exactly like a render failure,
+// and the default handler prints it. Navigating away is normal operation, so these
+// are dropped while anything else still surfaces.
+function isClientDisconnect(error: unknown): boolean {
+  const { code, name } = (error ?? {}) as { code?: unknown; name?: unknown };
+  return code === "ERR_STREAM_PREMATURE_CLOSE" || name === "AbortError";
+}
+
+const renderOptions = {
+  onError(error: unknown) {
+    if (isClientDisconnect(error)) return;
+    console.error("[vike-react-rsc] Error while rendering the RSC payload:", error);
+  },
+};
 
 export async function renderPageRsc(
   pageContext: PageContext
@@ -18,7 +33,8 @@ export async function renderPageRsc(
       // TODO: add form when initial request is POST
       {
         root,
-      }
+      },
+      renderOptions
     )
   );
 }
@@ -50,16 +66,22 @@ export async function handleServerAction({
   if (context.shouldRerender) {
     const root = await getPageElementRsc(pageContext);
     return providePageContext(pageContext, () =>
-      renderToReadableStream({
-        returnValue,
-        root,
-      })
+      renderToReadableStream(
+        {
+          returnValue,
+          root,
+        },
+        renderOptions
+      )
     );
   } else {
     return providePageContext(pageContext, () =>
-      renderToReadableStream({
-        returnValue,
-      })
+      renderToReadableStream(
+        {
+          returnValue,
+        },
+        renderOptions
+      )
     );
   }
 }
