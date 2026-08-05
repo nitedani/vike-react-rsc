@@ -21,7 +21,7 @@ export function vikeRscManifestPluginBuild(): Plugin {
             const placeholderChunks: OutputChunk[] = [];
 
             // Find entry chunks for pages
-            const pageEntries: Record<string, { chunkName: string, fileName: string, pageId: string }> = {};
+            const pageEntries: Record<string, { fileName: string, pageId: string }> = {};
 
             // First pass: identify placeholder chunks and page entries
             for (const [fileName, output] of Object.entries(bundle)) {
@@ -34,7 +34,6 @@ export function vikeRscManifestPluginBuild(): Plugin {
                     const pageId = chunk.facadeModuleId.split('virtual:vike:pageConfigValuesAll:server:')[1];
                     if (pageId) {
                         pageEntries[chunk.name] = {
-                            chunkName: chunk.name,
                             fileName,
                             pageId
                         };
@@ -71,7 +70,7 @@ export function vikeRscManifestPluginBuild(): Plugin {
  * @returns The generated manifest code as a string
  */
 function generateManifestCode(
-    pageEntries: Record<string, { chunkName: string, fileName: string, pageId: string }>,
+    pageEntries: Record<string, { fileName: string, pageId: string }>,
     chunkFileName: string
 ): string {
     // Start of IIFE

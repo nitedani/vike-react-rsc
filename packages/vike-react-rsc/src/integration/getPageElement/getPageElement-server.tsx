@@ -45,9 +45,16 @@ async function getPageConfig(pageContext: PageContext) {
     const components = (
       await Promise.all(
         configEntries.map(async ({ configDefinedByFile }) => {
-          // No defining file means the value was written inline in +config.js; it is
-          // already on pageContext.config and there is nothing to import.
-          if (!configDefinedByFile) return null;
+          // These configs are resolved solely by importing their defining file, so a
+          // value with no file provenance cannot be rendered at all — it would be
+          // dropped silently rather than "inherited from elsewhere".
+          if (!configDefinedByFile) {
+            throw new Error(
+              `[vike-react-rsc] Page '${pageContext.pageId}' defines config '${key}' ` +
+                `with no file provenance, so it cannot be loaded. Define it in its own ` +
+                `+${key}.tsx file rather than inline.`
+            );
+          }
 
           const filePath = configDefinedByFile.split("?")[0]!;
           if (!/[tj]sx?$/.test(filePath)) {

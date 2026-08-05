@@ -10,20 +10,14 @@ import { provideServerActionContext } from "./serverActionContext";
 
 // A client that navigates away mid-stream cancels the response, which aborts the
 // Flight render. React reports that through onError exactly like a render failure,
-// and the default handler prints it. Navigating away is normal operation, so these
-// are dropped while anything else still surfaces.
+// and the default handler prints it. Navigating away is normal operation, so this
+// one signature is dropped and everything else still surfaces.
 //
-// AbortError only counts when the platform raised it: an application throwing its own
-// `new Error()` named AbortError — an aborted fetch inside a Server Component, say — is
-// a render failure and has to stay visible.
+// Only the captured cancellation signature is matched. An AbortError is deliberately
+// NOT enough: an application aborting a fetch inside a Server Component throws a
+// DOMException named AbortError with code 20, indistinguishable by shape from a
+// platform cancellation, and that is a render failure which has to stay visible.
 function isClientDisconnect(error: unknown): boolean {
-  if (
-    typeof DOMException !== "undefined" &&
-    error instanceof DOMException &&
-    error.name === "AbortError"
-  ) {
-    return true;
-  }
   const { code } = (error ?? {}) as { code?: unknown };
   return code === "ERR_STREAM_PREMATURE_CLOSE";
 }

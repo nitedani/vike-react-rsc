@@ -105,7 +105,6 @@ function testPage({ url, text }: { url: string; text: string }) {
 
 function testPageNavigation() {
   test("Navigation between pages", async () => {
-    // Start at home page
     await page.goto(getServerUrl() + "/");
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include(
@@ -113,13 +112,11 @@ function testPageNavigation() {
       );
     });
 
-    // Navigate to todos page
     await page.click('a[href="/todos"]');
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("Task Manager");
     });
 
-    // Navigate to suspense page
     await page.click('a[href="/suspense"]');
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include(
@@ -127,13 +124,11 @@ function testPageNavigation() {
       );
     });
 
-    // Navigate to data page
     await page.click('a[href="/data"]');
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("Page-Level Loading");
     });
 
-    // Navigate back to home
     await page.click('a[href="/"]');
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include(
@@ -177,24 +172,19 @@ function testTodoForm() {
   test("Todo form functionality", async () => {
     await page.goto(getServerUrl() + "/todos");
 
-    // Test adding a todo
     await autoRetry(
       async () => {
-        // Find the input field and add button
         const input = await page.$(
           'input[placeholder="What needs to be done?"]'
         );
         expect(input).to.not.equal(null);
 
-        // Type a new todo
         await input?.fill("Test Todo Item");
 
-        // Find and click the add button
         const addButton = await page.$('button:has-text("Add Task")');
         expect(addButton).to.not.equal(null);
         await addButton?.click();
 
-        // Wait for the todo to appear in the list
         await autoRetry(
           async () => {
             const todoText = await page.textContent("body");
@@ -212,14 +202,12 @@ function testFilmGrid() {
   test("Film grid loading and display", async () => {
     await page.goto(getServerUrl() + "/suspense");
 
-    // Test that films load with suspense
     await autoRetry(
       async () => {
-        // Just check for film-related text since the cards might not be loaded yet
         const pageText = await page.textContent("body");
         expect(pageText).to.include("Component-Level");
       },
       { timeout: 15000 }
-    ); // Longer timeout for film data loading
+    );
   });
 }

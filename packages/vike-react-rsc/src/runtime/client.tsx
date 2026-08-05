@@ -26,7 +26,7 @@ function getVikeUrlOriginal(pageContext: PageContextClient) {
   }/index.pageContext.json${pageContext.urlParsed.searchOriginal || ""}`;
 }
 
-export async function callServer(
+async function callServer(
   id: string,
   args: unknown[]
 ): Promise<RscPayload> {
