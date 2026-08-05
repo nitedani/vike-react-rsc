@@ -2,26 +2,12 @@ import envName from "virtual:enviroment-name";
 import { tinyassert } from "@hiogawa/utils";
 tinyassert(envName === "rsc", "Invalid environment");
 
-import * as ReactServer from "@vitejs/plugin-rsc/react/rsc";
+import { renderToReadableStream, decodeReply, loadServerAction } from '@vitejs/plugin-rsc/rsc'
 import type { PageContext } from "vike/types";
 import { getPageElementRsc } from "../integration/getPageElement/getPageElement-server";
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
 import { provideServerActionContext } from "./serverActionContext";
 
-async function importServerReference(id: string): Promise<unknown> {
-  if (import.meta.env.DEV) {
-    return import(/* @vite-ignore */ id);
-  } else {
-    const references = await import("virtual:server-references" as string);
-    const dynImport = references.default[id];
-    tinyassert(dynImport, `server reference not found '${id}'`);
-    return dynImport();
-  }
-}
-
-ReactServer.setRequireModule({
-  load: importServerReference,
-});
 
 export async function renderPageRsc(
   pageContext: PageContext
@@ -29,7 +15,7 @@ export async function renderPageRsc(
   console.log("[Renderer] Rendering page to RSC stream");
   const root = await getPageElementRsc(pageContext);
   return providePageContext(pageContext, () =>
-    ReactServer.renderToReadableStream(
+    renderToReadableStream(
       // TODO: add form when initial request is POST
       {
         root,
@@ -62,8 +48,8 @@ export async function handleServerAction({
 
   // Decode arguments and get the action function
   const [args, action] = await Promise.all([
-    ReactServer.decodeReply(body),
-    ReactServer.loadServerAction(actionId),
+    decodeReply(body),
+    loadServerAction(actionId),
   ]);
 
   // Execute the action within the server action context
@@ -76,7 +62,7 @@ export async function handleServerAction({
     console.log("[Server] Re-rendering page after server action");
     const root = await getPageElementRsc(pageContext);
     return providePageContext(pageContext, () =>
-      ReactServer.renderToReadableStream({
+      renderToReadableStream({
         returnValue,
         root,
       })
@@ -84,9 +70,13 @@ export async function handleServerAction({
   } else {
     console.log("[Server] Returning server action result without re-rendering");
     return providePageContext(pageContext, () =>
-      ReactServer.renderToReadableStream({
+      renderToReadableStream({
         returnValue,
       })
     );
   }
+}
+
+if (import.meta.hot) {
+  import.meta.hot.accept()
 }

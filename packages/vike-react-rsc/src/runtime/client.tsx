@@ -3,7 +3,12 @@ import envName from "virtual:enviroment-name";
 tinyassert(envName === "client", "Invalid environment");
 
 import React, { startTransition } from "react";
-import * as ReactClient from "@vitejs/plugin-rsc/react/browser";
+import {
+  createFromFetch,
+  encodeReply,
+  setServerCallback,
+  createFromReadableStream,
+} from "@vitejs/plugin-rsc/browser";
 import type { PageContextClient } from "vike/types";
 import type { RscPayload } from "../types";
 import {
@@ -33,7 +38,7 @@ export async function callServer(
     isRscCall ? "(from server component)" : ""
   );
 
-  const result = await ReactClient.createFromFetch<RscPayload>(
+  const result = await createFromFetch<RscPayload>(
     fetch("/_rsc", {
       method: "POST",
       headers: {
@@ -44,7 +49,7 @@ export async function callServer(
         // Add a header to indicate if this is a server component call
         ...(isRscCall ? { "x-rsc-component-call": "true" } : {}),
       },
-      body: await ReactClient.encodeReply(args),
+      body: await encodeReply(args),
     })
   );
 
@@ -87,7 +92,7 @@ export async function callServer(
   return result.returnValue as RscPayload;
 }
 
-ReactClient.setServerCallback(callServer);
+setServerCallback(callServer);
 
 if (import.meta.hot) {
   import.meta.hot.on("rsc:update", async () => {
@@ -124,7 +129,7 @@ export function onNavigate(
 
   // No cache hit, fetch from server
   console.log("[RSC Client] Fetching RSC payload for", pageContext.urlPathname);
-  const fetchPromise = ReactClient.createFromFetch<RscPayload>(
+  const fetchPromise = createFromFetch<RscPayload>(
     fetch("/_rsc", {
       method: "GET",
       headers: {
@@ -148,8 +153,9 @@ export async function parseRscStream(
   stream: ReadableStream<Uint8Array>
 ): Promise<RscPayload> {
   console.log("[RSC Client] Parsing RSC stream...");
-  const initialPayload =
-    await ReactClient.createFromReadableStream<React.ReactNode>(stream);
+  const initialPayload = await createFromReadableStream<React.ReactNode>(
+    stream
+  );
   console.log("[RSC Client] RSC stream parsed");
   return initialPayload as RscPayload;
 }

@@ -4,7 +4,7 @@ tinyassert(envName === "ssr", "Invalid environment");
 
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import { renderToStream } from "react-streaming/server.web";
-import * as ReactServerDOMClient from "@vitejs/plugin-rsc/react/ssr";
+import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr'
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
 import runtimeRsc from "virtual:runtime/server";
@@ -31,25 +31,6 @@ self.__rsc_payload_stream = self.__rsc_web_stream.pipeThrough(new TextEncoderStr
 console.log('[RSC Init Script] Payload stream setup on window.__rsc_payload_stream');
 `;
 
-async function importClientReference(id: string) {
-  if (import.meta.env.DEV) {
-    return import(/* @vite-ignore */ id);
-  } else {
-    const clientReferences = await import(
-      "virtual:client-references" as string
-    );
-    const dynImport = clientReferences.default[id];
-    console.log("[RSC] Importing client reference", id);
-
-    tinyassert(dynImport, `client reference not found '${id}'`);
-    return dynImport();
-  }
-}
-
-ReactServerDOMClient.setRequireModule({
-  load: importClientReference,
-});
-
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
@@ -57,7 +38,7 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   const [rscStreamForHtml, rscStreamForClientScript] = rscPayloadStream!.tee();
 
   const payload =
-    (await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
+    (await createFromReadableStream<React.ReactNode>(
       rscStreamForHtml
     )) as RscPayload;
 

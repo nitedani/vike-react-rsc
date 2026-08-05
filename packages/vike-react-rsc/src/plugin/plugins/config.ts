@@ -98,7 +98,7 @@ export const configs: Plugin[] = [
         },
       };
     },
-    sharedDuringBuild: false,
+    sharedDuringBuild: true,
   },
   {
     name: "vike-rsc:config-rsc",
@@ -116,20 +116,12 @@ export const configs: Plugin[] = [
   },
   {
     name: "vike-rsc:config:post",
-    config(): UserConfig {
-      return {
-        builder: {
-          async buildApp(builder) {
-            global.vikeReactRscGlobalState.disableUseClientPlugin = true;
-            // Discover server references in "use client" files
-            await builder.build(builder.environments.rsc!);
-            global.vikeReactRscGlobalState.disableUseClientPlugin = false;
-            await builder.build(builder.environments.rsc!);
-            await builder.build(builder.environments.client!);
-            await builder.build(builder.environments.ssr!);
-          },
-        },
-      };
+    enforce: "post",
+    
+    configResolved(config) {
+      console.log(config.environments.ssr!.build.rollupOptions.input);
+      
     },
+
   },
 ];

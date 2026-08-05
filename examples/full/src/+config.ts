@@ -1,6 +1,6 @@
 import type { Config } from "vike/types";
 import vikeReactRsc from "vike-react-rsc/config";
-import vikeCloudflare from "vike-cloudflare/config";
+import vikeCloudflare from "vike-server/config";
 
 
 export default {

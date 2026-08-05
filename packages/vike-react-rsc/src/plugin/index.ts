@@ -10,7 +10,8 @@ import { useServerPlugin } from "./plugins/useServerPlugin";
 import { virtuals } from "./plugins/virtuals";
 import { virtualNormalizeReferenceIdPlugin } from "./utils";
 import { hmrPlugin } from "./plugins/hmrPlugin";
-import rscCore from "@vitejs/plugin-rsc/core/plugin"
+import rscCore from "@vitejs/plugin-rsc/core/plugin";
+import rsc from "@vitejs/plugin-rsc/plugin";
 
 type GlobalState = {
   clientReferences: Record<string, string>;
@@ -47,19 +48,26 @@ global.vikeReactRscGlobalState ||= {
 };
 
 export default function vikeRscPlugin(): PluginOption[] {
+  //@ts-ignore
   return [
     ...configs,
     ...virtuals,
     exposeDevServer,
     // vikeRscManifestPluginDev(),
     vikeRscManifestPluginBuild(),
-    cssTrackerPlugin(),
-    clientDepTrackerPlugin(),
-    ...useClientPlugin(),
-    ...useServerPlugin(),
-    virtualNormalizeReferenceIdPlugin(),
-    ...serverComponentExclusionPlugin(),
-    hmrPlugin(),
-    rscCore(),
+    // cssTrackerPlugin(),
+    // clientDepTrackerPlugin(),
+    // ...useClientPlugin(),
+    // ...useServerPlugin(),
+    // virtualNormalizeReferenceIdPlugin(),
+    // ...serverComponentExclusionPlugin(),
+    // hmrPlugin(),
+    // rscCore(),
+    ...rsc({
+      serverHandler: false,
+      loadModuleDevProxy: false,
+      validateImports: false,
+      useBuildAppHook: true,
+    }),
   ];
 }
