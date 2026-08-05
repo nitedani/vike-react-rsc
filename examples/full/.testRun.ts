@@ -47,10 +47,39 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   });
 
   testPages();
+  testResponseTail();
   testPageNavigation();
   testCounter();
   testTodoForm();
   testFilmGrid();
+}
+
+// The RSC payload is streamed into the HTML as it renders, and the response is
+// held open until the payload completes. If the response closes early, the tail
+// Vike appends is truncated and the page cannot hydrate — a failure that leaves
+// the visible markup intact, so only ordering catches it.
+function testResponseTail() {
+  test("Response tail is complete and ordered", async () => {
+    const html = await fetchHtml("/");
+    const positions = [
+      ["rsc chunk", html.indexOf("__rsc_web_stream_push")],
+      ["rsc close marker", html.indexOf("__rsc_web_stream_close()")],
+      ["pageContext", html.indexOf('id="vike_pageContext"')],
+      ["client entry", html.search(/<script[^>]*type="module"/)],
+    ] as const;
+
+    for (const [name, at] of positions) {
+      expect(at, `${name} missing from response`).to.not.equal(-1);
+    }
+    for (let i = 1; i < positions.length; i++) {
+      const [name, at] = positions[i]!;
+      const [prevName, prevAt] = positions[i - 1]!;
+      expect(
+        at > prevAt,
+        `${name} must come after ${prevName}`
+      ).to.equal(true);
+    }
+  });
 }
 
 function testPages() {
