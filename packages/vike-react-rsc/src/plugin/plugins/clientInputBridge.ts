@@ -23,7 +23,7 @@ export function clientInputBridge(): Plugin {
     apply: "build",
     buildApp: {
       order: "pre",
-      handler(builder) {
+      async handler(builder) {
         const rootInput = normalizeRollupInput(
           builder.config.build?.rollupOptions?.input
         );

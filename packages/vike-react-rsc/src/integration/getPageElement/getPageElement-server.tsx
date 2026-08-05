@@ -1,4 +1,4 @@
-import envName from "virtual:enviroment-name";
+import envName from "virtual:environment-name";
 import { tinyassert } from "@hiogawa/utils";
 tinyassert(envName === "rsc", "Invalid environment");
 

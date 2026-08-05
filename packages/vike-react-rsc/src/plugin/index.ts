@@ -4,7 +4,7 @@ import { configs } from "./plugins/config";
 import { exposeDevServer } from "./plugins/dev";
 import { vikeRscManifestPluginBuild } from "./plugins/injectManifestBuild";
 import { virtuals } from "./plugins/virtuals";
-import rsc from "@vitejs/plugin-rsc/plugin";
+import rsc from "@vitejs/plugin-rsc";
 
 type GlobalState = {
   devServer?: ViteDevServer;
@@ -30,7 +30,6 @@ export default function vikeRscPlugin(): PluginOption[] {
       serverHandler: false,
       loadModuleDevProxy: false,
       validateImports: false,
-      useBuildAppHook: true,
       // Vike owns the HTML, so the client build has no index.html entry chunk for
       // plugin-rsc to bootstrap from.
       customClientEntry: true,

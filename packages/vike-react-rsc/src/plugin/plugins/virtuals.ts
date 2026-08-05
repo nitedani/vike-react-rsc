@@ -1,7 +1,6 @@
 import type { Plugin } from "vite";
 import { createVirtualPlugin } from "../utils";
 import { PKG_NAME } from "../../constants";
-import path from "path";
 
 const importRsc = `
               import * as serverModule from "${PKG_NAME}/__internal/runtime/server";
@@ -14,94 +13,27 @@ const importSsr = `
               export default ssrModule;
             `;
 
+// plugin-rsc rewrites loadModule() to a runner import in dev and to a relative
+// import() of the target environment's entry chunk in build, so both the dev proxy
+// and the build-time path rewriting are its concern rather than ours.
+//
+// The entry name is passed explicitly for ssr: loadModule() otherwise falls back to
+// the environment's first rollup input, which for ssr is Universal Deploy's `index`
+// node entry, not our ssr runtime. Both arguments must stay literals — plugin-rsc
+// evaluates them statically from the source text.
+const loadRscRuntime = `export default await import.meta.viteRsc.loadModule("rsc", "index");`;
+const loadSsrRuntime = `export default await import.meta.viteRsc.loadModule("ssr", "ssr");`;
+
 export const virtuals: Plugin[] = [
-  createVirtualPlugin("enviroment-name", function () {
+  createVirtualPlugin("environment-name", function () {
     return `export default "${this.environment.name}"`;
   }),
   createVirtualPlugin("build-rsc-entry", () => importRsc),
   createVirtualPlugin("build-ssr-entry", () => importSsr),
   createVirtualPlugin("runtime/ssr", function () {
-    if (this.environment.name === "ssr") {
-      return importSsr;
-    }
-
-    if (this.environment.mode === "dev") {
-      return `
-            const devServer = global.vikeReactRscGlobalState.devServer;
-            const ssrRunner = devServer?.environments.ssr?.runner;
-            const ssrModule = await ssrRunner?.import("${PKG_NAME}/__internal/runtime/ssr");
-            const moduleProxy = new Proxy({}, {
-              get(target, prop) {
-                return ssrModule[prop];
-              }
-            });
-            export default moduleProxy;
-            `;
-    }
-
-    return `
-          import * as ssrModule from "virtual:dist-importer?server";
-          export * from "virtual:dist-importer?server";
-          export default ssrModule;
-        `;
+    return this.environment.name === "ssr" ? importSsr : loadSsrRuntime;
   }),
   createVirtualPlugin("runtime/server", function () {
-    if (this.environment.name === "rsc") {
-      return importRsc;
-    }
-
-    if (this.environment.mode === "dev") {
-      return `
-            const devServer = global.vikeReactRscGlobalState.devServer;
-            const serverRunner = devServer?.environments.rsc?.runner;
-            const serverModule = await serverRunner?.import("${PKG_NAME}/__internal/runtime/server");
-            const moduleProxy = new Proxy({}, {
-              get(target, prop) {
-                return serverModule[prop];
-              }
-            });
-            export default moduleProxy;
-            `;
-    }
-
-    return `
-          import * as serverModule from "virtual:dist-importer?rsc";
-          export * from "virtual:dist-importer?rsc";
-          export default serverModule;
-        `;
+    return this.environment.name === "rsc" ? importRsc : loadRscRuntime;
   }),
-  {
-    name: "virtual:dist-importer",
-    resolveId(source) {
-      if (source.includes("virtual:dist-importer")) {
-        return {
-          id: `__VIRTUAL_BUILD_ENTRY__?${source.split("?")[1]}`,
-          external: true,
-        };
-      }
-      return;
-    },
-    renderChunk(code, chunk) {
-      if (code.includes("__VIRTUAL_BUILD_ENTRY__")) {
-        const importerPath = path.join(
-          this.environment.config.build.outDir,
-          chunk.fileName
-        );
-
-        // These must match the filenames the ssr and rsc environments actually emit.
-        code = code
-          .replaceAll(
-            "__VIRTUAL_BUILD_ENTRY__?server",
-            path.relative(path.dirname(importerPath), "dist/server/ssr.js")
-          )
-          .replaceAll(
-            "__VIRTUAL_BUILD_ENTRY__?rsc",
-            path.relative(path.dirname(importerPath), "dist/rsc/index.js")
-          );
-
-        return { code };
-      }
-      return;
-    },
-  },
 ];

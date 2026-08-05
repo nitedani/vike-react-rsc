@@ -1,5 +1,5 @@
 import { tinyassert } from "@hiogawa/utils";
-import envName from "virtual:enviroment-name";
+import envName from "virtual:environment-name";
 tinyassert(envName === "client", "Invalid environment");
 
 import React, { startTransition } from "react";

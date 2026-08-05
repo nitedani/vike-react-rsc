@@ -1,5 +1,5 @@
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
-import envName from "virtual:enviroment-name";
+import envName from "virtual:environment-name";
 import runtimeSsr from "virtual:runtime/ssr";
 
 //@ts-ignore

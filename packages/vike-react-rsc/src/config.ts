@@ -60,7 +60,6 @@ const config: Config = {
       env: { server: true, client: true },
     },
   },
-  vite6BuilderApp: true,
   vite: {
     plugins: [vikeRscPlugin()],
   },

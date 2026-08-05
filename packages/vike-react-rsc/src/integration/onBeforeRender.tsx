@@ -1,5 +1,5 @@
 import type { PageContextServer, OnBeforeRenderAsync } from "vike/types";
-import envName from "virtual:enviroment-name";
+import envName from "virtual:environment-name";
 
 //@ts-ignore
 export const onBeforeRender: OnBeforeRenderAsync =

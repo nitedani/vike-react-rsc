@@ -32,12 +32,11 @@ export const configs: Plugin[] = [
             optimizeDeps: {
               include: [
                 "react-dom/client",
-                "@vitejs/plugin-rsc/vendor/react-server-dom/client.browser",
               ],
               exclude: [
                 PKG_NAME,
                 "@vitejs/plugin-rsc",
-                "virtual:enviroment-name",
+                "virtual:environment-name",
               ],
             },
           },
@@ -51,12 +50,11 @@ export const configs: Plugin[] = [
                 "react-dom/server.edge",
                 "react-dom/static.edge",
                 "react-streaming/server.web",
-                "@vitejs/plugin-rsc/vendor/react-server-dom/client.edge",
               ],
               exclude: [
                 PKG_NAME,
                 "@vitejs/plugin-rsc",
-                "virtual:enviroment-name",
+                "virtual:environment-name",
               ],
             },
             resolve: {
@@ -87,13 +85,11 @@ export const configs: Plugin[] = [
                 "react-dom",
                 "react/jsx-runtime",
                 "react/jsx-dev-runtime",
-                "@vitejs/plugin-rsc/vendor/react-server-dom/server.edge",
-                "@vitejs/plugin-rsc/vendor/react-server-dom/client.edge",
               ],
               exclude: [
                 PKG_NAME,
                 "@vitejs/plugin-rsc",
-                "virtual:enviroment-name",
+                "virtual:environment-name",
               ],
             },
             build: {

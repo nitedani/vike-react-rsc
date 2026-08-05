@@ -4,7 +4,7 @@ tinyassert(envName === "client", "Invalid environment");
 import { useEffect, useState } from "react";
 import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
-import envName from "virtual:enviroment-name";
+import envName from "virtual:environment-name";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
 import { parseRscStream } from "../runtime/client";
 import type { RscPayload } from "../types";
