@@ -103,7 +103,6 @@ export const configs: Plugin[] = [
         },
       };
     },
-    sharedDuringBuild: true,
   },
   {
     name: "vike-rsc:config-rsc",

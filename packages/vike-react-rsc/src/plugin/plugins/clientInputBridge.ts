@@ -1,5 +1,18 @@
-import type { Plugin } from "vite";
-import { normalizeRollupInput } from "../utils";
+import type { BuildEnvironmentOptions, Plugin } from "vite";
+
+type RollupInput = NonNullable<
+  NonNullable<BuildEnvironmentOptions["rollupOptions"]>["input"]
+>;
+
+function normalizeRollupInput(
+  input: RollupInput | undefined
+): Record<string, string> {
+  if (!input) return {};
+  if (typeof input === "string") return { [input]: input };
+  if (Array.isArray(input))
+    return Object.fromEntries(input.map((entry) => [entry, entry]));
+  return { ...input };
+}
 
 /**
  * Vike computes the client entry set — one entry per page plus its client-routing
@@ -27,8 +40,7 @@ export function clientInputBridge(): Plugin {
         const rootInput = normalizeRollupInput(
           builder.config.build?.rollupOptions?.input
         );
-        const rootKeys = Object.keys(rootInput);
-        if (rootKeys.length === 0) {
+        if (Object.keys(rootInput).length === 0) {
           throw new Error(
             "[vike-react-rsc] Expected Vike to have populated build.rollupOptions.input " +
               "with the client entries, but it is empty. The client environment cannot be " +
@@ -46,17 +58,7 @@ export function clientInputBridge(): Plugin {
         const build = clientEnv.config.build;
         const existing = normalizeRollupInput(build.rollupOptions?.input);
         // Entries already declared for the client environment win over the projection.
-        const projected = { ...rootInput, ...existing };
-        (build.rollupOptions ??= {}).input = projected;
-
-        const missing = rootKeys.filter((key) => !(key in projected));
-        if (missing.length > 0) {
-          throw new Error(
-            `[vike-react-rsc] Client entries lost while projecting onto the client environment: ${missing.join(
-              ", "
-            )}`
-          );
-        }
+        (build.rollupOptions ??= {}).input = { ...rootInput, ...existing };
       },
     },
   };
