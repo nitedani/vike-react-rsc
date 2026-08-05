@@ -45,14 +45,25 @@ async function getPageConfig(pageContext: PageContext) {
     // Load all components for this entry type
     const components = (
       await Promise.all(
-        configEntries.map(async ({ configDefinedAt }) => {
-          // Hacky hacky
-          const filePath = configDefinedAt.split(" at ").pop() || "";
-          if (!/[tj]sx?$/.test(filePath) || !(key in pageContext.config)) {
+        configEntries.map(async ({ configDefinedByFile }) => {
+          // Only configs whose value comes from a module can be imported; the rest
+          // (inline values in +config.js) are carried on pageContext.config already.
+          if (
+            !configDefinedByFile ||
+            !/[tj]sx?$/.test(configDefinedByFile) ||
+            !(key in pageContext.config)
+          ) {
             return null;
           }
-          const module = await import(/* @vite-ignore */ filePath);
-          return module[key] || module.default;
+          const module = await import(/* @vite-ignore */ configDefinedByFile);
+          const value = module[key] ?? module.default;
+          if (value === undefined) {
+            throw new Error(
+              `[vike-react-rsc] '${configDefinedByFile}' is where Vike says config ` +
+                `'${key}' is defined, but it exports neither '${key}' nor a default.`
+            );
+          }
+          return value;
         })
       )
     ).filter(Boolean);
