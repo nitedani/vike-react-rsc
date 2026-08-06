@@ -5,15 +5,12 @@ import vikeRscPlugin from "./plugin";
 
 const config: Config = {
   name: "vike-react-rsc",
-  // Placeholder only: released Vike 0.4.260 doesn't contain runtimeEnvironments,
-  // renderTargets, or vike/runtime. Before publishing, pin this to the first
-  // Vike release containing those APIs.
+  // Placeholder only: released Vike 0.4.260 doesn't contain onRenderResponse or
+  // vike/runtime. Before publishing, pin this to the first Vike release containing
+  // those APIs.
   require: {
     vike: ">=0.4.260",
   },
-  runtimeEnvironments: [
-    { name: "rsc" },
-  ],
   // https://vike.dev/onRenderHtml
   onRenderHtml:
     "import:vike-react-rsc/__internal/integration/onRenderHtml:onRenderHtml",
@@ -21,8 +18,8 @@ const config: Config = {
   onRenderClient:
     "import:vike-react-rsc/__internal/integration/onRenderClient:onRenderClient",
 
-  renderTargets:
-    "import:vike-react-rsc/__internal/integration/rscRenderTarget:rscRenderTarget",
+  onRenderResponse:
+    "import:vike-react-rsc/__internal/integration/onRenderResponse:onRenderResponse",
 
   onPageTransitionStart:
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
@@ -48,18 +45,18 @@ const config: Config = {
       cumulative: true,
     },
     Wrapper: {
-      env: { client: false, server: false, runtimes: ["rsc"] },
+      env: { client: false, server: false, rsc: true },
       cumulative: true,
     },
     Layout: {
-      env: { server: false, client: false, runtimes: ["rsc"] },
+      env: { server: false, client: false, rsc: true },
       cumulative: true,
     },
     Loading: {
-      env: { server: false, client: false, runtimes: ["rsc"] },
+      env: { server: false, client: false, rsc: true },
     },
     Page: {
-      env: { server: false, client: false, runtimes: ["rsc"] },
+      env: { server: false, client: false, rsc: true },
     },
   },
   vite: {

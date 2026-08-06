@@ -22,6 +22,9 @@ const pages = {
   "/data": {
     text: "Page-Level Loading",
   },
+  "/client": {
+    text: "Client Component",
+  },
 } as const;
 
 const REACT_RSC_STYLESHEET_PRELOAD_WARNING =
