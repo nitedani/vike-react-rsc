@@ -12,7 +12,7 @@ const config: Config = {
     vike: ">=0.4.260",
   },
   runtimeEnvironments: [
-    { name: "rsc", assets: { role: "renderer-private" } },
+    { name: "rsc" },
   ],
   // https://vike.dev/onRenderHtml
   onRenderHtml:
