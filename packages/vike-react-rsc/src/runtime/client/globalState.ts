@@ -3,7 +3,7 @@ import type { RscPayload } from "../../types";
 import { getGlobalObject } from "../../utils/getGlobalObject";
 
 // Define the structure of our global client state
-export interface GlobalClientState {
+interface GlobalClientState {
   // Cache for main RSC payloads
   rscCache: Map<string, CacheEntry>;
 
@@ -29,17 +29,13 @@ export interface GlobalClientState {
       pageContext: PageContextClient;
     }>
   >;
-
-  // Reference to the callServer function
-  vikeRscCallServer?: Function;
 }
 
 // Cache entry type
-export interface CacheEntry {
+interface CacheEntry {
   payload: RscPayload;
   timestamp: number;
   isStale?: boolean;
-  revalidating?: boolean;
 }
 
 // Get or initialize the global client state

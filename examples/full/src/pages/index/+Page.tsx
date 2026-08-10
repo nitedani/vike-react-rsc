@@ -1,10 +1,6 @@
 import Counter from "../../components/Counter/Counter";
-import { getPageContext } from "vike-react-rsc/pageContext";
 
 export default async function Page() {
-  const ctx = getPageContext();
-  console.log(ctx.pageId);
-
   return (
     <div css={{ width: '100%', overflowX: 'hidden' }}>
       {/* Hero Section */}

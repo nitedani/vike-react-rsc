@@ -1,4 +1,3 @@
-import { getPageContext } from "vike-react-rsc/pageContext";
 import { sharedStyles } from "../../styles/shared";
 import { FilmGrid } from "../../components/Film/FilmGrid";
 
@@ -14,9 +13,6 @@ async function Films() {
 }
 
 export default async function Page() {
-  const ctx = getPageContext();
-  console.log(ctx.pageId);
-
   return (
     <div css={sharedStyles.pageContainer}>
       {/* Header Section */}

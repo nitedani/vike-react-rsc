@@ -1,27 +1,54 @@
-import envName from "virtual:enviroment-name";
+import { environmentName } from "vike/runtime";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "rsc", "Invalid environment");
+tinyassert(environmentName === "rsc", "Invalid environment");
 
 import { renderToReadableStream, decodeReply, loadServerAction } from '@vitejs/plugin-rsc/rsc'
 import type { PageContext } from "vike/types";
-import { getPageElementRsc } from "../integration/getPageElement/getPageElement-server";
+import { getPageElementRsc } from "../integration/getPageElement-server";
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
 import { provideServerActionContext } from "./serverActionContext";
+import type { RscPayload } from "../types";
 
+// A client that navigates away mid-stream cancels the response, which aborts the
+// Flight render. React reports that through onError exactly like a render failure,
+// and the default handler prints it. Navigating away is normal operation, so this
+// one signature is dropped and everything else still surfaces.
+//
+// Only the captured cancellation signature is matched. An AbortError is deliberately
+// NOT enough: an application aborting a fetch inside a Server Component throws a
+// DOMException named AbortError with code 20, indistinguishable by shape from a
+// platform cancellation, and that is a render failure which has to stay visible.
+function isClientDisconnect(error: unknown): boolean {
+  const { code } = (error ?? {}) as { code?: unknown };
+  return code === "ERR_STREAM_PREMATURE_CLOSE";
+}
+
+const renderOptions = {
+  onError(error: unknown) {
+    if (isClientDisconnect(error)) return;
+    console.error("[vike-react-rsc] Error while rendering the RSC payload:", error);
+  },
+};
 
 export async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
-  console.log("[Renderer] Rendering page to RSC stream");
   const root = await getPageElementRsc(pageContext);
   return providePageContext(pageContext, () =>
     renderToReadableStream(
       // TODO: add form when initial request is POST
       {
         root,
-      }
+      },
+      renderOptions
     )
   );
+}
+
+export function renderRscPayload(
+  payload: RscPayload
+): ReadableStream<Uint8Array<ArrayBufferLike>> {
+  return renderToReadableStream(payload, renderOptions);
 }
 
 export async function handleServerAction({
@@ -33,16 +60,6 @@ export async function handleServerAction({
   pageContext: PageContext;
   body: string | FormData;
 }): Promise<ReadableStream<Uint8Array>> {
-  // Check if this is a server component call
-  const isServerComponentCall =
-    pageContext.headers?.["x-rsc-component-call"] === "true";
-
-  console.log(
-    "[Server] Handling server action:",
-    actionId,
-    isServerComponentCall ? "(from server component)" : ""
-  );
-
   // Create context for this server action execution
   const context = { shouldRerender: false };
 
@@ -57,24 +74,10 @@ export async function handleServerAction({
     providePageContext(pageContext, () => action.apply(null, args))
   );
 
-  // Only include the root component if rerender was called
-  if (context.shouldRerender) {
-    console.log("[Server] Re-rendering page after server action");
-    const root = await getPageElementRsc(pageContext);
-    return providePageContext(pageContext, () =>
-      renderToReadableStream({
-        returnValue,
-        root,
-      })
-    );
-  } else {
-    console.log("[Server] Returning server action result without re-rendering");
-    return providePageContext(pageContext, () =>
-      renderToReadableStream({
-        returnValue,
-      })
-    );
-  }
+  const payload: RscPayload = context.shouldRerender
+    ? { returnValue, root: await getPageElementRsc(pageContext) }
+    : { returnValue };
+  return providePageContext(pageContext, () => renderRscPayload(payload));
 }
 
 if (import.meta.hot) {

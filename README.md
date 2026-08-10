@@ -14,7 +14,7 @@ React RSC integration for [Vike](https://vike.dev).
 - **Caching**
 - **Automatic server integration**
   - Works with any server: Express.js, Hono, etc. (powered by [universal-middleware](https://github.com/magne4000/universal-middleware))
-  - Fully automatic (zero-config) if you use [`vike-server`](https://vike.dev/vike-server)
+  - Fully automatic (zero-config) if you use Vike's built-in [`+server`](https://vike.dev/server)
 
 ## Goal
 
@@ -23,7 +23,9 @@ React RSC integration for [Vike](https://vike.dev).
 
 ## Demo
 
-Example: [examples/full/](examples/full/)  
-Example deployed on Cloudflare: [vike-cloudflare-hono-demo.pages.dev](https://vike-cloudflare-hono-demo.pages.dev)  
+Example: [examples/full/](examples/full/)
+
+It demonstrates local development (`pnpm dev`) and a production build served by Node.js (`pnpm preview`, via [`@universal-deploy/node`](https://github.com/photon-js/universal-deploy)).
+
 > [!NOTE]
 > Network requests are artificially slowed down to showcase RSC features such as progressive hydration.

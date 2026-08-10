@@ -1,3 +1,5 @@
+// Release gate: plugin-rsc must keep this Server Component out of browser graphs.
+import "server-only";
 import CounterClient from './CounterClient';
 import { getCount } from '../../actions/counter';
 import { counterStyles } from './styles';
@@ -6,10 +8,13 @@ import { sharedUtil } from "./sharedUtil";
 export default async function Counter() {
   // Get the initial count from the server
   const counterState = await getCount();
-  sharedUtil();
 
   return (
-    <div css={counterStyles.container} className="shared-client">
+    <div
+      css={counterStyles.container}
+      className="shared-client"
+      data-shared-util-server={sharedUtil()}
+    >
       <div css={counterStyles.gradientBar} />
 
       <CounterClient initialCount={counterState.count} />

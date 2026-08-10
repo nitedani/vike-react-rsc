@@ -1,16 +1,15 @@
-import envName from "virtual:enviroment-name";
+import { environmentName } from "vike/runtime";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "rsc", "Invalid environment");
+tinyassert(environmentName === "rsc", "Invalid environment");
 
 export { rerender };
-export { getServerActionContext };
 export { provideServerActionContext };
 
 import { AsyncLocalStorage } from "async_hooks";
 import { getGlobalObject } from "../utils/getGlobalObject.js";
 
 // Define the server action context type
-export interface ServerActionContextType {
+interface ServerActionContextType {
   shouldRerender: boolean;
 }
 

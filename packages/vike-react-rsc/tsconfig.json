@@ -4,7 +4,7 @@
     "target": "ESNext",
     "module": "ESNext",
     "skipLibCheck": true,
-    "types": ["vite/client"],
+    "types": ["vite/client", "@vitejs/plugin-rsc/types"],
     "useDefineForClassFields": true,
 
     /* Bundler mode */
