@@ -20,8 +20,9 @@ export const onRenderHtml: OnRenderHtmlAsync = async function (
 ) {
   const { request } = pageContext;
   if (request && isFlightRequest(request)) {
-    pageContext.headersResponse.set("Content-Type", RSC_CONTENT_TYPE);
-    pageContext.content = await renderFlight(pageContext, request);
+    pageContext.response = new Response(await renderFlight(pageContext, request), {
+      headers: { "content-type": RSC_CONTENT_TYPE },
+    });
     return;
   }
 
