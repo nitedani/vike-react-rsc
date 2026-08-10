@@ -4,6 +4,10 @@ import type { ImportString } from "vike/types";
 // https://vike.dev/meta#typescript
 declare global {
   namespace Vike {
+    interface PageContext {
+      rscPayloadString?: string;
+    }
+
     interface Config {
       /**
        * The page's root React component.

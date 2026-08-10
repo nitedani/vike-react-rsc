@@ -11,9 +11,9 @@ import runtimeRsc from "virtual:runtime/server";
 import type { Head } from "../types/Config";
 import { isReactElement } from "../utils/isReactElement";
 import { renderToStaticMarkup } from "react-dom/server";
+import { prerender } from "react-dom/static.edge";
 import React from "react";
 import type { RscPayload } from "../types";
-
 
 const INIT_SCRIPT = `
 self.__raw_import = (id) => import(id);
@@ -33,24 +33,59 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
   const rscPayloadStream = await runtimeRsc.renderPageRsc(pageContext);
-  const [rscStreamForHtml, rscStreamForClientScript] = rscPayloadStream!.tee();
+  const [rscStreamForHtml, rscStreamForBrowser] = rscPayloadStream!.tee();
 
   const payload =
     (await createFromReadableStream<React.ReactNode>(
       rscStreamForHtml
     )) as RscPayload;
-
-  const htmlStream = await renderToStream(
+  const page = (
     <PageContextProvider pageContext={pageContext}>
       {payload.root}
-    </PageContextProvider>,
-    {
-      userAgent: pageContext.headers?.["user-agent"],
-      streamOptions: {
-        formState: payload.formState,
-      },
-    }
+    </PageContextProvider>
   );
+  const { pageHtml, rscPayloadHtml } = pageContext.isPrerendering
+    ? await prerenderPage(page, rscStreamForBrowser, pageContext)
+    : await renderStreamedPage(
+        page,
+        rscStreamForBrowser,
+        payload,
+        pageContext
+      );
+
+  const headHtml = getHeadHtml(pageContext);
+
+  const documentHtml = escapeInject`<!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <script>${dangerouslySkipEscape(INIT_SCRIPT)}</script>
+        ${headHtml}
+      </head>
+      <body>
+        <div id="root">${pageHtml}</div>
+        ${rscPayloadHtml}
+      </body>
+    </html>`;
+
+  return {
+    documentHtml,
+    pageContext: { enableEagerStreaming: true },
+  };
+};
+
+async function renderStreamedPage(
+  page: React.ReactNode,
+  rscStream: ReadableStream<Uint8Array>,
+  payload: RscPayload,
+  pageContext: PageContextServer
+) {
+  const htmlStream = await renderToStream(page, {
+    userAgent: pageContext.headers?.["user-agent"],
+    streamOptions: {
+      formState: payload.formState,
+    },
+  });
 
   // doNotClose() holds the HTML response open until the RSC payload finishes piping in.
   const canClose = htmlStream.doNotClose();
@@ -65,7 +100,7 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
     );
   };
 
-  rscStreamForClientScript
+  rscStream
     .pipeTo(
       new WritableStream<Uint8Array>({
         write(rscChunk) {
@@ -93,25 +128,35 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
     // Runs once, on both paths: the response must never be left held open.
     .finally(canClose);
 
-  const headHtml = getHeadHtml(pageContext);
+  return {
+    pageHtml: htmlStream,
+    rscPayloadHtml: "",
+  };
+}
 
-  const documentHtml = escapeInject`<!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="UTF-8" />
-        <script>${dangerouslySkipEscape(INIT_SCRIPT)}</script>
-        ${headHtml}
-      </head>
-      <body>
-        <div id="root">${htmlStream}</div>
-      </body>
-    </html>`;
+async function prerenderPage(
+  page: React.ReactNode,
+  rscStream: ReadableStream<Uint8Array>,
+  pageContext: PageContextServer
+) {
+  const rscPayloadStringPromise = new Response(rscStream).text();
+  // A static document cannot resume streamed Suspense fallbacks after deployment.
+  const { prelude } = await prerender(page);
+  const [pageHtml, rscPayloadString] = await Promise.all([
+    new Response(prelude).text(),
+    rscPayloadStringPromise,
+  ]);
+  pageContext.rscPayloadString = rscPayloadString;
 
   return {
-    documentHtml,
-    pageContext: { enableEagerStreaming: true },
+    pageHtml: dangerouslySkipEscape(pageHtml),
+    rscPayloadHtml: dangerouslySkipEscape(
+      `<script>self.__rsc_web_stream_push(${JSON.stringify(
+        rscPayloadString
+      )});self.__rsc_web_stream_close()</script>`
+    ),
   };
-};
+}
 
 function getHeadHtml(pageContext: PageContextServer) {
   const headElementsHtml = dangerouslySkipEscape(

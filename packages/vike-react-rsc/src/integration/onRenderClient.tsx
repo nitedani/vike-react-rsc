@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
-import { parseRscStream } from "../runtime/client";
+import { getNavigationPayload, parseRscStream } from "../runtime/client";
 import type { RscPayload } from "../types";
 import { getGlobalClientState } from "../runtime/client/globalState";
 
@@ -77,8 +77,9 @@ export const onRenderClient: OnRenderClientAsync = async function (
   // Handle client-side navigation
   else if (pageContext.isClientSideNavigation) {
     try {
-      if (globalState.navigationPromise) {
-        const payload = await globalState.navigationPromise;
+      const navigationPayload = getNavigationPayload(pageContext);
+      if (navigationPayload) {
+        const payload = await navigationPayload;
         globalState.setPayload?.({ pageContext, payload });
       } else {
         console.error("[Client] No navigation promise found");

@@ -2,7 +2,7 @@ import { tinyassert } from "@hiogawa/utils";
 import { environmentName } from "vike/runtime";
 tinyassert(environmentName === "client", "Invalid environment");
 
-import React, { startTransition } from "react";
+import { startTransition } from "react";
 import {
   createFromFetch,
   encodeReply,
@@ -105,7 +105,7 @@ if (import.meta.hot) {
     const globalState = getGlobalClientState();
     invalidateCache(getGlobalClientState().pageContext!);
     invalidateServerComponentCache();
-    const payload = await onNavigate(globalState.pageContext!);
+    const payload = await fetchNavigationPayload(globalState.pageContext!);
     globalState.setPayload?.((current) => {
       return {
         pageContext: current.pageContext,
@@ -115,22 +115,45 @@ if (import.meta.hot) {
   });
 }
 
-export function onNavigate(pageContext: PageContextClient): Promise<RscPayload> {
+export function prepareNavigation(pageContext: PageContextClient): void {
   const globalState = getGlobalClientState();
 
   clearPendingServerComponentRequests();
+  globalState.navigationPromise = undefined;
 
   const cachedPayload = getCachedPayload(pageContext);
   if (cachedPayload) {
     globalState.navigationPromise = Promise.resolve(cachedPayload);
-    return Promise.resolve(cachedPayload);
+    return;
   }
 
+  if (globalState.pageContext?.rscPayloadString) return;
+  globalState.navigationPromise = fetchNavigationPayload(pageContext);
+}
+
+export function getNavigationPayload(
+  pageContext: PageContextClient
+): Promise<RscPayload> | undefined {
+  const prefetchedPayload = getGlobalClientState().navigationPromise;
+  if (prefetchedPayload) return prefetchedPayload;
+
+  const { rscPayloadString } = pageContext;
+  if (!rscPayloadString) return;
+
+  const payloadPromise = resolveRscPayload(
+    createFromReadableStream<RscPayload>(new Blob([rscPayloadString]).stream())
+  );
+  payloadPromise.then((payload) => cachePayload(pageContext, payload));
+  return payloadPromise;
+}
+
+function fetchNavigationPayload(
+  pageContext: PageContextClient
+): Promise<RscPayload> {
   const fetchPromise = fetchRscPayload(pageContext.urlOriginal, {
     method: "GET",
   });
 
-  globalState.navigationPromise = fetchPromise;
   fetchPromise.then((payload: RscPayload) => {
     cachePayload(pageContext, payload);
   });
@@ -140,8 +163,5 @@ export function onNavigate(pageContext: PageContextClient): Promise<RscPayload> 
 export async function parseRscStream(
   stream: ReadableStream<Uint8Array>
 ): Promise<RscPayload> {
-  const initialPayload = await createFromReadableStream<React.ReactNode>(
-    stream
-  );
-  return initialPayload as RscPayload;
+  return createFromReadableStream<RscPayload>(stream);
 }
