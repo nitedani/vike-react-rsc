@@ -17,7 +17,6 @@
     },
     "./__internal/integration/onRenderHtml": "./dist/integration/onRenderHtml.js",
     "./__internal/integration/onRenderClient": "./dist/integration/onRenderClient.js",
-    "./__internal/integration/onRenderResponse": "./dist/integration/onRenderResponse.js",
     "./__internal/integration/onPageTransitionStart": "./dist/integration/onPageTransitionStart.js",
     "./__internal/register/browser": "./dist/register/browser.js",
     "./__internal/register/server": "./dist/register/server.js",

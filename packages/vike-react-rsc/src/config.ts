@@ -5,9 +5,9 @@ import vikeRscPlugin from "./plugin";
 
 const config: Config = {
   name: "vike-react-rsc",
-  // Placeholder only: released Vike 0.4.260 doesn't contain onRenderResponse or
-  // vike/runtime. Before publishing, pin this to the first Vike release containing
-  // those APIs.
+  // Placeholder only: released Vike 0.4.260 doesn't contain the response/content
+  // page-context APIs or vike/runtime. Before publishing, pin this to the first
+  // Vike release containing those APIs.
   require: {
     vike: ">=0.4.260",
   },
@@ -17,9 +17,6 @@ const config: Config = {
   // https://vike.dev/onRenderClient
   onRenderClient:
     "import:vike-react-rsc/__internal/integration/onRenderClient:onRenderClient",
-
-  onRenderResponse:
-    "import:vike-react-rsc/__internal/integration/onRenderResponse:onRenderResponse",
 
   onPageTransitionStart:
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",

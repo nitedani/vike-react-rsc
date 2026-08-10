@@ -5,7 +5,6 @@ export default defineConfig({
     "src/config.ts",
     "src/server.ts",
     "src/client.tsx",
-    "src/integration/onRenderResponse.ts",
     "src/integration/onRenderHtml.tsx",
     "src/integration/onRenderClient.tsx",
     "src/integration/onPageTransitionStart.tsx",
