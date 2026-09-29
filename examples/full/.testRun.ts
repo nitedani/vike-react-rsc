@@ -35,22 +35,28 @@ const REACT_RSC_STYLESHEET_PRELOAD_WARNING =
 const REACT_DEV_EVAL_CSP_ERROR =
   "eval() is not supported in this environment.";
 
-function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
-  const isPreview = cmd === "pnpm run preview";
+function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
+  const isDev = cmd === "pnpm run dev";
+  // Pre-rendered, and served like a static host would
+  const isStatic = cmd === "pnpm run preview:static";
 
   run(cmd, {
     serverUrl: process.env.SERVER_URL,
     serverIsReadyMessage: (log) =>
       log.includes("Local:") || log.includes("ready in"),
-    // `pnpm run preview` builds before it serves.
-    additionalTimeout: isPreview ? 60000 : 0,
+    // The preview commands build before they serve.
+    additionalTimeout: isDev ? 0 : 60000,
     // React 19.2.8 mislabels plugin-rsc stylesheet hints (fixed by #34760,
     // d446597). Remove this tolerance with the first release containing the fix.
     tolerateError: ({ logSource, logText }) =>
       (logSource === "Browser Warning" &&
         logText === REACT_RSC_STYLESHEET_PRELOAD_WARNING) ||
       // Vite also forwards the browser's error to the server's stderr.
-      (!isPreview && logText.includes(REACT_DEV_EVAL_CSP_ERROR)),
+      (isDev && logText.includes(REACT_DEV_EVAL_CSP_ERROR)) ||
+      // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
+      (isStatic &&
+        logSource === "stderr" &&
+        logText.includes("[PLUGIN_TIMINGS]")),
   });
 
   testPages();
@@ -58,8 +64,11 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testScriptBreakout();
   testCspNonce();
   testResponseTail();
-  testCounter();
-  testTodoForm();
+  // A static host has no server to run server actions.
+  if (!isStatic) {
+    testCounter();
+    testTodoForm();
+  }
   testFilmGrid();
   testPageNavigation();
 }
