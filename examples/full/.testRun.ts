@@ -30,6 +30,11 @@ const pages = {
 const REACT_RSC_STYLESHEET_PRELOAD_WARNING =
   "<link rel=preload> must have a valid `as` value";
 
+// React requires eval() in development and says so under a CSP without
+// 'unsafe-eval'; it never uses eval() in production.
+const REACT_DEV_EVAL_CSP_ERROR =
+  "eval() is not supported in this environment.";
+
 function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   const isPreview = cmd === "pnpm run preview";
 
@@ -42,12 +47,16 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
     // React 19.2.8 mislabels plugin-rsc stylesheet hints (fixed by #34760,
     // d446597). Remove this tolerance with the first release containing the fix.
     tolerateError: ({ logSource, logText }) =>
-      logSource === "Browser Warning" &&
-      logText === REACT_RSC_STYLESHEET_PRELOAD_WARNING,
+      (logSource === "Browser Warning" &&
+        logText === REACT_RSC_STYLESHEET_PRELOAD_WARNING) ||
+      // Vite also forwards the browser's error to the server's stderr.
+      (!isPreview && logText.includes(REACT_DEV_EVAL_CSP_ERROR)),
   });
 
   testPages();
   testBinaryPayload();
+  testScriptBreakout();
+  testCspNonce();
   testResponseTail();
   testCounter();
   testTodoForm();
@@ -253,6 +262,45 @@ function testBinaryPayload() {
         expect(await page.textContent("[data-bytes]")).to.equal(
           "Hydrated bytes: 0,128,255"
         );
+      },
+      { timeout: 5000 }
+    );
+  });
+}
+
+function testScriptBreakout() {
+  test("Server strings can't break out of the inline RSC payload", async () => {
+    await page.goto(getServerUrl() + "/xss");
+    await autoRetry(
+      async () => {
+        expect(await page.textContent("[data-text]")).to.equal(
+          "Hydrated: </script><script>window.__xss=1</script>"
+        );
+      },
+      { timeout: 5000 }
+    );
+    expect(await page.evaluate(() => "__xss" in window)).to.equal(false);
+  });
+}
+
+function testCspNonce() {
+  test("Every inline script carries the CSP nonce", async () => {
+    const html = await fetchHtml("/csp");
+    const nonce = /<script[^>]* nonce="([^"]+)"/.exec(html)?.[1];
+    expect(nonce, "nonce missing from response").to.be.a("string");
+    const inlineScripts = html.match(/<script(?![^>]*\ssrc=)[^>]*>/g) ?? [];
+    expect(inlineScripts.length).to.be.greaterThan(1);
+    for (const script of inlineScripts) {
+      expect(script).to.include(` nonce="${nonce}"`);
+    }
+
+    // The browser enforces Vike's Content-Security-Policy header: a script
+    // without the nonce doesn't run, and the page doesn't hydrate.
+    await page.goto(getServerUrl() + "/csp");
+    await autoRetry(
+      async () => {
+        expect(await page.textContent("[data-csp]")).to.equal("Hydrated");
+        expect(await page.textContent("[data-delayed]")).to.equal("Streamed");
       },
       { timeout: 5000 }
     );
