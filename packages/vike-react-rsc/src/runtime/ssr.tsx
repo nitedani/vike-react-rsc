@@ -152,14 +152,15 @@ async function prerenderPage(
     new Response(prelude).text(),
     rscPayloadBytesPromise,
   ]);
-  const rscPayloadEncoded = encodeRscChunk(new Uint8Array(rscPayloadBytes));
-  pageContext.rscPayloadEncoded = rscPayloadEncoded;
+  // For client-side navigation on a static host. Text only: binary Flight data
+  // doesn't survive it.
+  pageContext.rscPayloadString = new TextDecoder().decode(rscPayloadBytes);
 
   return {
     pageHtml: dangerouslySkipEscape(pageHtml),
     rscPayloadHtml: dangerouslySkipEscape(
       `<script>self.__rsc_web_stream_push(${JSON.stringify(
-        rscPayloadEncoded
+        encodeRscChunk(new Uint8Array(rscPayloadBytes))
       )});self.__rsc_web_stream_close()</script>`
     ),
   };

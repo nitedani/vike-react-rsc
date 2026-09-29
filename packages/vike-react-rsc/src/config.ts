@@ -21,7 +21,7 @@ const config: Config = {
   onPageTransitionStart:
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
 
-  passToClient: ["rscPayloadEncoded"],
+  passToClient: ["rscPayloadString"],
   alwaysFetchPageContextFromServer: true,
 
   // https://vike.dev/clientRouting
