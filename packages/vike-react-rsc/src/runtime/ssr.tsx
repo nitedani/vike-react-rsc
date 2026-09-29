@@ -42,6 +42,16 @@ function encodeRscChunk(chunk: Uint8Array): EncodedRscChunk {
   }
 }
 
+// `<` escaped so that server data containing `</script>` or `<!--` can't end or break the inline script
+function getPushScript(chunk: Uint8Array, pageContext: PageContextServer) {
+  const json = JSON.stringify(encodeRscChunk(chunk)).replace(/</g, "\\u003c");
+  return getScript(`self.__rsc_web_stream_push(${json})`, pageContext);
+}
+function getScript(js: string, pageContext: PageContextServer) {
+  const nonce = pageContext.cspNonce ? ` nonce="${pageContext.cspNonce}"` : "";
+  return `<script${nonce}>${js}</script>`;
+}
+
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
@@ -72,7 +82,7 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
     <html>
       <head>
         <meta charset="UTF-8" />
-        <script>${dangerouslySkipEscape(INIT_SCRIPT)}</script>
+        ${dangerouslySkipEscape(getScript(INIT_SCRIPT, pageContext))}
         ${headHtml}
       </head>
       <body>
@@ -97,6 +107,7 @@ async function renderStreamedPage(
     userAgent: pageContext.headers?.["user-agent"],
     streamOptions: {
       formState: payload.formState,
+      nonce: pageContext.cspNonce ?? undefined,
     },
   });
 
@@ -107,18 +118,14 @@ async function renderStreamedPage(
     .pipeTo(
       new WritableStream<Uint8Array>({
         write(rscChunk) {
-          htmlStream.injectToStream(
-            `<script>self.__rsc_web_stream_push(${JSON.stringify(
-              encodeRscChunk(rscChunk)
-            )})</script>`
-          );
+          htmlStream.injectToStream(getPushScript(rscChunk, pageContext));
         },
         // Only reached when the payload streamed to completion. A truncated
         // payload must not get the close marker: the client would treat it as
         // a whole one and hydrate against a partial tree.
         close() {
           htmlStream.injectToStream(
-            `<script>self.__rsc_web_stream_close()</script>`
+            getScript("self.__rsc_web_stream_close()", pageContext)
           );
         },
       })
@@ -159,9 +166,8 @@ async function prerenderPage(
   return {
     pageHtml: dangerouslySkipEscape(pageHtml),
     rscPayloadHtml: dangerouslySkipEscape(
-      `<script>self.__rsc_web_stream_push(${JSON.stringify(
-        encodeRscChunk(new Uint8Array(rscPayloadBytes))
-      )});self.__rsc_web_stream_close()</script>`
+      getPushScript(new Uint8Array(rscPayloadBytes), pageContext) +
+        getScript("self.__rsc_web_stream_close()", pageContext)
     ),
   };
 }
