@@ -127,7 +127,7 @@ export function prepareNavigation(pageContext: PageContextClient): void {
     return;
   }
 
-  if (globalState.pageContext?.rscPayloadString) return;
+  if (globalState.pageContext?.rscPayloadEncoded) return;
   globalState.navigationPromise = fetchNavigationPayload(pageContext);
 }
 
@@ -137,11 +137,15 @@ export function getNavigationPayload(
   const prefetchedPayload = getGlobalClientState().navigationPromise;
   if (prefetchedPayload) return prefetchedPayload;
 
-  const { rscPayloadString } = pageContext;
-  if (!rscPayloadString) return;
+  const { rscPayloadEncoded } = pageContext;
+  if (!rscPayloadEncoded) return;
 
+  const rscPayloadBytes =
+    typeof rscPayloadEncoded === "string"
+      ? rscPayloadEncoded
+      : Uint8Array.from(atob(rscPayloadEncoded.base64), (c) => c.charCodeAt(0));
   const payloadPromise = resolveRscPayload(
-    createFromReadableStream<RscPayload>(new Blob([rscPayloadString]).stream())
+    createFromReadableStream<RscPayload>(new Blob([rscPayloadBytes]).stream())
   );
   payloadPromise.then((payload) => cachePayload(pageContext, payload));
   return payloadPromise;

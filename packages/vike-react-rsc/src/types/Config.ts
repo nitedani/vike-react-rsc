@@ -1,11 +1,12 @@
 import type React from "react";
 import type { ImportString } from "vike/types";
+import type { EncodedRscChunk } from "../types";
 
 // https://vike.dev/meta#typescript
 declare global {
   namespace Vike {
     interface PageContext {
-      rscPayloadString?: string;
+      rscPayloadEncoded?: EncodedRscChunk;
     }
 
     interface Config {

@@ -47,6 +47,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   });
 
   testPages();
+  testBinaryPayload();
   testResponseTail();
   testCounter();
   testTodoForm();
@@ -238,6 +239,22 @@ function testFilmGrid() {
         expect(pageText).to.include("Component-Level");
       },
       { timeout: 15000 }
+    );
+  });
+}
+
+function testBinaryPayload() {
+  test("Typed array props survive the inline RSC payload", async () => {
+    await page.goto(getServerUrl() + "/bytes");
+    // The server-rendered HTML already shows the bytes; hydration is what reads
+    // them back from the payload inlined in the HTML.
+    await autoRetry(
+      async () => {
+        expect(await page.textContent("[data-bytes]")).to.equal(
+          "Hydrated bytes: 0,128,255"
+        );
+      },
+      { timeout: 5000 }
     );
   });
 }
