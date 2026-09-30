@@ -6,7 +6,7 @@ import { tinyassert } from "@hiogawa/utils";
 import { RSC_CONTENT_TYPE } from "../constants";
 import type { RscPayload } from "../types";
 
-tinyassert(environmentName === "ssr", "Invalid environment");
+tinyassert(environmentName === "server", "Invalid environment");
 
 const RSC_MEDIA_TYPE = RSC_CONTENT_TYPE.split(";", 1)[0];
 

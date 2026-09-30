@@ -1,7 +1,7 @@
 import { environmentName } from "vike/runtime";
 import { tinyassert } from "@hiogawa/utils";
 tinyassert(
-  environmentName === "client" || environmentName === "ssr",
+  environmentName === "client" || environmentName === "server",
   "Invalid environment"
 );
 

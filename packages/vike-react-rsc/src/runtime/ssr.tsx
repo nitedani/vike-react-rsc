@@ -1,6 +1,6 @@
 import { environmentName } from "vike/runtime";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(environmentName === "ssr", "Invalid environment");
+tinyassert(environmentName === "server", "Invalid environment");
 
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import { renderToStream } from "react-streaming/server.web";
