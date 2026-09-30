@@ -5,20 +5,11 @@ import { getGlobalClientState } from "./client/globalState";
 // Default stale time if not specified in config
 const DEFAULT_STALE_TIME = 60 * 1000; // 1 minute by default
 
-// Re-export the CacheEntry type from globalState
-export type { CacheEntry } from "./client/globalState";
-
-/**
- * Get the cache key for a page context
- */
-export function getCacheKey(pageContext: PageContext): string {
+function getCacheKey(pageContext: PageContext): string {
   return `${pageContext.urlPathname}${pageContext.urlParsed.searchOriginal || ""}`;
 }
 
-/**
- * Get stale time from page context
- */
-export function getStaleTime(pageContext: PageContext): number {
+function getStaleTime(pageContext: PageContext): number {
   const userConfig = pageContext.config?.rsc as RscConfig | undefined;
   return userConfig?.staleTime !== undefined ? userConfig.staleTime : DEFAULT_STALE_TIME;
 }
@@ -44,7 +35,6 @@ export function getCachedPayload(pageContext: PageContext): RscPayload | null {
 
   // If we have a cached entry that's not stale, use it
   if (cachedEntry && (Date.now() - cachedEntry.timestamp) < staleTime) {
-    console.log("[RSC Cache] Using cached payload for", cacheKey);
     return cachedEntry.payload;
   }
 
@@ -72,7 +62,6 @@ export function cachePayload(pageContext: PageContext, payload: RscPayload): voi
     payload,
     timestamp: Date.now()
   });
-  console.log("[RSC Cache] Stored payload for", cacheKey);
 }
 
 /**
@@ -89,7 +78,6 @@ export function invalidateCache(pageContext: PageContext): void {
   const cacheKey = getCacheKey(pageContext);
   if (globalState.rscCache.has(cacheKey)) {
     globalState.rscCache.delete(cacheKey);
-    console.log("[RSC Cache] Invalidated main cache for", cacheKey);
   }
 }
 
@@ -104,25 +92,11 @@ export function invalidateServerComponentCache(): void {
 
   const globalState = getGlobalClientState();
 
-  // Mark all server component cache entries as stale
-  if (globalState.serverComponentCache.size > 0) {
-    let staleCount = 0;
+  globalState.serverComponentCache.forEach((entry) => {
+    entry.isStale = true;
+  });
 
-    // Iterate through all cache entries and mark them as stale
-    globalState.serverComponentCache.forEach((entry) => {
-      if (!entry.isStale) {
-        entry.isStale = true;
-        staleCount++;
-      }
-    });
-
-    if (staleCount > 0) {
-      console.log(`[RSC Cache] Marked ${staleCount} server component cache entries as stale`);
-    }
-  }
-
-  // We don't clear pending requests - they'll complete normally
-  // and update the cache with fresh data
+  // Pending requests are left alone: they complete normally and refresh the cache.
 }
 
 /**
@@ -138,7 +112,6 @@ export function clearPendingServerComponentRequests(): void {
   // Just clear the map - ongoing requests will still complete
   // but new components with the same cache key will create new requests
   globalState.pendingRequests.clear();
-  console.log("[RSC Cache] Cleared pending server component requests");
 }
 
 /**
@@ -165,48 +138,14 @@ export function getCachedServerComponent<T>(key: string, pageContext: PageContex
     return { component: null, isStale: false };
   }
 
-  // Extract component name from the key for better logging
-  const componentName = key.split('-')[0];
-
-  // Check if the entry is explicitly marked as stale
-  const isExplicitlyStale = cachedEntry.isStale === true;
-
-  // Check if the entry is time-based stale (exceeded staleTime)
-  const isTimeStale = (Date.now() - cachedEntry.timestamp) >= staleTime;
-
-  // Entry is stale if either explicitly marked or time-based
-  const isStale = isExplicitlyStale || isTimeStale;
-
-  if (isStale) {
-    console.log(`[RSC Cache] Using stale server component: ${componentName}`);
-  } else {
-    console.log(`[RSC Cache] Using fresh server component: ${componentName}`);
-  }
+  const isStale =
+    cachedEntry.isStale === true ||
+    Date.now() - cachedEntry.timestamp >= staleTime;
 
   return {
     component: cachedEntry.payload.returnValue as T,
     isStale
   };
-}
-
-/**
- * Mark a server component as being revalidated
- */
-export function markServerComponentRevalidating(key: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const globalState = getGlobalClientState();
-  const cachedEntry = globalState.serverComponentCache.get(key);
-
-  if (cachedEntry) {
-    cachedEntry.revalidating = true;
-
-    // Extract component name from the key for better logging
-    const componentName = key.split('-')[0];
-    console.log(`[RSC Cache] Revalidating server component: ${componentName}`);
-  }
 }
 
 /**
@@ -226,15 +165,9 @@ export function cacheServerComponent<T>(key: string, component: T, pageContext: 
 
   const globalState = getGlobalClientState();
 
-  // Store the component with fresh state
   globalState.serverComponentCache.set(key, {
     payload: { returnValue: component },
     timestamp: Date.now(),
-    isStale: false,
-    revalidating: false
+    isStale: false
   });
-
-  // Extract component name from the key for better logging
-  const componentName = key.split('-')[0];
-  console.log(`[RSC Cache] Stored fresh server component: ${componentName}`);
 }

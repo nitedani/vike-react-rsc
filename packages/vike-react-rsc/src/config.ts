@@ -3,11 +3,13 @@ export { config as default };
 import type { Config } from "vike/types";
 import vikeRscPlugin from "./plugin";
 
-//@ts-expect-error
 const config: Config = {
   name: "vike-react-rsc",
+  // Placeholder only: released Vike 0.4.260 doesn't contain the response
+  // page-context API or vike/runtime. Before publishing, pin this to the first
+  // Vike release containing those APIs.
   require: {
-    vike: ">=0.4.182",
+    vike: ">=0.4.260",
   },
   // https://vike.dev/onRenderHtml
   onRenderHtml:
@@ -16,32 +18,23 @@ const config: Config = {
   onRenderClient:
     "import:vike-react-rsc/__internal/integration/onRenderClient:onRenderClient",
 
-  onBeforeRender:
-    "import:vike-react-rsc/__internal/integration/onBeforeRender:onBeforeRender",
-
   onPageTransitionStart:
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
 
-  client: "import:vike-react-rsc/__internal/integration/client",
-
-  //@ts-expect-error
-  middleware: "import:vike-react-rsc/__internal/integration/rscMiddleware",
-
   passToClient: ["rscPayloadString"],
+  alwaysFetchPageContextFromServer: true,
 
   // https://vike.dev/clientRouting
   clientRouting: true,
+  // `Page` is loaded only by the RSC runtime, while Vike's client hooks still
+  // hydrate the Flight payload and handle client-side navigation.
+  clientHooks: true,
   hydrationCanBeAborted: true,
 
   // https://vike.dev/meta
   meta: {
+    // Extension setting for RSC cache policy; unrelated to the `rsc` runtime name.
     rsc: {
-      env: {
-        server: true,
-        client: false,
-      },
-    },
-    onBeforeRender: {
       env: {
         server: true,
         client: false,
@@ -52,18 +45,20 @@ const config: Config = {
       cumulative: true,
     },
     Wrapper: {
-      env: { client: true, server: true },
+      env: { client: false, server: false, rsc: true },
       cumulative: true,
     },
     Layout: {
-      env: { server: true, client: true },
+      env: { server: false, client: false, rsc: true },
       cumulative: true,
     },
     Loading: {
-      env: { server: true, client: true },
+      env: { server: false, client: false, rsc: true },
+    },
+    Page: {
+      env: { server: false, client: false, rsc: true },
     },
   },
-  vite6BuilderApp: true,
   vite: {
     plugins: [vikeRscPlugin()],
   },

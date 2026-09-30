@@ -1,6 +1,6 @@
 import { PKG_NAME } from "../../constants";
 import { defaultServerConditions, type Plugin, type UserConfig } from "vite";
-import type { VitePluginServerEntryOptions } from "@brillout/vite-plugin-server-entry/plugin";
+import { type VitePluginServerEntryOptions } from "@brillout/vite-plugin-server-entry/plugin";
 
 const distRsc = "dist/rsc";
 
@@ -15,26 +15,16 @@ export const configs: Plugin[] = [
     name: "vike-rsc:config:pre",
     enforce: "pre",
     config(): UserConfig {
-      const noExternal = [
-        "react",
-        "react-dom",
-        PKG_NAME,
-        "@vitejs/plugin-rsc",
-        "react-streaming",
-      ];
-
       return {
         environments: {
           client: {
             optimizeDeps: {
               include: [
                 "react-dom/client",
-                "@vitejs/plugin-rsc/vendor/react-server-dom/client.browser",
               ],
               exclude: [
                 PKG_NAME,
                 "@vitejs/plugin-rsc",
-                "virtual:enviroment-name",
               ],
             },
           },
@@ -48,16 +38,11 @@ export const configs: Plugin[] = [
                 "react-dom/server.edge",
                 "react-dom/static.edge",
                 "react-streaming/server.web",
-                "@vitejs/plugin-rsc/vendor/react-server-dom/client.edge",
               ],
               exclude: [
                 PKG_NAME,
                 "@vitejs/plugin-rsc",
-                "virtual:enviroment-name",
               ],
-            },
-            resolve: {
-              noExternal,
             },
             build: {
               rollupOptions: {
@@ -70,7 +55,6 @@ export const configs: Plugin[] = [
           rsc: {
             resolve: {
               conditions: ["react-server", ...defaultServerConditions],
-              noExternal,
             },
             optimizeDeps: {
               include: [
@@ -78,13 +62,10 @@ export const configs: Plugin[] = [
                 "react-dom",
                 "react/jsx-runtime",
                 "react/jsx-dev-runtime",
-                "@vitejs/plugin-rsc/vendor/react-server-dom/server.edge",
-                "@vitejs/plugin-rsc/vendor/react-server-dom/client.edge",
               ],
               exclude: [
                 PKG_NAME,
                 "@vitejs/plugin-rsc",
-                "virtual:enviroment-name",
               ],
             },
             build: {
@@ -98,30 +79,5 @@ export const configs: Plugin[] = [
         },
       };
     },
-    sharedDuringBuild: true,
-  },
-  {
-    name: "vike-rsc:config-rsc",
-    applyToEnvironment(env) {
-      return env.name === "rsc";
-    },
-    config() {
-      return {
-        vitePluginServerEntry: {
-          // dist/rsc/ shouldn't include server code (Express.js, Hono, ...)
-          disableServerEntryEmit: true,
-        },
-      };
-    },
-  },
-  {
-    name: "vike-rsc:config:post",
-    enforce: "post",
-    
-    configResolved(config) {
-      console.log(config.environments.ssr!.build.rollupOptions.input);
-      
-    },
-
   },
 ];

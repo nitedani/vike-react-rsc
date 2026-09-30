@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsdown --watch --sourcemap",
-    "build": "tsdown --clean"
+    "build": "tsdown"
   },
   "exports": {
     "./config": "./dist/config.js",
@@ -17,10 +17,7 @@
     },
     "./__internal/integration/onRenderHtml": "./dist/integration/onRenderHtml.js",
     "./__internal/integration/onRenderClient": "./dist/integration/onRenderClient.js",
-    "./__internal/integration/onBeforeRender": "./dist/integration/onBeforeRender.js",
     "./__internal/integration/onPageTransitionStart": "./dist/integration/onPageTransitionStart.js",
-    "./__internal/integration/rscMiddleware": "./dist/integration/rscMiddleware.js",
-    "./__internal/integration/client": "./dist/integration/client.js",
     "./__internal/register/browser": "./dist/register/browser.js",
     "./__internal/register/server": "./dist/register/server.js",
     "./__internal/register/ssr": "./dist/register/ssr.js",
@@ -34,28 +31,27 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "react": "*",
-    "react-dom": "*",
-    "vike": "*",
-    "vite": "*"
+    "@vitejs/plugin-rsc": "^0.5.32",
+    "react": ">=19.2.8 <20",
+    "react-dom": ">=19.2.8 <20",
+    "vike": ">=0.4.260",
+    "vite": ">=8.0.0"
   },
   "dependencies": {
-    "@brillout/json-serializer": "^0.5.15",
-    "@hiogawa/transforms": "^0.0.0",
+    "@brillout/vite-plugin-server-entry": "^0.7.19",
     "@hiogawa/utils": "^1.7.0",
-    "react-streaming": "^0.4.12"
+    "@universal-middleware/core": "^0.4.18",
+    "react-streaming": "^0.4.20"
   },
   "devDependencies": {
-    "@brillout/vite-plugin-server-entry": "^0.7.5",
-    "@types/react": "^19.0.12",
-    "@types/react-dom": "^19.0.4",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "tsdown": "^0.6.10",
-    "typescript": "^5.8.2",
-    "vike": "0.4.246",
-    "vite": "^7.2.2",
-    "@vitejs/plugin-rsc": "^0.5.1",
-    "vitefu": "^1.1.1"
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tsdown": "^0.22.14",
+    "typescript": "^7.0.2",
+    "vike": "^0.4.260",
+    "vite": "^8.2.0",
+    "@vitejs/plugin-rsc": "^0.5.32"
   }
 }

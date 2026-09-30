@@ -3,9 +3,11 @@ export function getGlobalObject<T extends Record<string, unknown> = never>(
   key: `${string}.ts`,
   defaultValue: T,
 ): T {
-  // @ts-ignore
-  const globalObjectsAll = (globalThis[projectKey] = globalThis[projectKey] || {})
-  const globalObject = (globalObjectsAll[key] = globalObjectsAll[key] || defaultValue)
-  return globalObject
+  const globalWithRscObjects = globalThis as typeof globalThis & {
+    [projectKey]?: Record<string, Record<string, unknown>>;
+  };
+  const globalObjectsAll = (globalWithRscObjects[projectKey] ??= {});
+  const globalObject = (globalObjectsAll[key] ??= defaultValue);
+  return globalObject as T;
 }
-const projectKey = '_vike_react_rsc'
+const projectKey = "_vike_react_rsc";

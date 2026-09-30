@@ -5,12 +5,9 @@ export default defineConfig({
     "src/config.ts",
     "src/server.ts",
     "src/client.tsx",
-    "src/integration/client.ts",
-    "src/integration/onBeforeRender.tsx",
     "src/integration/onRenderHtml.tsx",
     "src/integration/onRenderClient.tsx",
     "src/integration/onPageTransitionStart.tsx",
-    "src/integration/rscMiddleware.ts",
     "src/register/browser.tsx",
     "src/register/server.tsx",
     "src/register/ssr.tsx",
@@ -20,9 +17,12 @@ export default defineConfig({
     "src/hooks/pageContext/pageContext-server.tsx",
   ],
   format: ["esm"],
-  external: [/^virtual:/, /^vike-react-rsc\//, /^@vitejs\/plugin-rsc\//],
-  dts: {
-    sourceMap: process.argv.slice(2).includes("--sourcemap"),
+  // The exports map resolves to dist/*.js, so output extensions must stay .js.
+  fixedExtension: false,
+  deps: {
+    neverBundle: [/^virtual:/, /^vike-react-rsc\//, /^@vitejs\/plugin-rsc\//],
   },
-  bundleDts: false,
+  dts: {
+    sourcemap: process.argv.slice(2).includes("--sourcemap"),
+  },
 });

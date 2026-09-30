@@ -1,20 +1,20 @@
 import type { ReactFormState } from "react-dom/client";
-export interface ImportManifestEntry {
-  id: string;
-  name: string;
-  chunks: string[];
-  async?: boolean;
-}
-
-export interface BundlerConfig {
-  [bundlerId: string]: ImportManifestEntry;
-}
 
 export type RscPayload = {
   root?: React.ReactNode;
   formState?: ReactFormState;
   returnValue?: unknown;
+  redirect?: {
+    url: string;
+    statusCode: number;
+  };
+  error?: {
+    reason: "not-found" | "error" | "base-missing";
+  };
 };
+
+/** A chunk of the Flight stream: UTF-8 text, or base64 when it isn't valid UTF-8. */
+export type EncodedRscChunk = string | { base64: string };
 
 /**
  * User-defined RSC configuration
