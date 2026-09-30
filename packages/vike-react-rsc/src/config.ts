@@ -6,8 +6,8 @@ import vikeRscPlugin from "./plugin";
 const config: Config = {
   name: "vike-react-rsc",
   // Placeholder only: released Vike 0.4.260 doesn't contain the response
-  // page-context API or vike/runtime. Before publishing, pin this to the first
-  // Vike release containing those APIs.
+  // page-context API, streamed pageContext values or vike/runtime. Before
+  // publishing, pin this to the first Vike release containing those APIs.
   require: {
     vike: ">=0.4.260",
   },
@@ -21,8 +21,11 @@ const config: Config = {
   onPageTransitionStart:
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
 
-  passToClient: ["rscPayloadString"],
-  alwaysFetchPageContextFromServer: true,
+  // Sets pageContext.rscPayload: the Flight stream, which Vike streams after
+  // the pageContext (in the HTML, and in `.pageContext.json` upon navigation).
+  onCreatePageContext:
+    "import:vike-react-rsc/__internal/integration/onCreatePageContext.server:onCreatePageContext",
+  passToClient: ["rscPayload"],
 
   // https://vike.dev/clientRouting
   clientRouting: true,

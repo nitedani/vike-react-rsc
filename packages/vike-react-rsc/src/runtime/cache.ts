@@ -1,84 +1,13 @@
 import type { PageContext } from "vike/types";
-import type { RscPayload, RscConfig } from "../types";
+import type { RscConfig } from "../types";
 import { getGlobalClientState } from "./client/globalState";
 
 // Default stale time if not specified in config
 const DEFAULT_STALE_TIME = 60 * 1000; // 1 minute by default
 
-function getCacheKey(pageContext: PageContext): string {
-  return `${pageContext.urlPathname}${pageContext.urlParsed.searchOriginal || ""}`;
-}
-
 function getStaleTime(pageContext: PageContext): number {
   const userConfig = pageContext.config?.rsc as RscConfig | undefined;
   return userConfig?.staleTime !== undefined ? userConfig.staleTime : DEFAULT_STALE_TIME;
-}
-
-/**
- * Get a cached entry if it exists and is not stale
- */
-export function getCachedPayload(pageContext: PageContext): RscPayload | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const staleTime = getStaleTime(pageContext);
-
-  // If staleTime is 0, caching is disabled
-  if (staleTime === 0) {
-    return null;
-  }
-
-  const globalState = getGlobalClientState();
-  const cacheKey = getCacheKey(pageContext);
-  const cachedEntry = globalState.rscCache.get(cacheKey);
-
-  // If we have a cached entry that's not stale, use it
-  if (cachedEntry && (Date.now() - cachedEntry.timestamp) < staleTime) {
-    return cachedEntry.payload;
-  }
-
-  return null;
-}
-
-/**
- * Store a payload in the cache
- */
-export function cachePayload(pageContext: PageContext, payload: RscPayload): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const staleTime = getStaleTime(pageContext);
-
-  // If staleTime is 0, don't cache
-  if (staleTime === 0) {
-    return;
-  }
-
-  const globalState = getGlobalClientState();
-  const cacheKey = getCacheKey(pageContext);
-  globalState.rscCache.set(cacheKey, {
-    payload,
-    timestamp: Date.now()
-  });
-}
-
-/**
- * Invalidate the cache entry for a specific page
- */
-export function invalidateCache(pageContext: PageContext): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const globalState = getGlobalClientState();
-
-  // Invalidate the main RSC cache for the current page
-  const cacheKey = getCacheKey(pageContext);
-  if (globalState.rscCache.has(cacheKey)) {
-    globalState.rscCache.delete(cacheKey);
-  }
 }
 
 /**
