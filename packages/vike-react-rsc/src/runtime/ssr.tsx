@@ -26,8 +26,7 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
   tinyassert(pageContext.rscPayload);
-  // One Flight render: SSR reads one branch, Vike streams the other to the
-  // browser (passToClient), for hydration.
+  // One Flight render: SSR reads one branch, Vike streams the other to the browser.
   const [rscStreamForHtml, rscStreamForBrowser] = pageContext.rscPayload.tee();
   pageContext.rscPayload = rscStreamForBrowser;
 

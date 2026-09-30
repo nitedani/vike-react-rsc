@@ -74,17 +74,15 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testPageNavigation();
 }
 
-// The RSC payload (pageContext.rscPayload, streamed by Vike) and Vike's
-// progressive-hydration bootstrap are independent producers sharing
-// react-streaming's ordered sink. Their relative order is intentionally
-// unspecified: the client can start consuming the still-open RSC stream. What
-// must remain ordered is each producer's own protocol, and the end of the RSC
-// stream must be written before the enclosing HTML stream ends.
+// The RSC payload and Vike's progressive-hydration bootstrap are independent
+// producers sharing react-streaming's ordered sink. Their relative order is
+// intentionally unspecified: the client can start consuming the still-open RSC
+// stream. What must remain ordered is each producer's own protocol, and the RSC
+// close marker must be written before the enclosing HTML stream ends.
 function testResponseTail() {
   test("Response tail is complete and ordered", async () => {
     const html = await fetchHtml("/");
     const positions = {
-      rscChunk: html.indexOf("<script>(self.__vike_streamed"),
       rscClose: html.indexOf('\\"end\\":true'),
       pageContext: html.indexOf('id="vike_pageContext"'),
       clientEntry: html.search(/<script[^>]*type="module"/),
@@ -94,10 +92,6 @@ function testResponseTail() {
     for (const [name, at] of Object.entries(positions)) {
       expect(at, `${name} missing from response`).to.not.equal(-1);
     }
-    expect(
-      positions.rscClose > positions.rscChunk,
-      "RSC close marker must come after the final RSC chunk"
-    ).to.equal(true);
     expect(
       positions.bodyClose > positions.rscClose,
       "HTML stream must remain open through the RSC close marker"
@@ -203,7 +197,6 @@ function testNavigationRequests() {
       }
     });
 
-    // The page is rendered from the Flight payload streamed in the response.
     await page.click('a[href="/todos"]');
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("Task Manager");

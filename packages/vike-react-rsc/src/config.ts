@@ -21,8 +21,7 @@ const config: Config = {
   onPageTransitionStart:
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
 
-  // Sets pageContext.rscPayload: the Flight stream, which Vike streams after
-  // the pageContext (in the HTML, and in `.pageContext.json` upon navigation).
+  // https://vike.dev/onCreatePageContext
   onCreatePageContext:
     "import:vike-react-rsc/__internal/integration/onCreatePageContext.server:onCreatePageContext",
   passToClient: ["rscPayload"],
