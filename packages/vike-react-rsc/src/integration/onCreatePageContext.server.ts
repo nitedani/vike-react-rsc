@@ -11,8 +11,7 @@ const clientDisconnect = Object.assign(new Error("Client disconnected"), {
 });
 
 // https://vike.dev/onCreatePageContext
-// Server-only, so the client fetches the pageContext upon navigation: the
-// response carries pageContext.rscPayload, streamed by Vike after the pageContext.
+// Server-only, so that navigation fetches the pageContext, which carries rscPayload.
 export function onCreatePageContext(pageContext: PageContextServer): void {
   // Rendered once read: after data(), and never if the pageContext isn't sent.
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
