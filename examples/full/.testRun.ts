@@ -30,26 +30,45 @@ const pages = {
 const REACT_RSC_STYLESHEET_PRELOAD_WARNING =
   "<link rel=preload> must have a valid `as` value";
 
-function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
-  const isPreview = cmd === "pnpm run preview";
+// React requires eval() in development and says so under a CSP without
+// 'unsafe-eval'; it never uses eval() in production.
+const REACT_DEV_EVAL_CSP_ERROR =
+  "eval() is not supported in this environment.";
+
+function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
+  const isDev = cmd === "pnpm run dev";
+  // Pre-rendered, and served like a static host would
+  const isStatic = cmd === "pnpm run preview:static";
 
   run(cmd, {
     serverUrl: process.env.SERVER_URL,
     serverIsReadyMessage: (log) =>
       log.includes("Local:") || log.includes("ready in"),
-    // `pnpm run preview` builds before it serves.
-    additionalTimeout: isPreview ? 60000 : 0,
+    // The preview commands build before they serve.
+    additionalTimeout: isDev ? 0 : 60000,
     // React 19.2.8 mislabels plugin-rsc stylesheet hints (fixed by #34760,
     // d446597). Remove this tolerance with the first release containing the fix.
     tolerateError: ({ logSource, logText }) =>
-      logSource === "Browser Warning" &&
-      logText === REACT_RSC_STYLESHEET_PRELOAD_WARNING,
+      (logSource === "Browser Warning" &&
+        logText === REACT_RSC_STYLESHEET_PRELOAD_WARNING) ||
+      // Vite also forwards the browser's error to the server's stderr.
+      (isDev && logText.includes(REACT_DEV_EVAL_CSP_ERROR)) ||
+      // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
+      (isStatic &&
+        logSource === "stderr" &&
+        logText.includes("[PLUGIN_TIMINGS]")),
   });
 
   testPages();
+  testBinaryPayload();
+  testScriptBreakout();
+  testCspNonce();
   testResponseTail();
-  testCounter();
-  testTodoForm();
+  // A static host has no server to run server actions.
+  if (!isStatic) {
+    testCounter();
+    testTodoForm();
+  }
   testFilmGrid();
   testPageNavigation();
 }
@@ -238,6 +257,61 @@ function testFilmGrid() {
         expect(pageText).to.include("Component-Level");
       },
       { timeout: 15000 }
+    );
+  });
+}
+
+function testBinaryPayload() {
+  test("Typed array props survive the inline RSC payload", async () => {
+    await page.goto(getServerUrl() + "/bytes");
+    // The server-rendered HTML already shows the bytes; hydration is what reads
+    // them back from the payload inlined in the HTML.
+    await autoRetry(
+      async () => {
+        expect(await page.textContent("[data-bytes]")).to.equal(
+          "Hydrated bytes: 0,128,255"
+        );
+      },
+      { timeout: 5000 }
+    );
+  });
+}
+
+function testScriptBreakout() {
+  test("Server strings can't break out of the inline RSC payload", async () => {
+    await page.goto(getServerUrl() + "/xss");
+    await autoRetry(
+      async () => {
+        expect(await page.textContent("[data-text]")).to.equal(
+          "Hydrated: </script><script>window.__xss=1</script>"
+        );
+      },
+      { timeout: 5000 }
+    );
+    expect(await page.evaluate(() => "__xss" in window)).to.equal(false);
+  });
+}
+
+function testCspNonce() {
+  test("Every inline script carries the CSP nonce", async () => {
+    const html = await fetchHtml("/csp");
+    const nonce = /<script[^>]* nonce="([^"]+)"/.exec(html)?.[1];
+    expect(nonce, "nonce missing from response").to.be.a("string");
+    const inlineScripts = html.match(/<script(?![^>]*\ssrc=)[^>]*>/g) ?? [];
+    expect(inlineScripts.length).to.be.greaterThan(1);
+    for (const script of inlineScripts) {
+      expect(script).to.include(` nonce="${nonce}"`);
+    }
+
+    // The browser enforces Vike's Content-Security-Policy header: a script
+    // without the nonce doesn't run, and the page doesn't hydrate.
+    await page.goto(getServerUrl() + "/csp");
+    await autoRetry(
+      async () => {
+        expect(await page.textContent("[data-csp]")).to.equal("Hydrated");
+        expect(await page.textContent("[data-delayed]")).to.equal("Streamed");
+      },
+      { timeout: 5000 }
     );
   });
 }

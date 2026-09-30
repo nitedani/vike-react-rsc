@@ -10,24 +10,48 @@ import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
 import runtimeRsc from "virtual:runtime/server";
 import type { Head } from "../types/Config";
 import { isReactElement } from "../utils/isReactElement";
+import { escapeJavaScriptExpression } from "../utils/escapeJavaScriptExpression";
 import { renderToStaticMarkup } from "react-dom/server";
 import { prerender } from "react-dom/static.edge";
 import React from "react";
-import type { RscPayload } from "../types";
+import type { EncodedRscChunk, RscPayload } from "../types";
 
 const INIT_SCRIPT = `
 self.__raw_import = (id) => import(id);
-self.__rsc_web_stream = new ReadableStream({
+self.__rsc_payload_stream = new ReadableStream({
 	start(controller) {
-		self.__rsc_web_stream_push = (chunk) => { controller.enqueue(chunk); };
+		const encoder = new TextEncoder();
+		self.__rsc_web_stream_push = (chunk) => {
+			controller.enqueue(typeof chunk === "string" ? encoder.encode(chunk) : Uint8Array.from(atob(chunk.base64), (c) => c.charCodeAt(0)));
+		};
 		self.__rsc_web_stream_close = () => { controller.close(); };
 	}
 });
-if (!self.TextEncoderStream) {
-  self.TextEncoderStream = class { _controller; encoder = new TextEncoder(); readable = new ReadableStream({ start: c => this._controller = c }); writable = new WritableStream({ write: chunk => this._controller.enqueue(this.encoder.encode(chunk)), close: () => this._controller.close() }); };
-}
-self.__rsc_payload_stream = self.__rsc_web_stream.pipeThrough(new TextEncoderStream());
 `;
+
+const utf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+
+// Flight writes typed arrays as raw bytes, which need not be valid UTF-8: a
+// chunk that isn't travels as base64, since decoding it to text would be lossy.
+function encodeRscChunk(chunk: Uint8Array): EncodedRscChunk {
+  try {
+    return utf8.decode(chunk);
+  } catch {
+    let binary = "";
+    for (const byte of chunk) binary += String.fromCharCode(byte);
+    return { base64: btoa(binary) };
+  }
+}
+
+function getPushScript(chunk: Uint8Array, pageContext: PageContextServer) {
+  const chunkJs = escapeJavaScriptExpression(JSON.stringify(encodeRscChunk(chunk)));
+  return getScript(`self.__rsc_web_stream_push(${chunkJs})`, pageContext);
+}
+function getScript(js: string, pageContext: PageContextServer) {
+  // No need to escape the injected nonce attribute — see https://github.com/vikejs/vike/blob/36201ddad5f5b527b244b24d548014ec86c204e4/packages/vike/src/server/runtime/renderPageServer/csp.ts#L45
+  const nonceAttr = pageContext.cspNonce ? ` nonce="${pageContext.cspNonce}"` : "";
+  return `<script${nonceAttr}>${js}</script>`;
+}
 
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
@@ -59,7 +83,7 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
     <html>
       <head>
         <meta charset="UTF-8" />
-        <script>${dangerouslySkipEscape(INIT_SCRIPT)}</script>
+        ${dangerouslySkipEscape(getScript(INIT_SCRIPT, pageContext))}
         ${headHtml}
       </head>
       <body>
@@ -84,35 +108,25 @@ async function renderStreamedPage(
     userAgent: pageContext.headers?.["user-agent"],
     streamOptions: {
       formState: payload.formState,
+      nonce: pageContext.cspNonce ?? undefined,
     },
   });
 
   // doNotClose() holds the HTML response open until the RSC payload finishes piping in.
   const canClose = htmlStream.doNotClose();
-  const decoder = new TextDecoder();
-
-  const injectRscChunk = (rscChunk: string) => {
-    if (!rscChunk) return;
-    htmlStream.injectToStream(
-      `<script>self.__rsc_web_stream_push(${JSON.stringify(
-        rscChunk
-      )})</script>`
-    );
-  };
 
   rscStream
     .pipeTo(
       new WritableStream<Uint8Array>({
         write(rscChunk) {
-          injectRscChunk(decoder.decode(rscChunk, { stream: true }));
+          htmlStream.injectToStream(getPushScript(rscChunk, pageContext));
         },
         // Only reached when the payload streamed to completion. A truncated
         // payload must not get the close marker: the client would treat it as
         // a whole one and hydrate against a partial tree.
         close() {
-          injectRscChunk(decoder.decode());
           htmlStream.injectToStream(
-            `<script>self.__rsc_web_stream_close()</script>`
+            getScript("self.__rsc_web_stream_close()", pageContext)
           );
         },
       })
@@ -139,21 +153,22 @@ async function prerenderPage(
   rscStream: ReadableStream<Uint8Array>,
   pageContext: PageContextServer
 ) {
-  const rscPayloadStringPromise = new Response(rscStream).text();
+  const rscPayloadBytesPromise = new Response(rscStream).arrayBuffer();
   // A static document cannot resume streamed Suspense fallbacks after deployment.
   const { prelude } = await prerender(page);
-  const [pageHtml, rscPayloadString] = await Promise.all([
+  const [pageHtml, rscPayloadBytes] = await Promise.all([
     new Response(prelude).text(),
-    rscPayloadStringPromise,
+    rscPayloadBytesPromise,
   ]);
-  pageContext.rscPayloadString = rscPayloadString;
+  // For client-side navigation on a static host. Text only: binary Flight data
+  // doesn't survive it.
+  pageContext.rscPayloadString = new TextDecoder().decode(rscPayloadBytes);
 
   return {
     pageHtml: dangerouslySkipEscape(pageHtml),
     rscPayloadHtml: dangerouslySkipEscape(
-      `<script>self.__rsc_web_stream_push(${JSON.stringify(
-        rscPayloadString
-      )});self.__rsc_web_stream_close()</script>`
+      getPushScript(new Uint8Array(rscPayloadBytes), pageContext) +
+        getScript("self.__rsc_web_stream_close()", pageContext)
     ),
   };
 }
