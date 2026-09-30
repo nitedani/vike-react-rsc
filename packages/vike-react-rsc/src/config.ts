@@ -53,7 +53,9 @@ const config: Config = {
       cumulative: true,
     },
     Loading: {
-      env: { server: false, client: false, rsc: true },
+      // `layout` wraps the page in the rsc environment, `component` is the
+      // fallback of rsc(), a client component that SSR renders too.
+      env: { server: true, client: true, rsc: true },
     },
     Page: {
       env: { server: false, client: false, rsc: true },
