@@ -37,8 +37,7 @@ const config: Config = {
   // https://vike.dev/meta
   meta: {
     // Extension setting for RSC cache policy; unrelated to the `rsc` environment
-    // name. Only the client's payload cache reads it, from onPageTransitionStart(),
-    // whose pageContext has the global config values only.
+    // name. Only the client's cache of rsc() components reads it.
     rsc: {
       env: { client: true },
       global: true,
