@@ -10,6 +10,7 @@ import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
 import runtimeRsc from "virtual:runtime/server";
 import type { Head } from "../types/Config";
 import { isReactElement } from "../utils/isReactElement";
+import { escapeJavaScriptExpression } from "../utils/escapeJavaScriptExpression";
 import { renderToStaticMarkup } from "react-dom/server";
 import { prerender } from "react-dom/static.edge";
 import React from "react";
@@ -42,14 +43,14 @@ function encodeRscChunk(chunk: Uint8Array): EncodedRscChunk {
   }
 }
 
-// `<` escaped so that server data containing `</script>` or `<!--` can't end or break the inline script
 function getPushScript(chunk: Uint8Array, pageContext: PageContextServer) {
-  const json = JSON.stringify(encodeRscChunk(chunk)).replace(/</g, "\\u003c");
-  return getScript(`self.__rsc_web_stream_push(${json})`, pageContext);
+  const chunkJs = escapeJavaScriptExpression(JSON.stringify(encodeRscChunk(chunk)));
+  return getScript(`self.__rsc_web_stream_push(${chunkJs})`, pageContext);
 }
 function getScript(js: string, pageContext: PageContextServer) {
-  const nonce = pageContext.cspNonce ? ` nonce="${pageContext.cspNonce}"` : "";
-  return `<script${nonce}>${js}</script>`;
+  // No need to escape the injected nonce attribute — see https://github.com/vikejs/vike/blob/36201ddad5f5b527b244b24d548014ec86c204e4/packages/vike/src/server/runtime/renderPageServer/csp.ts#L45
+  const nonceAttr = pageContext.cspNonce ? ` nonce="${pageContext.cspNonce}"` : "";
+  return `<script${nonceAttr}>${js}</script>`;
 }
 
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
