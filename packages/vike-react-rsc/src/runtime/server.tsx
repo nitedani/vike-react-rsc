@@ -4,7 +4,7 @@ tinyassert(environmentName === "rsc", "Invalid environment");
 
 import { renderToReadableStream, decodeReply, loadServerAction } from '@vitejs/plugin-rsc/rsc'
 import type { PageContext } from "vike/types";
-import { getPageElementRsc } from "../integration/getPageElement-server";
+import { getPageElement } from "../integration/getPageElement";
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
 import { provideServerActionContext } from "./serverActionContext";
 import type { RscPayload } from "../types";
@@ -33,7 +33,7 @@ const renderOptions = {
 export async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
-  const root = await getPageElementRsc(pageContext);
+  const root = await getPageElement(pageContext);
   return providePageContext(pageContext, () =>
     renderToReadableStream(
       // TODO: add form when initial request is POST
@@ -75,7 +75,7 @@ export async function handleServerAction({
   );
 
   const payload: RscPayload = context.shouldRerender
-    ? { returnValue, root: await getPageElementRsc(pageContext) }
+    ? { returnValue, root: await getPageElement(pageContext) }
     : { returnValue };
   return providePageContext(pageContext, () => renderRscPayload(payload));
 }
