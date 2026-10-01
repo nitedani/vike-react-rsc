@@ -6,8 +6,8 @@ import vikeRscPlugin from "./plugin";
 const config: Config = {
   name: "vike-react-rsc",
   // Placeholder only: released Vike 0.4.260 doesn't contain the response
-  // page-context API or vike/runtime. Before publishing, pin this to the first
-  // Vike release containing those APIs.
+  // page-context API or Vike environments. Before publishing, pin this to the
+  // first Vike release containing those APIs.
   require: {
     vike: ">=0.4.260",
   },
@@ -20,6 +20,8 @@ const config: Config = {
 
   onPageTransitionStart:
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
+  // Runs in the rsc environment, called by onRenderHtml() via pageContext.config.renderRsc()
+  renderRsc: "import:vike-react-rsc/__internal/runtime/server:renderRsc",
 
   passToClient: ["rscPayloadString"],
   alwaysFetchPageContextFromServer: true,
@@ -59,6 +61,9 @@ const config: Config = {
     },
     Page: {
       env: { server: false, client: false, rsc: true },
+    },
+    renderRsc: {
+      env: { rsc: true },
     },
   },
   vite: {

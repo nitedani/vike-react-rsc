@@ -1,12 +1,8 @@
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
-import { environmentName } from "vike/runtime";
-import runtimeSsr from "virtual:runtime/ssr";
-import runtimeRsc from "virtual:runtime/server";
+import { onRenderHtmlSsr } from "../runtime/ssr";
 import { tinyassert } from "@hiogawa/utils";
 import { RSC_CONTENT_TYPE } from "../constants";
 import type { RscPayload } from "../types";
-
-tinyassert(environmentName === "server", "Invalid environment");
 
 const RSC_MEDIA_TYPE = RSC_CONTENT_TYPE.split(";", 1)[0];
 
@@ -26,7 +22,7 @@ export const onRenderHtml: OnRenderHtmlAsync = async function (
     return;
   }
 
-  return runtimeSsr.onRenderHtmlSsr(pageContext);
+  return onRenderHtmlSsr(pageContext);
 };
 
 function isFlightRequest(request: Request): boolean {
@@ -44,17 +40,16 @@ async function renderFlight(
   pageContext: PageContextServer,
   request: Request
 ): Promise<ReadableStream<Uint8Array>> {
-  const abortPayload = getAbortPayload(pageContext);
-  if (abortPayload) return runtimeRsc.renderRscPayload(abortPayload);
+  const { renderRsc } = pageContext.config;
+  const payload = getAbortPayload(pageContext);
+  if (payload) return renderRsc(pageContext, { payload });
 
   const actionId = request.headers.get("x-rsc-action");
   return actionId
-    ? runtimeRsc.handleServerAction({
-        actionId,
-        pageContext,
-        body: await readActionBody(request),
+    ? renderRsc(pageContext, {
+        action: { actionId, body: await readActionBody(request) },
       })
-    : runtimeRsc.renderPageRsc(pageContext);
+    : renderRsc(pageContext);
 }
 
 function getAbortPayload(pageContext: PageContextServer): RscPayload | undefined {

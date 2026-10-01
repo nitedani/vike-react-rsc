@@ -1,13 +1,12 @@
-import { environmentName } from "vike/runtime";
+import environmentName from "virtual:environment-name";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(environmentName === "server", "Invalid environment");
+tinyassert(environmentName !== "rsc" && environmentName !== "client", "Invalid environment");
 
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import { renderToStream } from "react-streaming/server.web";
 import { createFromReadableStream } from "@vitejs/plugin-rsc/ssr";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
-import runtimeRsc from "virtual:runtime/server";
 import type { Head } from "../types/Config";
 import { isReactElement } from "../utils/isReactElement";
 import { escapeJavaScriptExpression } from "../utils/escapeJavaScriptExpression";
@@ -56,8 +55,8 @@ function getScript(js: string, pageContext: PageContextServer) {
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
-  const rscPayloadStream = await runtimeRsc.renderPageRsc(pageContext);
-  const [rscStreamForHtml, rscStreamForBrowser] = rscPayloadStream!.tee();
+  const rscPayloadStream = await pageContext.config.renderRsc(pageContext);
+  const [rscStreamForHtml, rscStreamForBrowser] = rscPayloadStream.tee();
 
   const payload =
     (await createFromReadableStream<React.ReactNode>(

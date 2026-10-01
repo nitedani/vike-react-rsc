@@ -1,4 +1,4 @@
-import { environmentName, loadPageConfig } from "vike/runtime";
+import environmentName from "virtual:environment-name";
 import { tinyassert } from "@hiogawa/utils";
 tinyassert(environmentName === "rsc", "Invalid environment");
 
@@ -10,9 +10,8 @@ import type { PageContext } from "vike/types";
 async function getPageElement(
   pageContext: PageContext
 ): Promise<React.ReactElement> {
-  tinyassert(pageContext.pageId, "Missing pageId");
-  // Page, Layout, Wrapper and Loading.layout live in the rsc environment
-  const { config } = await loadPageConfig(pageContext.pageId);
+  // The rsc config values: Page, Layout, Wrapper and Loading.layout
+  const { config } = pageContext;
   const { Page, Loading } = config;
   if (!Page) {
     // Rendering an empty fragment here produces a blank page that looks like a

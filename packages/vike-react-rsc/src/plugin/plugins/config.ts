@@ -44,13 +44,6 @@ export const configs: Plugin[] = [
                 "@vitejs/plugin-rsc",
               ],
             },
-            build: {
-              rollupOptions: {
-                input: {
-                  ssr: "virtual:build-ssr-entry",
-                },
-              },
-            },
           },
           rsc: {
             resolve: {
@@ -72,11 +65,8 @@ export const configs: Plugin[] = [
               outDir: distRsc,
               ssr: true,
               rollupOptions: {
-                input: { index: "virtual:build-rsc-entry" },
-                // plugin-rsc's loadModule("rsc", "index") imports `index.js`,
-                // whereas Vike names server entries `[name].mjs`, also in named
-                // environments.
-                output: { entryFileNames: "[name].js" },
+                // Vike adds its own entry, which loads renderRsc() and the pages
+                input: { index: `${PKG_NAME}/__internal/runtime/server` },
               },
             },
           },
