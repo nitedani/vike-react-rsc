@@ -1,5 +1,5 @@
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
-import { onRenderHtmlSsr } from "../runtime/ssr";
+import { getRenderRsc, onRenderHtmlSsr } from "../runtime/ssr";
 import { tinyassert } from "@hiogawa/utils";
 import { RSC_CONTENT_TYPE } from "../constants";
 import type { RscPayload } from "../types";
@@ -40,7 +40,7 @@ async function renderFlight(
   pageContext: PageContextServer,
   request: Request
 ): Promise<ReadableStream<Uint8Array>> {
-  const { renderRsc } = pageContext.config;
+  const renderRsc = getRenderRsc(pageContext);
   const abortPayload = getAbortPayload(pageContext);
   if (abortPayload) return renderRsc(pageContext, { payload: abortPayload });
 
