@@ -4,9 +4,6 @@ import { getGlobalObject } from "../../utils/getGlobalObject";
 
 // Define the structure of our global client state
 interface GlobalClientState {
-  // Cache for main RSC payloads
-  rscCache: Map<string, CacheEntry>;
-
   // Cache for server components used in client components
   serverComponentCache: Map<string, CacheEntry>;
 
@@ -15,9 +12,6 @@ interface GlobalClientState {
 
   // Page context for the current page
   pageContext?: PageContextClient;
-
-  // Promise for the current navigation
-  navigationPromise?: Promise<RscPayload>;
 
   // Flag to indicate if we're currently making a call from a client component to fetch a server component
   isRscCall: boolean;
@@ -41,7 +35,6 @@ interface CacheEntry {
 // Get or initialize the global client state
 export function getGlobalClientState(): GlobalClientState {
   return getGlobalObject("globalState.ts", {
-    rscCache: new Map(),
     serverComponentCache: new Map(),
     pendingRequests: new Map(),
     isRscCall: false

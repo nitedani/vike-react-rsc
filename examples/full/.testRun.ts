@@ -71,9 +71,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testTodoForm();
   }
   testFilmGrid();
-  // A static host serves the payload with the page context instead of
-  // answering Flight requests.
-  if (!isStatic) testStaleTime();
+  testNavigationRequests();
   testPageNavigation();
 }
 
@@ -85,11 +83,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
 function testResponseTail() {
   test("Response tail is complete and ordered", async () => {
     const html = await fetchHtml("/");
-    // Match the INVOCATIONS, not the bootstrap script that defines these functions —
-    // the definitions sit in <head> and would satisfy the ordering trivially.
     const positions = {
-      rscChunk: html.indexOf("<script>self.__rsc_web_stream_push("),
-      rscClose: html.indexOf("<script>self.__rsc_web_stream_close()"),
+      rscClose: html.indexOf('\\"end\\":true'),
       pageContext: html.indexOf('id="vike_pageContext"'),
       clientEntry: html.search(/<script[^>]*type="module"/),
       bodyClose: html.lastIndexOf("</body>"),
@@ -98,10 +93,6 @@ function testResponseTail() {
     for (const [name, at] of Object.entries(positions)) {
       expect(at, `${name} missing from response`).to.not.equal(-1);
     }
-    expect(
-      positions.rscClose > positions.rscChunk,
-      "RSC close marker must come after the final RSC chunk"
-    ).to.equal(true);
     expect(
       positions.bodyClose > positions.rscClose,
       "HTML stream must remain open through the RSC close marker"
@@ -203,37 +194,33 @@ async function waitForHydration() {
   );
 }
 
-// The example sets `rsc: { staleTime: 10000 }` (the default is 60 seconds).
-// The setting has to reach the client, where the payload cache reads it.
-function testStaleTime() {
-  test("Cached payloads expire after the configured staleTime", async () => {
+function testNavigationRequests() {
+  test("Navigation and back navigation: one request each", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    await page.clock.install();
 
-    const flightRequests: string[] = [];
+    const requests: string[] = [];
     page.on("request", (request) => {
-      if (request.headers()["accept"]?.startsWith("text/x-component")) {
-        flightRequests.push(new URL(request.url()).pathname);
+      if (["document", "fetch", "xhr"].includes(request.resourceType())) {
+        requests.push(new URL(request.url()).pathname);
       }
     });
-    const navigate = async (href: string, heading: string) => {
-      await page.click(`a[href="${href}"]`);
-      await autoRetry(async () => {
-        expect(await page.textContent("h1")).to.include(heading);
-      });
-    };
 
-    await navigate("/todos", "Task Manager");
-    await navigate("/", "Vike React Server Components");
-    // Fresh: served from the cache.
-    await navigate("/todos", "Task Manager");
-    expect(flightRequests).to.deep.equal(["/todos", "/"]);
+    await page.click('a[href="/todos"]');
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include("Task Manager");
+    });
+    expect(requests).to.have.length(1);
+    expect(requests[0]).to.match(/\.pageContext\.json$/);
 
-    await page.clock.fastForward(11000);
-    // Stale after 10 seconds, although it would still be fresh by default.
-    await navigate("/", "Vike React Server Components");
-    expect(flightRequests).to.deep.equal(["/todos", "/", "/"]);
+    await page.goBack();
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include(
+        "Vike React Server Components"
+      );
+    });
+    expect(requests).to.have.length(2);
+    expect(requests[1]).to.match(/\.pageContext\.json$/);
   });
 }
 

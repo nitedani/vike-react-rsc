@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
-import { getNavigationPayload, parseRscStream } from "../runtime/client";
+import { parseRscStream } from "../runtime/client";
 import type { RscPayload } from "../types";
 import { getGlobalClientState } from "../runtime/client/globalState";
 
@@ -53,10 +53,8 @@ export const onRenderClient: OnRenderClientAsync = async function (
         return;
       }
 
-      // Get the RSC payload stream that was injected by the server
-      const rscPayloadStream = (window as any)
-        .__rsc_payload_stream as ReadableStream<Uint8Array>;
-      const initialPayload = await parseRscStream(rscPayloadStream);
+      tinyassert(pageContext.rscPayload);
+      const initialPayload = await parseRscStream(pageContext.rscPayload);
 
       // Hydrate the root with our component
       ReactDOMClient.hydrateRoot(
@@ -77,13 +75,9 @@ export const onRenderClient: OnRenderClientAsync = async function (
   // Handle client-side navigation
   else if (pageContext.isClientSideNavigation) {
     try {
-      const navigationPayload = getNavigationPayload(pageContext);
-      if (navigationPayload) {
-        const payload = await navigationPayload;
-        globalState.setPayload?.({ pageContext, payload });
-      } else {
-        console.error("[Client] No navigation promise found");
-      }
+      tinyassert(pageContext.rscPayload);
+      const payload = await parseRscStream(pageContext.rscPayload);
+      globalState.setPayload?.({ pageContext, payload });
     } catch (error) {
       console.error("[Client] Failed to navigate:", error);
     }

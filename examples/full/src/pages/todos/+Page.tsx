@@ -76,10 +76,10 @@ export async function Page() {
 
           <div css={sharedStyles.featureCard}>
             <div css={sharedStyles.featureNumber}>3</div>
-            <h3 css={sharedStyles.featureHeading}>RSC Payload Caching</h3>
+            <h3 css={sharedStyles.featureHeading}>One Request per Navigation</h3>
             <p css={sharedStyles.featureParagraph}>
-              The app uses client-side caching of RSC payloads based on the <code>staleTime</code> configuration.
-              This reduces server load by reusing cached payloads during navigation when they're still fresh.
+              Navigating to a page fetches its RSC payload and its <code>pageContext</code> in one streamed response,
+              also on a pre-rendered site served by a static host.
             </p>
           </div>
         </div>

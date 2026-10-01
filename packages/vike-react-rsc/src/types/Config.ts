@@ -6,7 +6,8 @@ import type { RenderRscRequest } from "../types";
 declare global {
   namespace Vike {
     interface PageContext {
-      rscPayloadString?: string;
+      /** The page rendered as Flight (RSC payload), streamed to the client. */
+      rscPayload?: ReadableStream<Uint8Array>;
     }
 
     interface Config {
