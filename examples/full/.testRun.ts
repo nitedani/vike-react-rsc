@@ -60,6 +60,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   });
 
   testPages();
+  testEnvironments();
   testBinaryPayload();
   testScriptBreakout();
   testCspNonce();
@@ -115,6 +116,15 @@ function testResponseTail() {
 function testPages() {
   Object.entries(pages).forEach(([url, pageInfo]) => {
     testPage({ url, ...pageInfo });
+  });
+}
+
+// The server component reads the rsc value of +greeting, +data (ssr) reads the server one
+function testEnvironments() {
+  test("/environments: each environment reads its own config values", async () => {
+    const html = await fetchHtml("/environments");
+    expect(html).to.include('id="greeting-rsc">Hello from the rsc environment<');
+    expect(html).to.include('id="greeting-ssr">Hello from the server environment<');
   });
 }
 
