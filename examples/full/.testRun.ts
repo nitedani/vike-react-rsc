@@ -73,6 +73,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testTodoForm();
     testSession();
     testCrossSiteAction();
+    testRscComponentCall();
   }
   testFilmGrid();
   testNavigationRequests();
@@ -321,6 +322,19 @@ function testSession() {
       expect(await page.textContent("h1")).to.include("Vike React Server Components");
     });
     expect(await session()).to.equal(undefined);
+  });
+}
+
+function testRscComponentCall() {
+  test("rsc(): a server component loaded on click", async () => {
+    await page.goto(getServerUrl() + "/suspense");
+    await autoRetry(
+      async () => {
+        await page.click('button:has-text("View Details")');
+        expect(await page.textContent("body")).to.include("Release Date");
+      },
+      { timeout: 15000 }
+    );
   });
 }
 

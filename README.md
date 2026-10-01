@@ -9,6 +9,7 @@ React RSC integration for [Vike](https://vike.dev).
   - Progressive hydration
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
+  - An action runs before `guard()` and `data()` of its request, so they see what it changed, including cookies it sets with **`getResponseHeaders()`**.
 - **RSC over RPC**: on the client-side upon user interaction (e.g. click on button "show details"), you can load Server Component elements instead of loading data. So that you don't have to load heavy Components (e.g. markdown) on the client-side — even if they are a part of a dynamic UI.
 - Built-in default **`<Loading>` fallback**, customizable globally, per page, or per component.
 - **Caching**
