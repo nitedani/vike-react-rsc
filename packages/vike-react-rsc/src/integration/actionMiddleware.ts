@@ -6,7 +6,7 @@ import type { RscAction } from "../types";
 // A server action called from JavaScript: callServer() POSTs it to the URL of the page shown. renderPage() runs the action
 // (+onCreatePageContext), then guard(), data() and the page, so they see what the action changed.
 const serverActionMiddleware: UniversalMiddleware = enhance(
-  async function vikeReactRscServerAction(request: Request) {
+  async (request: Request) => {
     const actionId = request.headers.get("x-rsc-action");
     if (request.method !== "POST" || !actionId) return;
     if (!isSameOrigin(request)) return new Response(null, { status: 403 });
@@ -21,7 +21,7 @@ const serverActionMiddleware: UniversalMiddleware = enhance(
 );
 export default serverActionMiddleware;
 
-// A cross-site page can make the browser POST with the user's cookies, but can't set these headers
+// Defense in depth: browsers already preflight the x-rsc-action header; forms without JavaScript will need this check
 function isSameOrigin(request: Request): boolean {
   const site = request.headers.get("sec-fetch-site");
   if (site) return site === "same-origin";

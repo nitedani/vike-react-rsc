@@ -41,8 +41,8 @@ export async function renderRsc(
   const root = !rscAction || rscAction.rerender ? await getPageElement(pageContext) : undefined;
   // After a server action: its return value, and the page only if the action called rerender()
   // TODO: add form when initial request is POST
-  const page: RscPayload = rscAction ? { root, returnValue: rscAction.returnValue } : { root };
-  return providePageContext(pageContext, () => renderToReadableStream(page, renderOptions));
+  const rscPayload: RscPayload = rscAction ? { root, returnValue: rscAction.returnValue } : { root };
+  return providePageContext(pageContext, () => renderToReadableStream(rscPayload, renderOptions));
 }
 
 // The `runServerAction` config: runs the server action of pageContext.rscAction (integration/actionMiddleware.ts)
