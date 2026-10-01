@@ -53,6 +53,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
         logText === REACT_RSC_STYLESHEET_PRELOAD_WARNING) ||
       // Vite also forwards the browser's error to the server's stderr.
       (isDev && logText.includes(REACT_DEV_EVAL_CSP_ERROR)) ||
+      // testCrossSiteAction()
+      (logSource === "stderr" && logText.includes("HTTP response ← /todos 403")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
       (isStatic &&
         logSource === "stderr" &&
@@ -69,6 +71,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   if (!isStatic) {
     testCounter();
     testTodoForm();
+    testSession();
+    testCrossSiteAction();
   }
   testFilmGrid();
   testNavigationRequests();
@@ -176,18 +180,18 @@ function testPageNavigation() {
 // server-rendered DOM exists. Wait until React has attached the Counter's
 // event props so a test measures normal client-side navigation rather than a
 // synthetic pre-hydration click.
-async function waitForHydration() {
+async function waitForHydration(buttonText = "Increment") {
   await autoRetry(
     async () => {
-      const isHydrated = await page.evaluate(() => {
+      const isHydrated = await page.evaluate((buttonText) => {
         const button = Array.from(document.querySelectorAll("button")).find(
-          (candidate) => candidate.textContent?.includes("Increment")
+          (candidate) => candidate.textContent?.includes(buttonText)
         );
         return (
           button !== undefined &&
           Object.keys(button).some((key) => key.startsWith("__reactProps$"))
         );
-      });
+      }, buttonText);
       expect(isHydrated).to.equal(true);
     },
     { timeout: 5000 }
@@ -257,6 +261,13 @@ function testCounter() {
 function testTodoForm() {
   test("Todo form functionality", async () => {
     await page.goto(getServerUrl() + "/todos");
+    const readTodoCount = async () =>
+      Number((await page.textContent("#todo-count"))?.match(/\d+/)?.[0]);
+    const countBefore = await readTodoCount();
+    const posts: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST") posts.push(new URL(request.url()).pathname);
+    });
 
     await autoRetry(
       async () => {
@@ -281,6 +292,47 @@ function testTodoForm() {
       },
       { timeout: 10000 }
     );
+    // One request: the action, then +data and the page, which see the new task
+    expect(await readTodoCount()).to.equal(countBefore + 1);
+    expect(posts).to.deep.equal(["/todos"]);
+  });
+}
+
+function testSession() {
+  test("Server action: cookie, guard() and throw redirect()", async () => {
+    // The guard shows the login page at /account
+    await page.goto(getServerUrl() + "/account");
+    await waitForHydration("Log in");
+    expect(await page.textContent("h1")).to.equal("Log in");
+
+    // The action sets the cookie, then the guard of the same request sees it
+    await page.click('button:has-text("Log in")');
+    await autoRetry(async () => {
+      expect(await page.textContent("#account-user")).to.equal("Logged in as alice");
+    });
+    const session = async () =>
+      (await page.context().cookies()).find((c) => c.name === "session")?.value;
+    expect(await session()).to.equal("alice");
+
+    // The action clears the cookie, then throws redirect("/")
+    await page.click('button:has-text("Log out")');
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/");
+      expect(await page.textContent("h1")).to.include("Vike React Server Components");
+    });
+    expect(await session()).to.equal(undefined);
+  });
+}
+
+function testCrossSiteAction() {
+  test("Server action: cross-site POST is rejected", async () => {
+    const post = (headers: Record<string, string>) =>
+      fetch(getServerUrl() + "/todos", {
+        method: "POST",
+        headers: { "x-rsc-action": "any", ...headers },
+      });
+    expect((await post({ "sec-fetch-site": "cross-site" })).status).to.equal(403);
+    expect((await post({ origin: "https://example.com" })).status).to.equal(403);
   });
 }
 

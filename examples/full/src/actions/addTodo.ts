@@ -9,7 +9,8 @@ interface Todo {
   createdAt: number;
 }
 
-const todos: Todo[] = [];
+// Also read by +data, which runs in another environment: shared like a database would be
+const todos: Todo[] = ((globalThis as { __todos?: Todo[] }).__todos ??= []);
 
 export const getTodos = async () => {
   // Sort todos by creation date (newest first)
