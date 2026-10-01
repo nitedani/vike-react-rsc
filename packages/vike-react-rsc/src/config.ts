@@ -20,7 +20,6 @@ const config: Config = {
 
   onPageTransitionStart:
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
-  // Runs in the rsc environment, called by onRenderHtml() via pageContext.config.renderRsc()
   renderRsc: "import:vike-react-rsc/__internal/runtime/server:renderRsc",
 
   passToClient: ["rscPayloadString"],

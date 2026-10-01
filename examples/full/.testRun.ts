@@ -119,7 +119,6 @@ function testPages() {
   });
 }
 
-// The server component reads the rsc value of +greeting, +data (ssr) reads the server one
 function testEnvironments() {
   test("/environments: each environment reads its own config values", async () => {
     const html = await fetchHtml("/environments");

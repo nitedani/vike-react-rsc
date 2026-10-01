@@ -71,7 +71,7 @@ type Loading = {
 type RenderRsc = (
   pageContext: PageContext,
   request?: RenderRscRequest
-) => Promise<ReadableStream<Uint8Array>> | ReadableStream<Uint8Array>;
+) => Promise<ReadableStream<Uint8Array>>;
 type RscConfig = {
   staleTime?: number;
 };

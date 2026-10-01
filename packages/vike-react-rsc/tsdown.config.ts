@@ -12,7 +12,6 @@ export default defineConfig({
     "src/register/server.tsx",
     "src/register/ssr.tsx",
     "src/runtime/server.tsx",
-    "src/runtime/ssr.tsx",
     "src/hooks/pageContext/pageContext-client.tsx",
     "src/hooks/pageContext/pageContext-server.tsx",
   ],

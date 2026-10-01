@@ -1,7 +1,6 @@
 import { getPageContext } from "vike-react-rsc/pageContext";
 import { sharedStyles } from "../../styles/shared";
 
-// A server component: runs in the rsc environment
 export default function Page() {
   const pageContext = getPageContext();
   const { greetingReadBySsr } = pageContext.data as { greetingReadBySsr: string };

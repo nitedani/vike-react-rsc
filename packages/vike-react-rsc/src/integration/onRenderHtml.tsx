@@ -41,8 +41,8 @@ async function renderFlight(
   request: Request
 ): Promise<ReadableStream<Uint8Array>> {
   const { renderRsc } = pageContext.config;
-  const payload = getAbortPayload(pageContext);
-  if (payload) return renderRsc(pageContext, { payload });
+  const abortPayload = getAbortPayload(pageContext);
+  if (abortPayload) return renderRsc(pageContext, { payload: abortPayload });
 
   const actionId = request.headers.get("x-rsc-action");
   return actionId

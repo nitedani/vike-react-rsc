@@ -21,8 +21,7 @@
     "./__internal/register/browser": "./dist/register/browser.js",
     "./__internal/register/server": "./dist/register/server.js",
     "./__internal/register/ssr": "./dist/register/ssr.js",
-    "./__internal/runtime/server": "./dist/runtime/server.js",
-    "./__internal/runtime/ssr": "./dist/runtime/ssr.js"
+    "./__internal/runtime/server": "./dist/runtime/server.js"
   },
   "files": [
     "dist"

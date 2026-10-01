@@ -64,10 +64,6 @@ export const configs: Plugin[] = [
             build: {
               outDir: distRsc,
               ssr: true,
-              rollupOptions: {
-                // Vike adds its own entry, which loads renderRsc() and the pages
-                input: { index: `${PKG_NAME}/__internal/runtime/server` },
-              },
             },
           },
         },

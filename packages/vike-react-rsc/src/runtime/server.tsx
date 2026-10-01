@@ -32,13 +32,13 @@ const renderOptions = {
 
 // The `renderRsc` config: Vike runs it in the rsc environment, with the rsc
 // config values at pageContext.config
-export function renderRsc(
+export async function renderRsc(
   pageContext: PageContext,
   request?: RenderRscRequest
-): Promise<ReadableStream<Uint8Array>> | ReadableStream<Uint8Array> {
-  if (request?.payload) return renderRscPayload(request.payload);
-  if (request?.action) return handleServerAction(pageContext, request.action);
-  return renderPageRsc(pageContext);
+): Promise<ReadableStream<Uint8Array>> {
+  if (!request) return renderPageRsc(pageContext);
+  if ("payload" in request) return renderRscPayload(request.payload);
+  return handleServerAction(pageContext, request.action);
 }
 
 async function renderPageRsc(
