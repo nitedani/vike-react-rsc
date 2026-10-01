@@ -328,9 +328,10 @@ function testSession() {
 function testRscComponentCall() {
   test("rsc(): a server component loaded on click", async () => {
     await page.goto(getServerUrl() + "/suspense");
+    await waitForHydration("View Details");
+    await page.click('button:has-text("View Details")');
     await autoRetry(
       async () => {
-        await page.click('button:has-text("View Details")');
         expect(await page.textContent("body")).to.include("Release Date");
       },
       { timeout: 15000 }
