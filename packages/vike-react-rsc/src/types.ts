@@ -13,10 +13,16 @@ export type RscPayload = {
   };
 };
 
-/** What renderRsc() renders: the page by default. */
-export type RenderRscRequest =
-  | { payload: RscPayload }
-  | { action: { actionId: string; body: string | FormData } };
+/** A server action called from JavaScript, run by renderPage() (integration/actionMiddleware.ts) */
+export type RscAction = {
+  actionId: string;
+  body: string | FormData;
+  /** Sent with the response, e.g. the cookies set by the action */
+  responseHeaders: Headers;
+  hasRun?: true;
+  returnValue?: unknown;
+  rerender?: boolean;
+};
 
 /**
  * User-defined RSC configuration

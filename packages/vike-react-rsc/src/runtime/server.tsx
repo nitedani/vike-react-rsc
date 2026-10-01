@@ -7,7 +7,7 @@ import type { PageContext } from "vike/types";
 import { getPageElement } from "../integration/getPageElement";
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
 import { provideServerActionContext } from "./serverActionContext";
-import type { RenderRscRequest, RscPayload } from "../types";
+import type { RscPayload } from "../types";
 
 // A client that navigates away mid-stream cancels the response, which aborts the
 // Flight render. React reports that through onError exactly like a render failure,
@@ -34,56 +34,32 @@ const renderOptions = {
 // config values at pageContext.config
 export async function renderRsc(
   pageContext: PageContext,
-  request?: RenderRscRequest
+  payload?: RscPayload
 ): Promise<ReadableStream<Uint8Array>> {
-  if (!request) return renderPageRsc(pageContext);
-  if ("payload" in request) return renderRscPayload(request.payload);
-  return handleServerAction(pageContext, request.action);
+  if (payload) return renderToReadableStream(payload, renderOptions);
+  const { rscAction } = pageContext;
+  const root = !rscAction || rscAction.rerender ? await getPageElement(pageContext) : undefined;
+  // After a server action: its return value, and the page only if the action called rerender()
+  // TODO: add form when initial request is POST
+  const page: RscPayload = rscAction ? { root, returnValue: rscAction.returnValue } : { root };
+  return providePageContext(pageContext, () => renderToReadableStream(page, renderOptions));
 }
 
-async function renderPageRsc(
+// The `runServerAction` config: runs the server action of pageContext.rscAction (integration/actionMiddleware.ts)
+export async function runServerAction(
   pageContext: PageContext
-): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
-  const root = await getPageElement(pageContext);
-  return providePageContext(pageContext, () =>
-    renderToReadableStream(
-      // TODO: add form when initial request is POST
-      {
-        root,
-      },
-      renderOptions
-    )
-  );
-}
-
-function renderRscPayload(
-  payload: RscPayload
-): ReadableStream<Uint8Array<ArrayBufferLike>> {
-  return renderToReadableStream(payload, renderOptions);
-}
-
-async function handleServerAction(
-  pageContext: PageContext,
-  { actionId, body }: { actionId: string; body: string | FormData }
-): Promise<ReadableStream<Uint8Array>> {
-  // Create context for this server action execution
-  const context = { shouldRerender: false };
-
-  // Decode arguments and get the action function
+): Promise<{ returnValue: unknown; rerender: boolean }> {
+  const { rscAction } = pageContext;
+  tinyassert(rscAction);
+  const context = { shouldRerender: false, responseHeaders: rscAction.responseHeaders };
   const [args, action] = await Promise.all([
-    decodeReply(body),
-    loadServerAction(actionId),
+    decodeReply(rscAction.body),
+    loadServerAction(rscAction.actionId),
   ]);
-
-  // Execute the action within the server action context
   const returnValue = await provideServerActionContext(context, () =>
     providePageContext(pageContext, () => action.apply(null, args))
   );
-
-  const payload: RscPayload = context.shouldRerender
-    ? { returnValue, root: await getPageElement(pageContext) }
-    : { returnValue };
-  return providePageContext(pageContext, () => renderRscPayload(payload));
+  return { returnValue, rerender: context.shouldRerender };
 }
 
 if (import.meta.hot) {

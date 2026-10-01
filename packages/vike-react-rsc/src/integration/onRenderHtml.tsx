@@ -1,5 +1,5 @@
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
-import { getRenderRsc, onRenderHtmlSsr } from "../runtime/ssr";
+import { getRscConfig, onRenderHtmlSsr } from "../runtime/ssr";
 import { tinyassert } from "@hiogawa/utils";
 import { RSC_CONTENT_TYPE } from "../constants";
 import type { RscPayload } from "../types";
@@ -12,31 +12,18 @@ type AbortRedirect = {
 export const onRenderHtml: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
-  const { request } = pageContext;
-  const actionId = request?.headers.get("x-rsc-action");
-  if (actionId) {
-    pageContext.response = new Response(await renderAction(pageContext, request!, actionId), {
-      headers: { "content-type": RSC_CONTENT_TYPE },
-    });
+  // A server action called from JavaScript (integration/actionMiddleware.ts): the page as Flight, or what replaced it
+  if (pageContext.rscAction) {
+    const abortPayload = getAbortPayload(pageContext);
+    const flight = abortPayload
+      ? await getRscConfig(pageContext).renderRsc(pageContext, abortPayload)
+      : pageContext.rscPayload;
+    pageContext.response = new Response(flight, { headers: { "content-type": RSC_CONTENT_TYPE } });
     return;
   }
 
   return onRenderHtmlSsr(pageContext);
 };
-
-async function renderAction(
-  pageContext: PageContextServer,
-  request: Request,
-  actionId: string
-): Promise<ReadableStream<Uint8Array>> {
-  const renderRsc = getRenderRsc(pageContext);
-  const abortPayload = getAbortPayload(pageContext);
-  if (abortPayload) return renderRsc(pageContext, { payload: abortPayload });
-
-  return renderRsc(pageContext, {
-    action: { actionId, body: await readActionBody(request) },
-  });
-}
 
 function getAbortPayload(pageContext: PageContextServer): RscPayload | undefined {
   const abort = pageContext.dangerouslyUseInternals as unknown as AbortRedirect;
@@ -48,10 +35,4 @@ function getAbortPayload(pageContext: PageContextServer): RscPayload | undefined
   if (pageContext.is404) return { error: { reason: "not-found" } };
   if (pageContext.abortStatusCode || pageContext.errorWhileRendering)
     return { error: { reason: "error" } };
-}
-
-async function readActionBody(request: Request): Promise<string | FormData> {
-  return request.headers.get("content-type")?.startsWith("multipart/form-data")
-    ? request.formData()
-    : request.text();
 }
