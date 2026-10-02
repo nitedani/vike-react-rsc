@@ -42,14 +42,14 @@ async function renderFlight(
 ): Promise<ReadableStream<Uint8Array>> {
   const renderRsc = getRenderRsc(pageContext);
   const abortPayload = getAbortPayload(pageContext);
-  if (abortPayload) return renderRsc(pageContext, { payload: abortPayload });
+  if (abortPayload) return renderRsc({ payload: abortPayload });
 
   const actionId = request.headers.get("x-rsc-action");
   return actionId
-    ? renderRsc(pageContext, {
+    ? renderRsc({
         action: { actionId, body: await readActionBody(request) },
       })
-    : renderRsc(pageContext);
+    : renderRsc();
 }
 
 function getAbortPayload(pageContext: PageContextServer): RscPayload | undefined {

@@ -13,7 +13,7 @@ import { escapeJavaScriptExpression } from "../utils/escapeJavaScriptExpression"
 import { renderToStaticMarkup } from "react-dom/server";
 import { prerender } from "react-dom/static.edge";
 import React from "react";
-import type { EncodedRscChunk, RscPayload } from "../types";
+import type { EncodedRscChunk, RenderRscRequest, RscPayload } from "../types";
 
 const INIT_SCRIPT = `
 self.__raw_import = (id) => import(id);
@@ -52,17 +52,19 @@ function getScript(js: string, pageContext: PageContextServer) {
   return `<script${nonceAttr}>${js}</script>`;
 }
 
-// renderRsc() is a config of the rsc environment: the server reaches it only through pageContext.environments
-export function getRenderRsc(pageContext: PageContextServer): Vike.ConfigResolved["renderRsc"] {
+// renderRsc() is a config of the rsc environment: the server calls it with the rsc view of pageContext
+export function getRenderRsc(
+  pageContext: PageContextServer
+): (request?: RenderRscRequest) => ReturnType<Vike.ConfigResolved["renderRsc"]> {
   const rsc = pageContext.environments?.rsc;
   tinyassert(rsc, "pageContext.environments.rsc is missing: vike-react-rsc needs a Vike version with Vike environments");
-  return rsc.config.renderRsc;
+  return (request?: RenderRscRequest) => rsc.config.renderRsc(rsc.pageContext, request);
 }
 
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
-  const rscPayloadStream = await getRenderRsc(pageContext)(pageContext);
+  const rscPayloadStream = await getRenderRsc(pageContext)();
   const [rscStreamForHtml, rscStreamForBrowser] = rscPayloadStream.tee();
 
   const payload =
