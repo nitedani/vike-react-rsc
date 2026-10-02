@@ -13,9 +13,6 @@ export type RscPayload = {
   };
 };
 
-/** A chunk of the Flight stream: UTF-8 text, or base64 when it isn't valid UTF-8. */
-export type EncodedRscChunk = string | { base64: string };
-
 /**
  * User-defined RSC configuration
  */

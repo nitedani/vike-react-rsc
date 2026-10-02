@@ -18,6 +18,7 @@
     "./__internal/integration/onRenderHtml": "./dist/integration/onRenderHtml.js",
     "./__internal/integration/onRenderClient": "./dist/integration/onRenderClient.js",
     "./__internal/integration/onPageTransitionStart": "./dist/integration/onPageTransitionStart.js",
+    "./__internal/integration/onCreatePageContext.server": "./dist/integration/onCreatePageContext.server.js",
     "./__internal/register/browser": "./dist/register/browser.js",
     "./__internal/register/server": "./dist/register/server.js",
     "./__internal/register/ssr": "./dist/register/ssr.js",
@@ -41,7 +42,7 @@
     "@brillout/vite-plugin-server-entry": "^0.7.19",
     "@hiogawa/utils": "^1.7.0",
     "@universal-middleware/core": "^0.4.18",
-    "react-streaming": "^0.4.20"
+    "react-streaming": "^0.4.21"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
