@@ -12,7 +12,7 @@ export default function Page() {
         <strong id="greeting-rsc">{pageContext.config.greeting}</strong>
       </p>
       <p css={sharedStyles.paragraph}>
-        +data (ssr) read <code>config.greeting</code>:{" "}
+        +data (ssr) reads <code>pageContext.environments.rsc.config.greeting</code>:{" "}
         <strong id="greeting-ssr">{greetingReadBySsr}</strong>
       </p>
     </div>
