@@ -2,8 +2,6 @@ import { PKG_NAME } from "../../constants";
 import { defaultServerConditions, type Plugin, type UserConfig } from "vite";
 import { type VitePluginServerEntryOptions } from "@brillout/vite-plugin-server-entry/plugin";
 
-const distRsc = "dist/rsc";
-
 declare module "vite" {
   interface UserConfig {
     vitePluginServerEntry?: VitePluginServerEntryOptions;
@@ -14,7 +12,7 @@ export const configs: Plugin[] = [
   {
     name: "vike-rsc:config:pre",
     enforce: "pre",
-    config(): UserConfig {
+    config(config): UserConfig {
       return {
         environments: {
           client: {
@@ -62,7 +60,8 @@ export const configs: Plugin[] = [
               ],
             },
             build: {
-              outDir: distRsc,
+              // Inside Vike's server build, so that deploying it also deploys rsc
+              outDir: `${config.build?.outDir ?? "dist"}/server/rsc`,
               ssr: true,
             },
           },
