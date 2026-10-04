@@ -1,9 +1,5 @@
 import type { PageContextServer } from "vike/types";
-import environmentName from "virtual:environment-name";
-import { tinyassert } from "@hiogawa/utils";
 import { getRenderRsc } from "../runtime/ssr";
-
-tinyassert(environmentName === "server", "Invalid environment");
 
 // Matched by isClientDisconnect() in runtime/server.tsx
 const clientDisconnect = Object.assign(new Error("Client disconnected"), {
