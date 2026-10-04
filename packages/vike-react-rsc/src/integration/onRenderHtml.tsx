@@ -4,7 +4,6 @@ import { tinyassert } from "@hiogawa/utils";
 import { RSC_CONTENT_TYPE } from "../constants";
 import type { RscPayload } from "../types";
 
-
 type AbortRedirect = {
   _abortCaller?: "throw redirect()";
   _urlRedirect?: NonNullable<RscPayload["redirect"]>;
@@ -15,8 +14,8 @@ export const onRenderHtml: OnRenderHtmlAsync = async function (
 ) {
   const { request } = pageContext;
   const actionId = request?.headers.get("x-rsc-action");
-  if (actionId) {
-    pageContext.response = new Response(await renderAction(pageContext, request!, actionId), {
+  if (request && actionId) {
+    pageContext.response = new Response(await renderAction(pageContext, request, actionId), {
       headers: { "content-type": RSC_CONTENT_TYPE },
     });
     return;
