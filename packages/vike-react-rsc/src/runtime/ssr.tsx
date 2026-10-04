@@ -1,20 +1,19 @@
-import { environmentName } from "vike/runtime";
+import environmentName from "virtual:environment-name";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(environmentName === "ssr", "Invalid environment");
+tinyassert(environmentName !== "rsc" && environmentName !== "client", "Invalid environment");
 
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import { renderToStream } from "react-streaming/server.web";
 import { createFromReadableStream } from "@vitejs/plugin-rsc/ssr";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
-import runtimeRsc from "virtual:runtime/server";
 import type { Head } from "../types/Config";
 import { isReactElement } from "../utils/isReactElement";
 import { escapeJavaScriptExpression } from "../utils/escapeJavaScriptExpression";
 import { renderToStaticMarkup } from "react-dom/server";
 import { prerender } from "react-dom/static.edge";
 import React from "react";
-import type { EncodedRscChunk, RscPayload } from "../types";
+import type { EncodedRscChunk, RenderRscRequest, RscPayload } from "../types";
 
 const INIT_SCRIPT = `
 self.__raw_import = (id) => import(id);
@@ -53,11 +52,20 @@ function getScript(js: string, pageContext: PageContextServer) {
   return `<script${nonceAttr}>${js}</script>`;
 }
 
+// renderRsc() is a config of the rsc environment: the server calls it with the rsc view of pageContext
+export function getRenderRsc(
+  pageContext: PageContextServer
+): (request?: RenderRscRequest) => ReturnType<Vike.ConfigResolved["renderRsc"]> {
+  const rsc = pageContext.environments?.rsc;
+  tinyassert(rsc, "pageContext.environments.rsc is missing: vike-react-rsc needs a Vike version with Vike environments");
+  return (request?: RenderRscRequest) => rsc.config.renderRsc(rsc.pageContext, request);
+}
+
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
-  const rscPayloadStream = await runtimeRsc.renderPageRsc(pageContext);
-  const [rscStreamForHtml, rscStreamForBrowser] = rscPayloadStream!.tee();
+  const rscPayloadStream = await getRenderRsc(pageContext)();
+  const [rscStreamForHtml, rscStreamForBrowser] = rscPayloadStream.tee();
 
   const payload =
     (await createFromReadableStream<React.ReactNode>(

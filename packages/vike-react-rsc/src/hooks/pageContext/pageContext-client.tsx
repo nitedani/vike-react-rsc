@@ -1,9 +1,6 @@
-import { environmentName } from "vike/runtime";
+import environmentName from "virtual:environment-name";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(
-  environmentName === "client" || environmentName === "ssr",
-  "Invalid environment"
-);
+tinyassert(environmentName !== "rsc", "Invalid environment");
 
 export { usePageContext };
 export { getPageContext };

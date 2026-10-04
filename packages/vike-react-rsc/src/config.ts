@@ -6,8 +6,8 @@ import vikeRscPlugin from "./plugin";
 const config: Config = {
   name: "vike-react-rsc",
   // Placeholder only: released Vike 0.4.260 doesn't contain the response
-  // page-context API or vike/runtime. Before publishing, pin this to the first
-  // Vike release containing those APIs.
+  // page-context API or Vike environments. Before publishing, pin this to the
+  // first Vike release containing those APIs.
   require: {
     vike: ">=0.4.260",
   },
@@ -20,6 +20,7 @@ const config: Config = {
 
   onPageTransitionStart:
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
+  renderRsc: "import:vike-react-rsc/__internal/runtime/server:renderRsc",
 
   passToClient: ["rscPayloadString"],
   alwaysFetchPageContextFromServer: true,
@@ -33,12 +34,12 @@ const config: Config = {
 
   // https://vike.dev/meta
   meta: {
-    // Extension setting for RSC cache policy; unrelated to the `rsc` runtime name.
+    // Extension setting for RSC cache policy; unrelated to the `rsc` environment
+    // name. Only the client's payload cache reads it, from onPageTransitionStart(),
+    // whose pageContext has the global config values only.
     rsc: {
-      env: {
-        server: true,
-        client: false,
-      },
+      env: { client: true },
+      global: true,
     },
     Head: {
       env: { server: true },
@@ -53,10 +54,15 @@ const config: Config = {
       cumulative: true,
     },
     Loading: {
-      env: { server: false, client: false, rsc: true },
+      // `layout` wraps the page in the rsc environment, `component` is the
+      // fallback of rsc(), a client component that SSR renders too.
+      env: { server: true, client: true, rsc: true },
     },
     Page: {
       env: { server: false, client: false, rsc: true },
+    },
+    renderRsc: {
+      env: { rsc: true },
     },
   },
   vite: {

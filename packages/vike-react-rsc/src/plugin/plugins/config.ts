@@ -44,13 +44,6 @@ export const configs: Plugin[] = [
                 "@vitejs/plugin-rsc",
               ],
             },
-            build: {
-              rollupOptions: {
-                input: {
-                  ssr: "virtual:build-ssr-entry",
-                },
-              },
-            },
           },
           rsc: {
             resolve: {
@@ -71,9 +64,6 @@ export const configs: Plugin[] = [
             build: {
               outDir: distRsc,
               ssr: true,
-              rollupOptions: {
-                input: { index: "virtual:build-rsc-entry" },
-              },
             },
           },
         },

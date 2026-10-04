@@ -60,6 +60,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   });
 
   testPages();
+  testEnvironments();
   testBinaryPayload();
   testScriptBreakout();
   testCspNonce();
@@ -70,6 +71,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testTodoForm();
   }
   testFilmGrid();
+  // A static host serves the payload with the page context instead of
+  // answering Flight requests.
+  if (!isStatic) testStaleTime();
   testPageNavigation();
 }
 
@@ -115,6 +119,14 @@ function testPages() {
   });
 }
 
+function testEnvironments() {
+  test("/environments: ssr reads the rsc config values", async () => {
+    const html = await fetchHtml("/environments");
+    expect(html).to.include('id="greeting-rsc">Hello from the rsc environment<');
+    expect(html).to.include('id="greeting-ssr">Hello from the rsc environment<');
+  });
+}
+
 function testPage({ url, text }: { url: string; text: string }) {
   test(url + " (HTML)", async () => {
     const html = await fetchHtml(url);
@@ -137,25 +149,7 @@ function testPageNavigation() {
       );
     });
 
-    // A user navigates after the page is interactive, not merely after its
-    // server-rendered DOM exists. Wait until React has attached the Counter's
-    // event props so this test measures normal client-side navigation rather
-    // than a synthetic pre-hydration click.
-    await autoRetry(
-      async () => {
-        const isHydrated = await page.evaluate(() => {
-          const button = Array.from(document.querySelectorAll("button")).find(
-            (candidate) => candidate.textContent?.includes("Increment")
-          );
-          return (
-            button !== undefined &&
-            Object.keys(button).some((key) => key.startsWith("__reactProps$"))
-          );
-        });
-        expect(isHydrated).to.equal(true);
-      },
-      { timeout: 5000 }
-    );
+    await waitForHydration();
     const initialTimeOrigin = await page.evaluate(() => performance.timeOrigin);
 
     await page.click('a[href="/todos"]');
@@ -184,6 +178,62 @@ function testPageNavigation() {
         "Vike React Server Components"
       );
     });
+  });
+}
+
+// A user navigates after the page is interactive, not merely after its
+// server-rendered DOM exists. Wait until React has attached the Counter's
+// event props so a test measures normal client-side navigation rather than a
+// synthetic pre-hydration click.
+async function waitForHydration() {
+  await autoRetry(
+    async () => {
+      const isHydrated = await page.evaluate(() => {
+        const button = Array.from(document.querySelectorAll("button")).find(
+          (candidate) => candidate.textContent?.includes("Increment")
+        );
+        return (
+          button !== undefined &&
+          Object.keys(button).some((key) => key.startsWith("__reactProps$"))
+        );
+      });
+      expect(isHydrated).to.equal(true);
+    },
+    { timeout: 5000 }
+  );
+}
+
+// The example sets `rsc: { staleTime: 10000 }` (the default is 60 seconds).
+// The setting has to reach the client, where the payload cache reads it.
+function testStaleTime() {
+  test("Cached payloads expire after the configured staleTime", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await page.clock.install();
+
+    const flightRequests: string[] = [];
+    page.on("request", (request) => {
+      if (request.headers()["accept"]?.startsWith("text/x-component")) {
+        flightRequests.push(new URL(request.url()).pathname);
+      }
+    });
+    const navigate = async (href: string, heading: string) => {
+      await page.click(`a[href="${href}"]`);
+      await autoRetry(async () => {
+        expect(await page.textContent("h1")).to.include(heading);
+      });
+    };
+
+    await navigate("/todos", "Task Manager");
+    await navigate("/", "Vike React Server Components");
+    // Fresh: served from the cache.
+    await navigate("/todos", "Task Manager");
+    expect(flightRequests).to.deep.equal(["/todos", "/"]);
+
+    await page.clock.fastForward(11000);
+    // Stale after 10 seconds, although it would still be fresh by default.
+    await navigate("/", "Vike React Server Components");
+    expect(flightRequests).to.deep.equal(["/todos", "/", "/"]);
   });
 }
 

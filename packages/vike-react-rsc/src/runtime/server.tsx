@@ -1,13 +1,13 @@
-import { environmentName } from "vike/runtime";
+import environmentName from "virtual:environment-name";
 import { tinyassert } from "@hiogawa/utils";
 tinyassert(environmentName === "rsc", "Invalid environment");
 
 import { renderToReadableStream, decodeReply, loadServerAction } from '@vitejs/plugin-rsc/rsc'
 import type { PageContext } from "vike/types";
-import { getPageElementRsc } from "../integration/getPageElement-server";
+import { getPageElement } from "../integration/getPageElement";
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
 import { provideServerActionContext } from "./serverActionContext";
-import type { RscPayload } from "../types";
+import type { RenderRscRequest, RscPayload } from "../types";
 
 // A client that navigates away mid-stream cancels the response, which aborts the
 // Flight render. React reports that through onError exactly like a render failure,
@@ -30,10 +30,21 @@ const renderOptions = {
   },
 };
 
-export async function renderPageRsc(
+// The `renderRsc` config: Vike runs it in the rsc environment, with the rsc
+// config values at pageContext.config
+export async function renderRsc(
+  pageContext: PageContext,
+  request?: RenderRscRequest
+): Promise<ReadableStream<Uint8Array>> {
+  if (!request) return renderPageRsc(pageContext);
+  if ("payload" in request) return renderRscPayload(request.payload);
+  return handleServerAction(pageContext, request.action);
+}
+
+async function renderPageRsc(
   pageContext: PageContext
 ): Promise<ReadableStream<Uint8Array<ArrayBufferLike>>> {
-  const root = await getPageElementRsc(pageContext);
+  const root = await getPageElement(pageContext);
   return providePageContext(pageContext, () =>
     renderToReadableStream(
       // TODO: add form when initial request is POST
@@ -45,21 +56,16 @@ export async function renderPageRsc(
   );
 }
 
-export function renderRscPayload(
+function renderRscPayload(
   payload: RscPayload
 ): ReadableStream<Uint8Array<ArrayBufferLike>> {
   return renderToReadableStream(payload, renderOptions);
 }
 
-export async function handleServerAction({
-  actionId,
-  pageContext,
-  body,
-}: {
-  actionId: string;
-  pageContext: PageContext;
-  body: string | FormData;
-}): Promise<ReadableStream<Uint8Array>> {
+async function handleServerAction(
+  pageContext: PageContext,
+  { actionId, body }: { actionId: string; body: string | FormData }
+): Promise<ReadableStream<Uint8Array>> {
   // Create context for this server action execution
   const context = { shouldRerender: false };
 
@@ -75,7 +81,7 @@ export async function handleServerAction({
   );
 
   const payload: RscPayload = context.shouldRerender
-    ? { returnValue, root: await getPageElementRsc(pageContext) }
+    ? { returnValue, root: await getPageElement(pageContext) }
     : { returnValue };
   return providePageContext(pageContext, () => renderRscPayload(payload));
 }
