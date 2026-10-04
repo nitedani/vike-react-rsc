@@ -6,8 +6,8 @@ import vikeRscPlugin from "./plugin";
 const config: Config = {
   name: "vike-react-rsc",
   // Placeholder only: released Vike 0.4.260 doesn't contain the response
-  // page-context API or Vike environments. Before publishing, pin this to the
-  // first Vike release containing those APIs.
+  // page-context API, streamed pageContext values or Vike environments. Before
+  // publishing, pin this to the first Vike release containing those APIs.
   require: {
     vike: ">=0.4.260",
   },
@@ -22,8 +22,10 @@ const config: Config = {
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
   renderRsc: "import:vike-react-rsc/__internal/runtime/server:renderRsc",
 
-  passToClient: ["rscPayloadString"],
-  alwaysFetchPageContextFromServer: true,
+  // https://vike.dev/onCreatePageContext
+  onCreatePageContext:
+    "import:vike-react-rsc/__internal/integration/onCreatePageContext.server:onCreatePageContext",
+  passToClient: ["rscPayload"],
 
   // https://vike.dev/clientRouting
   clientRouting: true,
@@ -35,8 +37,7 @@ const config: Config = {
   // https://vike.dev/meta
   meta: {
     // Extension setting for RSC cache policy; unrelated to the `rsc` environment
-    // name. Only the client's payload cache reads it, from onPageTransitionStart(),
-    // whose pageContext has the global config values only.
+    // name. Only the client's cache of rsc() components reads it.
     rsc: {
       env: { client: true },
       global: true,

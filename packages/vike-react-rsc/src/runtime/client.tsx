@@ -9,15 +9,9 @@ import {
   setServerCallback,
   createFromReadableStream,
 } from "@vitejs/plugin-rsc/browser";
-import type { PageContextClient } from "vike/types";
+import { navigate } from "vike/client/router";
 import type { RscPayload } from "../types";
-import {
-  cachePayload,
-  getCachedPayload,
-  invalidateCache,
-  clearPendingServerComponentRequests,
-  invalidateServerComponentCache,
-} from "./cache";
+import { invalidateServerComponentCache } from "./cache";
 import { getGlobalClientState } from "./client/globalState";
 import { RSC_CONTENT_TYPE } from "../constants";
 
@@ -76,19 +70,12 @@ async function callServer(id: string, args: unknown[]): Promise<unknown> {
   if (result.root) {
     startTransition(() => {
       globalState.setPayload?.((current) => {
-        cachePayload(current.pageContext, result);
         return {
           pageContext: current.pageContext,
           payload: result,
         };
       });
     });
-  } else if (
-    !isRscCall &&
-    typeof window !== "undefined" &&
-    globalState.pageContext
-  ) {
-    invalidateCache(globalState.pageContext);
   }
 
   if (!isRscCall) {
@@ -101,63 +88,12 @@ async function callServer(id: string, args: unknown[]): Promise<unknown> {
 setServerCallback(callServer);
 
 if (import.meta.hot) {
-  import.meta.hot.on("rsc:update", async () => {
-    const globalState = getGlobalClientState();
-    invalidateCache(getGlobalClientState().pageContext!);
+  import.meta.hot.on("rsc:update", () => {
     invalidateServerComponentCache();
-    const payload = await fetchNavigationPayload(globalState.pageContext!);
-    globalState.setPayload?.((current) => {
-      return {
-        pageContext: current.pageContext,
-        payload,
-      };
-    });
+    // Navigating to the current URL fetches the new payload.
+    const { pathname, search, hash } = location;
+    navigate(pathname + search + hash, { keepScrollPosition: true });
   });
-}
-
-export function prepareNavigation(pageContext: PageContextClient): void {
-  const globalState = getGlobalClientState();
-
-  clearPendingServerComponentRequests();
-  globalState.navigationPromise = undefined;
-
-  const cachedPayload = getCachedPayload(pageContext);
-  if (cachedPayload) {
-    globalState.navigationPromise = Promise.resolve(cachedPayload);
-    return;
-  }
-
-  if (globalState.pageContext?.rscPayloadString) return;
-  globalState.navigationPromise = fetchNavigationPayload(pageContext);
-}
-
-export function getNavigationPayload(
-  pageContext: PageContextClient
-): Promise<RscPayload> | undefined {
-  const prefetchedPayload = getGlobalClientState().navigationPromise;
-  if (prefetchedPayload) return prefetchedPayload;
-
-  const { rscPayloadString } = pageContext;
-  if (!rscPayloadString) return;
-
-  const payloadPromise = resolveRscPayload(
-    createFromReadableStream<RscPayload>(new Blob([rscPayloadString]).stream())
-  );
-  payloadPromise.then((payload) => cachePayload(pageContext, payload));
-  return payloadPromise;
-}
-
-function fetchNavigationPayload(
-  pageContext: PageContextClient
-): Promise<RscPayload> {
-  const fetchPromise = fetchRscPayload(pageContext.urlOriginal, {
-    method: "GET",
-  });
-
-  fetchPromise.then((payload: RscPayload) => {
-    cachePayload(pageContext, payload);
-  });
-  return fetchPromise;
 }
 
 export async function parseRscStream(
