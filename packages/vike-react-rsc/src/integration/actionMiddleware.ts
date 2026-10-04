@@ -1,6 +1,7 @@
 import { enhance, type UniversalMiddleware } from "@universal-middleware/core";
 import { renderPage } from "vike/server";
 import type { RscAction } from "../types";
+import { RSC_REDIRECT_HEADER } from "../constants";
 
 // https://vike.dev/middleware
 // A server action called from JavaScript: callServer() POSTs it to the URL of the page shown. renderPage() runs the action
@@ -15,6 +16,13 @@ const serverActionMiddleware: UniversalMiddleware = enhance(
     const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction });
     const headers = new Headers(httpResponse.headers);
     for (const [name, value] of rscAction.responseHeaders) headers.append(name, value);
+    // A throw redirect() in the action, guard() or data(): fetch would follow a 3xx and hand HTML to the Flight decoder
+    const location = headers.get("location");
+    if (location && httpResponse.statusCode >= 300 && httpResponse.statusCode < 400) {
+      headers.delete("location");
+      headers.set(RSC_REDIRECT_HEADER, location);
+      return new Response(null, { status: 200, headers });
+    }
     return new Response(httpResponse.getReadableWebStream(), { status: httpResponse.statusCode, headers });
   },
   { name: "vike-react-rsc:server-action" }

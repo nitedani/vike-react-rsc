@@ -1,6 +1,5 @@
 import type { PageContextServer } from "vike/types";
 import { getRscEnvironment } from "../runtime/ssr";
-import type { RscAction } from "../types";
 
 // Matched by isClientDisconnect() in runtime/server.tsx
 const clientDisconnect = Object.assign(new Error("Client disconnected"), {
@@ -31,15 +30,7 @@ export async function onCreatePageContext(pageContext: PageContextServer): Promi
   const { rscAction } = pageContext;
   if (!rscAction || rscAction.hasRun) return;
   rscAction.hasRun = true;
-  try {
-    Object.assign(rscAction, await rsc.config.runServerAction(rsc.pageContext));
-  } catch (err) {
-    // A throw redirect() goes to the client inside the Flight payload (integration/onRenderHtml.tsx): a 3xx would make fetch follow Location
-    const abort = (err as { _pageContextAbort?: { _abortCaller?: string; _urlRedirect?: RscAction["redirect"] } } | null)
-      ?._pageContextAbort;
-    if (abort?._abortCaller !== "throw redirect()") throw err;
-    rscAction.redirect = abort._urlRedirect;
-  }
+  Object.assign(rscAction, await rsc.config.runServerAction(rsc.pageContext));
   // Hooks see the cookies the action set, e.g. guard() after a login
   pageContext.headers = withCookies(pageContext.headers, rscAction.responseHeaders);
 }

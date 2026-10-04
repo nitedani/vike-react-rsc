@@ -13,17 +13,12 @@ import { navigate } from "vike/client/router";
 import type { RscPayload } from "../types";
 import { invalidateServerComponentCache } from "./cache";
 import { getGlobalClientState } from "./client/globalState";
-import { RSC_CONTENT_TYPE } from "../constants";
+import { RSC_CONTENT_TYPE, RSC_REDIRECT_HEADER } from "../constants";
 
 async function resolveRscPayload(
   payloadPromise: PromiseLike<RscPayload>
 ): Promise<RscPayload> {
   const payload = await payloadPromise;
-  if (payload.redirect) {
-    window.location.assign(payload.redirect.url);
-    // Keep the Flight thenable pending while the browser replaces this document.
-    return new Promise<never>(() => {});
-  }
   if (payload.error) {
     throw new Error(
       `[vike-react-rsc] RSC request failed: ${payload.error.reason}`
@@ -36,21 +31,25 @@ type RscFetchOptions = Omit<RequestInit, "headers"> & {
   headers?: Record<string, string>;
 };
 
-function fetchRscPayload(
+async function fetchRscPayload(
   url: string,
   options: RscFetchOptions
 ): Promise<RscPayload> {
-  return resolveRscPayload(
-    createFromFetch<RscPayload>(
-      fetch(url, {
-        ...options,
-        headers: {
-          accept: RSC_CONTENT_TYPE,
-          ...options.headers,
-        },
-      })
-    )
-  );
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      accept: RSC_CONTENT_TYPE,
+      ...options.headers,
+    },
+  });
+  // A throw redirect() during a server action (integration/actionMiddleware.ts)
+  const redirect = response.headers.get(RSC_REDIRECT_HEADER);
+  if (redirect) {
+    window.location.assign(redirect);
+    // Keep the caller pending while the browser replaces this document
+    return new Promise<never>(() => {});
+  }
+  return resolveRscPayload(createFromFetch<RscPayload>(Promise.resolve(response)));
 }
 
 async function callServer(id: string, args: unknown[]): Promise<unknown> {

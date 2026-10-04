@@ -323,6 +323,18 @@ function testSession() {
     });
     expect(await session()).to.equal(undefined);
   });
+
+  test("Server action: guard() of the same request throws redirect()", async () => {
+    // After the login, the guard of /login redirects to /account
+    await page.goto(getServerUrl() + "/login");
+    await waitForHydration("Log in");
+    await page.click('button:has-text("Log in")');
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/account");
+      expect(await page.textContent("#account-user")).to.equal("Logged in as alice");
+    });
+    await page.context().clearCookies();
+  });
 }
 
 function testRscComponentCall() {

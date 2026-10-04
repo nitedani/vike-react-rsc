@@ -4,10 +4,6 @@ export type RscPayload = {
   root?: React.ReactNode;
   formState?: ReactFormState;
   returnValue?: unknown;
-  redirect?: {
-    url: string;
-    statusCode: number;
-  };
   error?: {
     reason: "not-found" | "error" | "base-missing";
   };
@@ -22,8 +18,6 @@ export type RscAction = {
   hasRun?: true;
   returnValue?: unknown;
   rerender?: boolean;
-  /** Set by a throw redirect() in the action */
-  redirect?: NonNullable<RscPayload["redirect"]>;
 };
 
 /**
