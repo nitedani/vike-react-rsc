@@ -18,6 +18,8 @@ export type RscAction = {
   hasRun?: true;
   returnValue?: unknown;
   rerender?: boolean;
+  /** Renders the return value as Flight, once the action ran without rerender() */
+  renderReturnValue?: () => Promise<ReadableStream<Uint8Array>>;
 };
 
 /**

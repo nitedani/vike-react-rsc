@@ -1,7 +1,7 @@
 import { enhance, type UniversalMiddleware } from "@universal-middleware/core";
 import { renderPage } from "vike/server";
 import type { RscAction } from "../types";
-import { RSC_REDIRECT_HEADER } from "../constants";
+import { RSC_CONTENT_TYPE, RSC_REDIRECT_HEADER } from "../constants";
 
 // https://vike.dev/middleware
 // A server action called from JavaScript: callServer() POSTs it to the URL of the page shown. renderPage() runs the action
@@ -15,6 +15,13 @@ const serverActionMiddleware: UniversalMiddleware = enhance(
     const rscAction: RscAction = { actionId, body: await readBody(request), responseHeaders: new Headers() };
     // Its own request is a GET, so renderPage() doesn't run this middleware again
     const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction });
+    // Without rerender(), the answer is the return value, whatever guard() or data() did after the action (without an
+    // _error page, Vike answers their error with its HTML page)
+    if (rscAction.renderReturnValue && httpResponse.statusCode !== 200) {
+      const headers = new Headers(rscAction.responseHeaders);
+      headers.set("content-type", RSC_CONTENT_TYPE);
+      return new Response(await rscAction.renderReturnValue(), { headers });
+    }
     const headers = new Headers(httpResponse.headers);
     for (const [name, value] of rscAction.responseHeaders) headers.append(name, value);
     // A throw redirect() in the action, guard() or data(): fetch would follow a 3xx and hand HTML to the Flight decoder

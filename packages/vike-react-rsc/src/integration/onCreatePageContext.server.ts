@@ -32,6 +32,7 @@ export async function onCreatePageContext(pageContext: PageContextServer): Promi
   if (!rscAction.hasRun) {
     rscAction.hasRun = true;
     Object.assign(rscAction, await rsc.config.runServerAction(rsc.pageContext));
+    if (!rscAction.rerender) rscAction.renderReturnValue = () => rsc.config.renderRsc(rsc.pageContext);
   }
   // Hooks see the cookies the action set, e.g. guard() after a login, also on the page a `throw render()` shows
   pageContext.headers = withCookies(pageContext.headers, rscAction.responseHeaders);
