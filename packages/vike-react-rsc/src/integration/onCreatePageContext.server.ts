@@ -28,10 +28,12 @@ export async function onCreatePageContext(pageContext: PageContextServer): Promi
 
   // A server action runs before guard() and data(), once: not again for the page a `throw render()` or an error shows instead.
   const { rscAction } = pageContext;
-  if (!rscAction || rscAction.hasRun) return;
-  rscAction.hasRun = true;
-  Object.assign(rscAction, await rsc.config.runServerAction(rsc.pageContext));
-  // Hooks see the cookies the action set, e.g. guard() after a login
+  if (!rscAction) return;
+  if (!rscAction.hasRun) {
+    rscAction.hasRun = true;
+    Object.assign(rscAction, await rsc.config.runServerAction(rsc.pageContext));
+  }
+  // Hooks see the cookies the action set, e.g. guard() after a login, also on the page a `throw render()` shows
   pageContext.headers = withCookies(pageContext.headers, rscAction.responseHeaders);
 }
 
