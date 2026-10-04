@@ -13,7 +13,7 @@ const serverActionMiddleware: UniversalMiddleware = enhance(
     if (!isSameOrigin(request)) return new Response(null, { status: 403 });
 
     const rscAction: RscAction = { actionId, body: await readBody(request), responseHeaders: new Headers() };
-    // Its own request is a GET, so renderPage() doesn't run this middleware again
+    // renderPage() runs this middleware again, with a GET: it passes through
     const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction });
     // Without rerender(), the answer is the return value, whatever guard() or data() did after the action (without an
     // _error page, Vike answers their error with its HTML page)

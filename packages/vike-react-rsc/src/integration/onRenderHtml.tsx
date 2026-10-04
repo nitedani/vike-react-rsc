@@ -9,8 +9,7 @@ export const onRenderHtml: OnRenderHtmlAsync = async function (
   // A server action called from JavaScript (integration/actionMiddleware.ts): the page as Flight, or what replaced it
   if (pageContext.rscAction) {
     const rsc = getRscEnvironment(pageContext);
-    // After an action without rerender(), rscPayload is its return value only; integration/actionMiddleware.ts answers
-    // with that value when guard() or data() threw
+    // Without rerender(), rscPayload is the return value only (the middleware answers with it if Vike's answer isn't a 200)
     const abortPayload = getAbortPayload(pageContext);
     pageContext.content = abortPayload ? await rsc.config.renderRsc(rsc.pageContext, abortPayload) : pageContext.rscPayload;
     pageContext.headersResponse.set("content-type", RSC_CONTENT_TYPE);
