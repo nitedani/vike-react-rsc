@@ -14,14 +14,6 @@ import { prerender } from "react-dom/static.edge";
 import React from "react";
 import type { RscPayload } from "../types";
 
-const INIT_SCRIPT = `self.__raw_import = (id) => import(id);`;
-
-function getScript(js: string, pageContext: PageContextServer) {
-  // No need to escape the injected nonce attribute — see https://github.com/vikejs/vike/blob/36201ddad5f5b527b244b24d548014ec86c204e4/packages/vike/src/server/runtime/renderPageServer/csp.ts#L45
-  const nonceAttr = pageContext.cspNonce ? ` nonce="${pageContext.cspNonce}"` : "";
-  return `<script${nonceAttr}>${js}</script>`;
-}
-
 // renderRsc() and runServerAction() are configs of the rsc environment: the server calls them with the rsc view of pageContext
 export function getRscEnvironment(
   pageContext: PageContextServer
@@ -58,7 +50,6 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
     <html>
       <head>
         <meta charset="UTF-8" />
-        ${dangerouslySkipEscape(getScript(INIT_SCRIPT, pageContext))}
         ${headHtml}
       </head>
       <body>
