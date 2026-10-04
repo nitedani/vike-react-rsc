@@ -5,8 +5,8 @@ export default {
   extends: [vikeReactRsc],
   rsc: { staleTime: 10000 },
   meta: {
-    // Has a value of its own in the server and rsc environments, see /pages/environments
-    greeting: { env: { server: true, rsc: true } },
+    // Loaded in the rsc environment only: the server reads it at pageContext.environments.rsc.config, see /pages/environments
+    greeting: { env: { rsc: true } },
   },
 } satisfies Config;
 
