@@ -266,9 +266,10 @@ function testTodoForm() {
       Number((await page.textContent("#todo-count"))?.match(/\d+/)?.[0]);
     const countBefore = await readTodoCount();
     const posts: string[] = [];
-    page.on("request", (request) => {
+    const onRequest = (request: { method(): string; url(): string }) => {
       if (request.method() === "POST") posts.push(new URL(request.url()).pathname);
-    });
+    };
+    page.on("request", onRequest);
 
     await autoRetry(
       async () => {
@@ -296,6 +297,7 @@ function testTodoForm() {
     // One request: the action, then +data and the page, which see the new task
     expect(await readTodoCount()).to.equal(countBefore + 1);
     expect(posts).to.deep.equal(["/todos"]);
+    page.off("request", onRequest);
   });
 }
 

@@ -13,6 +13,7 @@ const serverActionMiddleware: UniversalMiddleware = enhance(
     if (!isSameOrigin(request)) return new Response(null, { status: 403 });
 
     const rscAction: RscAction = { actionId, body: await readBody(request), responseHeaders: new Headers() };
+    // Its own request is a GET, so renderPage() doesn't run this middleware again
     const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction });
     const headers = new Headers(httpResponse.headers);
     for (const [name, value] of rscAction.responseHeaders) headers.append(name, value);
