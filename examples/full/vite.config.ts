@@ -8,8 +8,6 @@ export default defineConfig({
 
   resolve: {
     noExternal: ["@compiled/react"],
-    // The workspace link to vike-react-rsc resolves its own copy of vike, which would load the client runtime twice
-    dedupe: ["vike"],
     alias: {
       "#": "/src",
     },
