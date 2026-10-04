@@ -51,7 +51,7 @@
     "react-dom": "^19.2.8",
     "tsdown": "^0.22.14",
     "typescript": "^7.0.2",
-    "vike": "^0.4.260",
+    "vike": "0.4.267-commit-7884d91",
     "vite": "^8.2.0",
     "@vitejs/plugin-rsc": "^0.5.32"
   }
