@@ -178,7 +178,7 @@ function testPageNavigation() {
 }
 
 // A user navigates after the page is interactive, not merely after its
-// server-rendered DOM exists. Wait until React has attached the Counter's
+// server-rendered DOM exists. Wait until React has attached the button's
 // event props so a test measures normal client-side navigation rather than a
 // synthetic pre-hydration click.
 async function waitForHydration(buttonText = "Increment") {
@@ -262,41 +262,26 @@ function testCounter() {
 function testTodoForm() {
   test("Todo form functionality", async () => {
     await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
     const readTodoCount = async () =>
       Number((await page.textContent("#todo-count"))?.match(/\d+/)?.[0]);
     const countBefore = await readTodoCount();
-    const posts: string[] = [];
-    const onRequest = (request: { method(): string; url(): string }) => {
-      if (request.method() === "POST") posts.push(new URL(request.url()).pathname);
+    const requests: string[] = [];
+    const onRequest = (request: { method(): string; url(): string; resourceType(): string }) => {
+      if (["document", "fetch", "xhr"].includes(request.resourceType())) {
+        requests.push(request.method() + " " + new URL(request.url()).pathname);
+      }
     };
     page.on("request", onRequest);
 
-    await autoRetry(
-      async () => {
-        const input = await page.$(
-          'input[placeholder="What needs to be done?"]'
-        );
-        expect(input).to.not.equal(null);
-
-        await input?.fill("Test Todo Item");
-
-        const addButton = await page.$('button:has-text("Add Task")');
-        expect(addButton).to.not.equal(null);
-        await addButton?.click();
-
-        await autoRetry(
-          async () => {
-            const todoText = await page.textContent("body");
-            expect(todoText).to.include("Test Todo Item");
-          },
-          { timeout: 3000 }
-        );
-      },
-      { timeout: 10000 }
-    );
+    await page.fill('input[placeholder="What needs to be done?"]', "Test Todo Item");
+    await page.click('button:has-text("Add Task")');
+    await autoRetry(async () => {
+      expect(await page.textContent("body")).to.include("Test Todo Item");
+    });
     // One request: the action, then +data and the page, which see the new task
     expect(await readTodoCount()).to.equal(countBefore + 1);
-    expect(posts).to.deep.equal(["/todos"]);
+    expect(requests).to.deep.equal(["POST /todos"]);
     page.off("request", onRequest);
   });
 }
