@@ -22,11 +22,13 @@ function getScript(js: string, pageContext: PageContextServer) {
   return `<script${nonceAttr}>${js}</script>`;
 }
 
-// renderRsc() and runServerAction() are configs of the rsc environment: the server reaches them only through pageContext.environments
-export function getRscConfig(pageContext: PageContextServer): Vike.ConfigResolved {
+// renderRsc() and runServerAction() are configs of the rsc environment: the server calls them with the rsc view of pageContext
+export function getRscEnvironment(
+  pageContext: PageContextServer
+): NonNullable<NonNullable<PageContextServer["environments"]>["rsc"]> {
   const rsc = pageContext.environments?.rsc;
   tinyassert(rsc, "pageContext.environments.rsc is missing: vike-react-rsc needs a Vike version with Vike environments");
-  return rsc.config;
+  return rsc;
 }
 
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (

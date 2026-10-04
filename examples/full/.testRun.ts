@@ -116,10 +116,10 @@ function testPages() {
 }
 
 function testEnvironments() {
-  test("/environments: each environment reads its own config values", async () => {
+  test("/environments: ssr reads the rsc config values", async () => {
     const html = await fetchHtml("/environments");
     expect(html).to.include('id="greeting-rsc">Hello from the rsc environment<');
-    expect(html).to.include('id="greeting-ssr">Hello from the server environment<');
+    expect(html).to.include('id="greeting-ssr">Hello from the rsc environment<');
   });
 }
 

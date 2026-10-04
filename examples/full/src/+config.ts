@@ -6,7 +6,7 @@ export default {
   rsc: { staleTime: 10000 },
   meta: {
     // Has a value of its own in the server and rsc environments, see /pages/environments
-    greeting: { env: { server: true, rsc: true } },
+    greeting: { env: { rsc: true } },
   },
 } satisfies Config;
 

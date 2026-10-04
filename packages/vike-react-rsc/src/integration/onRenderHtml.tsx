@@ -1,5 +1,5 @@
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
-import { getRscConfig, onRenderHtmlSsr } from "../runtime/ssr";
+import { getRscEnvironment, onRenderHtmlSsr } from "../runtime/ssr";
 import { tinyassert } from "@hiogawa/utils";
 import { RSC_CONTENT_TYPE } from "../constants";
 import type { RscPayload } from "../types";
@@ -14,11 +14,12 @@ export const onRenderHtml: OnRenderHtmlAsync = async function (
 ) {
   // A server action called from JavaScript (integration/actionMiddleware.ts): the page as Flight, or what replaced it
   if (pageContext.rscAction) {
-    const abortPayload = getAbortPayload(pageContext);
-    const flight = abortPayload
-      ? await getRscConfig(pageContext).renderRsc(pageContext, abortPayload)
-      : pageContext.rscPayload;
-    pageContext.response = new Response(flight, { headers: { "content-type": RSC_CONTENT_TYPE } });
+    const { redirect } = pageContext.rscAction;
+    const abortPayload = redirect ? { redirect } : getAbortPayload(pageContext);
+    const rsc = getRscEnvironment(pageContext);
+    // Without rerender(), rscPayload is the action's return value only
+    pageContext.content = abortPayload ? await rsc.config.renderRsc(rsc.pageContext, abortPayload) : pageContext.rscPayload;
+    pageContext.headersResponse.set("content-type", RSC_CONTENT_TYPE);
     return;
   }
 

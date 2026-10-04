@@ -22,6 +22,8 @@ export type RscAction = {
   hasRun?: true;
   returnValue?: unknown;
   rerender?: boolean;
+  /** Set by a throw redirect() in the action */
+  redirect?: NonNullable<RscPayload["redirect"]>;
 };
 
 /**
