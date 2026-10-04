@@ -1,5 +1,6 @@
 import type React from "react";
-import type { ImportString } from "vike/types";
+import type { ImportString, PageContext } from "vike/types";
+import type { RenderRscRequest } from "../types";
 
 // https://vike.dev/meta#typescript
 declare global {
@@ -48,8 +49,12 @@ declare global {
       Loading?: Loading | ImportString;
 
       rsc?: RscConfig;
+
+      /** Renders the RSC payload. Runs in the rsc environment. */
+      renderRsc?: RenderRsc | ImportString;
     }
     interface ConfigResolved {
+      renderRsc: RenderRsc;
       Wrapper?: Wrapper[];
       Layout?: Layout[];
       Head?: Head[];
@@ -64,6 +69,10 @@ type Loading = {
   component?: () => React.ReactNode;
   layout?: () => React.ReactNode;
 };
+type RenderRsc = (
+  pageContext: PageContext,
+  request?: RenderRscRequest
+) => Promise<ReadableStream<Uint8Array>>;
 type RscConfig = {
   staleTime?: number;
 };

@@ -60,6 +60,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   });
 
   testPages();
+  testEnvironments();
   testBinaryPayload();
   testScriptBreakout();
   testCspNonce();
@@ -106,6 +107,14 @@ function testResponseTail() {
 function testPages() {
   Object.entries(pages).forEach(([url, pageInfo]) => {
     testPage({ url, ...pageInfo });
+  });
+}
+
+function testEnvironments() {
+  test("/environments: ssr reads the rsc config values", async () => {
+    const html = await fetchHtml("/environments");
+    expect(html).to.include('id="greeting-rsc">Hello from the rsc environment<');
+    expect(html).to.include('id="greeting-ssr">Hello from the rsc environment<');
   });
 }
 

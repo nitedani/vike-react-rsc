@@ -9,7 +9,6 @@ export default function vikeRscPlugin(): PluginOption[] {
     ...virtuals,
     rsc({
       serverHandler: false,
-      loadModuleDevProxy: false,
       // Vike owns the HTML, so the client build has no index.html entry chunk for
       // plugin-rsc to bootstrap from.
       customClientEntry: true,

@@ -1,7 +1,7 @@
 import type { PageContextServer } from "vike/types";
-import { environmentName } from "vike/runtime";
-import runtimeRsc from "virtual:runtime/server";
+import environmentName from "virtual:environment-name";
 import { tinyassert } from "@hiogawa/utils";
+import { getRenderRsc } from "../runtime/ssr";
 
 tinyassert(environmentName === "server", "Invalid environment");
 
@@ -18,7 +18,7 @@ export function onCreatePageContext(pageContext: PageContextServer): void {
   pageContext.rscPayload = new ReadableStream<Uint8Array>(
     {
       async pull(controller) {
-        reader ??= (await runtimeRsc.renderPageRsc(pageContext)).getReader();
+        reader ??= (await getRenderRsc(pageContext)()).getReader();
         const { done, value } = await reader.read();
         if (done) controller.close();
         else controller.enqueue(value);

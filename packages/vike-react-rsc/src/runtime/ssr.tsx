@@ -1,6 +1,6 @@
-import { environmentName } from "vike/runtime";
+import environmentName from "virtual:environment-name";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(environmentName === "server", "Invalid environment");
+tinyassert(environmentName !== "rsc" && environmentName !== "client", "Invalid environment");
 
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import { renderToStream } from "react-streaming/server.web";
@@ -12,7 +12,16 @@ import { isReactElement } from "../utils/isReactElement";
 import { renderToStaticMarkup } from "react-dom/server";
 import { prerender } from "react-dom/static.edge";
 import React from "react";
-import type { RscPayload } from "../types";
+import type { RenderRscRequest, RscPayload } from "../types";
+
+// renderRsc() is a config of the rsc environment: the server calls it with the rsc view of pageContext
+export function getRenderRsc(
+  pageContext: PageContextServer
+): (request?: RenderRscRequest) => ReturnType<Vike.ConfigResolved["renderRsc"]> {
+  const rsc = pageContext.environments?.rsc;
+  tinyassert(rsc, "pageContext.environments.rsc is missing: vike-react-rsc needs a Vike version with Vike environments");
+  return (request?: RenderRscRequest) => rsc.config.renderRsc(rsc.pageContext, request);
+}
 
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer

@@ -1,12 +1,9 @@
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
-import { environmentName } from "vike/runtime";
-import runtimeSsr from "virtual:runtime/ssr";
-import runtimeRsc from "virtual:runtime/server";
+import { getRenderRsc, onRenderHtmlSsr } from "../runtime/ssr";
 import { tinyassert } from "@hiogawa/utils";
 import { RSC_CONTENT_TYPE } from "../constants";
 import type { RscPayload } from "../types";
 
-tinyassert(environmentName === "server", "Invalid environment");
 
 type AbortRedirect = {
   _abortCaller?: "throw redirect()";
@@ -25,7 +22,7 @@ export const onRenderHtml: OnRenderHtmlAsync = async function (
     return;
   }
 
-  return runtimeSsr.onRenderHtmlSsr(pageContext);
+  return onRenderHtmlSsr(pageContext);
 };
 
 async function renderAction(
@@ -33,13 +30,12 @@ async function renderAction(
   request: Request,
   actionId: string
 ): Promise<ReadableStream<Uint8Array>> {
+  const renderRsc = getRenderRsc(pageContext);
   const abortPayload = getAbortPayload(pageContext);
-  if (abortPayload) return runtimeRsc.renderRscPayload(abortPayload);
+  if (abortPayload) return renderRsc({ payload: abortPayload });
 
-  return runtimeRsc.handleServerAction({
-    actionId,
-    pageContext,
-    body: await readActionBody(request),
+  return renderRsc({
+    action: { actionId, body: await readActionBody(request) },
   });
 }
 

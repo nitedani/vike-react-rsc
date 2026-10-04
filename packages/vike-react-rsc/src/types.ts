@@ -13,6 +13,11 @@ export type RscPayload = {
   };
 };
 
+/** What renderRsc() renders: the page by default. */
+export type RenderRscRequest =
+  | { payload: RscPayload }
+  | { action: { actionId: string; body: string | FormData } };
+
 /**
  * User-defined RSC configuration
  */
