@@ -1,9 +1,11 @@
+import { getPageContext } from "vike-react-rsc/pageContext";
 import { getTodos } from "../../actions/addTodo";
 import { Todos } from "../../components/Todo/Todos";
 import { sharedStyles } from "../../styles/shared";
 
 export async function Page() {
   const todos = await getTodos();
+  const { todoCount } = getPageContext().data as { todoCount: number };
   return (
     <div css={sharedStyles.pageContainer}>
       {/* Header Section */}
@@ -39,6 +41,9 @@ export async function Page() {
         marginBottom: '3rem'
       }}>
         <Todos todos={todos} />
+        <p id="todo-count" css={sharedStyles.paragraph}>
+          <code>+data</code> counted {todoCount} tasks
+        </p>
       </section>
 
       {/* Info Section */}
@@ -76,10 +81,10 @@ export async function Page() {
 
           <div css={sharedStyles.featureCard}>
             <div css={sharedStyles.featureNumber}>3</div>
-            <h3 css={sharedStyles.featureHeading}>RSC Payload Caching</h3>
+            <h3 css={sharedStyles.featureHeading}>One Request per Navigation</h3>
             <p css={sharedStyles.featureParagraph}>
-              The app uses client-side caching of RSC payloads based on the <code>staleTime</code> configuration.
-              This reduces server load by reusing cached payloads during navigation when they're still fresh.
+              Navigating to a page fetches its RSC payload and its <code>pageContext</code> in one streamed response,
+              also on a pre-rendered site served by a static host.
             </p>
           </div>
         </div>

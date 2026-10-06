@@ -28,7 +28,7 @@ function FilmCardSkeleton() {
 }
 
 // Component to fetch all film IDs
-export async function getFilmIds(): Promise<number[]> {
+async function getFilmIds(): Promise<number[]> {
   // Fetch all films to get their IDs
   const films = await fetch(
     "https://brillout.github.io/star-wars/api/films.json"
