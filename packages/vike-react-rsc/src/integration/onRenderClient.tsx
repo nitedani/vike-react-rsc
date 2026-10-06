@@ -1,10 +1,10 @@
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "client", "Invalid environment");
+import environmentName from "virtual:environment-name";
+tinyassert(environmentName === "client", "Invalid environment");
 
 import { useEffect, useState } from "react";
 import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
-import envName from "virtual:enviroment-name";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
 import { parseRscStream } from "../runtime/client";
 import type { RscPayload } from "../types";
@@ -43,22 +43,18 @@ export const onRenderClient: OnRenderClientAsync = async function (
 ) {
   // Store the page context in the global state
   globalState.pageContext = pageContext;
-  console.log("[Vike Hook] +onRenderClient called");
 
   // Handle initial page load (hydration)
   if (pageContext.isHydration) {
     try {
-      console.log("[Client] Hydrating root");
       const container = document.getElementById("root");
       if (!container) {
         console.error("[Client] Container #root not found!");
         return;
       }
 
-      // Get the RSC payload stream that was injected by the server
-      const rscPayloadStream = (window as any)
-        .__rsc_payload_stream as ReadableStream<Uint8Array>;
-      const initialPayload = await parseRscStream(rscPayloadStream);
+      tinyassert(pageContext.rscPayload);
+      const initialPayload = await parseRscStream(pageContext.rscPayload);
 
       // Hydrate the root with our component
       ReactDOMClient.hydrateRoot(
@@ -72,7 +68,6 @@ export const onRenderClient: OnRenderClientAsync = async function (
         }
       );
 
-      console.log("[Client] Hydration complete");
     } catch (err) {
       console.error("[Client] Hydration failed:", err);
     }
@@ -80,14 +75,9 @@ export const onRenderClient: OnRenderClientAsync = async function (
   // Handle client-side navigation
   else if (pageContext.isClientSideNavigation) {
     try {
-      console.log("[Client] Client-side navigation", globalState.navigationPromise);
-      if (globalState.navigationPromise) {
-        const payload = await globalState.navigationPromise;
-        globalState.setPayload?.({ pageContext, payload });
-      } else {
-        console.error("[Client] No navigation promise found");
-      }
-      console.log("[Client] Navigation complete");
+      tinyassert(pageContext.rscPayload);
+      const payload = await parseRscStream(pageContext.rscPayload);
+      globalState.setPayload?.({ pageContext, payload });
     } catch (error) {
       console.error("[Client] Failed to navigate:", error);
     }

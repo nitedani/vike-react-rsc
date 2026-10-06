@@ -1,9 +1,17 @@
 import type React from "react";
-import type { ImportString } from "vike/types";
+import type { ImportString, PageContext } from "vike/types";
+import type { RscAction, RscPayload } from "../types";
 
 // https://vike.dev/meta#typescript
 declare global {
   namespace Vike {
+    interface PageContext {
+      /** The page rendered as Flight (RSC payload), streamed to the client. */
+      rscPayload?: ReadableStream<Uint8Array>;
+      /** Server-side: the server action of this request (integration/actionMiddleware.ts) */
+      rscAction?: RscAction;
+    }
+
     interface Config {
       /**
        * The page's root React component.
@@ -43,8 +51,16 @@ declare global {
       Loading?: Loading | ImportString;
 
       rsc?: RscConfig;
+
+      /** Renders the RSC payload. Runs in the rsc environment. */
+      renderRsc?: RenderRsc | ImportString;
+
+      /** Runs the server action of pageContext.rscAction. Runs in the rsc environment. */
+      runServerAction?: RunServerAction | ImportString;
     }
     interface ConfigResolved {
+      renderRsc: RenderRsc;
+      runServerAction: RunServerAction;
       Wrapper?: Wrapper[];
       Layout?: Layout[];
       Head?: Head[];
@@ -59,6 +75,11 @@ type Loading = {
   component?: () => React.ReactNode;
   layout?: () => React.ReactNode;
 };
+type RenderRsc = (
+  pageContext: PageContext,
+  payload?: RscPayload
+) => Promise<ReadableStream<Uint8Array>>;
+type RunServerAction = (pageContext: PageContext) => Promise<{ returnValue: unknown; rerender: boolean }>;
 type RscConfig = {
   staleTime?: number;
 };

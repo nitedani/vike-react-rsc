@@ -1,8 +1,6 @@
 import type { OnPageTransitionStartSync } from "vike/types";
-import { onNavigate } from "../runtime/client";
+import { clearPendingServerComponentRequests } from "../runtime/cache";
 
-export const onPageTransitionStart: OnPageTransitionStartSync = (
-  pageContext
-) => {
-  onNavigate(pageContext);
+export const onPageTransitionStart: OnPageTransitionStartSync = () => {
+  clearPendingServerComponentRequests();
 };

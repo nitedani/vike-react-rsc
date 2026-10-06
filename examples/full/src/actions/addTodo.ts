@@ -9,7 +9,8 @@ interface Todo {
   createdAt: number;
 }
 
-const todos: Todo[] = [];
+// Also read by +data, which runs in another environment: shared like a database would be
+const todos: Todo[] = ((globalThis as { __todos?: Todo[] }).__todos ??= []);
 
 export const getTodos = async () => {
   // Sort todos by creation date (newest first)
@@ -17,8 +18,6 @@ export const getTodos = async () => {
 };
 
 export const addTodo = async (title: string) => {
-  console.log("Adding todo:", title);
-
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -36,8 +35,6 @@ export const addTodo = async (title: string) => {
 };
 
 export const deleteTodo = async (id: string) => {
-  console.log("Deleting todo:", id);
-
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 300));
 
@@ -51,8 +48,6 @@ export const deleteTodo = async (id: string) => {
 };
 
 export const toggleTodo = async (id: string) => {
-  console.log("Toggling todo:", id);
-
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 300));
 
