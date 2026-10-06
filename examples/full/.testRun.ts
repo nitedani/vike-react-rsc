@@ -35,6 +35,10 @@ const REACT_RSC_STYLESHEET_PRELOAD_WARNING =
 const REACT_DEV_EVAL_CSP_ERROR =
   "eval() is not supported in this environment.";
 
+// React's dev performance track throws on aborted components until
+// https://github.com/react/react/pull/37572 is released.
+const REACT_DEV_PERF_TRACK_ERROR = "cannot have a negative time stamp";
+
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
   // Pre-rendered, and served like a static host would
@@ -53,6 +57,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
         logText === REACT_RSC_STYLESHEET_PRELOAD_WARNING) ||
       // Vite also forwards the browser's error to the server's stderr.
       (isDev && logText.includes(REACT_DEV_EVAL_CSP_ERROR)) ||
+      (isDev && logText.includes(REACT_DEV_PERF_TRACK_ERROR)) ||
       // testCrossSiteAction()
       (logSource === "stderr" && logText.includes("HTTP response ← /todos 403")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
