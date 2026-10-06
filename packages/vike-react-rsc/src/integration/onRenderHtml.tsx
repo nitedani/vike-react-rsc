@@ -1,57 +1,26 @@
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
-import { getRenderRsc, onRenderHtmlSsr } from "../runtime/ssr";
-import { tinyassert } from "@hiogawa/utils";
+import { getRscEnvironment, onRenderHtmlSsr } from "../runtime/ssr";
 import { RSC_CONTENT_TYPE } from "../constants";
 import type { RscPayload } from "../types";
-
-type AbortRedirect = {
-  _abortCaller?: "throw redirect()";
-  _urlRedirect?: NonNullable<RscPayload["redirect"]>;
-};
 
 export const onRenderHtml: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
-  const { request } = pageContext;
-  const actionId = request?.headers.get("x-rsc-action");
-  if (request && actionId) {
-    pageContext.response = new Response(await renderAction(pageContext, request, actionId), {
-      headers: { "content-type": RSC_CONTENT_TYPE },
-    });
+  // A server action called from JavaScript (integration/actionMiddleware.ts): the page as Flight, or what replaced it
+  if (pageContext.rscAction) {
+    const rsc = getRscEnvironment(pageContext);
+    // Without rerender(), rscPayload is the return value only (the middleware answers with it if Vike's answer isn't a 200)
+    const abortPayload = getAbortPayload(pageContext);
+    pageContext.content = abortPayload ? await rsc.config.renderRsc(rsc.pageContext, abortPayload) : pageContext.rscPayload;
+    pageContext.headersResponse.set("content-type", RSC_CONTENT_TYPE);
     return;
   }
 
   return onRenderHtmlSsr(pageContext);
 };
 
-async function renderAction(
-  pageContext: PageContextServer,
-  request: Request,
-  actionId: string
-): Promise<ReadableStream<Uint8Array>> {
-  const renderRsc = getRenderRsc(pageContext);
-  const abortPayload = getAbortPayload(pageContext);
-  if (abortPayload) return renderRsc({ payload: abortPayload });
-
-  return renderRsc({
-    action: { actionId, body: await readActionBody(request) },
-  });
-}
-
 function getAbortPayload(pageContext: PageContextServer): RscPayload | undefined {
-  const abort = pageContext.dangerouslyUseInternals as unknown as AbortRedirect;
-  if (abort._abortCaller === "throw redirect()") {
-    tinyassert(abort._urlRedirect);
-    // A 3xx would make fetch follow Location and hand HTML to the Flight decoder.
-    return { redirect: abort._urlRedirect };
-  }
   if (pageContext.is404) return { error: { reason: "not-found" } };
   if (pageContext.abortStatusCode || pageContext.errorWhileRendering)
     return { error: { reason: "error" } };
-}
-
-async function readActionBody(request: Request): Promise<string | FormData> {
-  return request.headers.get("content-type")?.startsWith("multipart/form-data")
-    ? request.formData()
-    : request.text();
 }

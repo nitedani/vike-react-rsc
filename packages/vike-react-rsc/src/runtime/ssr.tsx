@@ -12,15 +12,15 @@ import { isReactElement } from "../utils/isReactElement";
 import { renderToStaticMarkup } from "react-dom/server";
 import { prerender } from "react-dom/static.edge";
 import React from "react";
-import type { RenderRscRequest, RscPayload } from "../types";
+import type { RscPayload } from "../types";
 
-// renderRsc() is a config of the rsc environment: the server calls it with the rsc view of pageContext
-export function getRenderRsc(
+// renderRsc() and runServerAction() are configs of the rsc environment: the server calls them with the rsc view of pageContext
+export function getRscEnvironment(
   pageContext: PageContextServer
-): (request?: RenderRscRequest) => ReturnType<Vike.ConfigResolved["renderRsc"]> {
+): NonNullable<NonNullable<PageContextServer["environments"]>["rsc"]> {
   const rsc = pageContext.environments?.rsc;
   tinyassert(rsc, "pageContext.environments.rsc is missing: vike-react-rsc needs a Vike version with Vike environments");
-  return (request?: RenderRscRequest) => rsc.config.renderRsc(rsc.pageContext, request);
+  return rsc;
 }
 
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (

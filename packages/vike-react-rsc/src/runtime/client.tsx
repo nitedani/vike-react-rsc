@@ -13,59 +13,33 @@ import { navigate } from "vike/client/router";
 import type { RscPayload } from "../types";
 import { invalidateServerComponentCache } from "./cache";
 import { getGlobalClientState } from "./client/globalState";
-import { RSC_CONTENT_TYPE } from "../constants";
-
-async function resolveRscPayload(
-  payloadPromise: PromiseLike<RscPayload>
-): Promise<RscPayload> {
-  const payload = await payloadPromise;
-  if (payload.redirect) {
-    window.location.assign(payload.redirect.url);
-    // Keep the Flight thenable pending while the browser replaces this document.
-    return new Promise<never>(() => {});
-  }
-  if (payload.error) {
-    throw new Error(
-      `[vike-react-rsc] RSC request failed: ${payload.error.reason}`
-    );
-  }
-  return payload;
-}
-
-type RscFetchOptions = Omit<RequestInit, "headers"> & {
-  headers?: Record<string, string>;
-};
-
-function fetchRscPayload(
-  url: string,
-  options: RscFetchOptions
-): Promise<RscPayload> {
-  return resolveRscPayload(
-    createFromFetch<RscPayload>(
-      fetch(url, {
-        ...options,
-        headers: {
-          accept: RSC_CONTENT_TYPE,
-          ...options.headers,
-        },
-      })
-    )
-  );
-}
+import { RSC_CONTENT_TYPE, RSC_REDIRECT_HEADER } from "../constants";
 
 async function callServer(id: string, args: unknown[]): Promise<unknown> {
   const globalState = getGlobalClientState();
   const isRscCall = globalState.isRscCall;
 
   tinyassert(globalState.pageContext, "Missing page context");
-  const result = await fetchRscPayload(globalState.pageContext.urlOriginal, {
+  const responsePromise = fetch(globalState.pageContext.urlOriginal, {
     method: "POST",
     headers: {
+      accept: RSC_CONTENT_TYPE,
       "x-rsc-action": id,
       ...(isRscCall ? { "x-rsc-component-call": "true" } : {}),
     },
     body: await encodeReply(args),
   });
+  // A throw redirect() during the action, guard() or data() (integration/actionMiddleware.ts)
+  const redirect = (await responsePromise).headers.get(RSC_REDIRECT_HEADER);
+  if (redirect) {
+    window.location.assign(redirect);
+    // Keep the caller pending while the browser replaces this document
+    return new Promise<never>(() => {});
+  }
+  const result = await createFromFetch<RscPayload>(responsePromise);
+  if (result.error) {
+    throw new Error(`[vike-react-rsc] RSC request failed: ${result.error.reason}`);
+  }
 
   if (result.root) {
     startTransition(() => {

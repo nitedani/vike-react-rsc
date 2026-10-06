@@ -21,6 +21,10 @@ const config: Config = {
   onPageTransitionStart:
     "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
   renderRsc: "import:vike-react-rsc/__internal/runtime/server:renderRsc",
+  runServerAction: "import:vike-react-rsc/__internal/runtime/server:runServerAction",
+  // https://vike.dev/middleware
+  // `as never`: Vike types `middleware` without ImportString
+  middleware: "import:vike-react-rsc/__internal/integration/actionMiddleware:default" as never,
 
   // https://vike.dev/onCreatePageContext
   onCreatePageContext:
@@ -63,6 +67,9 @@ const config: Config = {
       env: { server: false, client: false, rsc: true },
     },
     renderRsc: {
+      env: { rsc: true },
+    },
+    runServerAction: {
       env: { rsc: true },
     },
   },

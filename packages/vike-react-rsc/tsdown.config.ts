@@ -9,6 +9,7 @@ export default defineConfig({
     "src/integration/onRenderClient.tsx",
     "src/integration/onPageTransitionStart.tsx",
     "src/integration/onCreatePageContext.server.ts",
+    "src/integration/actionMiddleware.ts",
     "src/register/browser.tsx",
     "src/register/server.tsx",
     "src/register/ssr.tsx",

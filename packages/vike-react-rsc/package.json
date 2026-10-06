@@ -19,6 +19,7 @@
     "./__internal/integration/onRenderClient": "./dist/integration/onRenderClient.js",
     "./__internal/integration/onPageTransitionStart": "./dist/integration/onPageTransitionStart.js",
     "./__internal/integration/onCreatePageContext.server": "./dist/integration/onCreatePageContext.server.js",
+    "./__internal/integration/actionMiddleware": "./dist/integration/actionMiddleware.js",
     "./__internal/register/browser": "./dist/register/browser.js",
     "./__internal/register/server": "./dist/register/server.js",
     "./__internal/register/ssr": "./dist/register/ssr.js",
@@ -50,7 +51,7 @@
     "react-dom": "^19.2.8",
     "tsdown": "^0.22.14",
     "typescript": "^7.0.2",
-    "vike": "^0.4.260",
+    "vike": "0.4.267-commit-7884d91",
     "vite": "^8.2.0",
     "@vitejs/plugin-rsc": "^0.5.32"
   }
