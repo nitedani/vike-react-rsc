@@ -27,7 +27,7 @@ interface GlobalClientState {
 
 // Cache entry type
 interface CacheEntry {
-  payload: RscPayload;
+  component: unknown;
   timestamp: number;
   isStale?: boolean;
 }

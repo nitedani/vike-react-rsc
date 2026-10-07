@@ -13,10 +13,6 @@ function getStaleTime(pageContext: PageContext): number {
  * This is useful when a server action changes data that server components depend on
  */
 export function invalidateServerComponentCache(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
   const globalState = getGlobalClientState();
 
   globalState.serverComponentCache.forEach((entry) => {
@@ -31,10 +27,6 @@ export function invalidateServerComponentCache(): void {
  * This is useful when navigating between pages or when invalidating the cache
  */
 export function clearPendingServerComponentRequests(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
   const globalState = getGlobalClientState();
   // Just clear the map - ongoing requests will still complete
   // but new components with the same cache key will create new requests
@@ -55,11 +47,6 @@ export function getCachedServerComponent<T>(key: string, pageContext: PageContex
   const globalState = getGlobalClientState();
   const cachedEntry = globalState.serverComponentCache.get(key);
 
-  // If staleTime is 0, caching is disabled
-  if (staleTime === 0) {
-    return { component: null, isStale: false };
-  }
-
   // No cached entry
   if (!cachedEntry) {
     return { component: null, isStale: false };
@@ -70,7 +57,7 @@ export function getCachedServerComponent<T>(key: string, pageContext: PageContex
     Date.now() - cachedEntry.timestamp >= staleTime;
 
   return {
-    component: cachedEntry.payload.returnValue as T,
+    component: cachedEntry.component as T,
     isStale
   };
 }
@@ -79,10 +66,6 @@ export function getCachedServerComponent<T>(key: string, pageContext: PageContex
  * Store a server component in the cache
  */
 export function cacheServerComponent<T>(key: string, component: T, pageContext: PageContext): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
   const staleTime = getStaleTime(pageContext);
 
   // If staleTime is 0, don't cache
@@ -93,7 +76,7 @@ export function cacheServerComponent<T>(key: string, component: T, pageContext: 
   const globalState = getGlobalClientState();
 
   globalState.serverComponentCache.set(key, {
-    payload: { returnValue: component },
+    component,
     timestamp: Date.now(),
     isStale: false
   });
