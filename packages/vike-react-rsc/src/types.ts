@@ -5,7 +5,7 @@ export type RscPayload = {
   formState?: ReactFormState;
   returnValue?: unknown;
   error?: {
-    reason: "not-found" | "error" | "base-missing";
+    reason: "not-found" | "error";
   };
 };
 
