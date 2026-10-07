@@ -26,7 +26,6 @@ async function callServer(id: string, args: unknown[]): Promise<unknown> {
     headers: {
       accept: RSC_CONTENT_TYPE,
       "x-rsc-action": id,
-      ...(isRscCall ? { "x-rsc-component-call": "true" } : {}),
     },
     body: await encodeReply(args),
   });
