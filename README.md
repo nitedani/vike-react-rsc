@@ -14,7 +14,7 @@ React RSC integration for [Vike](https://vike.dev).
   - During an action request, `pageContext` doesn't carry what your server adds (e.g. `pageContext.user`): read the session from the request's cookies instead (vikejs/vike#3407).
 - **RSC over RPC**: on the client-side upon user interaction (e.g. click on button "show details"), you can load Server Component elements instead of loading data. So that you don't have to load heavy Components (e.g. markdown) on the client-side — even if they are a part of a dynamic UI.
 - Built-in default **`<Loading>` fallback**, customizable globally, per page, or per component.
-- **Caching**
+- **Caching**: components loaded with `rsc()` are cached on the client for `rsc.staleTime` ms (default 1 minute, `0` disables). Page navigation always fetches a fresh payload.
 - **Automatic server integration**
   - Works with any server: Express.js, Hono, etc. (powered by [universal-middleware](https://github.com/magne4000/universal-middleware))
   - Fully automatic (zero-config) if you use Vike's built-in [`+server`](https://vike.dev/server)

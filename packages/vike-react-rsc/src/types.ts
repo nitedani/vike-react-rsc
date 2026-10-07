@@ -26,6 +26,6 @@ export type RscAction = {
  * User-defined RSC configuration
  */
 export interface RscConfig {
-  /** How long (in ms) a cache entry is considered fresh. Set to 0 to disable caching. */
+  /** How long (in ms) a component loaded with `rsc()` is considered fresh on the client. Set to 0 to disable caching. Page navigation always fetches. */
   staleTime?: number;
 }
