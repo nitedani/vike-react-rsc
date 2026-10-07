@@ -22,45 +22,41 @@ export function rsc<P, T extends React.ReactElement<any>>(
     const [comp, setComp] = React.useState<T | null>(cachedComponent);
 
     useEffect(() => {
-      const globalState = getGlobalClientState();
-
-      const fetchOrRevalidate = () => {
-        // pendingRequests owns de-duplication: concurrent renders of the same
-        // component subscribe to the in-flight promise instead of refetching.
-        const pendingRequest = globalState.pendingRequests.get(cacheKey);
-
-        if (pendingRequest) {
-          pendingRequest.then(setComp);
-          return;
-        }
-
-        // Tells callServer this fetch originates from a client component.
-        globalState.isRscCall = true;
-        const serverComponentPromise = c(rest as P);
-        globalState.isRscCall = false;
-
-        const requestPromise = serverComponentPromise
-          .then((result) => {
-            cacheServerComponent(cacheKey, result, pageContext);
-            globalState.pendingRequests.delete(cacheKey);
-            return result;
-          })
-          .catch((error) => {
-            console.error("[RSC Client] Error fetching server component:", error);
-            globalState.pendingRequests.delete(cacheKey);
-            throw error;
-          });
-
-        globalState.pendingRequests.set(cacheKey, requestPromise);
-        requestPromise.then(setComp);
-      };
-
-      // If we don't have a cached component or it's stale, fetch/revalidate
-      if (!cachedComponent || isStale) {
-        fetchOrRevalidate();
+      // If we have a fresh cached component there is nothing to fetch
+      if (cachedComponent && !isStale) {
+        return;
       }
 
-      // No deps for now, no render loops
+      const globalState = getGlobalClientState();
+
+      // pendingRequests owns de-duplication: concurrent renders of the same
+      // component subscribe to the in-flight promise instead of refetching.
+      const pendingRequest = globalState.pendingRequests.get(cacheKey);
+
+      if (pendingRequest) {
+        pendingRequest.then(setComp);
+        return;
+      }
+
+      // Tells callServer this fetch originates from a client component.
+      globalState.isRscCall = true;
+      const serverComponentPromise = c(rest as P);
+      globalState.isRscCall = false;
+
+      const requestPromise = serverComponentPromise
+        .then((result) => {
+          cacheServerComponent(cacheKey, result, pageContext);
+          globalState.pendingRequests.delete(cacheKey);
+          return result;
+        })
+        .catch((error) => {
+          console.error("[RSC Client] Error fetching server component:", error);
+          globalState.pendingRequests.delete(cacheKey);
+          throw error;
+        });
+
+      globalState.pendingRequests.set(cacheKey, requestPromise);
+      requestPromise.then(setComp);
     }, []);
 
     if (!comp) {
