@@ -6,6 +6,7 @@ import {
   fetchHtml,
   page,
   autoRetry,
+  skip,
   getServerUrl,
 } from "@brillout/test-e2e";
 
@@ -67,6 +68,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   });
 
   testPages();
+  testCssProp();
   testEnvironments();
   testBinaryPayload();
   testScriptBreakout();
@@ -111,6 +113,18 @@ function testResponseTail() {
       positions.clientEntry > positions.pageContext,
       "client entry must come after pageContext"
     ).to.equal(true);
+  });
+}
+
+// TODO: unskip with the first release of vite-plugin-compiled-react containing
+// nitedani/vite-plugin-compiled-react#3 (Vite 8 / @vitejs/plugin-react 6 support).
+// Until then the `css` prop reaches the HTML untransformed.
+function testCssProp() {
+  test("css prop is transformed", async () => {
+    skip("vite-plugin-compiled-react does not support Vite 8 yet");
+    return;
+    const html = await fetchHtml("/");
+    expect(html).to.not.include('css="[object Object]"');
   });
 }
 
