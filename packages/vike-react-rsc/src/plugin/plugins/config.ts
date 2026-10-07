@@ -1,12 +1,5 @@
 import { PKG_NAME } from "../../constants";
 import { defaultServerConditions, type Plugin, type UserConfig } from "vite";
-import { type VitePluginServerEntryOptions } from "@brillout/vite-plugin-server-entry/plugin";
-
-declare module "vite" {
-  interface UserConfig {
-    vitePluginServerEntry?: VitePluginServerEntryOptions;
-  }
-}
 
 export const configs: Plugin[] = [
   {

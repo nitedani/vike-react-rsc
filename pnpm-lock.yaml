@@ -81,9 +81,6 @@ importers:
 
   packages/vike-react-rsc:
     dependencies:
-      '@brillout/vite-plugin-server-entry':
-        specifier: ^0.7.19
-        version: 0.7.19
       '@hiogawa/utils':
         specifier: ^1.7.0
         version: 1.7.0
@@ -240,9 +237,6 @@ packages:
     hasBin: true
     peerDependencies:
       typescript: '>=4.0.0'
-
-  '@brillout/vite-plugin-server-entry@0.7.19':
-    resolution: {integrity: sha512-XIT5xAB4x3XPTLF+WfXI92zFAcIcYZqkFkYY1tpg7wrsTWMzllRF2Fbnzy8S/Dilsw9y1qJOHUVrmLtNp2/6Yw==}
 
   '@brillout/vite-plugin-server-entry@0.7.23':
     resolution: {integrity: sha512-tHI6zRUM+1yQxiC4CTwpPhYhU9Cdo4LkPy0JRxDiFBZSVSauzWTzZv/r7/+dKVk4/ihQmCtI1/XoegKVLMR7CQ==}
@@ -2602,11 +2596,6 @@ snapshots:
       fast-glob: 3.3.3
       source-map-support: 0.5.21
       typescript: 7.0.2
-
-  '@brillout/vite-plugin-server-entry@0.7.19':
-    dependencies:
-      '@brillout/import': 0.2.6
-      '@brillout/picocolors': 1.0.29
 
   '@brillout/vite-plugin-server-entry@0.7.23':
     dependencies:
