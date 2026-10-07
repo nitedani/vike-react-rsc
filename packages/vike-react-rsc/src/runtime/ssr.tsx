@@ -31,10 +31,20 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   const [rscStreamForHtml, rscStreamForBrowser] = pageContext.rscPayload.tee();
   pageContext.rscPayload = rscStreamForBrowser;
 
-  const payload =
-    (await createFromReadableStream<React.ReactNode>(
-      rscStreamForHtml
-    )) as RscPayload;
+  // Kept to cancel this branch: tee() stops the Flight render only when both branches are cancelled.
+  const htmlReader = rscStreamForHtml.getReader();
+  const payload = (await createFromReadableStream<React.ReactNode>(
+    new ReadableStream<Uint8Array>(
+      {
+        async pull(controller) {
+          const { done, value } = await htmlReader.read();
+          if (done) controller.close();
+          else controller.enqueue(value);
+        },
+      },
+      { highWaterMark: 0 }
+    )
+  )) as RscPayload;
   const page = (
     <PageContextProvider pageContext={pageContext}>
       {payload.root}
@@ -42,7 +52,7 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   );
   const pageHtml = pageContext.isPrerendering
     ? await prerenderPage(page)
-    : await renderStreamedPage(page, payload, pageContext);
+    : await renderStreamedPage(page, payload, pageContext, htmlReader);
 
   const headHtml = getHeadHtml(pageContext);
 
@@ -66,15 +76,19 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
 async function renderStreamedPage(
   page: React.ReactNode,
   payload: RscPayload,
-  pageContext: PageContextServer
+  pageContext: PageContextServer,
+  rscReader: ReadableStreamDefaultReader<Uint8Array>
 ) {
-  return renderToStream(page, {
+  const stream = await renderToStream(page, {
     userAgent: pageContext.headers?.["user-agent"],
     streamOptions: {
       formState: payload.formState,
       nonce: pageContext.cspNonce ?? undefined,
     },
   });
+  // Also ends when the client leaves the HTML response mid-stream
+  void stream.streamEnd.then(() => rscReader.cancel());
+  return stream;
 }
 
 async function prerenderPage(page: React.ReactNode) {
