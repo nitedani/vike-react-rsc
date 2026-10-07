@@ -1,13 +1,11 @@
 import type { PageContext } from "vike/types";
-import type { RscConfig } from "../types";
 import { getGlobalClientState } from "./client/globalState";
 
 // Default stale time if not specified in config
 const DEFAULT_STALE_TIME = 60 * 1000; // 1 minute by default
 
 function getStaleTime(pageContext: PageContext): number {
-  const userConfig = pageContext.config?.rsc as RscConfig | undefined;
-  return userConfig?.staleTime !== undefined ? userConfig.staleTime : DEFAULT_STALE_TIME;
+  return pageContext.config.rsc?.staleTime ?? DEFAULT_STALE_TIME;
 }
 
 /**

@@ -1,6 +1,6 @@
 import type React from "react";
 import type { ImportString, PageContext } from "vike/types";
-import type { RscAction, RscPayload } from "../types";
+import type { RscAction, RscConfig, RscPayload } from "../types";
 
 // https://vike.dev/meta#typescript
 declare global {
@@ -80,6 +80,3 @@ type RenderRsc = (
   payload?: RscPayload
 ) => Promise<ReadableStream<Uint8Array>>;
 type RunServerAction = (pageContext: PageContext) => Promise<{ returnValue: unknown; rerender: boolean }>;
-type RscConfig = {
-  staleTime?: number;
-};
