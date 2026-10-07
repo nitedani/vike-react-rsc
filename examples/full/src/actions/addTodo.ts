@@ -30,7 +30,6 @@ export const addTodo = async (title: string) => {
 
   todos.push(newTodo);
 
-  // Call rerender to update the UI
   rerender();
 };
 
@@ -43,7 +42,6 @@ export const deleteTodo = async (id: string) => {
     todos.splice(index, 1);
   }
 
-  // Call rerender to update the UI
   rerender();
 };
 
@@ -56,6 +54,5 @@ export const toggleTodo = async (id: string) => {
     todo.completed = !todo.completed;
   }
 
-  // Call rerender to update the UI
   rerender();
 };
