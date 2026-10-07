@@ -1,17 +1,18 @@
-import envName from "virtual:enviroment-name";
+import environmentName from "virtual:environment-name";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "rsc", "Invalid environment");
+tinyassert(environmentName === "rsc", "Invalid environment");
 
 export { rerender };
-export { getServerActionContext };
+export { getResponseHeaders };
 export { provideServerActionContext };
 
 import { AsyncLocalStorage } from "async_hooks";
 import { getGlobalObject } from "../utils/getGlobalObject.js";
 
 // Define the server action context type
-export interface ServerActionContextType {
+interface ServerActionContextType {
   shouldRerender: boolean;
+  responseHeaders: Headers;
 }
 
 // Create a global object to store the server action context
@@ -53,4 +54,13 @@ function rerender(): void {
   } else {
     console.warn("[Server] rerender() called outside of a server action context");
   }
+}
+
+/**
+ * The headers of the server action's response, e.g. `getResponseHeaders().append("Set-Cookie", "session=...")`
+ */
+function getResponseHeaders(): Headers {
+  const context = getServerActionContext();
+  if (!context) throw new Error("[vike-react-rsc] getResponseHeaders() can only be called in a server action");
+  return context.responseHeaders;
 }

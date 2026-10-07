@@ -1,6 +1,6 @@
-import envName from "virtual:enviroment-name";
+import environmentName from "virtual:environment-name";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "rsc", "Invalid environment");
+tinyassert(environmentName === "rsc", "Invalid environment");
 
 export { usePageContext };
 export { getPageContext };

@@ -1,120 +1,58 @@
-import envName from "virtual:enviroment-name";
+import environmentName from "virtual:environment-name";
 import { tinyassert } from "@hiogawa/utils";
-tinyassert(envName === "ssr", "Invalid environment");
+tinyassert(environmentName !== "rsc" && environmentName !== "client", "Invalid environment");
 
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import { renderToStream } from "react-streaming/server.web";
-import * as ReactServerDOMClient from "@vitejs/plugin-rsc/react/ssr";
+import { createFromReadableStream } from "@vitejs/plugin-rsc/ssr";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
-import runtimeRsc from "virtual:runtime/server";
 import type { Head } from "../types/Config";
 import { isReactElement } from "../utils/isReactElement";
-//@ts-ignore
-import { renderToStaticMarkup } from "react-dom/server.edge";
+import { renderToStaticMarkup } from "react-dom/server";
+import { prerender } from "react-dom/static.edge";
 import React from "react";
 import type { RscPayload } from "../types";
 
-
-const INIT_SCRIPT = `
-self.__raw_import = (id) => import(id);
-self.__rsc_web_stream = new ReadableStream({
-	start(controller) {
-		self.__rsc_web_stream_push = (chunk) => { controller.enqueue(chunk); };
-		self.__rsc_web_stream_close = () => { controller.close(); };
-	}
-});
-if (!self.TextEncoderStream) {
-  self.TextEncoderStream = class { _controller; encoder = new TextEncoder(); readable = new ReadableStream({ start: c => this._controller = c }); writable = new WritableStream({ write: chunk => this._controller.enqueue(this.encoder.encode(chunk)), close: () => this._controller.close() }); };
+// renderRsc() and runServerAction() are configs of the rsc environment: the server calls them with the rsc view of pageContext
+export function getRscEnvironment(
+  pageContext: PageContextServer
+): NonNullable<NonNullable<PageContextServer["environments"]>["rsc"]> {
+  const rsc = pageContext.environments?.rsc;
+  tinyassert(rsc, "pageContext.environments.rsc is missing: vike-react-rsc needs a Vike version with Vike environments");
+  return rsc;
 }
-self.__rsc_payload_stream = self.__rsc_web_stream.pipeThrough(new TextEncoderStream());
-console.log('[RSC Init Script] Payload stream setup on window.__rsc_payload_stream');
-`;
-
-async function importClientReference(id: string) {
-  if (import.meta.env.DEV) {
-    return import(/* @vite-ignore */ id);
-  } else {
-    const clientReferences = await import(
-      "virtual:client-references" as string
-    );
-    const dynImport = clientReferences.default[id];
-    console.log("[RSC] Importing client reference", id);
-
-    tinyassert(dynImport, `client reference not found '${id}'`);
-    return dynImport();
-  }
-}
-
-ReactServerDOMClient.setRequireModule({
-  load: importClientReference,
-});
 
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
-  const rscPayloadStream = await runtimeRsc.renderPageRsc(pageContext);
-  const [rscStreamForHtml, rscStreamForClientScript] = rscPayloadStream!.tee();
+  tinyassert(pageContext.rscPayload);
+  // One Flight render: SSR reads one branch, Vike streams the other to the browser.
+  const [rscStreamForHtml, rscStreamForBrowser] = pageContext.rscPayload.tee();
+  pageContext.rscPayload = rscStreamForBrowser;
 
-  const payload =
-    (await ReactServerDOMClient.createFromReadableStream<React.ReactNode>(
-      rscStreamForHtml
-    )) as RscPayload;
-
-  const htmlStream = await renderToStream(
+  // Kept to cancel this branch: tee() stops the Flight render only when both branches are cancelled.
+  const htmlReader = rscStreamForHtml.getReader();
+  const payload = (await createFromReadableStream<React.ReactNode>(
+    new ReadableStream<Uint8Array>(
+      {
+        async pull(controller) {
+          const { done, value } = await htmlReader.read();
+          if (done) controller.close();
+          else controller.enqueue(value);
+        },
+      },
+      { highWaterMark: 0 }
+    )
+  )) as RscPayload;
+  const page = (
     <PageContextProvider pageContext={pageContext}>
       {payload.root}
-    </PageContextProvider>,
-    {
-      userAgent: pageContext.headers?.["user-agent"],
-      streamOptions: {
-        formState: payload.formState,
-      },
-    }
+    </PageContextProvider>
   );
-
-  const canClose = htmlStream.doNotClose();
-  //@ts-ignore
-  rscStreamForClientScript.pipeThrough(new TextDecoderStream()).pipeTo(
-    new WritableStream({
-      write(rscChunk) {
-        // console.log("Injecting RSC chunk...");
-        htmlStream.injectToStream(
-          `<script>self.__rsc_web_stream_push(${JSON.stringify(
-            rscChunk
-          )})</script>`
-        );
-      },
-      async close() {
-        console.log("RSC stream closed, injecting close script.");
-        htmlStream.injectToStream(
-          `<script>self.__rsc_web_stream_close()</script>`
-        );
-
-        // without wait, the following is not injected and the response is closed:
-        // <script id="vike_pageContext" type="application/json">
-        //     {
-        //         "_urlRewrite": null,
-        //         "pageId": "/src/pages/index",
-        //         "routeParams": {
-        //         }
-        //     }</script>
-        // <script type="module" async>
-        //     import RefreshRuntime from "/@react-refresh"
-        //     RefreshRuntime.injectIntoGlobalHook(window)
-        //     window.$RefreshReg$ = () => {}
-        //     window.$RefreshSig$ = () => (type) => type
-        //     window.__vite_plugin_react_preamble_installed__ = true
-        //     import "/@vite/client";
-        //     import "/@fs/home/nitedani/projects/vike-react-rsc/examples/full/src/+client.ts";
-        //     import "/@fs/home/nitedani/projects/vike-react-rsc/node_modules/vike/dist/esm/client/client-routing-runtime/entry.js";
-        // </script>
-        // TODO: why is this needed?
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        canClose();
-      },
-    })
-  );
+  const pageHtml = pageContext.isPrerendering
+    ? await prerenderPage(page)
+    : await renderStreamedPage(page, payload, pageContext, htmlReader);
 
   const headHtml = getHeadHtml(pageContext);
 
@@ -122,11 +60,10 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
     <html>
       <head>
         <meta charset="UTF-8" />
-        <script>${dangerouslySkipEscape(INIT_SCRIPT)}</script>
         ${headHtml}
       </head>
       <body>
-        <div id="root">${htmlStream}</div>
+        <div id="root">${pageHtml}</div>
       </body>
     </html>`;
 
@@ -135,6 +72,30 @@ export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
     pageContext: { enableEagerStreaming: true },
   };
 };
+
+async function renderStreamedPage(
+  page: React.ReactNode,
+  payload: RscPayload,
+  pageContext: PageContextServer,
+  rscReader: ReadableStreamDefaultReader<Uint8Array>
+) {
+  const stream = await renderToStream(page, {
+    userAgent: pageContext.headers?.["user-agent"],
+    streamOptions: {
+      formState: payload.formState,
+      nonce: pageContext.cspNonce ?? undefined,
+    },
+  });
+  // Also ends when the client leaves the HTML response mid-stream
+  void stream.streamEnd.then(() => rscReader.cancel());
+  return stream;
+}
+
+async function prerenderPage(page: React.ReactNode) {
+  // A static document cannot resume streamed Suspense fallbacks after deployment.
+  const { prelude } = await prerender(page);
+  return dangerouslySkipEscape(await new Response(prelude).text());
+}
 
 function getHeadHtml(pageContext: PageContextServer) {
   const headElementsHtml = dangerouslySkipEscape(
