@@ -20,6 +20,7 @@ async function callServer(id: string, args: unknown[]): Promise<unknown> {
   const isRscCall = globalState.isRscCall;
 
   tinyassert(globalState.pageContext, "Missing page context");
+  const pageContextAtCall = globalState.pageContext;
   const responsePromise = fetch(globalState.pageContext.urlOriginal, {
     method: "POST",
     headers: {
@@ -41,7 +42,8 @@ async function callServer(id: string, args: unknown[]): Promise<unknown> {
     throw new Error(`[vike-react-rsc] RSC request failed: ${result.error.reason}`);
   }
 
-  if (result.root) {
+  // The user navigated away meanwhile: the payload belongs to the old page
+  if (result.root && globalState.pageContext === pageContextAtCall) {
     startTransition(() => {
       globalState.setPayload?.((current) => {
         return {
