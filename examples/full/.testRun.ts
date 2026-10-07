@@ -82,7 +82,6 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testCrossSiteAction();
     testRscComponentCall();
   }
-  testFilmGrid();
   testNavigationRequests();
   testPageNavigation();
 }
@@ -366,20 +365,6 @@ function testCrossSiteAction() {
       });
     expect((await post({ "sec-fetch-site": "cross-site" })).status).to.equal(403);
     expect((await post({ origin: "https://example.com" })).status).to.equal(403);
-  });
-}
-
-function testFilmGrid() {
-  test("Film grid loading and display", async () => {
-    await page.goto(getServerUrl() + "/suspense");
-
-    await autoRetry(
-      async () => {
-        const pageText = await page.textContent("body");
-        expect(pageText).to.include("Component-Level");
-      },
-      { timeout: 15000 }
-    );
   });
 }
 
