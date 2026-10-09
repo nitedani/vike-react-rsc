@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { filmStyles } from "./styles";
 import { FilmCard } from "./FilmCard";
 import type { Film } from "./FilmCard";
-import { fetchApi } from "./fetchApi";
 
 // Simple skeleton component for film cards
 function FilmCardSkeleton() {
@@ -31,7 +30,9 @@ function FilmCardSkeleton() {
 // Component to fetch all film IDs
 async function getFilmIds(): Promise<number[]> {
   // Fetch all films to get their IDs
-  const films = await fetchApi<Film[]>("/api/films.json");
+  const films = await fetch(
+    "https://brillout.github.io/star-wars/api/films.json"
+  ).then((res) => res.json() as Promise<Film[]>);
 
   return films.map(film => film.id);
 }
@@ -46,7 +47,9 @@ export async function FilmGrid({
 }) {
   if (listMode) {
     // For list mode, fetch all films at once
-    const films = await fetchApi<Film[]>("/api/films.json");
+    const films = await fetch(
+      "https://brillout.github.io/star-wars/api/films.json"
+    ).then((res) => res.json() as Promise<Film[]>);
 
     // Simulate a longer loading time for demonstration
     await new Promise((resolve) => setTimeout(resolve, 2000));

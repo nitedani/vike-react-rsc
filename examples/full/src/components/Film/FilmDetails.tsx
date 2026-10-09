@@ -1,7 +1,6 @@
 "use server";
 
 // Server component that fetches and displays detailed film information
-import { fetchApi } from "./fetchApi";
 import { filmStyles } from "./styles";
 
 // Define the Film type based on the API response
@@ -22,13 +21,13 @@ type Film = {
 // Server component to fetch and display film details
 export async function FilmDetails({ id }: { id: number }) {
   // Fetch the film details from the API
-  const filmPromise = fetchApi<Film>(`/api/films/${id}.json`);
+  const response = await fetch(`https://brillout.github.io/star-wars/api/films/${id}.json`);
 
   // Add a small delay to demonstrate loading state
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   // Parse the response
-  const film = await filmPromise;
+  const film: Film = await response.json();
 
   // Format the opening crawl by replacing \r\n with proper line breaks
   const formattedCrawl = film.opening_crawl.replace(/\\r\\n/g, '\n');
