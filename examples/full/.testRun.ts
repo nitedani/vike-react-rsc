@@ -39,6 +39,10 @@ const REACT_DEV_EVAL_CSP_ERROR =
 // https://github.com/react/react/pull/37572 is released.
 const REACT_DEV_PERF_TRACK_ERROR = "cannot have a negative time stamp";
 
+// Vike passes the context of the Universal Middleware chain to the page only since vikejs/vike#3557, which added
+// plusMiddlewareProxy to vike/__internal. Remove this gate with the first Vike release that has it.
+const CONTEXT_REACHES_ACTION = "plusMiddlewareProxy" in (await import("vike/__internal"));
+
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
   // Pre-rendered, and served like a static host would
@@ -299,13 +303,31 @@ function testSession() {
     expect(await page.textContent("h1")).to.equal("Log in");
 
     // The action sets the cookie, then the guard of the same request sees it
+    const requests: string[] = [];
+    const onRequest = (request: { method(): string; url(): string; resourceType(): string }) => {
+      if (["document", "fetch", "xhr"].includes(request.resourceType())) {
+        requests.push(request.method() + " " + new URL(request.url()).pathname);
+      }
+    };
+    page.on("request", onRequest);
     await page.click('button:has-text("Log in")');
     await autoRetry(async () => {
       expect(await page.textContent("#account-user")).to.equal("Logged in as alice");
     });
+    page.off("request", onRequest);
+    expect(requests).to.deep.equal(["POST /account"]);
     const session = async () =>
       (await page.context().cookies()).find((c) => c.name === "session")?.value;
     expect(await session()).to.equal("alice");
+
+    // The context of the +middleware reaches the page of the action's request, like a page request's
+    // (needs a Vike that passes the context of renderPage() init to +middleware: vikejs/vike#3557)
+    if (CONTEXT_REACHES_ACTION) {
+      expect(await page.textContent("#account-mw")).to.equal("POST");
+      await page.goto(getServerUrl() + "/account");
+      await waitForHydration("Log out");
+      expect(await page.textContent("#account-mw")).to.equal("GET");
+    }
 
     // The action clears the cookie, then throws redirect("/")
     await page.click('button:has-text("Log out")');

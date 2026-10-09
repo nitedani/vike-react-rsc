@@ -1,4 +1,4 @@
-import { enhance, type UniversalMiddleware } from "@universal-middleware/core";
+import { enhance, type RuntimeAdapter, type UniversalMiddleware } from "@universal-middleware/core";
 import { renderPage } from "vike/server";
 import type { RscAction } from "../types";
 import { RSC_CONTENT_TYPE, RSC_REDIRECT_HEADER } from "../constants";
@@ -7,14 +7,21 @@ import { RSC_CONTENT_TYPE, RSC_REDIRECT_HEADER } from "../constants";
 // A server action called from JavaScript: callServer() POSTs it to the URL of the page shown. renderPage() runs the action
 // (+onCreatePageContext), then guard(), data() and the page, so they see what the action changed.
 const serverActionMiddleware: UniversalMiddleware = enhance(
-  async (request: Request) => {
+  async (request: Request, context: Universal.Context, runtime: RuntimeAdapter) => {
     const actionId = request.headers.get("x-rsc-action");
     if (request.method !== "POST" || !actionId) return;
     if (!isSameOrigin(request)) return new Response(null, { status: 403 });
 
     const rscAction: RscAction = { actionId, body: await readBody(request), responseHeaders: new Headers() };
-    // renderPage() runs this middleware again, with a GET: it passes through
-    const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction });
+    // The re-render gets the context the earlier +middleware built, like a page request
+    const { httpResponse } = await renderPage({
+      ...context,
+      ...runtime,
+      runtime,
+      urlOriginal: request.url,
+      headersOriginal: request.headers,
+      rscAction,
+    });
     // Without rerender(), the answer is the return value, whatever guard() or data() did after the action (without an
     // _error page, Vike answers their error with its HTML page)
     if (rscAction.renderReturnValue && httpResponse.statusCode !== 200) {
