@@ -1,7 +1,4 @@
 export { testRun };
-import { existsSync } from "node:fs";
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
 import {
   test,
   expect,
@@ -43,10 +40,8 @@ const REACT_DEV_EVAL_CSP_ERROR =
 const REACT_DEV_PERF_TRACK_ERROR = "cannot have a negative time stamp";
 
 // Vike passes the context of the Universal Middleware chain to the page only since vikejs/vike#3557, which added
-// getUniversalMiddlewares.js. Remove this gate with the first Vike release that has it.
-const CONTEXT_REACHES_ACTION = existsSync(
-  join(dirname(createRequire(import.meta.url).resolve("vike/server")), "getUniversalMiddlewares.js")
-);
+// plusMiddlewareProxy to vike/__internal. Remove this gate with the first Vike release that has it.
+const CONTEXT_REACHES_ACTION = "plusMiddlewareProxy" in (await import("vike/__internal"));
 
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
