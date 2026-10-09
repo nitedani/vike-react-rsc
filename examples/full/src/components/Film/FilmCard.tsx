@@ -1,4 +1,5 @@
 import { filmStyles } from "./styles";
+import { fetchApi } from "./fetchApi";
 import { FilmDetailsClient } from "./FilmDetailsClient";
 
 export type Film = {
@@ -12,9 +13,7 @@ export type Film = {
 // Component to display a single film card
 export async function FilmCard({ id }: { id: number }) {
   // Fetch a single film
-  const films = await fetch(
-    "https://brillout.github.io/star-wars/api/films.json"
-  ).then((res) => res.json() as Promise<Film[]>);
+  const films = await fetchApi<Film[]>("/api/films.json");
 
   // Find the specific film
   const film = films.find(f => f.id === id);
