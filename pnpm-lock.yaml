@@ -34,8 +34,8 @@ importers:
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
       '@universal-deploy/node':
-        specifier: ^0.1.9
-        version: 0.1.9(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+        specifier: ^0.1.13
+        version: 0.1.13(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       '@universal-middleware/hono':
         specifier: ^0.4.21
         version: 0.4.21(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
@@ -888,32 +888,24 @@ packages:
     peerDependencies:
       vite: '>=7.1'
 
-  '@universal-deploy/node@0.1.12':
-    resolution: {integrity: sha512-2gS64nG5e1pHbnytb/JuWOz4VItAjddWiH+ovIpD7WB+ScWc3qVCW7CPFZnzCLn7MnO63J1KfBhqpUsH5VUSUA==}
+  '@universal-deploy/node@0.1.13':
+    resolution: {integrity: sha512-hXRcp0edSjuyDtSb1kK1/kHcthGEWRxy4d+pybTiBOMV4IHkO3z+poBvV8DxB03SSq2Y+FVH/Aj2GHxcf/9Rtg==}
     peerDependencies:
       vite: '>=7.1'
     peerDependenciesMeta:
       vite:
         optional: true
 
-  '@universal-deploy/node@0.1.9':
-    resolution: {integrity: sha512-gSQOZ3w9oYB+6jRJELCgKOG+eTd5WJrWj2K0oxqBltK+TjIOuMt5pPd5vIpvW2AcZK6xk1XH0x0kGfC0cRri8Q==}
-    peerDependencies:
-      vite: '>=7.1'
-    peerDependenciesMeta:
-      vite:
-        optional: true
-
-  '@universal-deploy/store@0.2.1':
-    resolution: {integrity: sha512-9CYaStacvufXAaVmaf8dxEVptqpcX5m9+vz1PIlN4gjYKlXfOdbZTuhv2xLwp3mj4jBR2/8VYdF5Vviw9cBYEA==}
+  '@universal-deploy/store@0.2.2':
+    resolution: {integrity: sha512-w/BhtDh3ASR6Sli2g5LMDKm1X410esf9vmS5bqBzH+KrDzHEg68tpHWfbcUw1CbNyzieWOj3rGaAx1W3dZKf3g==}
     peerDependencies:
       srvx: '*'
     peerDependenciesMeta:
       srvx:
         optional: true
 
-  '@universal-deploy/store@0.2.2':
-    resolution: {integrity: sha512-w/BhtDh3ASR6Sli2g5LMDKm1X410esf9vmS5bqBzH+KrDzHEg68tpHWfbcUw1CbNyzieWOj3rGaAx1W3dZKf3g==}
+  '@universal-deploy/store@0.3.0':
+    resolution: {integrity: sha512-LMU9X8ReJHv8zonj/Xb3e+/8CwtGCXF8FXOXFkR2QnHLXw3dBN7CUR4wppJtNodpyLau2F6AL5CMGatndqdv8Q==}
     peerDependencies:
       srvx: '*'
     peerDependenciesMeta:
@@ -2194,11 +2186,6 @@ packages:
     resolution: {integrity: sha512-i5uvt8C3ikiWeNZSVZNWcfZPItFQOsYTUAOkcUPGd8DqDy1uOUikjt5dG+uRlwyvR108Fb9DOd4GvXfT0N2/uQ==}
     engines: {node: '>= 12'}
 
-  srvx@0.11.22:
-    resolution: {integrity: sha512-LqZxxBDMKuMAZzFzJnDCkFOrs9MZQZr0LvHiO/SuSZVdQaXD7xQ5UWTUxheJrQPve1qk9MG2B/yttUvJxw8egQ==}
-    engines: {node: '>=20.16.0'}
-    hasBin: true
-
   srvx@0.12.5:
     resolution: {integrity: sha512-IuvtDNQg5EIwv3c6dleyau7u8hCyGQ7D6+V/QM799Aud07z0wCUcurKLTRfyG33C8oUY+UWcVBFkfHMcbtmRLA==}
     engines: {node: '>=20.16.0'}
@@ -3060,27 +3047,13 @@ snapshots:
     transitivePeerDependencies:
       - srvx
 
-  '@universal-deploy/node@0.1.12(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
+  '@universal-deploy/node@0.1.13(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
     dependencies:
-      '@universal-deploy/store': 0.2.2(srvx@0.12.5)
+      '@universal-deploy/store': 0.3.0(srvx@0.12.5)
       magic-string: 0.30.21
       srvx: 0.12.5
     optionalDependencies:
       vite: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
-
-  '@universal-deploy/node@0.1.9(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
-    dependencies:
-      '@universal-deploy/store': 0.2.1(srvx@0.11.22)
-      magic-string: 0.30.21
-      srvx: 0.11.22
-    optionalDependencies:
-      vite: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
-
-  '@universal-deploy/store@0.2.1(srvx@0.11.22)':
-    dependencies:
-      rou3: 0.8.1
-    optionalDependencies:
-      srvx: 0.11.22
 
   '@universal-deploy/store@0.2.2(srvx@0.12.5)':
     dependencies:
@@ -3088,10 +3061,14 @@ snapshots:
     optionalDependencies:
       srvx: 0.12.5
 
+  '@universal-deploy/store@0.3.0(srvx@0.12.5)':
+    optionalDependencies:
+      srvx: 0.12.5
+
   '@universal-deploy/vite@0.1.14(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
     dependencies:
       '@universal-deploy/netlify': 0.2.3(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-      '@universal-deploy/node': 0.1.12(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+      '@universal-deploy/node': 0.1.13(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       '@universal-deploy/store': 0.2.2(srvx@0.12.5)
       '@universal-middleware/express': 0.4.31(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
       magic-string: 0.30.21
@@ -4266,8 +4243,6 @@ snapshots:
   source-map@0.6.1: {}
 
   source-map@0.7.6: {}
-
-  srvx@0.11.22: {}
 
   srvx@0.12.5: {}
 

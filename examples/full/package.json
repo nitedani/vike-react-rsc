@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vike dev",
     "build": "vike build",
-    "preview": "vike build && sh ./preview.sh",
+    "preview": "vike build && vike preview",
     "preview:static": "VIKE_CONFIG='{prerender:{noExtraDir:true}}' vike build && node ./preview-static.mjs"
   },
   "keywords": [],
@@ -18,7 +18,7 @@
   "dependencies": {
     "@compiled/react": "^1.0.0",
     "@types/react": "^19.2.18",
-    "@universal-deploy/node": "^0.1.9",
+    "@universal-deploy/node": "^0.1.13",
     "@universal-middleware/hono": "^0.4.21",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
