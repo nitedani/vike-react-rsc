@@ -12,7 +12,7 @@ export default defineConfig({
     "src/integration/onPageTransitionStart.tsx",
     "src/integration/onCreatePageContext.server.ts",
     "src/integration/actionMiddleware.ts",
-    "src/runtime/server.tsx",
+    "src/__internal/rsc.ts",
     "src/hooks/pageContext/pageContext-client.tsx",
     "src/hooks/pageContext/pageContext-server.tsx",
   ],

@@ -1,6 +1,6 @@
 import type React from "react";
-import type { ImportString, PageContext } from "vike/types";
-import type { RscAction, RscConfig, RscPayload } from "../types";
+import type { ImportString } from "vike/types";
+import type { RscAction, RscConfig, RscRuntime } from "../types";
 
 // https://vike.dev/meta#typescript
 declare global {
@@ -52,15 +52,11 @@ declare global {
 
       rsc?: RscConfig;
 
-      /** Renders the RSC payload. Runs in the rsc environment. */
-      renderRsc?: RenderRsc | ImportString;
-
-      /** Runs the server action of pageContext.rscAction. Runs in the rsc environment. */
-      runServerAction?: RunServerAction | ImportString;
+      /** The rsc env's interface to the ssr env */
+      rscRuntime?: RscRuntime | ImportString;
     }
     interface ConfigResolved {
-      renderRsc: RenderRsc;
-      runServerAction: RunServerAction;
+      rscRuntime: RscRuntime;
       Wrapper?: Wrapper[];
       Layout?: Layout[];
       Head?: Head[];
@@ -75,8 +71,3 @@ type Loading = {
   component?: () => React.ReactNode;
   layout?: () => React.ReactNode;
 };
-type RenderRsc = (
-  pageContext: PageContext,
-  payload?: RscPayload
-) => Promise<ReadableStream<Uint8Array>>;
-type RunServerAction = (pageContext: PageContext) => Promise<{ returnValue: unknown; rerender: boolean }>;

@@ -1,5 +1,5 @@
 import type { PageContextServer } from "vike/types";
-import { getRscEnvironment } from "../runtime/ssr";
+import { getRsc } from "../ssr/bridge";
 import { CLIENT_DISCONNECT } from "../protocol";
 
 const clientDisconnect = Object.assign(new Error("Client disconnected"), { code: CLIENT_DISCONNECT });
@@ -7,13 +7,13 @@ const clientDisconnect = Object.assign(new Error("Client disconnected"), { code:
 // https://vike.dev/onCreatePageContext
 // Server-only, so that navigation fetches the pageContext, which carries rscPayload.
 export async function onCreatePageContext(pageContext: PageContextServer): Promise<void> {
-  const rsc = getRscEnvironment(pageContext);
+  const rsc = getRsc(pageContext);
   // Rendered once read: after data(), and never if the pageContext isn't sent.
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   pageContext.rscPayload = new ReadableStream<Uint8Array>(
     {
       async pull(controller) {
-        reader ??= (await rsc.config.renderRsc(rsc.pageContext)).getReader();
+        reader ??= (await rsc.runtime.render(rsc.pageContext)).getReader();
         const { done, value } = await reader.read();
         if (done) controller.close();
         else controller.enqueue(value);
@@ -29,8 +29,8 @@ export async function onCreatePageContext(pageContext: PageContextServer): Promi
   if (!rscAction) return;
   if (!rscAction.hasRun) {
     rscAction.hasRun = true;
-    Object.assign(rscAction, await rsc.config.runServerAction(rsc.pageContext));
-    if (!rscAction.rerender) rscAction.renderReturnValue = () => rsc.config.renderRsc(rsc.pageContext);
+    Object.assign(rscAction, await rsc.runtime.runAction(rsc.pageContext));
+    if (!rscAction.rerender) rscAction.renderReturnValue = () => rsc.runtime.render(rsc.pageContext);
   }
   // Hooks see the cookies the action set, e.g. guard() after a login, also on the page a `throw render()` shows
   pageContext.headers = withCookies(pageContext.headers, rscAction.responseHeaders);

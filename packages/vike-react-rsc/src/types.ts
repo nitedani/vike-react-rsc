@@ -1,11 +1,12 @@
 import type { ReactFormState } from "react-dom/client";
+import type { PageContext } from "vike/types";
 
 export type RscPayload = {
   root?: React.ReactNode;
   formState?: ReactFormState;
   returnValue?: unknown;
   error?: {
-    reason: "not-found" | "error";
+    reason: ErrorReason;
   };
 };
 
@@ -20,6 +21,19 @@ export type RscAction = {
   rerender?: boolean;
   /** Renders the return value as Flight, once the action ran without rerender() */
   renderReturnValue?: () => Promise<ReadableStream<Uint8Array>>;
+};
+
+/** Why the page couldn't render */
+export type ErrorReason = "not-found" | "error";
+
+export type ActionOutcome = { returnValue: unknown; rerender: boolean };
+
+/** The rsc env's interface to the ssr env: the `rscRuntime` setting */
+export type RscRuntime = {
+  /** The page, or the action's answer */
+  render(pageContext: PageContext): Promise<ReadableStream<Uint8Array>>;
+  renderError(reason: ErrorReason): ReadableStream<Uint8Array>;
+  runAction(pageContext: PageContext): Promise<ActionOutcome>;
 };
 
 /**

@@ -10,15 +10,6 @@ import { prerender } from "react-dom/static.edge";
 import React from "react";
 import type { RscPayload } from "../types";
 
-// renderRsc() and runServerAction() are configs of the rsc environment: the server calls them with the rsc view of pageContext
-export function getRscEnvironment(
-  pageContext: PageContextServer
-): NonNullable<NonNullable<PageContextServer["environments"]>["rsc"]> {
-  const rsc = pageContext.environments?.rsc;
-  if (!rsc) throw new Error("pageContext.environments.rsc is missing: vike-react-rsc needs a Vike version with Vike environments");
-  return rsc;
-}
-
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
