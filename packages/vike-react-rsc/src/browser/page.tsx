@@ -1,10 +1,10 @@
 import { useEffect, useState, type Dispatch, type ReactElement, type SetStateAction } from "react";
 import type { PageContextClient } from "vike/types";
-import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
-import type { RscPayload } from "../types";
+import { PageContextProvider } from "../pageContext";
+import type { PagePayload } from "../types";
 import { getGlobalObject } from "../utils/getGlobalObject";
 
-type Page = { pageContext: PageContextClient; payload: RscPayload };
+type Page = { pageContext: PageContextClient; payload: PagePayload };
 
 const current = getGlobalObject<{ pageContext?: PageContextClient; setPage?: Dispatch<SetStateAction<Page>> }>(
   "page.ts",
@@ -37,6 +37,6 @@ export function showPage(page: Page): void {
   current.setPage?.(page);
 }
 
-export function showPayload(payload: RscPayload): void {
+export function showPayload(payload: PagePayload): void {
   current.setPage?.((page) => ({ pageContext: page.pageContext, payload }));
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType, type ReactElement, type ReactNode } from "react";
 import type { OnPageTransitionStartSync, PageContext } from "vike/types";
-import { usePageContext } from "../hooks/pageContext/pageContext-client";
+import { usePageContext } from "../pageContext";
 import { getGlobalObject } from "../utils/getGlobalObject";
 
 type CacheEntry = { component: unknown; timestamp: number; isStale: boolean };

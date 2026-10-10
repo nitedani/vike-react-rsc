@@ -2,7 +2,7 @@ import { decodeReply, loadServerAction, renderToReadableStream } from "@vitejs/p
 import { Suspense, type ReactNode } from "react";
 import type { PageContext } from "vike/types";
 import { isClientDisconnect } from "../protocol";
-import type { ActionOutcome, ErrorReason, RscPayload, RscRuntime } from "../types";
+import type { ActionOutcome, ActionPayload, ErrorPayload, ErrorReason, PagePayload, RscRuntime } from "../types";
 import { provideActionScope, providePageContext } from "./scope";
 
 export const rscRuntime: RscRuntime = { render, renderError, runAction };
@@ -17,12 +17,12 @@ const renderOptions = {
 async function render(pageContext: PageContext): Promise<ReadableStream<Uint8Array>> {
   const { rscAction } = pageContext;
   const root = !rscAction || rscAction.outcome?.rerender ? renderPage(pageContext) : undefined;
-  const payload: RscPayload = rscAction ? { root, returnValue: rscAction.outcome?.returnValue } : { root };
+  const payload: PagePayload | ActionPayload = rscAction ? { root, returnValue: rscAction.outcome?.returnValue } : { root };
   return providePageContext(pageContext, () => renderToReadableStream(payload, renderOptions));
 }
 
 function renderError(reason: ErrorReason): ReadableStream<Uint8Array> {
-  return renderToReadableStream<RscPayload>({ error: { reason } }, renderOptions);
+  return renderToReadableStream<ErrorPayload>({ error: { reason } }, renderOptions);
 }
 
 async function runAction(pageContext: PageContext): Promise<ActionOutcome> {

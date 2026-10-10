@@ -5,9 +5,7 @@ import { vikeRscPlugin } from "./vite";
 
 const config: Config = {
   name: "vike-react-rsc",
-  // Placeholder only: released Vike 0.4.260 doesn't contain the response
-  // page-context API, streamed pageContext values or Vike environments. Before
-  // publishing, pin this to the first Vike release containing those APIs.
+  // Placeholder: Vike 0.4.260 lacks the response API, streamed pageContext values and Vike environments; pin the first release with them
   require: {
     vike: ">=0.4.260",
   },
@@ -28,15 +26,13 @@ const config: Config = {
 
   // https://vike.dev/clientRouting
   clientRouting: true,
-  // `Page` is loaded only by the RSC runtime, while Vike's client hooks still
-  // hydrate the Flight payload and handle client-side navigation.
+  // `Page` is loaded only in the rsc env, while Vike's client hooks hydrate the Flight payload and navigate
   clientHooks: true,
   hydrationCanBeAborted: true,
 
   // https://vike.dev/meta
   meta: {
-    // Extension setting for RSC cache policy; unrelated to the `rsc` environment
-    // name. Only the client's cache of rsc() components reads it.
+    // The rsc() cache setting, unrelated to the rsc env: only the browser's rsc() cache reads it
     rsc: {
       env: { client: true },
       global: true,
@@ -54,8 +50,7 @@ const config: Config = {
       cumulative: true,
     },
     Loading: {
-      // `layout` wraps the page in the rsc environment, `component` is the
-      // fallback of rsc(), a client component that SSR renders too.
+      // `layout` wraps the page in the rsc env; `component` is rsc()'s fallback, which SSR renders too
       env: { server: true, client: true, rsc: true },
     },
     Page: {
@@ -70,4 +65,4 @@ const config: Config = {
   },
 } satisfies Config;
 
-import "./types/Config.js";
+import "./types.js";

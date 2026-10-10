@@ -5,10 +5,9 @@ import { prerender } from "react-dom/static.edge";
 import { renderToStream } from "react-streaming/server.web";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
-import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
+import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
-import type { ErrorReason, RscPayload } from "../types";
-import type { Head } from "../types/Config";
+import type { ErrorReason, Head, PagePayload } from "../types";
 import { isReactElement } from "../utils/isReactElement";
 import { getRsc } from "./bridge";
 
@@ -28,13 +27,13 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
   pageContext.rscPayload = browserBranch;
   // tee() stops the Flight render only when both branches are cancelled
   const htmlBranchEnd = new AbortController();
-  const payload = await createFromReadableStream<RscPayload>(
+  const payload = await createFromReadableStream<PagePayload>(
     htmlBranch.pipeThrough(new TransformStream(), { signal: htmlBranchEnd.signal })
   );
   const page = <PageContextProvider pageContext={pageContext}>{payload.root}</PageContextProvider>;
   const pageHtml = pageContext.isPrerendering
     ? await prerenderPage(page)
-    : await renderStreamedPage(page, payload, pageContext, htmlBranchEnd);
+    : await renderStreamedPage(page, pageContext, htmlBranchEnd);
 
   const documentHtml = escapeInject`<!DOCTYPE html>
     <html>
@@ -60,16 +59,12 @@ function getErrorReason(pageContext: PageContextServer): ErrorReason | undefined
 
 async function renderStreamedPage(
   page: ReactNode,
-  payload: RscPayload,
   pageContext: PageContextServer,
   htmlBranchEnd: AbortController
 ) {
   const stream = await renderToStream(page, {
     userAgent: pageContext.headers?.["user-agent"],
-    streamOptions: {
-      formState: payload.formState,
-      nonce: pageContext.cspNonce ?? undefined,
-    },
+    streamOptions: { nonce: pageContext.cspNonce ?? undefined },
   });
   // Also ends when the client leaves the HTML response mid-stream
   void stream.streamEnd.then(() => htmlBranchEnd.abort());

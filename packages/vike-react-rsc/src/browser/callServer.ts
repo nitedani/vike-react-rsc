@@ -1,7 +1,7 @@
 import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER } from "../protocol";
-import type { RscPayload } from "../types";
+import type { ActionPayload, ErrorPayload } from "../types";
 import { getCurrentPage, isCurrent, showPayload } from "./page";
 import { isRscLoading, markRscCacheStale } from "./rsc";
 
@@ -22,10 +22,11 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
     // Keep the caller pending while the browser replaces this document
     return new Promise<never>(() => {});
   }
-  const payload = await createFromFetch<RscPayload>(response);
-  if (payload.error) throw new Error(`[vike-react-rsc] RSC request failed: ${payload.error.reason}`);
+  const payload = await createFromFetch<ActionPayload | ErrorPayload>(response);
+  if ("error" in payload) throw new Error(`[vike-react-rsc] RSC request failed: ${payload.error.reason}`);
+  const { root } = payload;
   // The user navigated away meanwhile: the payload belongs to the old page
-  if (payload.root && isCurrent(pageContext)) startTransition(() => showPayload(payload));
+  if (root && isCurrent(pageContext)) startTransition(() => showPayload({ root }));
   if (!isRscLoad) markRscCacheStale();
   return payload.returnValue;
 }

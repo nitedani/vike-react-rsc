@@ -2,7 +2,7 @@ import { createFromReadableStream, setServerCallback } from "@vitejs/plugin-rsc/
 import { hydrateRoot } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync } from "vike/types";
-import type { RscPayload } from "../types";
+import type { PagePayload } from "../types";
 import { callServer } from "./callServer";
 import { Root, setCurrentPage, showPage } from "./page";
 import { markRscCacheStale } from "./rsc";
@@ -20,15 +20,15 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
         return;
       }
       if (!pageContext.rscPayload) throw new Error("[vike-react-rsc] pageContext.rscPayload is missing");
-      const payload = await createFromReadableStream<RscPayload>(pageContext.rscPayload);
-      hydrateRoot(container, <Root page={{ pageContext, payload }} />, { formState: payload.formState });
+      const payload = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
+      hydrateRoot(container, <Root page={{ pageContext, payload }} />);
     } catch (err) {
       console.error("[Client] Hydration failed:", err);
     }
   } else if (pageContext.isClientSideNavigation) {
     try {
       if (!pageContext.rscPayload) throw new Error("[vike-react-rsc] pageContext.rscPayload is missing");
-      const payload = await createFromReadableStream<RscPayload>(pageContext.rscPayload);
+      const payload = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
       showPage({ pageContext, payload });
     } catch (error) {
       console.error("[Client] Failed to navigate:", error);

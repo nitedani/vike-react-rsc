@@ -18,8 +18,8 @@
       "default": "./dist/client.js"
     },
     "./pageContext": {
-      "react-server": "./dist/hooks/pageContext/pageContext-server.js",
-      "default": "./dist/hooks/pageContext/pageContext-client.js"
+      "react-server": "./dist/pageContext.rsc.js",
+      "default": "./dist/pageContext.js"
     },
     "./__internal/browser": "./dist/__internal/browser.js",
     "./__internal/ssr": "./dist/__internal/ssr.server.js",
