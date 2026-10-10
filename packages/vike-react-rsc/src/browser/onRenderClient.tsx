@@ -2,10 +2,10 @@ import { createFromReadableStream, setServerCallback } from "@vitejs/plugin-rsc/
 import { hydrateRoot } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync } from "vike/types";
-import { invalidateServerComponentCache } from "../runtime/cache";
 import type { RscPayload } from "../types";
 import { callServer } from "./callServer";
 import { Root, setCurrentPage, showPage } from "./page";
+import { markRscCacheStale } from "./rsc";
 
 setServerCallback(callServer);
 
@@ -38,7 +38,7 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
 
 if (import.meta.hot) {
   import.meta.hot.on("rsc:update", () => {
-    invalidateServerComponentCache();
+    markRscCacheStale();
     // Navigating to the current URL fetches the new payload
     const { pathname, search, hash } = location;
     navigate(pathname + search + hash, { keepScrollPosition: true });

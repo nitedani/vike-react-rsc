@@ -1,14 +1,13 @@
 import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER } from "../protocol";
-import { invalidateServerComponentCache } from "../runtime/cache";
-import { getGlobalClientState } from "../runtime/client/globalState";
 import type { RscPayload } from "../types";
 import { getCurrentPage, isCurrent, showPayload } from "./page";
+import { isRscLoading, markRscCacheStale } from "./rsc";
 
 /** React calls it for every server action, rsc() loads included */
 export async function callServer(id: string, args: unknown[]): Promise<unknown> {
-  const { isRscCall } = getGlobalClientState();
+  const isRscLoad = isRscLoading();
   const pageContext = getCurrentPage();
   if (!pageContext) throw new Error("Missing page context");
   const response = fetch(pageContext.urlOriginal, {
@@ -27,6 +26,6 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
   if (payload.error) throw new Error(`[vike-react-rsc] RSC request failed: ${payload.error.reason}`);
   // The user navigated away meanwhile: the payload belongs to the old page
   if (payload.root && isCurrent(pageContext)) startTransition(() => showPayload(payload));
-  if (!isRscCall) invalidateServerComponentCache();
+  if (!isRscLoad) markRscCacheStale();
   return payload.returnValue;
 }
