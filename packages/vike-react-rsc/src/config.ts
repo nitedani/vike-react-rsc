@@ -23,7 +23,7 @@ const config: Config = {
   rscRuntime: "import:vike-react-rsc/__internal/rsc:rscRuntime",
   // https://vike.dev/middleware
   // `as never`: Vike types `middleware` without ImportString
-  middleware: "import:vike-react-rsc/__internal/integration/actionMiddleware:default" as never,
+  middleware: "import:vike-react-rsc/__internal/ssr:actionMiddleware" as never,
 
   // https://vike.dev/onCreatePageContext
   onCreatePageContext:

@@ -1,6 +1,7 @@
 import type React from "react";
 import type { ImportString } from "vike/types";
-import type { RscAction, RscConfig, RscRuntime } from "../types";
+import type { ActionCall } from "../ssr/action";
+import type { RscConfig, RscRuntime } from "../types";
 
 // https://vike.dev/meta#typescript
 declare global {
@@ -8,8 +9,8 @@ declare global {
     interface PageContext {
       /** The page rendered as Flight (RSC payload), streamed to the client. */
       rscPayload?: ReadableStream<Uint8Array>;
-      /** Server-side: the server action of this request (integration/actionMiddleware.ts) */
-      rscAction?: RscAction;
+      /** Server-side: the server action of this request */
+      rscAction?: ActionCall;
     }
 
     interface Config {

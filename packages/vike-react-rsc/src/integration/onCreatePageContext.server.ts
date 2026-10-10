@@ -24,24 +24,8 @@ export async function onCreatePageContext(pageContext: PageContextServer): Promi
     { highWaterMark: 0 }
   );
 
-  // A server action runs before guard() and data(), once: not again for the page a `throw render()` or an error shows instead.
-  const { rscAction } = pageContext;
-  if (!rscAction) return;
-  if (!rscAction.hasRun) {
-    rscAction.hasRun = true;
-    Object.assign(rscAction, await rsc.runtime.runAction(rsc.pageContext));
-    if (!rscAction.rerender) rscAction.renderReturnValue = () => rsc.runtime.render(rsc.pageContext);
-  }
-  // Hooks see the cookies the action set, e.g. guard() after a login, also on the page a `throw render()` shows
-  pageContext.headers = withCookies(pageContext.headers, rscAction.responseHeaders);
-}
-
-function withCookies(headers: Record<string, string> | null, responseHeaders: Headers): Record<string, string> | null {
-  const setCookies = responseHeaders.getSetCookie();
-  if (setCookies.length === 0) return headers;
-  const cookies = new Map<string, string>();
-  for (const cookie of [...(headers?.cookie?.split(/;\s*/) ?? []), ...setCookies.map((c) => c.split(";")[0])]) {
-    if (cookie) cookies.set(cookie.split("=")[0], cookie);
-  }
-  return { ...headers, cookie: [...cookies.values()].join("; ") };
+  const call = pageContext.rscAction;
+  if (!call) return;
+  await call.run(pageContext);
+  pageContext.headers = call.withCookies(pageContext.headers);
 }
