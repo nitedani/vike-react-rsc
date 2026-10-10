@@ -1,13 +1,12 @@
 import { AsyncLocalStorage } from "async_hooks";
 import type { PageContext } from "vike/types";
-import { getGlobalObject } from "../utils/getGlobalObject.js";
 
 type ActionScope = { rerender: boolean; responseHeaders: Headers };
 
-const scopes = getGlobalObject("scope.ts", {
+const scopes = {
   pageContext: new AsyncLocalStorage<PageContext>(),
   action: new AsyncLocalStorage<ActionScope>(),
-});
+};
 
 export function providePageContext<T>(pageContext: PageContext, callback: () => T): T {
   return scopes.pageContext.run(pageContext, callback);

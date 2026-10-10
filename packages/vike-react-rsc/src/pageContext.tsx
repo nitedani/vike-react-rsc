@@ -1,10 +1,7 @@
 import { createContext, useContext, type ReactElement, type ReactNode } from "react";
 import type { PageContext } from "vike/types";
-import { getGlobalObject } from "./utils/getGlobalObject.js";
 
-const globalObject = getGlobalObject("pageContext.ts", {
-  reactContext: createContext<PageContext>(undefined as never),
-});
+const reactContext = createContext<PageContext>(undefined as never);
 
 export function PageContextProvider({
   pageContext,
@@ -13,11 +10,11 @@ export function PageContextProvider({
   pageContext: PageContext;
   children: ReactNode;
 }): ReactElement {
-  return <globalObject.reactContext.Provider value={pageContext}>{children}</globalObject.reactContext.Provider>;
+  return <reactContext.Provider value={pageContext}>{children}</reactContext.Provider>;
 }
 
 export function usePageContext(): PageContext {
-  return useContext(globalObject.reactContext);
+  return useContext(reactContext);
 }
 
 export function getPageContext(): PageContext {

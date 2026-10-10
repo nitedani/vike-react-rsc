@@ -1,16 +1,15 @@
 import { useEffect, useState, type ComponentType, type ReactElement, type ReactNode } from "react";
 import type { OnPageTransitionStartSync, PageContext } from "vike/types";
 import { usePageContext } from "../pageContext";
-import { getGlobalObject } from "../utils/getGlobalObject";
 
 type CacheEntry = { component: unknown; timestamp: number; isStale: boolean };
 
-const cache = getGlobalObject("rsc.ts", {
+const cache = {
   entries: new Map<string, CacheEntry>(),
   // Renders of the same component share the load in flight
   pendingLoads: new Map<string, Promise<any>>(),
   isLoading: false,
-});
+};
 
 export function rsc<P, T extends ReactElement<any>>(
   c: (props: P) => Promise<T>

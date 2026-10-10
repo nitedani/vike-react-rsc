@@ -2,14 +2,10 @@ import { useEffect, useState, type Dispatch, type ReactElement, type SetStateAct
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
 import type { PagePayload } from "../types";
-import { getGlobalObject } from "../utils/getGlobalObject";
 
 type Page = { pageContext: PageContextClient; payload: PagePayload };
 
-const current = getGlobalObject<{ pageContext?: PageContextClient; setPage?: Dispatch<SetStateAction<Page>> }>(
-  "page.ts",
-  {}
-);
+const current: { pageContext?: PageContextClient; setPage?: Dispatch<SetStateAction<Page>> } = {};
 
 /** Vike started rendering it: actions now go to its URL, and earlier actions' payloads are stale */
 export function setCurrentPage(pageContext: PageContextClient): void {

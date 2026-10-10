@@ -8,7 +8,6 @@ import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import type { ErrorReason, Head, PagePayload } from "../types";
-import { isReactElement } from "../utils/isReactElement";
 import { getRsc } from "./bridge";
 
 // https://vike.dev/onRenderHtml
@@ -21,7 +20,6 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
     return;
   }
 
-  if (!pageContext.rscPayload) throw new Error("[vike-react-rsc] pageContext.rscPayload is missing");
   // One Flight render: the HTML reads one branch, Vike streams the other to the browser
   const [htmlBranch, browserBranch] = pageContext.rscPayload.tee();
   pageContext.rscPayload = browserBranch;
@@ -79,20 +77,18 @@ async function prerenderPage(page: ReactNode) {
 
 function getHeadHtml(pageContext: PageContextServer) {
   return dangerouslySkipEscape(
-    (pageContext.config.Head ?? [])
-      .filter((Head) => Head !== null && Head !== undefined)
-      .map((Head) => getHeadElementHtml(Head, pageContext))
-      .join("\n")
+    (pageContext.config.Head ?? []).map((Head) => getHeadElementHtml(Head, pageContext)).join("\n")
   );
 }
 
-function getHeadElementHtml(Head: NonNullable<Head>, pageContext: PageContextServer): string {
-  const headElement = isReactElement(Head) ? (
-    Head
-  ) : (
-    <PageContextProvider pageContext={pageContext}>
-      <Head />
-    </PageContextProvider>
-  );
+function getHeadElementHtml(Head: Head, pageContext: PageContextServer): string {
+  const headElement =
+    typeof Head === "function" ? (
+      <PageContextProvider pageContext={pageContext}>
+        <Head />
+      </PageContextProvider>
+    ) : (
+      Head
+    );
   return renderToStaticMarkup(headElement);
 }

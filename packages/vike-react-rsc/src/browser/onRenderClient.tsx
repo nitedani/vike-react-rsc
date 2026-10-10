@@ -14,20 +14,13 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   setCurrentPage(pageContext);
   if (pageContext.isHydration) {
     try {
-      const container = document.getElementById("root");
-      if (!container) {
-        console.error("[Client] Container #root not found!");
-        return;
-      }
-      if (!pageContext.rscPayload) throw new Error("[vike-react-rsc] pageContext.rscPayload is missing");
       const payload = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
-      hydrateRoot(container, <Root page={{ pageContext, payload }} />);
+      hydrateRoot(document.getElementById("root")!, <Root page={{ pageContext, payload }} />);
     } catch (err) {
       console.error("[Client] Hydration failed:", err);
     }
   } else if (pageContext.isClientSideNavigation) {
     try {
-      if (!pageContext.rscPayload) throw new Error("[vike-react-rsc] pageContext.rscPayload is missing");
       const payload = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
       showPage({ pageContext, payload });
     } catch (error) {

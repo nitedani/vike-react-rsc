@@ -38,7 +38,7 @@ declare global {
   namespace Vike {
     interface PageContext {
       /** The page rendered as Flight, streamed to the browser */
-      rscPayload?: ReadableStream<Uint8Array>;
+      rscPayload: ReadableStream<Uint8Array>;
       /** Server-side: the server action of this request */
       rscAction?: ActionCall;
     }
