@@ -1,7 +1,3 @@
-import { tinyassert } from "@hiogawa/utils";
-import environmentName from "virtual:environment-name";
-tinyassert(environmentName === "client", "Invalid environment");
-
 import { startTransition } from "react";
 import {
   createFromFetch,
@@ -19,7 +15,7 @@ async function callServer(id: string, args: unknown[]): Promise<unknown> {
   const globalState = getGlobalClientState();
   const isRscCall = globalState.isRscCall;
 
-  tinyassert(globalState.pageContext, "Missing page context");
+  if (!globalState.pageContext) throw new Error("Missing page context");
   const pageContextAtCall = globalState.pageContext;
   const responsePromise = fetch(globalState.pageContext.urlOriginal, {
     method: "POST",

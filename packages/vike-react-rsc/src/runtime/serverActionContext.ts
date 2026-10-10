@@ -1,7 +1,3 @@
-import environmentName from "virtual:environment-name";
-import { tinyassert } from "@hiogawa/utils";
-tinyassert(environmentName === "rsc", "Invalid environment");
-
 export { rerender };
 export { getResponseHeaders };
 export { provideServerActionContext };

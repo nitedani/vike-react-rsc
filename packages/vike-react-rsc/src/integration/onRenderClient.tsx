@@ -1,7 +1,3 @@
-import { tinyassert } from "@hiogawa/utils";
-import environmentName from "virtual:environment-name";
-tinyassert(environmentName === "client", "Invalid environment");
-
 import { useEffect, useState } from "react";
 import ReactDOMClient from "react-dom/client";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
@@ -53,7 +49,7 @@ export const onRenderClient: OnRenderClientAsync = async function (
         return;
       }
 
-      tinyassert(pageContext.rscPayload);
+      if (!pageContext.rscPayload) throw new Error("[vike-react-rsc] pageContext.rscPayload is missing");
       const initialPayload = await parseRscStream(pageContext.rscPayload);
 
       // Hydrate the root with our component
@@ -75,7 +71,7 @@ export const onRenderClient: OnRenderClientAsync = async function (
   // Handle client-side navigation
   else if (pageContext.isClientSideNavigation) {
     try {
-      tinyassert(pageContext.rscPayload);
+      if (!pageContext.rscPayload) throw new Error("[vike-react-rsc] pageContext.rscPayload is missing");
       const payload = await parseRscStream(pageContext.rscPayload);
       globalState.setPayload?.({ pageContext, payload });
     } catch (error) {

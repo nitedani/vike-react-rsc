@@ -1,7 +1,3 @@
-import environmentName from "virtual:environment-name";
-import { tinyassert } from "@hiogawa/utils";
-tinyassert(environmentName !== "rsc" && environmentName !== "client", "Invalid environment");
-
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import { renderToStream } from "react-streaming/server.web";
 import { createFromReadableStream } from "@vitejs/plugin-rsc/ssr";
@@ -19,14 +15,14 @@ export function getRscEnvironment(
   pageContext: PageContextServer
 ): NonNullable<NonNullable<PageContextServer["environments"]>["rsc"]> {
   const rsc = pageContext.environments?.rsc;
-  tinyassert(rsc, "pageContext.environments.rsc is missing: vike-react-rsc needs a Vike version with Vike environments");
+  if (!rsc) throw new Error("pageContext.environments.rsc is missing: vike-react-rsc needs a Vike version with Vike environments");
   return rsc;
 }
 
 export const onRenderHtmlSsr: OnRenderHtmlAsync = async function (
   pageContext: PageContextServer
 ) {
-  tinyassert(pageContext.rscPayload);
+  if (!pageContext.rscPayload) throw new Error("[vike-react-rsc] pageContext.rscPayload is missing");
   // One Flight render: SSR reads one branch, Vike streams the other to the browser.
   const [rscStreamForHtml, rscStreamForBrowser] = pageContext.rscPayload.tee();
   pageContext.rscPayload = rscStreamForBrowser;

@@ -1,7 +1,3 @@
-import environmentName from "virtual:environment-name";
-import { tinyassert } from "@hiogawa/utils";
-tinyassert(environmentName === "rsc", "Invalid environment");
-
 import { renderToReadableStream, decodeReply, loadServerAction } from '@vitejs/plugin-rsc/rsc'
 import type { PageContext } from "vike/types";
 import { getPageElement } from "../integration/getPageElement";
@@ -37,7 +33,7 @@ export async function runServerAction(
   pageContext: PageContext
 ): Promise<{ returnValue: unknown; rerender: boolean }> {
   const { rscAction } = pageContext;
-  tinyassert(rscAction);
+  if (!rscAction) throw new Error("[vike-react-rsc] pageContext.rscAction is missing");
   const context = { shouldRerender: false, responseHeaders: rscAction.responseHeaders };
   const [args, action] = await Promise.all([
     decodeReply(rscAction.body),

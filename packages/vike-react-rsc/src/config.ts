@@ -1,7 +1,7 @@
 export { config as default };
 
 import type { Config } from "vike/types";
-import vikeRscPlugin from "./plugin";
+import { vikeRscPlugin } from "./vite";
 
 const config: Config = {
   name: "vike-react-rsc",
