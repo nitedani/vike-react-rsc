@@ -8,6 +8,7 @@ import {
   autoRetry,
   skip,
   getServerUrl,
+  sleep,
 } from "@brillout/test-e2e";
 
 const pages = {
@@ -40,6 +41,9 @@ const REACT_DEV_EVAL_CSP_ERROR =
 // https://github.com/react/react/pull/37572 is released.
 const REACT_DEV_PERF_TRACK_ERROR = "cannot have a negative time stamp";
 
+// Thrown by /actions' data() after saveThenFailData()
+const DATA_ERROR = "data() failed on demand";
+
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
   // Pre-rendered, and served like a static host would
@@ -61,6 +65,11 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (isDev && logText.includes(REACT_DEV_PERF_TRACK_ERROR)) ||
       // testCrossSiteAction()
       (logSource === "stderr" && logText.includes("HTTP response ← /todos 403")) ||
+      // testActionValueSurvivesDataError()
+      (logSource === "stderr" &&
+        (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
+      // testActionErrorPayload()
+      (logSource === "Browser Error" && logText.includes("status of 404")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
       (isStatic &&
         logSource === "stderr" &&
@@ -74,13 +83,26 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testScriptBreakout();
   testCspNonce();
   testResponseTail();
-  // A static host has no server to run server actions.
+  testUsePageContext();
+  testWrapper();
+  testHead();
+  // A static host has no server: nothing renders per request, and server actions can't run.
   if (!isStatic) {
+    testPageLoading();
+    testOneRender();
+    testClientDisconnect();
     testCounter();
     testTodoForm();
     testSession();
+    testActionOnce();
+    testActionValueSurvivesDataError();
+    testActionErrorPayload();
+    testStaleAction();
     testCrossSiteAction();
     testRscComponentCall();
+    testRscDeduplication();
+    testRscCache();
+    testRscCacheInvalidation();
   }
   testNavigationRequests();
   testPageNavigation();
@@ -420,5 +442,212 @@ function testCspNonce() {
       },
       { timeout: 5000 }
     );
+  });
+}
+
+// What the server rendered and ran so far, from /counts (src/serverCounts.ts)
+async function getServerCount(key: string): Promise<number> {
+  const html = await fetchHtml("/counts");
+  const match = new RegExp(`data-count="${key}">(\\d+)<`).exec(html);
+  return match ? Number(match[1]) : 0;
+}
+
+function testUsePageContext() {
+  test("usePageContext() in a client component", async () => {
+    expect(await fetchHtml("/client")).to.match(/data-url-pathname="">\/client</);
+    await page.goto(getServerUrl() + "/client");
+    expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
+  });
+}
+
+function testWrapper() {
+  test("Wrapper wraps the Layout", async () => {
+    await page.goto(getServerUrl() + "/");
+    expect(await page.locator("[data-wrapper] header").count()).to.equal(1);
+  });
+}
+
+function testHead() {
+  test("Head sets the document's head", async () => {
+    expect(await fetchHtml("/")).to.include("<title>Vike RSC demo</title>");
+    await page.goto(getServerUrl() + "/");
+    expect(await page.title()).to.equal("Vike RSC demo");
+  });
+}
+
+function testPageLoading() {
+  test("Loading.layout streams before the page it waits for", async () => {
+    // /data waits two seconds for its films
+    const html = await fetchHtml("/data");
+    const fallback = html.search(/<div[^>]*data-loading-layout/);
+    expect(fallback, "fallback missing from response").to.not.equal(-1);
+    expect(html.indexOf("Page-Level Loading")).to.be.greaterThan(fallback);
+  });
+}
+
+function testOneRender() {
+  test("One render per page load feeds the HTML and the browser", async () => {
+    const before = await getServerCount("render /");
+    await fetchHtml("/");
+    expect(await getServerCount("render /")).to.equal(before + 1);
+  });
+}
+
+function testClientDisconnect() {
+  test("A client leaving mid-stream stops the render, and isn't logged as an error", async () => {
+    // Staying renders /slow's Suspense boundary, which resolves after 1.5 seconds
+    const before = await getServerCount("slow");
+    await fetchHtml("/slow");
+    expect(await getServerCount("slow")).to.equal(before + 1);
+
+    // Leaving after the first bytes, before it resolves
+    const controller = new AbortController();
+    const response = await fetch(getServerUrl() + "/slow", { signal: controller.signal });
+    await response.body!.getReader().read();
+    controller.abort();
+    await sleep(2500);
+    expect(await getServerCount("slow")).to.equal(before + 1);
+  });
+}
+
+function testActionOnce() {
+  test("Server action: runs once when guard() throws render()", async () => {
+    // Without a name, the guard of /account throws render("/login") after the action
+    await page.goto(getServerUrl() + "/account");
+    await waitForHydration("Log in");
+    const before = await getServerCount("login");
+    await page.fill('input[name="user"]', "");
+    const response = page.waitForResponse((response) => response.request().method() === "POST");
+    await page.click('button:has-text("Log in")');
+    // The action runs before the answer starts
+    await response;
+    expect(await getServerCount("login")).to.equal(before + 1);
+    expect(await page.textContent("h1")).to.equal("Log in");
+  });
+}
+
+function testActionValueSurvivesDataError() {
+  test("Server action: without rerender(), its value survives a data() error", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Save, then data() throws")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
+    });
+  });
+}
+
+function testActionErrorPayload() {
+  test("Server action: a 404 instead of the page rejects the call", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Save, then guard() throws render(404)")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.equal(
+        "Rejected: [vike-react-rsc] RSC request failed: not-found"
+      );
+    });
+  });
+}
+
+function testStaleAction() {
+  test("Server action: a navigation during the action keeps the new page", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    const returned = page.waitForEvent("console", (message) => message.text() === "Returned: saved");
+    let hasResponded = false;
+    void page
+      .waitForResponse((response) => response.request().method() === "POST")
+      .then(() => (hasResponded = true));
+
+    await page.click('button:has-text("Slow save")');
+    await page.click('a[href="/"]');
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include("Vike React Server Components");
+    });
+    expect(hasResponded, "the navigation must end before the action returns").to.equal(false);
+
+    // The caller still gets the value, and the page the action rendered isn't shown
+    await returned;
+    await sleep(500);
+    expect(await page.textContent("h1")).to.include("Vike React Server Components");
+  });
+}
+
+// The rsc() components of /suspense (components/LoadCount): each server render shows a higher count
+function trackRscRequests() {
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    const action = request.headers()["x-rsc-action"];
+    if (request.method() === "POST" && action) requests.push(action);
+  });
+  return requests;
+}
+const readLoadCounts = () => page.locator("[data-load-count]").allTextContents();
+const toggleLoadCounts = () => page.click('button:has-text("server counts")');
+
+async function showLoadCounts() {
+  await page.goto(getServerUrl() + "/suspense");
+  await waitForHydration("Show server counts");
+  const requests = trackRscRequests();
+  await toggleLoadCounts();
+  // Loading.component until the server component arrives
+  expect(await page.locator("[data-loading-component]").count()).to.equal(2);
+  await autoRetry(async () => {
+    expect(await readLoadCounts()).to.have.length(2);
+  });
+  return requests;
+}
+
+function testRscDeduplication() {
+  test("rsc(): two identical components share one request", async () => {
+    const requests = await showLoadCounts();
+    expect(requests).to.have.length(1);
+    const [first, second] = await readLoadCounts();
+    expect(first).to.equal(second);
+  });
+}
+
+function testRscCache() {
+  test("rsc(): cached for rsc.staleTime, then revalidated", async () => {
+    const requests = await showLoadCounts();
+    const loadedAt = Date.now();
+    const loaded = await readLoadCounts();
+
+    // A fresh cache entry renders at once, without a request
+    await toggleLoadCounts();
+    await toggleLoadCounts();
+    expect(await page.locator("[data-loading-component]").count()).to.equal(0);
+    expect(await readLoadCounts()).to.deep.equal(loaded);
+    expect(requests).to.have.length(1);
+
+    // After `rsc: { staleTime: 10000 }` (+config.ts), the stale entry renders while it's refetched
+    await sleep(Math.max(0, loadedAt + 10000 - Date.now()));
+    await toggleLoadCounts();
+    await toggleLoadCounts();
+    expect(await readLoadCounts()).to.deep.equal(loaded);
+    await autoRetry(async () => {
+      expect(await readLoadCounts()).to.not.deep.equal(loaded);
+    });
+    expect(requests).to.have.length(2);
+  });
+}
+
+function testRscCacheInvalidation() {
+  test("rsc(): another server action marks the cache stale", async () => {
+    const requests = await showLoadCounts();
+    const loaded = await readLoadCounts();
+
+    const response = page.waitForResponse((response) => response.request().method() === "POST");
+    await page.click('button:has-text("Run a server action")');
+    await (await response).finished();
+    await toggleLoadCounts();
+    await toggleLoadCounts();
+    expect(await readLoadCounts()).to.deep.equal(loaded);
+    await autoRetry(async () => {
+      expect(await readLoadCounts()).to.not.deep.equal(loaded);
+    });
+    // The load, the action, the refetch
+    expect(requests).to.have.length(3);
   });
 }
