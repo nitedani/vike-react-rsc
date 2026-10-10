@@ -14,11 +14,9 @@ const config: Config = {
   // https://vike.dev/onRenderHtml
   onRenderHtml: "import:vike-react-rsc/__internal/ssr:onRenderHtml",
   // https://vike.dev/onRenderClient
-  onRenderClient:
-    "import:vike-react-rsc/__internal/integration/onRenderClient:onRenderClient",
+  onRenderClient: "import:vike-react-rsc/__internal/browser:onRenderClient",
 
-  onPageTransitionStart:
-    "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
+  onPageTransitionStart: "import:vike-react-rsc/__internal/browser:onPageTransitionStart",
   rscRuntime: "import:vike-react-rsc/__internal/rsc:rscRuntime",
   // https://vike.dev/middleware
   // `as never`: Vike types `middleware` without ImportString

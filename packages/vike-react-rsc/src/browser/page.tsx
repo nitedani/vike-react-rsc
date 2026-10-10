@@ -1,0 +1,42 @@
+import { useEffect, useState, type Dispatch, type ReactElement, type SetStateAction } from "react";
+import type { PageContextClient } from "vike/types";
+import { PageContextProvider } from "../hooks/pageContext/pageContext-client";
+import type { RscPayload } from "../types";
+import { getGlobalObject } from "../utils/getGlobalObject";
+
+type Page = { pageContext: PageContextClient; payload: RscPayload };
+
+const current = getGlobalObject<{ pageContext?: PageContextClient; setPage?: Dispatch<SetStateAction<Page>> }>(
+  "page.ts",
+  {}
+);
+
+/** Vike started rendering it: actions now go to its URL, and earlier actions' payloads are stale */
+export function setCurrentPage(pageContext: PageContextClient): void {
+  current.pageContext = pageContext;
+}
+
+export function getCurrentPage(): PageContextClient | undefined {
+  return current.pageContext;
+}
+
+export function isCurrent(pageContext: PageContextClient): boolean {
+  return current.pageContext === pageContext;
+}
+
+export function Root({ page }: { page: Page }): ReactElement {
+  const [{ pageContext, payload }, setPage] = useState(page);
+  useEffect(() => {
+    current.setPage = setPage;
+  }, []);
+  return <PageContextProvider pageContext={pageContext}>{payload.root}</PageContextProvider>;
+}
+
+// Before Root mounts, a page is dropped
+export function showPage(page: Page): void {
+  current.setPage?.(page);
+}
+
+export function showPayload(payload: RscPayload): void {
+  current.setPage?.((page) => ({ pageContext: page.pageContext, payload }));
+}
