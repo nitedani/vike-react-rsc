@@ -1,6 +1,6 @@
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { getRscEnvironment, onRenderHtmlSsr } from "../runtime/ssr";
-import { RSC_CONTENT_TYPE } from "../constants";
+import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import type { RscPayload } from "../types";
 
 export const onRenderHtml: OnRenderHtmlAsync = async function (
@@ -12,7 +12,7 @@ export const onRenderHtml: OnRenderHtmlAsync = async function (
     // Without rerender(), rscPayload is the return value only (the middleware answers with it if Vike's answer isn't a 200)
     const abortPayload = getAbortPayload(pageContext);
     pageContext.content = abortPayload ? await rsc.config.renderRsc(rsc.pageContext, abortPayload) : pageContext.rscPayload;
-    pageContext.headersResponse.set("content-type", RSC_CONTENT_TYPE);
+    pageContext.headersResponse.set("content-type", FLIGHT_CONTENT_TYPE);
     return;
   }
 

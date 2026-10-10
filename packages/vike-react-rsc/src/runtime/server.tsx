@@ -8,15 +8,7 @@ import { getPageElement } from "../integration/getPageElement";
 import { providePageContext } from "../hooks/pageContext/pageContext-server";
 import { provideServerActionContext } from "./serverActionContext";
 import type { RscPayload } from "../types";
-
-// A client that navigates away mid-stream cancels the response, which aborts the
-// Flight render. React reports that through onError like a render failure: this
-// one signature is dropped, everything else surfaces. An AbortError is not enough,
-// since an app aborting a fetch in a Server Component throws one too.
-function isClientDisconnect(error: unknown): boolean {
-  const { code } = (error ?? {}) as { code?: unknown };
-  return code === "ERR_STREAM_PREMATURE_CLOSE";
-}
+import { isClientDisconnect } from "../protocol";
 
 const renderOptions = {
   onError(error: unknown) {

@@ -13,7 +13,7 @@ import { navigate } from "vike/client/router";
 import type { RscPayload } from "../types";
 import { invalidateServerComponentCache } from "./cache";
 import { getGlobalClientState } from "./client/globalState";
-import { RSC_CONTENT_TYPE, RSC_REDIRECT_HEADER } from "../constants";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER } from "../protocol";
 
 async function callServer(id: string, args: unknown[]): Promise<unknown> {
   const globalState = getGlobalClientState();
@@ -24,13 +24,13 @@ async function callServer(id: string, args: unknown[]): Promise<unknown> {
   const responsePromise = fetch(globalState.pageContext.urlOriginal, {
     method: "POST",
     headers: {
-      accept: RSC_CONTENT_TYPE,
-      "x-rsc-action": id,
+      accept: FLIGHT_CONTENT_TYPE,
+      [ACTION_HEADER]: id,
     },
     body: await encodeReply(args),
   });
   // A throw redirect() during the action, guard() or data() (integration/actionMiddleware.ts)
-  const redirect = (await responsePromise).headers.get(RSC_REDIRECT_HEADER);
+  const redirect = (await responsePromise).headers.get(REDIRECT_HEADER);
   if (redirect) {
     window.location.assign(redirect);
     // Keep the caller pending while the browser replaces this document

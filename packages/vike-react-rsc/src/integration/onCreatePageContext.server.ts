@@ -1,10 +1,8 @@
 import type { PageContextServer } from "vike/types";
 import { getRscEnvironment } from "../runtime/ssr";
+import { CLIENT_DISCONNECT } from "../protocol";
 
-// Matched by isClientDisconnect() in runtime/server.tsx
-const clientDisconnect = Object.assign(new Error("Client disconnected"), {
-  code: "ERR_STREAM_PREMATURE_CLOSE",
-});
+const clientDisconnect = Object.assign(new Error("Client disconnected"), { code: CLIENT_DISCONNECT });
 
 // https://vike.dev/onCreatePageContext
 // Server-only, so that navigation fetches the pageContext, which carries rscPayload.

@@ -1,25 +1,24 @@
 import { enhance, type UniversalMiddleware } from "@universal-middleware/core";
 import { renderPage } from "vike/server";
 import type { RscAction } from "../types";
-import { RSC_CONTENT_TYPE, RSC_REDIRECT_HEADER } from "../constants";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, isActionRequest } from "../protocol";
 
 // https://vike.dev/middleware
 // A server action called from JavaScript: callServer() POSTs it to the URL of the page shown. renderPage() runs the action
 // (+onCreatePageContext), then guard(), data() and the page, so they see what the action changed.
 const serverActionMiddleware: UniversalMiddleware = enhance(
   async (request: Request) => {
-    const actionId = request.headers.get("x-rsc-action");
-    if (request.method !== "POST" || !actionId) return;
+    if (!isActionRequest(request)) return;
     if (!isSameOrigin(request)) return new Response(null, { status: 403 });
 
-    const rscAction: RscAction = { actionId, body: await readBody(request), responseHeaders: new Headers() };
+    const rscAction: RscAction = { actionId: request.headers.get(ACTION_HEADER)!, body: await readBody(request), responseHeaders: new Headers() };
     // renderPage() runs this middleware again, with a GET: it passes through
     const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction });
     // Without rerender(), the answer is the return value, whatever guard() or data() did after the action (without an
     // _error page, Vike answers their error with its HTML page)
     if (rscAction.renderReturnValue && httpResponse.statusCode !== 200) {
       const headers = new Headers(rscAction.responseHeaders);
-      headers.set("content-type", RSC_CONTENT_TYPE);
+      headers.set("content-type", FLIGHT_CONTENT_TYPE);
       return new Response(await rscAction.renderReturnValue(), { headers });
     }
     const headers = new Headers(httpResponse.headers);
@@ -28,7 +27,7 @@ const serverActionMiddleware: UniversalMiddleware = enhance(
     const location = headers.get("location");
     if (location && httpResponse.statusCode >= 300 && httpResponse.statusCode < 400) {
       headers.delete("location");
-      headers.set(RSC_REDIRECT_HEADER, location);
+      headers.set(REDIRECT_HEADER, location);
       return new Response(null, { status: 200, headers });
     }
     return new Response(httpResponse.getReadableWebStream(), { status: httpResponse.statusCode, headers });

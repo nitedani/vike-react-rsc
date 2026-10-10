@@ -1,4 +1,3 @@
-import { PKG_NAME } from "../../constants";
 import { defaultServerConditions, type Plugin, type UserConfig } from "vite";
 
 export const configs: Plugin[] = [
@@ -14,7 +13,7 @@ export const configs: Plugin[] = [
                 "react-dom/client",
               ],
               exclude: [
-                PKG_NAME,
+                "vike-react-rsc",
                 "@vitejs/plugin-rsc",
               ],
             },
@@ -31,7 +30,7 @@ export const configs: Plugin[] = [
                 "react-streaming/server.web",
               ],
               exclude: [
-                PKG_NAME,
+                "vike-react-rsc",
                 "@vitejs/plugin-rsc",
               ],
             },
@@ -48,7 +47,7 @@ export const configs: Plugin[] = [
                 "react/jsx-dev-runtime",
               ],
               exclude: [
-                PKG_NAME,
+                "vike-react-rsc",
                 "@vitejs/plugin-rsc",
               ],
             },
