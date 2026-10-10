@@ -21,11 +21,9 @@
       "react-server": "./dist/hooks/pageContext/pageContext-server.js",
       "default": "./dist/hooks/pageContext/pageContext-client.js"
     },
-    "./__internal/integration/onRenderHtml": "./dist/integration/onRenderHtml.js",
     "./__internal/integration/onRenderClient": "./dist/integration/onRenderClient.js",
     "./__internal/integration/onPageTransitionStart": "./dist/integration/onPageTransitionStart.js",
-    "./__internal/integration/onCreatePageContext.server": "./dist/integration/onCreatePageContext.server.js",
-    "./__internal/ssr": "./dist/__internal/ssr.js",
+    "./__internal/ssr": "./dist/__internal/ssr.server.js",
     "./__internal/rsc": "./dist/__internal/rsc.js"
   },
   "files": [

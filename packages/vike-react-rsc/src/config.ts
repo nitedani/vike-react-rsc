@@ -12,8 +12,7 @@ const config: Config = {
     vike: ">=0.4.260",
   },
   // https://vike.dev/onRenderHtml
-  onRenderHtml:
-    "import:vike-react-rsc/__internal/integration/onRenderHtml:onRenderHtml",
+  onRenderHtml: "import:vike-react-rsc/__internal/ssr:onRenderHtml",
   // https://vike.dev/onRenderClient
   onRenderClient:
     "import:vike-react-rsc/__internal/integration/onRenderClient:onRenderClient",
@@ -26,8 +25,7 @@ const config: Config = {
   middleware: "import:vike-react-rsc/__internal/ssr:actionMiddleware" as never,
 
   // https://vike.dev/onCreatePageContext
-  onCreatePageContext:
-    "import:vike-react-rsc/__internal/integration/onCreatePageContext.server:onCreatePageContext",
+  onCreatePageContext: "import:vike-react-rsc/__internal/ssr:onCreatePageContext",
   passToClient: ["rscPayload"],
 
   // https://vike.dev/clientRouting
