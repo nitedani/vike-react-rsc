@@ -21,33 +21,40 @@ export function rsc<P, T extends ReactElement<any>>(
     const key = `${c.name}-${JSON.stringify(rest)}`;
     // A stale component shows until its reload arrives
     const { component: cached, isStale } = getCached<T>(key, pageContext);
-    const [component, setComponent] = useState<T | null>(cached);
+    const [loaded, setLoaded] = useState<{ key: string; component: T }>();
 
     useEffect(() => {
       if (cached && !isStale) return;
+      // The props changed before this load arrived: it doesn't replace theirs
+      let isCurrent = true;
+      const show = (component: T) => isCurrent && setLoaded({ key, component });
       const pendingLoad = cache.pendingLoads.get(key);
       if (pendingLoad) {
-        pendingLoad.then(setComponent);
-        return;
+        pendingLoad.then(show);
+      } else {
+        cache.isLoading = true;
+        const load = c(rest as P);
+        cache.isLoading = false;
+        const request = load
+          .then((result) => {
+            setCached(key, result, pageContext);
+            cache.pendingLoads.delete(key);
+            return result;
+          })
+          .catch((error) => {
+            console.error("[RSC Client] Error fetching server component:", error);
+            cache.pendingLoads.delete(key);
+            throw error;
+          });
+        cache.pendingLoads.set(key, request);
+        request.then(show);
       }
-      cache.isLoading = true;
-      const load = c(rest as P);
-      cache.isLoading = false;
-      const request = load
-        .then((result) => {
-          setCached(key, result, pageContext);
-          cache.pendingLoads.delete(key);
-          return result;
-        })
-        .catch((error) => {
-          console.error("[RSC Client] Error fetching server component:", error);
-          cache.pendingLoads.delete(key);
-          throw error;
-        });
-      cache.pendingLoads.set(key, request);
-      request.then(setComponent);
-    }, []);
+      return () => {
+        isCurrent = false;
+      };
+    }, [key]);
 
+    const component = loaded?.key === key ? loaded.component : cached;
     return component ?? fallback ?? <Loading />;
   };
 }

@@ -100,6 +100,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testStaleAction();
     testCrossSiteAction();
     testRscComponentCall();
+    testRscPropsChange();
     testRscDeduplication();
     testRscCache();
     testRscCacheInvalidation();
@@ -372,6 +373,29 @@ function testRscComponentCall() {
     await autoRetry(
       async () => {
         expect(await page.textContent("body")).to.include("Release Date");
+      },
+      { timeout: 15000 }
+    );
+  });
+}
+
+function testRscPropsChange() {
+  test("rsc(): new props load the server component again", async () => {
+    await page.goto(getServerUrl() + "/suspense");
+    await waitForHydration("View Details");
+    await page.click('button:has-text("View Details")');
+    // The details' title is the only h2 with a film's name; the cards use h3
+    const detailsTitle = page.locator("h2", { hasText: /A New Hope|The Empire Strikes Back/ });
+    await autoRetry(
+      async () => {
+        expect(await detailsTitle.textContent()).to.equal("A New Hope");
+      },
+      { timeout: 15000 }
+    );
+    await page.click('button:has-text("Next film")');
+    await autoRetry(
+      async () => {
+        expect(await detailsTitle.textContent()).to.equal("The Empire Strikes Back");
       },
       { timeout: 15000 }
     );
