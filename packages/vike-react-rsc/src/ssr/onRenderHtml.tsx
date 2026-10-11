@@ -23,7 +23,7 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
   // One Flight render: the HTML reads one branch, Vike streams the other to the browser
   const [htmlBranch, browserBranch] = pageContext.rscPayload.tee();
   pageContext.rscPayload = browserBranch;
-  // tee() stops the Flight render only when both branches are cancelled
+  // The decoder locks its stream, so it reads a pipe whose signal can cancel the html branch: tee() stops the Flight render once both branches are cancelled
   const htmlBranchEnd = new AbortController();
   const payload = await createFromReadableStream<PagePayload>(
     htmlBranch.pipeThrough(new TransformStream(), { signal: htmlBranchEnd.signal })

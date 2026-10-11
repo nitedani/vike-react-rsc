@@ -5,7 +5,6 @@ import { getRsc } from "./bridge";
 const clientDisconnect = Object.assign(new Error("Client disconnected"), { code: CLIENT_DISCONNECT });
 
 // https://vike.dev/onCreatePageContext
-// Server-only (see __internal/ssr.server.ts), so that navigation fetches the pageContext, which carries rscPayload
 export async function onCreatePageContext(pageContext: PageContextServer): Promise<void> {
   const rsc = getRsc(pageContext);
   // Rendered once read: after data(), and never if the pageContext isn't sent

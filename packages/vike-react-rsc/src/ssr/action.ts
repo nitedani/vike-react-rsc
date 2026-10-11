@@ -1,3 +1,4 @@
+// Vike loads +middleware at startup, before Vite optimizes React, so neither this module nor its imports may import React
 import { enhance, type UniversalMiddleware } from "@universal-middleware/core";
 import { renderPage } from "vike/server";
 import type { PageContextServer } from "vike/types";
