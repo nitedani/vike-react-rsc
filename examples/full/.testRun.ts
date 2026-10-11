@@ -557,6 +557,9 @@ function testMisuse() {
     expect(error("getResponseHeaders")).to.equal(
       "[vike-react-rsc] getResponseHeaders() can only be called in a server action"
     );
+    // The same message from data(), which runs outside the rsc env
+    expect(error("data:rerender")).to.equal(error("rerender"));
+    expect(error("data:getResponseHeaders")).to.equal(error("getResponseHeaders"));
   });
 }
 
