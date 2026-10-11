@@ -1,56 +1,23 @@
 import rsc from "@vitejs/plugin-rsc";
-import { defaultServerConditions, type Plugin, type UserConfig } from "vite";
+import type { Plugin } from "vite";
 
-export function vikeRscPlugin(): Plugin[] {
+export function vikeReactRscPlugins(): Plugin[] {
   return [
     {
-      name: "vike-react-rsc:config",
+      name: "vike-react-rsc:environments",
+      // plugin-rsc's config hook reads the rsc outDir
       enforce: "pre",
-      config(config): UserConfig {
-        return {
-          environments: {
-            client: {
-              optimizeDeps: {
-                include: ["react-dom/client"],
-                exclude: ["vike-react-rsc", "@vitejs/plugin-rsc"],
-              },
-            },
-            ssr: {
-              optimizeDeps: {
-                include: [
-                  "react",
-                  "react-dom",
-                  "react/jsx-runtime",
-                  "react/jsx-dev-runtime",
-                  "react-dom/server.edge",
-                  "react-dom/static.edge",
-                  "react-streaming/server.web",
-                ],
-                exclude: ["vike-react-rsc", "@vitejs/plugin-rsc"],
-              },
-            },
-            rsc: {
-              resolve: {
-                conditions: ["react-server", ...defaultServerConditions],
-              },
-              optimizeDeps: {
-                include: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
-                exclude: ["vike-react-rsc", "@vitejs/plugin-rsc"],
-              },
-              build: {
-                // Inside Vike's server build, so that deploying it also deploys rsc
-                outDir: `${config.build?.outDir ?? "dist"}/server/rsc`,
-                ssr: true,
-              },
-            },
-          },
-        };
-      },
+      config: ({ build }) => ({
+        environments: {
+          // Pre-bundling would copy @vitejs/plugin-rsc/browser into this package's bundle, and callServer() would
+          // then register on a copy that React's server functions don't call
+          client: { optimizeDeps: { exclude: ["vike-react-rsc"] } },
+          // Vike deploys dist/server, rsc included
+          rsc: { build: { outDir: [build?.outDir ?? "dist", "server", "rsc"].join("/") } },
+        },
+      }),
     },
-    ...rsc({
-      serverHandler: false,
-      // Vike owns the HTML, so the client build has no index.html entry chunk for plugin-rsc to bootstrap from
-      customClientEntry: true,
-    }),
+    // Vike handles the requests and the client entry
+    ...rsc({ serverHandler: false, customClientEntry: true }),
   ];
 }
