@@ -9,7 +9,7 @@ import { isRscLoading, markRscCacheStale } from "./rsc";
 export async function callServer(id: string, args: unknown[]): Promise<unknown> {
   const isRscLoad = isRscLoading();
   const pageContext = getCurrentPageContext();
-  if (!pageContext) throw new Error("Missing page context");
+  if (!pageContext) throw new Error("[vike-react-rsc] Missing page context");
   const response = await fetch(pageContext.urlOriginal, {
     method: "POST",
     headers: { accept: FLIGHT_CONTENT_TYPE, [ACTION_HEADER]: id },

@@ -18,5 +18,5 @@ export function usePageContext(): PageContext {
 }
 
 export function getPageContext(): PageContext {
-  throw new Error("Cannot use getPageContext in a client component. Import usePageContext instead.");
+  throw new Error("[vike-react-rsc] Cannot use getPageContext in a client component. Import usePageContext instead.");
 }
