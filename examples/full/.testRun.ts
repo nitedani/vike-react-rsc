@@ -727,9 +727,9 @@ function testRscCacheInvalidation() {
     const requests = await showLoadCounts();
     const loaded = await readLoadCounts();
 
-    const response = page.waitForResponse((response) => response.request().method() === "POST");
     await page.click('button:has-text("Run a server action")');
-    await (await response).finished();
+    // Not response.finished(): Chrome can report a fully read no-store response as canceled, and finished() then never resolves
+    await page.waitForSelector("[data-ran-action]");
     await toggleLoadCounts();
     await toggleLoadCounts();
     expect(await readLoadCounts()).to.deep.equal(loaded);

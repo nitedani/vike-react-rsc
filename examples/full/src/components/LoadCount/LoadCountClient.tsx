@@ -12,10 +12,12 @@ const LoadCountRsc = rsc(LoadCount);
 // stale.
 export function LoadCountClient() {
   const [shown, setShown] = useState(false);
+  const [ranAction, setRanAction] = useState(false);
   return (
     <div>
       <button onClick={() => setShown(!shown)}>{shown ? "Hide" : "Show"} server counts</button>
-      <button onClick={() => getCount()}>Run a server action</button>
+      <button onClick={() => getCount().then(() => setRanAction(true))}>Run a server action</button>
+      {ranAction && <span data-ran-action="">The server action ran</span>}
       {shown && (
         <>
           <LoadCountRsc />
