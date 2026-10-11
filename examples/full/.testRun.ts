@@ -117,6 +117,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscLoadError();
     testRscCache();
     testRscCacheInvalidation();
+    testRscCacheKey();
   } else {
     testStaticHostAction();
   }
@@ -740,6 +741,27 @@ function testRscCacheInvalidation() {
     });
     // The load, the action, the refetch
     expect(requests).to.have.length(3);
+  });
+}
+
+function testRscCacheKey() {
+  test("rsc(): another server component with the same props doesn't show the cached one", async () => {
+    await showLoadCounts();
+    // No page links to /actions. Vike's client router handles any link, so the rsc() cache survives the navigation.
+    await page.evaluate(() =>
+      document.body.append(Object.assign(document.createElement("a"), { href: "/actions", textContent: "Actions" }))
+    );
+    await page.click('a[href="/actions"]');
+    await waitForHydration("Slow save");
+    const logged = page.waitForEvent("console", (message) => message.text().includes(RSC_LOAD_ERROR_LOG));
+    // FailingComponent and LoadCount both have no props
+    await page.click('button:has-text("Load a failing server component")');
+    await autoRetry(async () => {
+      expect(await page.locator("[data-rsc-fallback]").count()).to.equal(1);
+    });
+    expect(await page.locator("[data-load-count]").count()).to.equal(0);
+    // FailingComponent's own load ran
+    await logged;
   });
 }
 
