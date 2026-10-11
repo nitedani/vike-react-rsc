@@ -115,7 +115,6 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscComponentCall();
     testRscPropsChange();
     testRscLoadError();
-    testRscDeduplication();
     testRscCache();
     testRscCacheInvalidation();
   } else {
@@ -684,16 +683,11 @@ async function showLoadCounts() {
   await autoRetry(async () => {
     expect(await readLoadCounts()).to.have.length(2);
   });
+  // The two components shared one request
+  expect(requests).to.have.length(1);
+  const [first, second] = await readLoadCounts();
+  expect(first).to.equal(second);
   return requests;
-}
-
-function testRscDeduplication() {
-  test("rsc(): two identical components share one request", async () => {
-    const requests = await showLoadCounts();
-    expect(requests).to.have.length(1);
-    const [first, second] = await readLoadCounts();
-    expect(first).to.equal(second);
-  });
 }
 
 function testRscCache() {
