@@ -16,7 +16,7 @@ const renderOptions = {
 
 async function render(pageContext: PageContext): Promise<ReadableStream<Uint8Array>> {
   const { rscAction } = pageContext;
-  const root = !rscAction || rscAction.outcome?.rerender ? renderPage(pageContext) : undefined;
+  const root = !rscAction || rscAction.outcome?.rerender ? getPageElement(pageContext) : undefined;
   const payload: PagePayload | ActionPayload = rscAction ? { root, returnValue: rscAction.outcome?.returnValue } : { root };
   return providePageContext(pageContext, () => renderToReadableStream(payload, renderOptions));
 }
@@ -36,7 +36,7 @@ async function runAction(pageContext: PageContext): Promise<ActionOutcome> {
   return { returnValue, rerender: scope.rerender };
 }
 
-function renderPage(pageContext: PageContext): ReactNode {
+function getPageElement(pageContext: PageContext): ReactNode {
   const { Page, Loading, Layout = [], Wrapper = [] } = pageContext.config;
   if (!Page) throw new Error(`[vike-react-rsc] Page '${pageContext.pageId}' resolved no Page component.`);
   const withLoading = (node: ReactNode) =>
