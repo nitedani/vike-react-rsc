@@ -702,6 +702,15 @@ async function showLoadCounts() {
   return requests;
 }
 
+// No page links to /actions. Vike's client router handles any link, so the rsc() cache survives the navigation.
+async function navigateToActions() {
+  await page.evaluate(() =>
+    document.body.append(Object.assign(document.createElement("a"), { href: "/actions", textContent: "Actions" }))
+  );
+  await page.click('a[href="/actions"]');
+  await waitForHydration("Slow save");
+}
+
 function testRscCache() {
   test("rsc(): cached for rsc.staleTime, then revalidated", async () => {
     const requests = await showLoadCounts();
@@ -750,12 +759,7 @@ function testRscCacheInvalidationOnRejection() {
   test("rsc(): a server action that ran, then rejected, marks the cache stale", async () => {
     await showLoadCounts();
     const loaded = await readLoadCounts();
-    // No page links to /actions. Vike's client router handles any link, so the rsc() cache survives the navigation.
-    await page.evaluate(() =>
-      document.body.append(Object.assign(document.createElement("a"), { href: "/actions", textContent: "Actions" }))
-    );
-    await page.click('a[href="/actions"]');
-    await waitForHydration("Slow save");
+    await navigateToActions();
     // It saves, then the 404 rejects the call
     await page.click('button:has-text("Save, then guard() throws render(404)")');
     await autoRetry(async () => {
@@ -775,12 +779,7 @@ function testRscCacheInvalidationOnRejection() {
 function testRscCacheKey() {
   test("rsc(): another server component with the same props doesn't show the cached one", async () => {
     await showLoadCounts();
-    // No page links to /actions. Vike's client router handles any link, so the rsc() cache survives the navigation.
-    await page.evaluate(() =>
-      document.body.append(Object.assign(document.createElement("a"), { href: "/actions", textContent: "Actions" }))
-    );
-    await page.click('a[href="/actions"]');
-    await waitForHydration("Slow save");
+    await navigateToActions();
     const logged = page.waitForEvent("console", (message) => message.text().includes(RSC_LOAD_ERROR_LOG));
     // FailingComponent and LoadCount both have no props
     await page.click('button:has-text("Load a failing server component")');
