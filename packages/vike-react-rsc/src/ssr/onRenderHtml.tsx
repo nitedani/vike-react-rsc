@@ -1,7 +1,7 @@
 import { createFromReadableStream } from "@vitejs/plugin-rsc/ssr";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { prerender } from "react-dom/static.edge";
+import { renderToReadableStream } from "react-dom/server.edge";
 import { renderToStream } from "react-streaming/server.web";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
@@ -31,7 +31,7 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
   const nonce = pageContext.cspNonce ?? undefined;
   let html;
   if (pageContext.isPrerendering) {
-    html = await renderWhole(page);
+    html = await renderWhole(page, nonce);
   } else {
     html = await renderToStream(page, { userAgent: pageContext.headers?.["user-agent"], streamOptions: { nonce } });
     void html.streamEnd.then(() => htmlSent.abort());
@@ -52,10 +52,12 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
   };
 };
 
-// A pre-rendered page has to be complete, so it waits for every Suspense boundary
-async function renderWhole(page: ReactNode) {
-  const { prelude } = await prerender(page);
-  return dangerouslySkipEscape(await new Response(prelude).text());
+// A pre-rendered page has to be complete, so it waits for every Suspense boundary. React's prerender() would, but takes
+// no CSP nonce. react-streaming would, but Vike's pre-rendering loads its own copy, which takes over ours.
+async function renderWhole(page: ReactNode, nonce: string | undefined) {
+  const stream = await renderToReadableStream(page, { nonce });
+  await stream.allReady;
+  return dangerouslySkipEscape(await new Response(stream).text());
 }
 
 function renderHead(pageContext: PageContextServer) {
