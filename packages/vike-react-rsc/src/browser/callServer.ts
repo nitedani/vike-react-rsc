@@ -16,7 +16,7 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
     headers: { [ACTION_HEADER]: id, accept: FLIGHT_CONTENT_TYPE },
     body,
   });
-  // The action ran, whatever its answer says
+  // Even when the answer is an error, the action may have run
   if (changesData) markRscOutputsStale();
 
   const redirectTo = response.headers.get(REDIRECT_HEADER);
