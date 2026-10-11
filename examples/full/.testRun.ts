@@ -507,8 +507,9 @@ function testCspNonce() {
     const html = await fetchHtml("/csp");
     const nonce = /<script[^>]* nonce="([^"]+)"/.exec(html)?.[1];
     expect(nonce, "nonce missing from response").to.be.a("string");
-    const inlineScripts = html.match(/<script(?![^>]*\ssrc=)[^>]*>/g) ?? [];
-    expect(inlineScripts.length).to.be.greaterThan(1);
+    const inlineScripts = [...html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>[^<]*/g)].map(([script]) => script);
+    // React's own, for the streamed boundary, besides Vike's
+    expect(inlineScripts.some((script) => !/vike/i.test(script))).to.equal(true);
     for (const script of inlineScripts) {
       expect(script).to.include(` nonce="${nonce}"`);
     }
