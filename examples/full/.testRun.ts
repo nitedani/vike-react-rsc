@@ -397,7 +397,7 @@ function testRscComponentCall() {
 }
 
 function testRscPropsChange() {
-  test("rsc(): new props load the server component again, and keep the client state inside it", async () => {
+  test("rsc(): new props load the server component again, and a cached one keeps the client state inside it", async () => {
     await page.goto(getServerUrl() + "/suspense");
     await waitForHydration("View Details");
     await page.click('button:has-text("View Details")');
