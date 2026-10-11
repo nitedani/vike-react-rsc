@@ -117,6 +117,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscLoadError();
     testRscCache();
     testRscCacheInvalidation();
+    testRscCacheInvalidationOnRejection();
     testRscCacheKey();
   } else {
     testStaticHostAction();
@@ -741,6 +742,32 @@ function testRscCacheInvalidation() {
     });
     // The load, the action, the refetch
     expect(requests).to.have.length(3);
+  });
+}
+
+function testRscCacheInvalidationOnRejection() {
+  test("rsc(): a server action that ran, then rejected, marks the cache stale", async () => {
+    await showLoadCounts();
+    const loaded = await readLoadCounts();
+    // No page links to /actions. Vike's client router handles any link, so the rsc() cache survives the navigation.
+    await page.evaluate(() =>
+      document.body.append(Object.assign(document.createElement("a"), { href: "/actions", textContent: "Actions" }))
+    );
+    await page.click('a[href="/actions"]');
+    await waitForHydration("Slow save");
+    // It saves, then the 404 rejects the call
+    await page.click('button:has-text("Save, then guard() throws render(404)")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.include("HTTP 404");
+    });
+    await page.click('a[href="/suspense"]');
+    await waitForHydration("Show server counts");
+    const requests = trackRscRequests();
+    await toggleLoadCounts();
+    await autoRetry(async () => {
+      expect(await readLoadCounts()).to.not.deep.equal(loaded);
+    });
+    expect(requests).to.have.length(1);
   });
 }
 

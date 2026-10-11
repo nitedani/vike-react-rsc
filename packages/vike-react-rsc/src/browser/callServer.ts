@@ -16,6 +16,8 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
     headers: { [ACTION_HEADER]: id, accept: FLIGHT_CONTENT_TYPE },
     body,
   });
+  // The action ran, whatever its answer says
+  if (changesData) markRscOutputsStale();
 
   const redirectTo = response.headers.get(REDIRECT_HEADER);
   if (redirectTo) {
@@ -30,6 +32,5 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
   const { returnValue, root } = await createFromFetch<ActionPayload>(Promise.resolve(response));
   // The page changed since the call: this answer's page is out of date
   if (root && getCurrentPageContext() === pageContext) startTransition(() => showRoot(root));
-  if (changesData) markRscOutputsStale();
   return returnValue;
 }
