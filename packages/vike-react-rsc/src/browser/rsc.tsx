@@ -12,6 +12,7 @@ const serverComponentIds = new Map<Function, number>();
 let generation = 0;
 let isLoading = false;
 
+/** Makes a client component that loads the server component from the server, and shows `fallback`, or Loading.component, until it loads */
 export function rsc<Props extends object>(
   serverComponent: (props: Props) => Promise<ReactNode>
 ): (props: Props & { fallback?: ReactNode }) => ReactNode {

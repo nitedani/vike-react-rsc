@@ -13,6 +13,7 @@ export function usePageContext(): PageContext {
   return useContext(Context);
 }
 
+/** The pageContext, in a server component or a server action */
 export function getPageContext(): PageContext {
   throw new Error("[vike-react-rsc] getPageContext() is for server components and server actions: call usePageContext() in a client component");
 }
