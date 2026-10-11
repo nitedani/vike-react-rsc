@@ -114,6 +114,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscDeduplication();
     testRscCache();
     testRscCacheInvalidation();
+  } else {
+    testStaticHostAction();
   }
   testNavigationRequests();
   testPageNavigation();
@@ -428,6 +430,17 @@ function testRscLoadError() {
     page.off("pageerror", onPageError);
     expect(pageErrors.map((error) => error.message)).to.deep.equal([]);
     expect(await page.textContent("[data-rsc-fallback]")).to.equal("Not loaded");
+  });
+}
+
+function testStaticHostAction() {
+  test("Server action: a static host's answer rejects the call with its status", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Save, then data() throws")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] RSC request failed: HTTP 404");
+    });
   });
 }
 

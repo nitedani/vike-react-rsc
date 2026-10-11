@@ -5,6 +5,10 @@ export const REDIRECT_HEADER = "x-rsc-redirect";
 export const FLIGHT_CONTENT_TYPE = "text/x-component;charset=utf-8";
 export const CLIENT_DISCONNECT = "ERR_STREAM_PREMATURE_CLOSE";
 
+export function isFlight(response: Response): boolean {
+  return !!response.headers.get("content-type")?.startsWith("text/x-component");
+}
+
 export function isActionRequest(request: Request): boolean {
   return request.method === "POST" && !!request.headers.get(ACTION_HEADER);
 }
