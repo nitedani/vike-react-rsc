@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType, type ReactElement, type ReactNode } from "react";
-import type { OnPageTransitionStartSync, PageContext } from "vike/types";
+import type { PageContext } from "vike/types";
 import { usePageContext } from "../pageContext";
 
 type CacheEntry = { component: unknown; timestamp: number; isStale: boolean };
@@ -69,11 +69,6 @@ export function isRscLoading(): boolean {
 export function markRscCacheStale(): void {
   for (const entry of cache.entries.values()) entry.isStale = true;
 }
-
-// https://vike.dev/onPageTransitionStart
-export const onPageTransitionStart: OnPageTransitionStartSync = () => {
-  cache.pendingLoads.clear();
-};
 
 function getCached<T>(key: string, pageContext: PageContext): { component: T | null; isStale: boolean } {
   if (typeof window === "undefined") return { component: null, isStale: false };
