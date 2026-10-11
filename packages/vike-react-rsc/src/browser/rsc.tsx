@@ -48,7 +48,7 @@ export function rsc<Props extends object>(
 }
 
 /** True while rsc() calls a server function: callServer() reads it in the same synchronous call */
-export function isLoadingComponent(): boolean {
+export function isRscLoad(): boolean {
   return isLoading;
 }
 

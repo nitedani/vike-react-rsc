@@ -3,12 +3,12 @@ import { startTransition } from "react";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER } from "../protocol";
 import type { ActionPayload } from "../types";
 import { getCurrentPageContext, showRoot } from "./page";
-import { isLoadingComponent, markRscOutputsStale } from "./rsc";
+import { isRscLoad, markRscOutputsStale } from "./rsc";
 
 /** React calls it for every server function the browser calls, rsc()'s included */
 export async function callServer(id: string, args: unknown[]): Promise<unknown> {
   // rsc() sets it only during its synchronous call, so it must be read before the first await
-  const changesData = !isLoadingComponent();
+  const changesData = !isRscLoad();
   const pageContext = getCurrentPageContext();
   const body = await encodeReply(args);
   const response = await fetch(pageContext.urlOriginal, {

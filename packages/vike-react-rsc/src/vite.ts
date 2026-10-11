@@ -13,7 +13,7 @@ export function vikeReactRscPlugins(): Plugin[] {
           // then register on a copy that React's server functions don't call
           client: { optimizeDeps: { exclude: ["vike-react-rsc"] } },
           // Vike deploys dist/server, rsc included
-          rsc: { build: { outDir: [build?.outDir ?? "dist", "server", "rsc"].join("/") } },
+          rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
         },
       }),
     },
