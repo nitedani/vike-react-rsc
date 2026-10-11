@@ -1,3 +1,3 @@
-// Vike reads the .server suffix: onCreatePageContext is server-only, so navigation fetches the pageContext
+// The `.server` file name keeps onCreatePageContext on the server, so that a navigation fetches its rscPayload there
 export { onCreatePageContext } from "../ssr/onCreatePageContext";
 export { onRenderHtml } from "../ssr/onRenderHtml";

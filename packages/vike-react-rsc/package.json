@@ -40,7 +40,6 @@
     "vite": ">=8.0.0"
   },
   "dependencies": {
-    "@universal-middleware/core": "^0.4.18",
     "react-streaming": "^0.4.21"
   },
   "devDependencies": {

@@ -1,37 +1,40 @@
-import { AsyncLocalStorage } from "async_hooks";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { PageContext } from "vike/types";
+import { notInServerAction } from "../errors";
+import type { ActionOutcome } from "../types";
 
-type ActionScope = { rerender: boolean; responseHeaders: Headers };
-
-const scopes = {
-  pageContext: new AsyncLocalStorage<PageContext>(),
-  action: new AsyncLocalStorage<ActionScope>(),
+// React and user code call server components and server actions without a pageContext argument, so they find their
+// request here
+type Scope = {
+  pageContext: PageContext;
+  // The outcome the running action builds
+  action?: { outcome: ActionOutcome; responseHeaders: Headers };
 };
 
-export function providePageContext<T>(pageContext: PageContext, callback: () => T): T {
-  return scopes.pageContext.run(pageContext, callback);
-}
+const storage = new AsyncLocalStorage<Scope>();
 
-export function provideActionScope<T>(scope: ActionScope, callback: () => T): T {
-  return scopes.action.run(scope, callback);
+export function runInScope<T>(scope: Scope, run: () => T): T {
+  return storage.run(scope, run);
 }
 
 export function getPageContext(): PageContext {
-  const pageContext = scopes.pageContext.getStore();
-  if (!pageContext) throw new Error("[vike-react-rsc] getPageContext() can only be called while a server component renders or a server action runs");
-  return pageContext;
+  const scope = storage.getStore();
+  if (!scope) {
+    throw new Error("[vike-react-rsc] getPageContext() needs a server component render or a server action, and neither runs here");
+  }
+  return scope.pageContext;
 }
 
 export function rerender(): void {
-  getActionScope("rerender").rerender = true;
+  getAction("rerender").outcome.rerender = true;
 }
 
 export function getResponseHeaders(): Headers {
-  return getActionScope("getResponseHeaders").responseHeaders;
+  return getAction("getResponseHeaders").responseHeaders;
 }
 
-function getActionScope(caller: string): ActionScope {
-  const scope = scopes.action.getStore();
-  if (!scope) throw new Error(`[vike-react-rsc] ${caller}() can only be called in a server action`);
-  return scope;
+function getAction(name: string): NonNullable<Scope["action"]> {
+  const action = storage.getStore()?.action;
+  if (!action) throw notInServerAction(name);
+  return action;
 }

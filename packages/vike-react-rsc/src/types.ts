@@ -1,96 +1,67 @@
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { ImportString, PageContext } from "vike/types";
 import type { ActionCall } from "./ssr/action";
 
-/** What a page's Flight decodes to */
+/** A page's Flight decodes to it */
 export type PagePayload = { root: ReactNode };
-/** What an action's Flight decodes to: `root` only after rerender() */
+/** A server action's Flight decodes to it; `root` is the page, after rerender() */
 export type ActionPayload = { returnValue: unknown; root?: ReactNode };
-/** What a Flight decodes to when the page couldn't render */
-export type ErrorPayload = { error: { reason: ErrorReason } };
-export type ErrorReason = "not-found" | "error";
-
 export type ActionOutcome = { returnValue: unknown; rerender: boolean };
 
-/** The rsc env's interface to the ssr env: the `rscRuntime` setting */
+/** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */
 export type RscRuntime = {
-  /** The page, or the action's answer */
-  render(pageContext: PageContext): Promise<ReadableStream<Uint8Array>>;
-  renderError(reason: ErrorReason): ReadableStream<Uint8Array>;
-  runAction(pageContext: PageContext): Promise<ActionOutcome>;
+  renderPage(pageContext: PageContext): ReadableStream<Uint8Array>;
+  renderAnswer(pageContext: PageContext, outcome: ActionOutcome): ReadableStream<Uint8Array>;
+  runAction(
+    pageContext: PageContext,
+    call: { id: string; body: string | FormData; responseHeaders: Headers }
+  ): Promise<ActionOutcome>;
 };
 
-export interface RscConfig {
-  /** How long (in ms) a component loaded with `rsc()` is considered fresh on the client. Set to 0 to disable caching. Page navigation always fetches. */
-  staleTime?: number;
-}
-
-export type Head = ReactNode | (() => ReactNode);
-type Wrapper = (props: { children: ReactNode }) => ReactNode;
-type Layout = Wrapper;
-type Loading = {
-  component?: () => ReactNode;
-  layout?: () => ReactNode;
+type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
+type HeadValue = ReactNode | (() => ReactNode);
+type LoadingValue = {
+  /** Shown by Suspense while the page, or a Layout or Wrapper, waits for data */
+  layout?: ComponentType;
+  /** The fallback of a component that rsc() made, until it loads */
+  component?: ComponentType;
 };
 
-// https://vike.dev/meta#typescript
 declare global {
   namespace Vike {
     interface PageContext {
-      /** The page rendered as Flight, streamed to the browser */
+      /** The page's Flight: inlined in the HTML, or streamed in the pageContext a navigation fetches */
       rscPayload: ReadableStream<Uint8Array>;
-      /** Server-side: the server action of this request */
+      /** On the server, while it answers a server action */
       rscAction?: ActionCall;
     }
 
     interface Config {
-      /**
-       * The page's root React component.
-       *
-       * https://vike.dev/Page
-       */
-      Page?: () => ReactNode | Promise<ReactNode>;
-
-      /**
-       * Add arbitrary `<head>` tags.
-       *
-       * https://vike.dev/Head
-       */
-      Head?: Head;
-
-      /**
-       * A component that defines the visual layout common to several pages.
-       *
-       * Technically: the `<Layout>` component wraps the root component `<Page>`.
-       *
-       * https://vike.dev/Layout
-       */
-      Layout?: Layout;
-
-      /**
-       * A component wrapping the the root component `<Page>`.
-       *
-       * https://vike.dev/Wrapper
-       */
-      Wrapper?: Wrapper | ImportString;
-
-      /**
-       * Define loading animations.
-       *
-       * https://vike.dev/Loading
-       */
-      Loading?: Loading | ImportString;
-
-      rsc?: RscConfig;
-
-      /** The rsc env's interface to the ssr env */
+      /** The page's component: a server component, or a client component. @see https://vike.dev/Page */
+      Page?: (() => ReactNode | Promise<ReactNode>) | ImportString;
+      /** Tags for the page's `<head>`: an element, or a component, which can call `usePageContext()`. @see https://vike.dev/Head */
+      Head?: HeadValue | ImportString;
+      /** A server component around the page, e.g. its navigation and footer. With several, the one closest to the page is innermost. @see https://vike.dev/Layout */
+      Layout?: WrapperComponent | ImportString;
+      /** A server component around the page and all its layouts. @see https://vike.dev/Wrapper */
+      Wrapper?: WrapperComponent | ImportString;
+      /** What shows while something loads. @see https://vike.dev/Loading */
+      Loading?: LoadingValue | ImportString;
+      rsc?: {
+        /** For how many milliseconds rsc() reuses a component it loaded, instead of loading it again. `0` turns that off. Default: 60 000. A navigation always loads the page. */
+        staleTime?: number;
+      };
+      /** Internal: the rsc env's runtime */
       rscRuntime?: RscRuntime | ImportString;
     }
+
     interface ConfigResolved {
+      Page?: () => ReactNode | Promise<ReactNode>;
+      Head?: HeadValue[];
+      Layout?: WrapperComponent[];
+      Wrapper?: WrapperComponent[];
+      Loading?: LoadingValue;
       rscRuntime: RscRuntime;
-      Wrapper?: Wrapper[];
-      Layout?: Layout[];
-      Head?: Head[];
     }
   }
 }

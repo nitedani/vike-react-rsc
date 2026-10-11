@@ -1,11 +1,12 @@
-// vike-react-rsc/server outside the rsc env, e.g. in a client component or a Vike hook such as data()
+// vike-react-rsc/server outside the rsc env, e.g. imported by a client component or by data()
+import { notInServerAction } from "./errors";
 
-/** Call it in a server action to also send the page, rendered after the action; otherwise only the return value is sent */
+/** Makes the server action's answer include the page, rendered again once the action returned. Without it, the answer is only the return value. */
 export function rerender(): void {
-  throw new Error("[vike-react-rsc] rerender() can only be called in a server action");
+  throw notInServerAction("rerender");
 }
 
-/** The headers of the server action's response, e.g. `getResponseHeaders().append("Set-Cookie", "session=...")` */
+/** Headers sent with the server action's answer. A cookie set here also reaches guard() and data() of the same request. */
 export function getResponseHeaders(): Headers {
-  throw new Error("[vike-react-rsc] getResponseHeaders() can only be called in a server action");
+  throw notInServerAction("getResponseHeaders");
 }

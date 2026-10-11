@@ -1,47 +1,59 @@
 import { decodeReply, loadServerAction, renderToReadableStream } from "@vitejs/plugin-rsc/rsc";
 import { Suspense, type ReactNode } from "react";
 import type { PageContext } from "vike/types";
-import { isClientDisconnect } from "../protocol";
-import type { ActionOutcome, ActionPayload, ErrorPayload, ErrorReason, PagePayload, RscRuntime } from "../types";
-import { provideActionScope, providePageContext } from "./scope";
+import type { ActionOutcome, ActionPayload, PagePayload, RscRuntime } from "../types";
+import { runInScope } from "./scope";
 
-export const rscRuntime: RscRuntime = { render, renderError, runAction };
+export const rscRuntime: RscRuntime = {
+  renderPage: (pageContext) => renderOnRead<PagePayload>(pageContext, () => ({ root: getPage(pageContext) })),
 
-const renderOptions = {
-  onError(error: unknown) {
-    if (isClientDisconnect(error)) return;
-    console.error("[vike-react-rsc] Error while rendering the RSC payload:", error);
+  renderAnswer: (pageContext, { returnValue, rerender }) =>
+    renderOnRead<ActionPayload>(pageContext, () => (rerender ? { returnValue, root: getPage(pageContext) } : { returnValue })),
+
+  async runAction(pageContext, { id, body, responseHeaders }) {
+    const outcome: ActionOutcome = { returnValue: undefined, rerender: false };
+    const [serverFunction, args] = await Promise.all([loadServerAction(id), decodeReply(body)]);
+    outcome.returnValue = await runInScope({ pageContext, action: { outcome, responseHeaders } }, () => serverFunction(...args));
+    return outcome;
   },
 };
 
-async function render(pageContext: PageContext): Promise<ReadableStream<Uint8Array>> {
-  const { rscAction } = pageContext;
-  const root = !rscAction || rscAction.outcome?.rerender ? getPageElement(pageContext) : undefined;
-  const payload: PagePayload | ActionPayload = rscAction ? { root, returnValue: rscAction.outcome?.returnValue } : { root };
-  return providePageContext(pageContext, () => renderToReadableStream(payload, renderOptions));
-}
-
-function renderError(reason: ErrorReason): ReadableStream<Uint8Array> {
-  return renderToReadableStream<ErrorPayload>({ error: { reason } }, renderOptions);
-}
-
-async function runAction(pageContext: PageContext): Promise<ActionOutcome> {
-  const { rscAction } = pageContext;
-  if (!rscAction) throw new Error("[vike-react-rsc] pageContext.rscAction is missing");
-  const scope = { rerender: false, responseHeaders: rscAction.responseHeaders };
-  const [args, action] = await Promise.all([decodeReply(rscAction.body), loadServerAction(rscAction.id)]);
-  const returnValue = await provideActionScope(scope, () =>
-    providePageContext(pageContext, () => action.apply(null, args))
+// The Flight starts rendering when its stream is first read: for a page, that's after data(), and never if nobody
+// reads it. A reader that stops early, e.g. because the client left, aborts the render.
+function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Payload): ReadableStream<Uint8Array> {
+  const stopped = new AbortController();
+  let chunks: AsyncIterator<Uint8Array> | undefined;
+  const render = () =>
+    runInScope({ pageContext }, () =>
+      renderToReadableStream(getPayload(), {
+        signal: stopped.signal,
+        onError: (error: unknown) => {
+          // Not the abort, nor what failed because of it
+          if (!stopped.signal.aborted) console.error("[vike-react-rsc] A server component failed:", error);
+        },
+      })
+    );
+  return new ReadableStream<Uint8Array>(
+    {
+      async pull(controller) {
+        chunks ??= render().values();
+        const { done, value } = await chunks.next();
+        if (!done) return controller.enqueue(value);
+        controller.close();
+      },
+      cancel: () => stopped.abort(),
+    },
+    // Nothing is read ahead, so the first read starts the render
+    { highWaterMark: 0 }
   );
-  return { returnValue, rerender: scope.rerender };
 }
 
-function getPageElement(pageContext: PageContext): ReactNode {
-  const { Page, Loading, Layout = [], Wrapper = [] } = pageContext.config;
-  if (!Page) throw new Error(`[vike-react-rsc] Page '${pageContext.pageId}' resolved no Page component.`);
-  const withLoading = (node: ReactNode) =>
+// The Page, inside its Layouts, inside its Wrappers. With Loading.layout, each of them shows it while what it wraps
+// suspends.
+function getPage(pageContext: PageContext): ReactNode {
+  const { Page, Layout = [], Wrapper = [], Loading } = pageContext.config;
+  if (!Page) throw new Error(`[vike-react-rsc] The page ${pageContext.pageId} has no Page: add a +Page file`);
+  const suspend = (node: ReactNode) =>
     Loading?.layout ? <Suspense fallback={<Loading.layout />}>{node}</Suspense> : node;
-  let page = withLoading(<Page />);
-  for (const Wrap of [...Layout, ...Wrapper]) page = withLoading(<Wrap>{page}</Wrap>);
-  return page;
+  return [...Layout, ...Wrapper].reduce<ReactNode>((children, Outer) => suspend(<Outer>{children}</Outer>), suspend(<Page />));
 }
