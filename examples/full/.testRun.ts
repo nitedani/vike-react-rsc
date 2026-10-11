@@ -397,25 +397,32 @@ function testRscComponentCall() {
 }
 
 function testRscPropsChange() {
-  test("rsc(): new props load the server component again", async () => {
+  test("rsc(): new props load the server component again, and keep the client state inside it", async () => {
     await page.goto(getServerUrl() + "/suspense");
     await waitForHydration("View Details");
     await page.click('button:has-text("View Details")');
     // The details' title is the only h2 with a film's name; the cards use h3
     const detailsTitle = page.locator("h2", { hasText: /A New Hope|The Empire Strikes Back/ });
-    await autoRetry(
-      async () => {
-        expect(await detailsTitle.textContent()).to.equal("A New Hope");
-      },
-      { timeout: 15000 }
-    );
+    const showFilm = async (title: string) => {
+      await autoRetry(
+        async () => {
+          expect(await detailsTitle.textContent()).to.equal(title);
+        },
+        { timeout: 15000 }
+      );
+    };
+    await showFilm("A New Hope");
     await page.click('button:has-text("Next film")');
-    await autoRetry(
-      async () => {
-        expect(await detailsTitle.textContent()).to.equal("The Empire Strikes Back");
-      },
-      { timeout: 15000 }
-    );
+    await showFilm("The Empire Strikes Back");
+
+    // Both films are cached now: "Next film" renders the second one into the first one's tree
+    await page.click('button[aria-label="Close modal"]');
+    await page.click('button:has-text("View Details")');
+    await showFilm("A New Hope");
+    await page.click('button:has-text("Show the opening crawl")');
+    await page.click('button:has-text("Next film")');
+    await showFilm("The Empire Strikes Back");
+    expect(await page.locator('button:has-text("Hide the opening crawl")').count()).to.equal(1);
   });
 }
 

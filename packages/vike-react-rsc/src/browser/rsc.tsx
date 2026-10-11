@@ -13,25 +13,26 @@ const cache = {
 export function rsc<P, T extends ReactElement<any>>(
   c: (props: P) => Promise<T>
 ): ComponentType<P & { fallback?: ReactNode }> {
-  // Keyed by the cache key, so that new props start over with their own load
-  function Load({ cacheKey, props, fallback }: { cacheKey: string; props: P; fallback?: ReactNode }) {
+  return ({ fallback, ...props }) => {
     const pageContext = usePageContext();
+    const key = `${c.name}-${JSON.stringify(props)}`;
     // A stale component shows until its reload arrives
-    const { component: cached, isStale } = getCached<T>(cacheKey, pageContext);
-    const [loaded, setLoaded] = useState<T>();
+    const { component: cached, isStale } = getCached<T>(key, pageContext);
+    const [loaded, setLoaded] = useState<{ key: string; component: T }>();
+    // Only the load restarts on new props: a cached output renders into the same tree, keeping its client state
     useEffect(() => {
       if (cached && !isStale) return;
-      load(cacheKey, () => c(props), pageContext).then((component) => {
-        if (component) setLoaded(component);
+      // The props changed before this load arrived: it doesn't replace theirs
+      let isCurrent = true;
+      load(key, () => c(props as P), pageContext).then((component) => {
+        if (component && isCurrent) setLoaded({ key, component });
       });
-    }, []);
+      return () => {
+        isCurrent = false;
+      };
+    }, [key]);
     const Loading = pageContext.config.Loading?.component || (() => null);
-    return loaded ?? cached ?? fallback ?? <Loading />;
-  }
-
-  return ({ fallback, ...props }) => {
-    const key = `${c.name}-${JSON.stringify(props)}`;
-    return <Load key={key} cacheKey={key} props={props as P} fallback={fallback} />;
+    return (loaded?.key === key ? loaded.component : cached) ?? fallback ?? <Loading />;
   };
 }
 
