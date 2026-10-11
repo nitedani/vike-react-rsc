@@ -413,6 +413,8 @@ function testRscPropsChange() {
     };
     await showFilm("A New Hope");
     await page.click('button:has-text("Next film")');
+    // The fallback, not the first film, until the second one arrives
+    expect(await detailsTitle.count()).to.equal(0);
     await showFilm("The Empire Strikes Back");
 
     // Both films are cached now: "Next film" renders the second one into the first one's tree
