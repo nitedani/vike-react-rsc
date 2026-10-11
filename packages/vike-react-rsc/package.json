@@ -23,7 +23,8 @@
     },
     "./__internal/browser": "./dist/__internal/browser.js",
     "./__internal/ssr": "./dist/__internal/ssr.server.js",
-    "./__internal/rsc": "./dist/__internal/rsc.js"
+    "./__internal/rsc": "./dist/__internal/rsc.js",
+    "./__internal/middleware": "./dist/__internal/middleware.js"
   },
   "files": [
     "dist"
