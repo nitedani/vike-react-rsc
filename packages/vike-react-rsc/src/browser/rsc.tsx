@@ -11,11 +11,11 @@ const cache = {
 };
 
 export function rsc<P, T extends ReactElement<any>>(
-  c: (props: P) => Promise<T>
+  serverComponent: (props: P) => Promise<T>
 ): ComponentType<P & { fallback?: ReactNode }> {
   return ({ fallback, ...props }) => {
     const pageContext = usePageContext();
-    const key = `${c.name}-${JSON.stringify(props)}`;
+    const key = `${serverComponent.name}-${JSON.stringify(props)}`;
     // A stale component shows until its reload arrives
     const { component: cached, isStale } = getCached<T>(key, pageContext);
     const [loaded, setLoaded] = useState<{ key: string; component: T }>();
@@ -24,15 +24,15 @@ export function rsc<P, T extends ReactElement<any>>(
       if (cached && !isStale) return;
       // The props changed before this load arrived: it doesn't replace theirs
       let isCurrent = true;
-      load(key, () => c(props as P), pageContext).then((component) => {
+      load(key, () => serverComponent(props as P), pageContext).then((component) => {
         if (component && isCurrent) setLoaded({ key, component });
       });
       return () => {
         isCurrent = false;
       };
     }, [key]);
-    const Loading = pageContext.config.Loading?.component || (() => null);
-    return (loaded?.key === key ? loaded.component : cached) ?? fallback ?? <Loading />;
+    const Loading = pageContext.config.Loading?.component;
+    return (loaded?.key === key ? loaded.component : cached) ?? fallback ?? (Loading ? <Loading /> : null);
   };
 }
 
