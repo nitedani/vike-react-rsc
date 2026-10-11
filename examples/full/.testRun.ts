@@ -117,6 +117,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   }
   testNavigationRequests();
   testPageNavigation();
+  testPendingPage();
 }
 
 // The RSC payload and Vike's progressive-hydration bootstrap are independent
@@ -715,5 +716,29 @@ function testRscCacheInvalidation() {
     });
     // The load, the action, the refetch
     expect(requests).to.have.length(3);
+  });
+}
+
+function testPendingPage() {
+  test("A navigation that ends before React commits the hydration shows its page", async () => {
+    // /hydration has no Loading.layout, so React commits its hydration only once its client component has loaded
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    await page.route("**/*", async (route) => {
+      if (route.request().resourceType() !== "script") return route.continue();
+      const response = await route.fetch();
+      if ((await response.text()).includes("data-hydration-client")) await released;
+      await route.fulfill({ response });
+    });
+
+    // /hydration's onHydrationEnd() navigates to /
+    await page.goto(getServerUrl() + "/hydration", { waitUntil: "commit" });
+    await page.waitForURL((url) => url.pathname === "/");
+    await sleep(500);
+    release();
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include("Vike React Server Components");
+    });
+    await page.unroute("**/*");
   });
 }

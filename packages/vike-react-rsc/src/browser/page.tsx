@@ -5,7 +5,12 @@ import type { PagePayload } from "../types";
 
 type Page = { pageContext: PageContextClient; payload: PagePayload };
 
-const current: { pageContext?: PageContextClient; setPage?: Dispatch<SetStateAction<Page>> } = {};
+const current: {
+  pageContext?: PageContextClient;
+  setPage?: Dispatch<SetStateAction<Page>>;
+  // Kept until Root mounts, e.g. a navigation that ended while React was hydrating
+  pendingUpdates: SetStateAction<Page>[];
+} = { pendingUpdates: [] };
 
 /** Vike started rendering it: actions now go to its URL, and earlier actions' payloads are stale */
 export function setCurrentPage(pageContext: PageContextClient): void {
@@ -24,15 +29,20 @@ export function Root({ page }: { page: Page }): ReactElement {
   const [{ pageContext, payload }, setPage] = useState(page);
   useEffect(() => {
     current.setPage = setPage;
+    for (const update of current.pendingUpdates.splice(0)) setPage(update);
   }, []);
   return <PageContextProvider pageContext={pageContext}>{payload.root}</PageContextProvider>;
 }
 
-// Before Root mounts, a page is dropped
 export function showPage(page: Page): void {
-  current.setPage?.(page);
+  updatePage(page);
 }
 
 export function showPayload(payload: PagePayload): void {
-  current.setPage?.((page) => ({ pageContext: page.pageContext, payload }));
+  updatePage((page) => ({ pageContext: page.pageContext, payload }));
+}
+
+function updatePage(update: SetStateAction<Page>): void {
+  if (current.setPage) current.setPage(update);
+  else current.pendingUpdates.push(update);
 }
