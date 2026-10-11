@@ -1,44 +1,40 @@
-import { useEffect, useState, type Dispatch, type ReactElement, type SetStateAction } from "react";
+import { useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
-import type { PagePayload } from "../types";
 
-type Page = { pageContext: PageContextClient; payload: PagePayload };
+type Shown = { pageContext: PageContextClient; root: ReactNode };
 
-const current: {
-  pageContext?: PageContextClient;
-  setPage?: Dispatch<SetStateAction<Page>>;
-  // Kept until Root mounts, e.g. a navigation that ended while React was hydrating
-  pendingUpdates: SetStateAction<Page>[];
-} = { pendingUpdates: [] };
+// The page Vike renders last: actions call its URL, and their answers apply only while it stays current
+let current: PageContextClient;
+// What Root shows, and how to change it once Root has mounted
+let shown: Shown;
+let setRootState: ((shown: Shown) => void) | undefined;
 
-/** Vike started rendering it: actions now go to its URL, and earlier actions' payloads are stale */
 export function setCurrentPageContext(pageContext: PageContextClient): void {
-  current.pageContext = pageContext;
+  current = pageContext;
 }
 
-export function getCurrentPageContext(): PageContextClient | undefined {
-  return current.pageContext;
+export function getCurrentPageContext(): PageContextClient {
+  return current;
 }
 
-export function isCurrent(pageContext: PageContextClient): boolean {
-  return current.pageContext === pageContext;
+export function show(next: Shown): void {
+  shown = next;
+  setRootState?.(next);
 }
 
-export function Root({ page }: { page: Page }): ReactElement {
-  const [{ pageContext, payload }, setPage] = useState(page);
+/** Shows a new tree for the page shown, e.g. the one an action's rerender() sent */
+export function showRoot(root: ReactNode): void {
+  show({ pageContext: shown.pageContext, root });
+}
+
+/** Hydrates `page`, then shows what show() shows */
+export function Root({ page }: { page: Shown }): ReactElement {
+  const [state, setState] = useState(page);
   useEffect(() => {
-    current.setPage = setPage;
-    for (const update of current.pendingUpdates.splice(0)) setPage(update);
+    setRootState = setState;
+    // A navigation or an action can finish while React hydrates
+    setState(shown);
   }, []);
-  return <PageContextProvider pageContext={pageContext}>{payload.root}</PageContextProvider>;
-}
-
-export function showPage(update: SetStateAction<Page>): void {
-  if (current.setPage) current.setPage(update);
-  else current.pendingUpdates.push(update);
-}
-
-export function showPayload(payload: PagePayload): void {
-  showPage((page) => ({ pageContext: page.pageContext, payload }));
+  return <PageContextProvider pageContext={state.pageContext}>{state.root}</PageContextProvider>;
 }

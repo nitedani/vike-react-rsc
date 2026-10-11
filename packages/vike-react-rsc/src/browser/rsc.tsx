@@ -1,88 +1,81 @@
-import { useEffect, useState, type ComponentType, type ReactElement, type ReactNode } from "react";
-import type { PageContext } from "vike/types";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePageContext } from "../pageContext";
 
-type CacheEntry = { component: unknown; timestamp: number; isStale: boolean };
+type Output = { node: ReactNode; generation: number; loadedAt: number };
 
-const cache = {
-  entries: new Map<string, CacheEntry>(),
-  pendingLoads: new Map<string, Promise<any>>(),
-  isLoading: false,
-  // Production builds name every server function "action", so the cache tells them apart by identity
-  serverComponentIds: new Map<Function, number>(),
-};
+const outputs = new Map<string, Output>();
+// One load per key at a time, shared by every component that renders it
+const loads = new Map<string, Promise<ReactNode | undefined>>();
+// Production builds name every server function "action", so the key tells them apart by identity
+const serverComponentIds = new Map<Function, number>();
+// Raised by every server action except rsc()'s loads: an output loaded before may show data the action changed
+let generation = 0;
+let isLoading = false;
 
-export function rsc<P, T extends ReactElement<any>>(
-  serverComponent: (props: P) => Promise<T>
-): ComponentType<P & { fallback?: ReactNode }> {
-  if (!cache.serverComponentIds.has(serverComponent)) {
-    cache.serverComponentIds.set(serverComponent, cache.serverComponentIds.size);
-  }
-  const serverComponentId = cache.serverComponentIds.get(serverComponent);
-  return ({ fallback, ...props }) => {
+export function rsc<Props extends object>(
+  serverComponent: (props: Props) => Promise<ReactNode>
+): (props: Props & { fallback?: ReactNode }) => ReactNode {
+  if (!serverComponentIds.has(serverComponent)) serverComponentIds.set(serverComponent, serverComponentIds.size);
+  const id = serverComponentIds.get(serverComponent);
+
+  return function RscComponent({ fallback, ...props }) {
     const pageContext = usePageContext();
-    const key = `${serverComponentId}-${JSON.stringify(props)}`;
-    // A stale component shows until its reload arrives
-    const { component: cached, isStale } = getCached<T>(key, pageContext);
-    const [loaded, setLoaded] = useState<{ key: string; component: T }>();
-    // Only the load restarts on new props: a cached output renders into the same tree, keeping its client state
+    const key = `${id}:${JSON.stringify(props)}`;
+    const staleTime = pageContext.config.rsc?.staleTime ?? 60_000;
+    // Shown until the next load arrives, even when out of date. Never set during SSR: loads start in effects.
+    const cached = outputs.get(key);
+    const isFresh = !!cached && cached.generation === generation && Date.now() - cached.loadedAt < staleTime;
+    const [loaded, setLoaded] = useState<{ key: string; node: ReactNode }>();
+
+    // New props start a new load and keep the tree: a cached output renders in place, so its client state survives
     useEffect(() => {
-      if (cached && !isStale) return;
-      // The props changed before this load arrived: it doesn't replace theirs
-      let isCurrent = true;
-      load(key, () => serverComponent(props as P), pageContext).then((component) => {
-        if (component && isCurrent) setLoaded({ key, component });
+      if (isFresh) return;
+      let isForCurrentProps = true;
+      void load(key, () => serverComponent(props as Props), staleTime).then((node) => {
+        if (node !== undefined && isForCurrentProps) setLoaded({ key, node });
       });
       return () => {
-        isCurrent = false;
+        isForCurrentProps = false;
       };
     }, [key]);
-    const Loading = pageContext.config.Loading?.component;
-    return (loaded?.key === key ? loaded.component : cached) ?? fallback ?? (Loading ? <Loading /> : null);
+
+    const node = loaded?.key === key ? loaded.node : cached?.node;
+    if (node !== undefined) return node;
+    const DefaultFallback = pageContext.config.Loading?.component;
+    return fallback ?? (DefaultFallback && <DefaultFallback />);
   };
 }
 
-/** True only during rsc()'s call to the server function, which reaches callServer() synchronously */
-export function isRscLoading(): boolean {
-  return cache.isLoading;
+/** True while rsc() calls a server function: callServer() reads it in the same synchronous call */
+export function isLoadingComponent(): boolean {
+  return isLoading;
 }
 
-export function markRscCacheStale(): void {
-  for (const entry of cache.entries.values()) entry.isStale = true;
+export function markRscOutputsStale(): void {
+  generation++;
 }
 
-// Renders of the same component share the load in flight
-function load<T>(key: string, call: () => Promise<T>, pageContext: PageContext): Promise<T | void> {
-  const pendingLoad = cache.pendingLoads.get(key);
-  if (pendingLoad) return pendingLoad;
-  cache.isLoading = true;
-  const loading = call();
-  cache.isLoading = false;
-  const request = loading
-    .then((component) => {
-      setCached(key, component, pageContext);
-      return component;
-    })
-    // The fallback, or the stale component, stays
-    .catch((error) => console.error("[RSC Client] Error fetching server component:", error))
-    .finally(() => cache.pendingLoads.delete(key));
-  cache.pendingLoads.set(key, request);
-  return request;
-}
-
-function getCached<T>(key: string, pageContext: PageContext): { component: T | null; isStale: boolean } {
-  if (typeof window === "undefined") return { component: null, isStale: false };
-  const entry = cache.entries.get(key);
-  if (!entry) return { component: null, isStale: false };
-  const isStale = entry.isStale || Date.now() - entry.timestamp >= getStaleTime(pageContext);
-  return { component: entry.component as T, isStale };
-}
-
-function setCached(key: string, component: unknown, pageContext: PageContext): void {
-  if (getStaleTime(pageContext) === 0) return;
-  cache.entries.set(key, { component, timestamp: Date.now(), isStale: false });
-}
-
-function getStaleTime(pageContext: PageContext): number {
-  return pageContext.config.rsc?.staleTime ?? 60_000;
+// Resolves to undefined when the load fails: the fallback, or the last output, stays
+function load(key: string, call: () => Promise<ReactNode>, staleTime: number): Promise<ReactNode | undefined> {
+  const pending = loads.get(key);
+  if (pending) return pending;
+  // An action that runs while this loads may change what it shows
+  const startedIn = generation;
+  isLoading = true;
+  const request = call();
+  isLoading = false;
+  const loading = request
+    .then(
+      (node) => {
+        if (staleTime > 0) outputs.set(key, { node, generation: startedIn, loadedAt: Date.now() });
+        return node;
+      },
+      (error: unknown) => {
+        console.error("[vike-react-rsc] rsc() couldn't load the server component:", error);
+        return undefined;
+      }
+    )
+    .finally(() => loads.delete(key));
+  loads.set(key, loading);
+  return loading;
 }

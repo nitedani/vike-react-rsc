@@ -4,38 +4,26 @@ import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync } from "vike/types";
 import type { PagePayload } from "../types";
 import { callServer } from "./callServer";
-import { Root, setCurrentPageContext, showPage } from "./page";
-import { markRscCacheStale } from "./rsc";
+import { Root, setCurrentPageContext, show } from "./page";
+import { markRscOutputsStale } from "./rsc";
 
 setServerCallback(callServer);
 
-// https://vike.dev/onRenderClient
 export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   setCurrentPageContext(pageContext);
-  if (pageContext.isHydration) {
-    try {
-      const payload = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
-      hydrateRoot(document.getElementById("root")!, <Root page={{ pageContext, payload }} />);
-    } catch (err) {
-      console.error("[Client] Hydration failed:", err);
-    }
-  } else if (pageContext.isClientSideNavigation) {
-    try {
-      const payload = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
-      showPage({ pageContext, payload });
-    } catch (error) {
-      console.error("[Client] Failed to navigate:", error);
-    }
-  }
+  const { root } = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
+  const page = { pageContext, root };
+  show(page);
+  if (pageContext.isHydration) hydrateRoot(document.getElementById("root")!, <Root page={page} />);
 };
 
 if (import.meta.hot) {
+  // plugin-rsc's signal that a server component changed
   import.meta.hot.on("rsc:update", () => {
-    markRscCacheStale();
-    // The edit may have fixed the error that Vite's overlay shows
-    document.querySelectorAll<Element & { close(): void }>("vite-error-overlay").forEach((overlay) => overlay.close());
-    // Navigating to the current URL fetches the new payload
-    const { pathname, search, hash } = location;
-    navigate(pathname + search + hash, { keepScrollPosition: true });
+    markRscOutputsStale();
+    // The change may fix the error Vite's overlay shows
+    for (const overlay of document.querySelectorAll("vite-error-overlay")) (overlay as Element & { close(): void }).close();
+    // Vike fetches the page's pageContext again, with the new Flight
+    void navigate(location.href, { keepScrollPosition: true });
   });
 }

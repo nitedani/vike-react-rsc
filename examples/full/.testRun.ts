@@ -48,7 +48,7 @@ const DATA_ERROR = "data() failed on demand";
 
 // Thrown by /actions' FailingComponent(), then logged by rsc() in the browser
 const RSC_LOAD_ERROR = "FailingComponent failed on demand";
-const RSC_LOAD_ERROR_LOG = "[RSC Client] Error fetching server component";
+const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server component";
 
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
@@ -74,7 +74,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testActionValueSurvivesDataError()
       (logSource === "stderr" &&
         (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
-      // testActionErrorPayload()
+      // testActionPageFailure()
       (logSource === "Browser Error" && logText.includes("status of 404")) ||
       // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
       (logSource === "stderr" && logText.includes(RSC_LOAD_ERROR)) ||
@@ -109,7 +109,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testSession();
     testActionOnce();
     testActionValueSurvivesDataError();
-    testActionErrorPayload();
+    testActionPageFailure();
     testStaleAction();
     testCrossSiteAction();
     testRscComponentCall();
@@ -453,7 +453,7 @@ function testStaticHostAction() {
     await waitForHydration("Slow save");
     await page.click('button:has-text("Save, then data() throws")');
     await autoRetry(async () => {
-      expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] RSC request failed: HTTP 404");
+      expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] Server action failed: HTTP 404");
     });
   });
 }
@@ -634,14 +634,14 @@ function testActionValueSurvivesDataError() {
   });
 }
 
-function testActionErrorPayload() {
+function testActionPageFailure() {
   test("Server action: a 404 instead of the page rejects the call", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
     await page.click('button:has-text("Save, then guard() throws render(404)")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal(
-        "Rejected: [vike-react-rsc] RSC request failed: not-found"
+        "Rejected: [vike-react-rsc] Server action failed: HTTP 404"
       );
     });
   });

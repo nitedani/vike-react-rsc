@@ -1,34 +1,35 @@
 import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
-import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, isFlight } from "../protocol";
-import type { ActionPayload, ErrorPayload } from "../types";
-import { getCurrentPageContext, isCurrent, showPayload } from "./page";
-import { isRscLoading, markRscCacheStale } from "./rsc";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER } from "../protocol";
+import type { ActionPayload } from "../types";
+import { getCurrentPageContext, showRoot } from "./page";
+import { isLoadingComponent, markRscOutputsStale } from "./rsc";
 
-/** React calls it for every server action, rsc() loads included */
+/** React calls it for every server function the browser calls, rsc()'s included */
 export async function callServer(id: string, args: unknown[]): Promise<unknown> {
-  const isRscLoad = isRscLoading();
+  // rsc() sets it only during its synchronous call, so it must be read before the first await
+  const changesData = !isLoadingComponent();
   const pageContext = getCurrentPageContext();
-  if (!pageContext) throw new Error("[vike-react-rsc] Missing page context");
+  const body = await encodeReply(args);
   const response = await fetch(pageContext.urlOriginal, {
     method: "POST",
-    headers: { accept: FLIGHT_CONTENT_TYPE, [ACTION_HEADER]: id },
-    body: await encodeReply(args),
+    headers: { [ACTION_HEADER]: id, accept: FLIGHT_CONTENT_TYPE },
+    body,
   });
-  // A throw redirect() in the action, guard() or data() (ssr/action.ts)
-  const redirect = response.headers.get(REDIRECT_HEADER);
-  if (redirect) {
-    window.location.assign(redirect);
-    // Keep the caller pending while the browser replaces this document
-    return new Promise<never>(() => {});
+
+  const redirectTo = response.headers.get(REDIRECT_HEADER);
+  if (redirectTo) {
+    window.location.href = redirectTo;
+    // Never settles: the caller doesn't resume, the document goes away
+    return new Promise(() => {});
   }
-  // E.g. Vike's HTML error page, or a static host's 404
-  if (!isFlight(response)) throw new Error(`[vike-react-rsc] RSC request failed: HTTP ${response.status}`);
-  const payload = await createFromFetch<ActionPayload | ErrorPayload>(Promise.resolve(response));
-  if ("error" in payload) throw new Error(`[vike-react-rsc] RSC request failed: ${payload.error.reason}`);
-  const { root } = payload;
-  // The user navigated away meanwhile: the payload belongs to the old page
-  if (root && isCurrent(pageContext)) startTransition(() => showPayload({ root }));
-  if (!isRscLoad) markRscCacheStale();
-  return payload.returnValue;
+  // E.g. a 404 page instead of the answer, Vike's HTML error page, or a static host
+  const isFlight = response.headers.get("content-type")?.split(";")[0] === "text/x-component";
+  if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
+
+  const { returnValue, root } = await createFromFetch<ActionPayload>(Promise.resolve(response));
+  // The page changed since the call: this answer's page is out of date
+  if (root && getCurrentPageContext() === pageContext) startTransition(() => showRoot(root));
+  if (changesData) markRscOutputsStale();
+  return returnValue;
 }
