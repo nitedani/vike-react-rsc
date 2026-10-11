@@ -4,14 +4,14 @@ import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync } from "vike/types";
 import type { PagePayload } from "../types";
 import { callServer } from "./callServer";
-import { Root, setCurrentPage, showPage } from "./page";
+import { Root, setCurrentPageContext, showPage } from "./page";
 import { markRscCacheStale } from "./rsc";
 
 setServerCallback(callServer);
 
 // https://vike.dev/onRenderClient
 export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
-  setCurrentPage(pageContext);
+  setCurrentPageContext(pageContext);
   if (pageContext.isHydration) {
     try {
       const payload = await createFromReadableStream<PagePayload>(pageContext.rscPayload);

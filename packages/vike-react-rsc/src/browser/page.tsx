@@ -13,11 +13,11 @@ const current: {
 } = { pendingUpdates: [] };
 
 /** Vike started rendering it: actions now go to its URL, and earlier actions' payloads are stale */
-export function setCurrentPage(pageContext: PageContextClient): void {
+export function setCurrentPageContext(pageContext: PageContextClient): void {
   current.pageContext = pageContext;
 }
 
-export function getCurrentPage(): PageContextClient | undefined {
+export function getCurrentPageContext(): PageContextClient | undefined {
   return current.pageContext;
 }
 
@@ -34,15 +34,11 @@ export function Root({ page }: { page: Page }): ReactElement {
   return <PageContextProvider pageContext={pageContext}>{payload.root}</PageContextProvider>;
 }
 
-export function showPage(page: Page): void {
-  updatePage(page);
+export function showPage(update: SetStateAction<Page>): void {
+  if (current.setPage) current.setPage(update);
+  else current.pendingUpdates.push(update);
 }
 
 export function showPayload(payload: PagePayload): void {
-  updatePage((page) => ({ pageContext: page.pageContext, payload }));
-}
-
-function updatePage(update: SetStateAction<Page>): void {
-  if (current.setPage) current.setPage(update);
-  else current.pendingUpdates.push(update);
+  showPage((page) => ({ pageContext: page.pageContext, payload }));
 }

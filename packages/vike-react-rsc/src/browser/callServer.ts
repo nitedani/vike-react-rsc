@@ -2,13 +2,13 @@ import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, isFlight } from "../protocol";
 import type { ActionPayload, ErrorPayload } from "../types";
-import { getCurrentPage, isCurrent, showPayload } from "./page";
+import { getCurrentPageContext, isCurrent, showPayload } from "./page";
 import { isRscLoading, markRscCacheStale } from "./rsc";
 
 /** React calls it for every server action, rsc() loads included */
 export async function callServer(id: string, args: unknown[]): Promise<unknown> {
   const isRscLoad = isRscLoading();
-  const pageContext = getCurrentPage();
+  const pageContext = getCurrentPageContext();
   if (!pageContext) throw new Error("Missing page context");
   const response = await fetch(pageContext.urlOriginal, {
     method: "POST",
