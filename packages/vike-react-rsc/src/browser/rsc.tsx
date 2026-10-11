@@ -8,14 +8,20 @@ const cache = {
   entries: new Map<string, CacheEntry>(),
   pendingLoads: new Map<string, Promise<any>>(),
   isLoading: false,
+  // Production builds name every server function "action", so the cache tells them apart by identity
+  serverComponentIds: new Map<Function, number>(),
 };
 
 export function rsc<P, T extends ReactElement<any>>(
   serverComponent: (props: P) => Promise<T>
 ): ComponentType<P & { fallback?: ReactNode }> {
+  if (!cache.serverComponentIds.has(serverComponent)) {
+    cache.serverComponentIds.set(serverComponent, cache.serverComponentIds.size);
+  }
+  const serverComponentId = cache.serverComponentIds.get(serverComponent);
   return ({ fallback, ...props }) => {
     const pageContext = usePageContext();
-    const key = `${serverComponent.name}-${JSON.stringify(props)}`;
+    const key = `${serverComponentId}-${JSON.stringify(props)}`;
     // A stale component shows until its reload arrives
     const { component: cached, isStale } = getCached<T>(key, pageContext);
     const [loaded, setLoaded] = useState<{ key: string; component: T }>();
