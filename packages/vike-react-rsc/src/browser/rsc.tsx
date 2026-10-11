@@ -27,7 +27,9 @@ export function rsc<P, T extends ReactElement<any>>(
       if (cached && !isStale) return;
       // The props changed before this load arrived: it doesn't replace theirs
       let isCurrent = true;
-      const show = (component: T) => isCurrent && setLoaded({ key, component });
+      const show = (component: T | void) => {
+        if (component && isCurrent) setLoaded({ key, component });
+      };
       const pendingLoad = cache.pendingLoads.get(key);
       if (pendingLoad) {
         pendingLoad.then(show);
@@ -42,9 +44,9 @@ export function rsc<P, T extends ReactElement<any>>(
             return result;
           })
           .catch((error) => {
+            // The fallback, or the stale component, stays
             console.error("[RSC Client] Error fetching server component:", error);
             cache.pendingLoads.delete(key);
-            throw error;
           });
         cache.pendingLoads.set(key, request);
         request.then(show);

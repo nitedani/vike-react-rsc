@@ -1,5 +1,6 @@
 "use server";
 
+import type { ReactElement } from "react";
 import { rerender } from "vike-react-rsc/server";
 
 // Read by the hooks of /actions, which run in another environment
@@ -23,4 +24,9 @@ export async function slowSave() {
   await new Promise((resolve) => setTimeout(resolve, 1500));
   rerender();
   return "saved";
+}
+
+// Loaded with rsc(): the client keeps showing the fallback
+export async function FailingComponent(): Promise<ReactElement> {
+  throw new Error("FailingComponent failed on demand");
 }

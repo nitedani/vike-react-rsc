@@ -44,6 +44,10 @@ const REACT_DEV_PERF_TRACK_ERROR = "cannot have a negative time stamp";
 // Thrown by /actions' data() after saveThenFailData()
 const DATA_ERROR = "data() failed on demand";
 
+// Thrown by /actions' FailingComponent(), then logged by rsc() in the browser
+const RSC_LOAD_ERROR = "FailingComponent failed on demand";
+const RSC_LOAD_ERROR_LOG = "[RSC Client] Error fetching server component";
+
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
   // Pre-rendered, and served like a static host would
@@ -70,6 +74,10 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
         (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
       // testActionErrorPayload()
       (logSource === "Browser Error" && logText.includes("status of 404")) ||
+      // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
+      (logSource === "stderr" && logText.includes(RSC_LOAD_ERROR)) ||
+      logText.includes(RSC_LOAD_ERROR_LOG) ||
+      (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
       (isStatic &&
         logSource === "stderr" &&
@@ -101,6 +109,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testCrossSiteAction();
     testRscComponentCall();
     testRscPropsChange();
+    testRscLoadError();
     testRscDeduplication();
     testRscCache();
     testRscCacheInvalidation();
@@ -399,6 +408,24 @@ function testRscPropsChange() {
       },
       { timeout: 15000 }
     );
+  });
+}
+
+function testRscLoadError() {
+  test("rsc(): a failed load keeps the fallback, without an unhandled rejection", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    const pageErrors: Error[] = [];
+    const onPageError = (error: Error) => pageErrors.push(error);
+    page.on("pageerror", onPageError);
+    const logged = page.waitForEvent("console", (message) => message.text().includes(RSC_LOAD_ERROR_LOG));
+    await page.click('button:has-text("Load a failing server component")');
+    await logged;
+    // An unhandled rejection is reported after the log
+    await sleep(500);
+    page.off("pageerror", onPageError);
+    expect(pageErrors.map((error) => error.message)).to.deep.equal([]);
+    expect(await page.textContent("[data-rsc-fallback]")).to.equal("Not loaded");
   });
 }
 

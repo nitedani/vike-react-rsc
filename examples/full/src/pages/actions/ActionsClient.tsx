@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { saveThenFailData, saveThenGuard404, slowSave } from "../../actions/edgeCases";
+import { rsc } from "vike-react-rsc/client";
+import { FailingComponent, saveThenFailData, saveThenGuard404, slowSave } from "../../actions/edgeCases";
+
+const FailingComponentRsc = rsc(FailingComponent);
 
 export default function ActionsClient() {
   const [result, setResult] = useState("");
+  const [showFailing, setShowFailing] = useState(false);
   const call = (action: () => Promise<string>) => async () => {
     let message: string;
     try {
@@ -22,6 +26,8 @@ export default function ActionsClient() {
       <button onClick={call(saveThenGuard404)}>Save, then guard() throws render(404)</button>
       <button onClick={call(slowSave)}>Slow save</button>
       <p data-result="">{result}</p>
+      <button onClick={() => setShowFailing(true)}>Load a failing server component</button>
+      {showFailing && <FailingComponentRsc fallback={<p data-rsc-fallback="">Not loaded</p>} />}
     </>
   );
 }
