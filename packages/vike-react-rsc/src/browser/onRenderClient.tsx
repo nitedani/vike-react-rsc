@@ -32,6 +32,8 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
 if (import.meta.hot) {
   import.meta.hot.on("rsc:update", () => {
     markRscCacheStale();
+    // The edit may have fixed the error that Vite's overlay shows
+    document.querySelectorAll<Element & { close(): void }>("vite-error-overlay").forEach((overlay) => overlay.close());
     // Navigating to the current URL fetches the new payload
     const { pathname, search, hash } = location;
     navigate(pathname + search + hash, { keepScrollPosition: true });

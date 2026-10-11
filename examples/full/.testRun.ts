@@ -9,6 +9,8 @@ import {
   skip,
   getServerUrl,
   sleep,
+  editFile,
+  editFileRevert,
 } from "@brillout/test-e2e";
 
 const pages = {
@@ -78,6 +80,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "stderr" && logText.includes(RSC_LOAD_ERROR)) ||
       logText.includes(RSC_LOAD_ERROR_LOG) ||
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
+      // testErrorOverlay()
+      (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
       (isStatic &&
         logSource === "stderr" &&
@@ -120,6 +124,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testNavigationRequests();
   testPageNavigation();
   testPendingPage();
+  if (isDev) testErrorOverlay();
 }
 
 // The RSC payload and Vike's progressive-hydration bootstrap are independent
@@ -753,5 +758,25 @@ function testPendingPage() {
       expect(await page.textContent("h1")).to.include("Vike React Server Components");
     });
     await page.unroute("**/*");
+  });
+}
+
+function testErrorOverlay() {
+  test("Dev: fixing a server component's syntax error closes Vite's error overlay", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    const overlays = page.locator("vite-error-overlay");
+    editFile("./src/pages/index/+Page.tsx", (source) =>
+      source.replace(">Vike React Server Components</h1>", ">Vike React Server Components</h1>{")
+    );
+    await autoRetry(async () => {
+      expect(await overlays.count()).to.equal(1);
+    });
+    // Reverted within milliseconds, Vite sends no update for the fix
+    await sleep(1000);
+    editFileRevert();
+    await autoRetry(async () => {
+      expect(await overlays.count()).to.equal(0);
+    });
   });
 }
