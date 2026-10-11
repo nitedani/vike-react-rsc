@@ -94,6 +94,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testUsePageContext();
   testWrapper();
   testHead();
+  testMisuse();
   // A static host has no server: nothing renders per request, and server actions can't run.
   if (!isStatic) {
     testPageLoading();
@@ -523,6 +524,20 @@ function testHead() {
     expect(await fetchHtml("/")).to.include("<title>Vike RSC demo</title>");
     await page.goto(getServerUrl() + "/");
     expect(await page.title()).to.equal("Vike RSC demo");
+  });
+}
+
+function testMisuse() {
+  test("getPageContext(), rerender() and getResponseHeaders() throw where they can't work", async () => {
+    const html = await fetchHtml("/misuse");
+    const error = (call: string) => new RegExp(`data-misuse="${call}">([^<]*)<`).exec(html)?.[1];
+    expect(error("getPageContext")).to.equal(
+      "[vike-react-rsc] getPageContext() can only be called while a server component renders or a server action runs"
+    );
+    expect(error("rerender")).to.equal("[vike-react-rsc] rerender() can only be called in a server action");
+    expect(error("getResponseHeaders")).to.equal(
+      "[vike-react-rsc] getResponseHeaders() can only be called in a server action"
+    );
   });
 }
 
