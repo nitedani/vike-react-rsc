@@ -6,7 +6,6 @@ type CacheEntry = { component: unknown; timestamp: number; isStale: boolean };
 
 const cache = {
   entries: new Map<string, CacheEntry>(),
-  // Renders of the same component share the load in flight
   pendingLoads: new Map<string, Promise<any>>(),
   isLoading: false,
 };
@@ -14,50 +13,25 @@ const cache = {
 export function rsc<P, T extends ReactElement<any>>(
   c: (props: P) => Promise<T>
 ): ComponentType<P & { fallback?: ReactNode }> {
-  return (props) => {
+  // Keyed by the cache key, so that new props start over with their own load
+  function Load({ cacheKey, props, fallback }: { cacheKey: string; props: P; fallback?: ReactNode }) {
     const pageContext = usePageContext();
-    const { fallback, ...rest } = props;
-    const Loading = pageContext.config.Loading?.component || (() => null);
-    const key = `${c.name}-${JSON.stringify(rest)}`;
     // A stale component shows until its reload arrives
-    const { component: cached, isStale } = getCached<T>(key, pageContext);
-    const [loaded, setLoaded] = useState<{ key: string; component: T }>();
-
+    const { component: cached, isStale } = getCached<T>(cacheKey, pageContext);
+    const [loaded, setLoaded] = useState<T>();
     useEffect(() => {
       if (cached && !isStale) return;
-      // The props changed before this load arrived: it doesn't replace theirs
-      let isCurrent = true;
-      const show = (component: T | void) => {
-        if (component && isCurrent) setLoaded({ key, component });
-      };
-      const pendingLoad = cache.pendingLoads.get(key);
-      if (pendingLoad) {
-        pendingLoad.then(show);
-      } else {
-        cache.isLoading = true;
-        const load = c(rest as P);
-        cache.isLoading = false;
-        const request = load
-          .then((result) => {
-            setCached(key, result, pageContext);
-            cache.pendingLoads.delete(key);
-            return result;
-          })
-          .catch((error) => {
-            // The fallback, or the stale component, stays
-            console.error("[RSC Client] Error fetching server component:", error);
-            cache.pendingLoads.delete(key);
-          });
-        cache.pendingLoads.set(key, request);
-        request.then(show);
-      }
-      return () => {
-        isCurrent = false;
-      };
-    }, [key]);
+      load(cacheKey, () => c(props), pageContext).then((component) => {
+        if (component) setLoaded(component);
+      });
+    }, []);
+    const Loading = pageContext.config.Loading?.component || (() => null);
+    return loaded ?? cached ?? fallback ?? <Loading />;
+  }
 
-    const component = loaded?.key === key ? loaded.component : cached;
-    return component ?? fallback ?? <Loading />;
+  return ({ fallback, ...props }) => {
+    const key = `${c.name}-${JSON.stringify(props)}`;
+    return <Load key={key} cacheKey={key} props={props as P} fallback={fallback} />;
   };
 }
 
@@ -68,6 +42,25 @@ export function isRscLoading(): boolean {
 
 export function markRscCacheStale(): void {
   for (const entry of cache.entries.values()) entry.isStale = true;
+}
+
+// Renders of the same component share the load in flight
+function load<T>(key: string, call: () => Promise<T>, pageContext: PageContext): Promise<T | void> {
+  const pendingLoad = cache.pendingLoads.get(key);
+  if (pendingLoad) return pendingLoad;
+  cache.isLoading = true;
+  const loading = call();
+  cache.isLoading = false;
+  const request = loading
+    .then((component) => {
+      setCached(key, component, pageContext);
+      return component;
+    })
+    // The fallback, or the stale component, stays
+    .catch((error) => console.error("[RSC Client] Error fetching server component:", error))
+    .finally(() => cache.pendingLoads.delete(key));
+  cache.pendingLoads.set(key, request);
+  return request;
 }
 
 function getCached<T>(key: string, pageContext: PageContext): { component: T | null; isStale: boolean } {
