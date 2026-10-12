@@ -10,6 +10,9 @@ export default function Page() {
       <p id="account-user" css={sharedStyles.paragraph}>
         Logged in as {getSession(getPageContext().headers)}
       </p>
+      <p id="account-mw" css={sharedStyles.paragraph}>
+        {getPageContext().mwMethod}
+      </p>
       <form action={logout}>
         <button type="submit">Log out</button>
       </form>

@@ -377,6 +377,7 @@ function testSession() {
     expect(await page.textContent("h1")).to.equal("Log in");
 
     // The action sets the cookie, then the guard of the same request sees it
+    const middlewareRuns = await getServerCount("middleware /account");
     await page.click('button:has-text("Log in")');
     await autoRetry(async () => {
       expect(await page.textContent("#account-user")).to.equal("Logged in as alice");
@@ -384,6 +385,14 @@ function testSession() {
     const session = async () =>
       (await page.context().cookies()).find((c) => c.name === "session")?.value;
     expect(await session()).to.equal("alice");
+
+    // The action's pageContext, which its re-render shows, has the context of the +middleware ordered after the action
+    // middleware, which ran once, like a page request's
+    expect(await getServerCount("middleware /account")).to.equal(middlewareRuns + 1);
+    expect(await page.textContent("#account-mw")).to.equal("POST");
+    await page.goto(getServerUrl() + "/account");
+    await waitForHydration("Log out");
+    expect(await page.textContent("#account-mw")).to.equal("GET");
 
     // The action clears the cookie, then throws redirect("/"): a client navigation, not a document load
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
