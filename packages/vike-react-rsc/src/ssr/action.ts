@@ -1,5 +1,4 @@
 // Vike loads +middleware at startup, before Vite optimizes React, so neither this module nor its imports may import React
-import { renderPage } from "vike/server";
 import type { PageContextServer } from "vike/types";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER } from "../protocol";
 import type { ActionOutcome } from "../types";
@@ -49,37 +48,48 @@ export class ActionCall {
   }
 }
 
-// Vike's +middleware. renderPage() runs the action in onCreatePageContext, before guard() and data(), so they see what it changed
-export async function actionMiddleware(request: Request): Promise<Response | undefined> {
+// Vike's +middleware. It hands the action to the page Vike renders after every middleware: onCreatePageContext runs it
+// there, before guard() and data(), so they see what it changed, and the action sees the context of every middleware.
+export async function actionMiddleware(
+  request: Request,
+  context: object
+): Promise<Response | ((response: Response) => Response) | undefined> {
   const id = request.headers.get(ACTION_HEADER);
-  // renderPage() calls the middlewares again for the page it renders, with a GET
   if (!id || request.method !== "POST") return;
   if (isCrossSite(request)) return new Response(null, { status: 403 });
 
   // encodeReply() sends FormData when an argument holds a file or a form, else a string
   const body = request.headers.get("content-type")?.startsWith("multipart/") ? await request.formData() : await request.text();
   const call = new ActionCall(id, body);
-  const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction: call });
-  const { statusCode } = httpResponse;
+  // A middleware returns either context or a response function: the context is the object Vike merges into the page's
+  // pageContext, so it gets the action directly
+  Object.assign(context, { rscAction: call });
+  return (response: Response) => toAnswer(call, response);
+}
 
+// The answer to the action, from the response of the page Vike rendered
+function toAnswer(call: ActionCall, response: Response): Response {
+  const { status } = response;
   // Without rerender() the page isn't part of the answer, so neither is guard()'s or data()'s failure: the caller gets
   // what the action returned
-  if (call.outcome && !call.outcome.rerender && statusCode !== 200) {
+  if (call.outcome && !call.outcome.rerender && status !== 200) {
+    void response.body?.cancel();
     return new Response(call.renderValueOnly(), {
       headers: new Headers([...call.responseHeaders, ["content-type", FLIGHT_CONTENT_TYPE]]),
     });
   }
   // The hooks' headers, then the action's
-  const headers = new Headers([...httpResponse.headers, ...call.responseHeaders]);
+  const headers = new Headers([...response.headers, ...call.responseHeaders]);
   // A redirect thrown by the action, guard() or data(). fetch() would follow it and hand the new page's HTML to the
   // Flight decoder, so callServer() gets the target in a header and navigates.
   const location = headers.get("location");
-  if (statusCode >= 300 && statusCode < 400 && location) {
+  if (status >= 300 && status < 400 && location) {
+    void response.body?.cancel();
     headers.delete("location");
     headers.set(REDIRECT_HEADER, location);
     return new Response(null, { headers });
   }
-  return new Response(httpResponse.getReadableWebStream(), { status: statusCode, headers });
+  return new Response(response.body, { status, headers });
 }
 
 // Browsers already refuse a cross-site POST that carries ACTION_HEADER unless a CORS preflight allows it; this check
