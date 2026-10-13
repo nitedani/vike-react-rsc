@@ -27,10 +27,10 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
     return;
   }
   const deps: ClientDeps = { css: new Set(), js: new Set() };
-  return clientDeps.run(deps, () => renderPage(pageContext, deps));
+  return clientDeps.run(deps, () => renderDocument(pageContext, deps));
 };
 
-async function renderPage(pageContext: PageContextServer, deps: ClientDeps) {
+async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) {
   // The page renders to Flight once: one copy becomes the HTML, Vike inlines the other for hydration
   const [forHtml, forBrowser] = pageContext.rscPayload.tee();
   pageContext.rscPayload = forBrowser;
