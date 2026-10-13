@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { rsc } from "vike-react-rsc/client";
-import { FailingComponent, redirectToScript, saveThenFailData, saveThenGuard404, slowSave } from "../../actions/edgeCases";
+import { countSubmit, FailingComponent, redirectToScript, saveThenFailData, saveThenGuard404, slowSave } from "../../actions/edgeCases";
 
 const FailingComponentRsc = rsc(FailingComponent);
 
 export default function ActionsClient() {
   const [result, setResult] = useState("");
   const [showFailing, setShowFailing] = useState(false);
+  const [submits, countSubmitAction] = useActionState(countSubmit, 0);
   const call = (action: () => Promise<string>) => async () => {
     let message: string;
     try {
@@ -29,6 +30,10 @@ export default function ActionsClient() {
       <p data-result="">{result}</p>
       <button onClick={() => setShowFailing(true)}>Load a failing server component</button>
       {showFailing && <FailingComponentRsc fallback={<p data-rsc-fallback="">Not loaded</p>} />}
+      <form action={countSubmitAction}>
+        <button type="submit">Count a submit</button>
+      </form>
+      <p data-submits="">Submitted {submits} times</p>
     </>
   );
 }

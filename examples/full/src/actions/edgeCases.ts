@@ -32,6 +32,11 @@ export async function redirectToScript(): Promise<string> {
   throw redirect("javascript:void(window.__redirected=1)");
 }
 
+// With useActionState(): its count survives a submit without JavaScript
+export async function countSubmit(submits: number): Promise<number> {
+  return submits + 1;
+}
+
 // Loaded with rsc(): the client keeps showing the fallback
 export async function FailingComponent(): Promise<ReactElement> {
   throw new Error("FailingComponent failed on demand");

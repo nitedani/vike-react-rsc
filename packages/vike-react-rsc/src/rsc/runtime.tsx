@@ -1,17 +1,30 @@
-import { decodeReply, loadServerAction, renderToReadableStream } from "@vitejs/plugin-rsc/rsc";
+import { decodeAction, decodeFormState, decodeReply, loadServerAction, renderToReadableStream } from "@vitejs/plugin-rsc/rsc";
 import { Suspense, type ReactNode } from "react";
+import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
 import type { ActionOutcome, ActionPayload, PagePayload, RscRuntime } from "../types";
 import { runInScope } from "./scope";
 
+// Per page render, after a form submitted before hydration
+const formStates = new WeakMap<PageContext, ReactFormState>();
+
 export const rscRuntime: RscRuntime = {
-  renderPage: (pageContext) => renderOnRead<PagePayload>(pageContext, () => ({ root: getPage(pageContext) })),
+  renderPage: (pageContext) =>
+    renderOnRead<PagePayload>(pageContext, () => ({ root: getPage(pageContext), formState: formStates.get(pageContext) })),
 
   renderAnswer: (pageContext, { returnValue, rerender }) =>
     renderOnRead<ActionPayload>(pageContext, () => (rerender ? { returnValue, root: getPage(pageContext) } : { returnValue })),
 
   async runAction(pageContext, { id, body, responseHeaders }) {
     const outcome: ActionOutcome = { returnValue: undefined, rerender: false };
+    // A form submitted before hydration: its fields name the action
+    if (id === undefined) {
+      const action = await decodeAction(body as FormData);
+      const returnValue = await runInScope({ pageContext, action: { outcome, responseHeaders } }, action);
+      const formState = await decodeFormState(returnValue, body as FormData);
+      if (formState) formStates.set(pageContext, formState);
+      return outcome;
+    }
     const [serverFunction, args] = await Promise.all([
       loadServerAction(id).catch((error: unknown) => {
         console.error("[vike-react-rsc] Couldn't load the server action, so the browser reloads:", error);

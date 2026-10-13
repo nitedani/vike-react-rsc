@@ -5,7 +5,8 @@ import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEA
 import type { ActionOutcome } from "../types";
 import { getRsc } from "./bridge";
 
-/** One action request. The rsc env runs it with `id`, `body` and `responseHeaders`. */
+/** One action request. The rsc env runs it with `id`, `body` and `responseHeaders`; without `id`, `body` is a form
+ * submitted before hydration. */
 export class ActionCall {
   readonly responseHeaders: Headers = new Headers();
   /** Set once the action returned */
@@ -13,7 +14,7 @@ export class ActionCall {
   #rsc?: ReturnType<typeof getRsc>;
 
   constructor(
-    readonly id: string,
+    readonly id: string | undefined,
     readonly body: string | FormData
   ) {}
 
@@ -23,6 +24,11 @@ export class ActionCall {
     if (this.#rsc) return;
     this.#rsc = getRsc(pageContext);
     this.outcome = await this.#rsc.runtime.runAction(this.#rsc.pageContext, this);
+  }
+
+  /** A form submitted before hydration: the answer is the page's HTML */
+  get isForm(): boolean {
+    return this.id === undefined;
   }
 
   /** The request's headers as the hooks after the action see them: with its cookies, e.g. a session for guard() */
@@ -51,17 +57,24 @@ export class ActionCall {
 
 // Vike's +middleware. renderPage() runs the action in onCreatePageContext, before guard() and data(), so they see what it changed
 export async function actionMiddleware(request: Request): Promise<Response | undefined> {
-  const id = request.headers.get(ACTION_HEADER);
   // renderPage() calls the middlewares again for the page it renders, with a GET
-  if (!id || request.method !== "POST") return;
+  if (request.method !== "POST") return;
+  const id = request.headers.get(ACTION_HEADER) ?? undefined;
+  const form = id ? undefined : await getActionForm(request);
+  if (!id && !form) return;
   if (isCrossSite(request)) return new Response(null, { status: 403 });
 
   // encodeReply() sends FormData when an argument holds a file or a form, else a string
-  const body = request.headers.get("content-type")?.startsWith("multipart/") ? await request.formData() : await request.text();
+  const body = form ?? (request.headers.get("content-type")?.startsWith("multipart/") ? await request.formData() : await request.text());
   const call = new ActionCall(id, body);
   const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction: call });
   const { statusCode } = httpResponse;
   if (call.outcome?.isUnknownAction) return new Response(null, { status: 404, headers: { [UNKNOWN_ACTION_HEADER]: "1" } });
+  // The page, or a redirect a browser follows
+  if (call.isForm) {
+    const headers = new Headers([...httpResponse.headers, ...call.responseHeaders]);
+    return new Response(httpResponse.getReadableWebStream(), { status: statusCode, headers });
+  }
 
   // Without rerender() the page isn't part of the answer, so neither is guard()'s or data()'s failure: the caller gets
   // what the action returned
@@ -81,6 +94,17 @@ export async function actionMiddleware(request: Request): Promise<Response | und
     return new Response(null, { headers });
   }
   return new Response(httpResponse.getReadableWebStream(), { status: statusCode, headers });
+}
+
+// React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
+// before hydration. Read from a copy: any other POST reaches the next handler with its body.
+async function getActionForm(request: Request): Promise<FormData | undefined> {
+  if (!request.headers.get("content-type")?.startsWith("multipart/form-data")) return;
+  const form = await request
+    .clone()
+    .formData()
+    .catch(() => undefined);
+  return form && [...form.keys()].some((key) => key.startsWith("$ACTION_")) ? form : undefined;
 }
 
 // Browsers already refuse a cross-site POST that carries ACTION_HEADER unless a CORS preflight allows it; this check

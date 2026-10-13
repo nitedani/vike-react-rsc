@@ -1,9 +1,10 @@
 import type { ComponentType, ReactNode } from "react";
+import type { ReactFormState } from "react-dom/client";
 import type { ImportString, PageContext } from "vike/types";
 import type { ActionCall } from "./ssr/action";
 
-/** A page's Flight decodes to it */
-export type PagePayload = { root: ReactNode };
+/** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */
+export type PagePayload = { root: ReactNode; formState?: ReactFormState };
 /** A server action's Flight decodes to it; `root` is the page, after rerender() */
 export type ActionPayload = { returnValue: unknown; root?: ReactNode };
 export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
@@ -14,7 +15,7 @@ export type RscRuntime = {
   renderAnswer(pageContext: PageContext, outcome: ActionOutcome): ReadableStream<Uint8Array>;
   runAction(
     pageContext: PageContext,
-    call: { id: string; body: string | FormData; responseHeaders: Headers }
+    call: { id: string | undefined; body: string | FormData; responseHeaders: Headers }
   ): Promise<ActionOutcome>;
 };
 

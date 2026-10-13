@@ -11,10 +11,10 @@ setServerCallback(callServer);
 
 export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   setCurrentPageContext(pageContext);
-  const { root } = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
+  const { root, formState } = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
   const page = { pageContext, root };
   show(page);
-  if (pageContext.isHydration) hydrateRoot(document.getElementById("root")!, <Root page={page} />);
+  if (pageContext.isHydration) hydrateRoot(document.getElementById("root")!, <Root page={page} />, { formState });
 };
 
 if (import.meta.hot) {

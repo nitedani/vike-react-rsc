@@ -21,7 +21,7 @@ setOnClientReference(({ deps }) => {
 export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
   // A server action: the answer is Flight, and the middleware (ssr/action.ts) sends it
   const call = pageContext.rscAction;
-  if (call) {
+  if (call && !call.isForm) {
     pageContext.content = call.renderAnswer(pageContext);
     pageContext.headersResponse.set("content-type", FLIGHT_CONTENT_TYPE);
     return;
@@ -37,7 +37,7 @@ async function renderPage(pageContext: PageContextServer, deps: ClientDeps) {
   // tee() keeps the render going while either copy is read, so the HTML's copy stops once the HTML is sent, or the
   // client left. The decoder holds its stream's lock, hence a pipe that can be cut.
   const htmlSent = new AbortController();
-  const { root } = await createFromReadableStream<PagePayload>(
+  const { root, formState } = await createFromReadableStream<PagePayload>(
     forHtml.pipeThrough(new TransformStream(), { signal: htmlSent.signal })
   );
   const page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
@@ -46,7 +46,7 @@ async function renderPage(pageContext: PageContextServer, deps: ClientDeps) {
   if (pageContext.isPrerendering) {
     html = await renderWhole(page, nonce);
   } else {
-    html = await renderToStream(page, { userAgent: pageContext.headers?.["user-agent"], streamOptions: { nonce } });
+    html = await renderToStream(page, { userAgent: pageContext.headers?.["user-agent"], streamOptions: { nonce, formState } });
     void html.streamEnd.then(() => htmlSent.abort());
   }
   // Once the shell has rendered, React has loaded every client component in it

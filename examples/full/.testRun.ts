@@ -122,6 +122,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testStaleAction();
     testActionRedirectToScript();
     testUnknownAction();
+    testFormBeforeHydration();
     testCrossSiteAction();
     testRscComponentCall();
     testRscPropsChange();
@@ -510,6 +511,45 @@ function testUnknownAction() {
     await page.click('button:has-text("Save, then data() throws")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] Server action failed: HTTP 404");
+    });
+  });
+}
+
+function testFormBeforeHydration() {
+  test("Server action: a form submitted before hydration runs it, and useActionState() keeps its state", async () => {
+    // No script file loads, so the page never hydrates; React's inline scripts still reveal streamed content
+    const context = await page.context().browser()!.newContext();
+    await context.route("**/*", (route) => (route.request().resourceType() === "script" ? route.abort() : route.continue()));
+    const noJs = await context.newPage();
+    try {
+      // The action sets the cookie, then the guard of /login redirects to /account
+      await noJs.goto(getServerUrl() + "/login");
+      await noJs.click('button:has-text("Log in")');
+      await noJs.waitForURL((url) => url.pathname === "/account");
+      expect(await noJs.textContent("#account-user")).to.equal("Logged in as alice");
+
+      await noJs.goto(getServerUrl() + "/actions");
+      await noJs.click('button:has-text("Count a submit")');
+      await noJs.waitForSelector("[data-submits]:has-text('Submitted 1 times')");
+      await noJs.click('button:has-text("Count a submit")');
+      await noJs.waitForSelector("[data-submits]:has-text('Submitted 2 times')");
+    } finally {
+      await context.close();
+    }
+
+    // form.submit() skips React's handler, as a submit before hydration does: the page hydrates with the state the
+    // server rendered, then counts on
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await Promise.all([
+      page.waitForNavigation(),
+      page.evaluate(() => document.querySelector("form")!.submit()),
+    ]);
+    await waitForHydration("Count a submit");
+    expect(await page.textContent("[data-submits]")).to.equal("Submitted 1 times");
+    await page.click('button:has-text("Count a submit")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-submits]")).to.equal("Submitted 2 times");
     });
   });
 }
