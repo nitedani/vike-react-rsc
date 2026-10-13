@@ -43,7 +43,7 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
     return undefined;
   }
   // E.g. a 404 page instead of the answer, Vike's HTML error page, or a static host
-  const isFlight = response.headers.get("content-type")?.split(";")[0] === "text/x-component";
+  const isFlight = response.headers.get("content-type")?.split(";")[0] === FLIGHT_CONTENT_TYPE.split(";")[0];
   if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
 
   const { returnValue, root } = await createFromFetch<ActionPayload>(Promise.resolve(response));
