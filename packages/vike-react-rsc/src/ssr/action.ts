@@ -71,9 +71,10 @@ export async function actionMiddleware(request: Request): Promise<Response | und
   const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction: call });
   const { statusCode } = httpResponse;
   if (call.outcome?.isUnknownAction) return new Response(null, { status: 404, headers: { [UNKNOWN_ACTION_HEADER]: "1" } });
+  // The hooks' headers, then the action's
+  const headers = new Headers([...httpResponse.headers, ...call.responseHeaders]);
   // The page, or a redirect a browser follows
   if (call.isForm) {
-    const headers = new Headers([...httpResponse.headers, ...call.responseHeaders]);
     return new Response(httpResponse.getReadableWebStream(), { status: statusCode, headers });
   }
 
@@ -84,8 +85,6 @@ export async function actionMiddleware(request: Request): Promise<Response | und
       headers: new Headers([...call.responseHeaders, ["content-type", FLIGHT_CONTENT_TYPE]]),
     });
   }
-  // The hooks' headers, then the action's
-  const headers = new Headers([...httpResponse.headers, ...call.responseHeaders]);
   // A redirect thrown by the action, guard() or data(). fetch() would follow it and hand the new page's HTML to the
   // Flight decoder, so callServer() gets the target in a header and navigates.
   const location = headers.get("location");
