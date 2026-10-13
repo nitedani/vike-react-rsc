@@ -8,6 +8,8 @@ export default defineConfig({
 
   resolve: {
     noExternal: ["@compiled/react"],
+    // pnpm can give the linked vike-react-rsc its own copy of vike, and the browser would load both
+    dedupe: ["vike"],
     alias: {
       "#": "/src",
     },

@@ -686,7 +686,9 @@ function testClientJsPreload() {
     const html = await fetchHtml("/client-css");
     const head = html.slice(0, html.indexOf("</head>"));
     const hrefs = [...head.matchAll(/<link rel="modulepreload" href="([^"]+)"/g)].map((match) => match[1]!);
-    const chunks = await Promise.all(hrefs.map(async (href) => (await fetch(getServerUrl() + href)).text()));
+    const responses = await Promise.all(hrefs.map((href) => fetch(getServerUrl() + href)));
+    expect(responses.filter((response) => !response.ok).map((response) => response.url)).to.deep.equal([]);
+    const chunks = await Promise.all(responses.map((response) => response.text()));
     expect(chunks.some((chunk) => chunk.includes("Styled by a client component's CSS"))).to.equal(true);
   });
 }

@@ -22,7 +22,7 @@
     "@universal-middleware/hono": "^0.4.21",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
-    "@vitejs/plugin-rsc": "^0.5.32",
+    "@vitejs/plugin-rsc": "^0.5.36",
     "client-only": "0.0.1",
     "hono": "^4.13.0",
     "react": "^19.2.8",
