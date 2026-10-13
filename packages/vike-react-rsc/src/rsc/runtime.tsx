@@ -27,7 +27,7 @@ export const rscRuntime: RscRuntime = {
     }
     const [serverFunction, args] = await Promise.all([
       loadServerAction(id).catch((error: unknown) => {
-        console.error("[vike-react-rsc] Couldn't load the server action, so the browser reloads:", error);
+        console.error("[vike-react-rsc] Couldn't load the server action; the browser gets a 404:", error);
       }),
       decodeReply(body),
     ]);
