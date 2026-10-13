@@ -368,13 +368,15 @@ function testSession() {
       (await page.context().cookies()).find((c) => c.name === "session")?.value;
     expect(await session()).to.equal("alice");
 
-    // The action clears the cookie, then throws redirect("/")
+    // The action clears the cookie, then throws redirect("/"): a client navigation, not a document load
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
     await page.click('button:has-text("Log out")');
     await autoRetry(async () => {
       expect(new URL(page.url()).pathname).to.equal("/");
       expect(await page.textContent("h1")).to.include("Vike React Server Components");
     });
     expect(await session()).to.equal(undefined);
+    expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
   });
 
   test("Server action: guard() of the same request throws redirect()", async () => {

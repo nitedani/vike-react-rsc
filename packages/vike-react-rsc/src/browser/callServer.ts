@@ -1,5 +1,6 @@
 import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
+import { navigate } from "vike/client/router";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER } from "../protocol";
 import type { ActionPayload } from "../types";
 import { getCurrentPageContext, showRoot } from "./page";
@@ -26,9 +27,14 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       throw new Error(`[vike-react-rsc] The server action redirected to ${redirectTo}, which isn't an http(s) URL`);
     }
-    window.location.href = url.href;
-    // Never settles: the caller doesn't resume, the document goes away
-    return new Promise(() => {});
+    if (url.origin !== location.origin) {
+      window.location.href = url.href;
+      // Never settles: the caller doesn't resume, the document goes away
+      return new Promise(() => {});
+    }
+    // Settles after the navigation, so a form action's pending transition doesn't hold the new page back
+    await navigate(url.pathname + url.search + url.hash);
+    return undefined;
   }
   // E.g. a 404 page instead of the answer, Vike's HTML error page, or a static host
   const isFlight = response.headers.get("content-type")?.split(";")[0] === "text/x-component";
