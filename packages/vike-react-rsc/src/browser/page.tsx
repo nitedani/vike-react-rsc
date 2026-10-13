@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement, type ReactNode } from "react";
+import { startTransition, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
 
@@ -20,7 +20,8 @@ export function getCurrentPageContext(): PageContextClient {
 
 export function show(next: Shown): void {
   shown = next;
-  setRootState?.(next);
+  // The current page stays on screen until the next one can render, instead of the nearest Loading.layout
+  startTransition(() => setRootState?.(next));
 }
 
 /** Shows a new tree for the page shown, e.g. the one an action's rerender() sent */

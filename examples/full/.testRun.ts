@@ -129,6 +129,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testNavigationRequests();
   testPageNavigation();
   testPendingPage();
+  testNavigationKeepsPage();
   if (isDev) testErrorOverlay();
 }
 
@@ -853,6 +854,39 @@ function testPendingPage() {
     release();
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("Vike React Server Components");
+    });
+    await page.unroute("**/*");
+  });
+}
+
+function testNavigationKeepsPage() {
+  test("A navigation keeps the current page until the next page's client components have loaded", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let isHeld = false;
+    await page.route("**/*", async (route) => {
+      if (route.request().resourceType() !== "script") return route.continue();
+      const response = await route.fetch();
+      if ((await response.text()).includes("data-url-pathname")) {
+        isHeld = true;
+        await released;
+      }
+      await route.fulfill({ response });
+    });
+    await page.evaluate(() =>
+      document.body.append(Object.assign(document.createElement("a"), { href: "/client", textContent: "Client" }))
+    );
+    await page.click('a[href="/client"]');
+    // /client's Page is a client component: its module is held
+    await autoRetry(() => expect(isHeld).to.equal(true));
+    await sleep(500);
+    expect(await page.locator("[data-loading-layout]").count()).to.equal(0);
+    expect(await page.textContent("h1")).to.include("Vike React Server Components");
+    release();
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
     });
     await page.unroute("**/*");
   });
