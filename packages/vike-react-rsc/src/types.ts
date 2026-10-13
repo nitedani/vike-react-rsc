@@ -6,7 +6,7 @@ import type { ActionCall } from "./ssr/action";
 export type PagePayload = { root: ReactNode };
 /** A server action's Flight decodes to it; `root` is the page, after rerender() */
 export type ActionPayload = { returnValue: unknown; root?: ReactNode };
-export type ActionOutcome = { returnValue: unknown; rerender: boolean };
+export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
 
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */
 export type RscRuntime = {

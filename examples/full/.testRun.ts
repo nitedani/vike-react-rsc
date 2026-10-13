@@ -50,6 +50,9 @@ const DATA_ERROR = "data() failed on demand";
 const RSC_LOAD_ERROR = "FailingComponent failed on demand";
 const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server component";
 
+// Logged on the server by testUnknownAction()
+const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
+
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
   // Pre-rendered, and served like a static host would
@@ -79,6 +82,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
       (logSource === "stderr" && logText.includes(RSC_LOAD_ERROR)) ||
       logText.includes(RSC_LOAD_ERROR_LOG) ||
+      // testUnknownAction()
+      (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
@@ -116,6 +121,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testActionPageFailure();
     testStaleAction();
     testActionRedirectToScript();
+    testUnknownAction();
     testCrossSiteAction();
     testRscComponentCall();
     testRscPropsChange();
@@ -478,6 +484,33 @@ function testActionRedirectToScript() {
       );
     });
     expect(await page.evaluate(() => "__redirected" in window)).to.equal(false);
+  });
+}
+
+function testUnknownAction() {
+  test("Server action: an id the server doesn't know reloads the page once, then rejects the call", async () => {
+    // As if the tab predates a deploy that removed the action. A reload undoes it.
+    const callUnknownId = (unknownId: string) =>
+      page.evaluate((unknownId) => {
+        const { fetch } = window;
+        window.fetch = (input, init) =>
+          fetch(input, { ...init, headers: { ...(init?.headers as Record<string, string>), "x-rsc-action": unknownId } });
+      }, unknownId);
+    const unknownId = `/gone.ts#action${Date.now()}`;
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await callUnknownId(unknownId);
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    await page.click('button:has-text("Save, then data() throws")');
+    await autoRetry(async () => {
+      expect(await page.evaluate(() => performance.timeOrigin)).to.not.equal(timeOrigin);
+    });
+    await waitForHydration("Slow save");
+    await callUnknownId(unknownId);
+    await page.click('button:has-text("Save, then data() throws")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] Server action failed: HTTP 404");
+    });
   });
 }
 

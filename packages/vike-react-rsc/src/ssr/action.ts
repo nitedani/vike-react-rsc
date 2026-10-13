@@ -1,7 +1,7 @@
 // Vike loads +middleware at startup, before Vite optimizes React, so neither this module nor its imports may import React
 import { renderPage } from "vike/server";
 import type { PageContextServer } from "vike/types";
-import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER } from "../protocol";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import type { ActionOutcome } from "../types";
 import { getRsc } from "./bridge";
 
@@ -61,6 +61,7 @@ export async function actionMiddleware(request: Request): Promise<Response | und
   const call = new ActionCall(id, body);
   const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction: call });
   const { statusCode } = httpResponse;
+  if (call.outcome?.isUnknownAction) return new Response(null, { status: 404, headers: { [UNKNOWN_ACTION_HEADER]: "1" } });
 
   // Without rerender() the page isn't part of the answer, so neither is guard()'s or data()'s failure: the caller gets
   // what the action returned

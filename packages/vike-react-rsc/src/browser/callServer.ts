@@ -1,7 +1,7 @@
 import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
 import { navigate } from "vike/client/router";
-import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER } from "../protocol";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import type { ActionPayload } from "../types";
 import { getCurrentPageContext, showRoot } from "./page";
 import { isRscLoad, markRscOutputsStale } from "./rsc";
@@ -20,6 +20,12 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
   // Even when the answer is an error, the action may have run
   if (changesData) markRscOutputsStale();
 
+  // The page loads again with the new build's actions; the call rejects below when it already did for this id
+  if (response.headers.has(UNKNOWN_ACTION_HEADER) && isFirstReload(id)) {
+    location.reload();
+    // Never settles: the caller doesn't resume, the document goes away
+    return new Promise(() => {});
+  }
   const redirectTo = response.headers.get(REDIRECT_HEADER);
   if (redirectTo) {
     const url = new URL(redirectTo, location.href);
@@ -44,4 +50,17 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
   // The page changed since the call: this answer's page is out of date
   if (root && getCurrentPageContext() === pageContext) startTransition(() => showRoot(root));
   return returnValue;
+}
+
+// Once per action id and tab: an rsc() load that runs on mount would otherwise reload forever
+function isFirstReload(id: string): boolean {
+  const key = `vike-react-rsc:reloaded-for:${id}`;
+  try {
+    if (sessionStorage.getItem(key)) return false;
+    sessionStorage.setItem(key, "1");
+    return true;
+  } catch {
+    // Storage is blocked: no way to tell a first reload
+    return false;
+  }
 }

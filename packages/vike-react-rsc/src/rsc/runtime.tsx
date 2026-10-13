@@ -12,7 +12,14 @@ export const rscRuntime: RscRuntime = {
 
   async runAction(pageContext, { id, body, responseHeaders }) {
     const outcome: ActionOutcome = { returnValue: undefined, rerender: false };
-    const [serverFunction, args] = await Promise.all([loadServerAction(id), decodeReply(body)]);
+    const [serverFunction, args] = await Promise.all([
+      loadServerAction(id).catch((error: unknown) => {
+        console.error("[vike-react-rsc] Couldn't load the server action, so the browser reloads:", error);
+      }),
+      decodeReply(body),
+    ]);
+    // E.g. a tab opened before a deploy calls an action this build doesn't have
+    if (typeof serverFunction !== "function") return { ...outcome, isUnknownAction: true };
     outcome.returnValue = await runInScope({ pageContext, action: { outcome, responseHeaders } }, () => serverFunction(...args));
     return outcome;
   },
