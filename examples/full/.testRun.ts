@@ -98,6 +98,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testUsePageContext();
   testWrapper();
   testHead();
+  // plugin-rsc has no client JS to preload in dev
+  if (!isDev) testClientJsPreload();
   testClientCss();
   if (isDev) testClientCssLinkRemoved();
   testMisuse();
@@ -556,6 +558,17 @@ function testHead() {
     expect(await fetchHtml("/")).to.include("<title>Vike RSC demo</title>");
     await page.goto(getServerUrl() + "/");
     expect(await page.title()).to.equal("Vike RSC demo");
+  });
+}
+
+function testClientJsPreload() {
+  // The first render of a client component, as after a server start, and in every pre-rendered page
+  test("The head preloads the JS of the client components a page renders", async () => {
+    const html = await fetchHtml("/client-css");
+    const head = html.slice(0, html.indexOf("</head>"));
+    const hrefs = [...head.matchAll(/<link rel="modulepreload" href="([^"]+)"/g)].map((match) => match[1]!);
+    const chunks = await Promise.all(hrefs.map(async (href) => (await fetch(getServerUrl() + href)).text()));
+    expect(chunks.some((chunk) => chunk.includes("Styled by a client component's CSS"))).to.equal(true);
   });
 }
 

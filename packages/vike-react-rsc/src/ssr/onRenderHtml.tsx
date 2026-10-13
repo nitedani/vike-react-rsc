@@ -10,10 +10,12 @@ import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import type { PagePayload } from "../types";
 
-// The CSS of the client components a page's HTML renders, so the head links it before the first paint
-const clientCss = new AsyncLocalStorage<Set<string>>();
+// The CSS and JS of the client components a page's HTML renders, for the head
+const clientDeps = new AsyncLocalStorage<ClientDeps>();
+type ClientDeps = { css: Set<string>; js: Set<string> };
 setOnClientReference(({ deps }) => {
-  for (const href of deps.css) clientCss.getStore()?.add(href);
+  for (const href of deps.css) clientDeps.getStore()?.css.add(href);
+  for (const href of deps.js) clientDeps.getStore()?.js.add(href);
 });
 
 export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
@@ -24,11 +26,11 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
     pageContext.headersResponse.set("content-type", FLIGHT_CONTENT_TYPE);
     return;
   }
-  const css = new Set<string>();
-  return clientCss.run(css, () => renderPage(pageContext, css));
+  const deps: ClientDeps = { css: new Set(), js: new Set() };
+  return clientDeps.run(deps, () => renderPage(pageContext, deps));
 };
 
-async function renderPage(pageContext: PageContextServer, css: Set<string>) {
+async function renderPage(pageContext: PageContextServer, deps: ClientDeps) {
   // The page renders to Flight once: one copy becomes the HTML, Vike inlines the other for hydration
   const [forHtml, forBrowser] = pageContext.rscPayload.tee();
   pageContext.rscPayload = forBrowser;
@@ -48,7 +50,7 @@ async function renderPage(pageContext: PageContextServer, css: Set<string>) {
     void html.streamEnd.then(() => htmlSent.abort());
   }
   // Once the shell has rendered, React has loaded every client component in it
-  const clientCssLinks = renderClientCss(css);
+  const clientLinks = renderClientLinks(deps);
 
   return {
     documentHtml: escapeInject`<!DOCTYPE html>
@@ -56,7 +58,7 @@ async function renderPage(pageContext: PageContextServer, css: Set<string>) {
   <head>
     <meta charset="UTF-8" />
     ${renderHead(pageContext)}
-    ${clientCssLinks}
+    ${clientLinks}
   </head>
   <body>
     <div id="root">${html}</div>
@@ -83,8 +85,8 @@ function renderHead(pageContext: PageContextServer) {
   return dangerouslySkipEscape(tags.join(""));
 }
 
-function renderClientCss(css: Set<string>) {
-  const links = [...css].map((href) =>
+function renderClientLinks({ css, js }: ClientDeps) {
+  const cssLinks = [...css].map((href) =>
     // In dev, the shape of Vike's own CSS links, so Vike's dev cleanup removes them once Vite has injected the CSS
     import.meta.env.DEV ? (
       <link key={href} rel="stylesheet" type="text/css" href={`${href}?direct`} />
@@ -92,5 +94,7 @@ function renderClientCss(css: Set<string>) {
       <link key={href} rel="stylesheet" href={href} />
     )
   );
-  return dangerouslySkipEscape(renderToStaticMarkup(links));
+  // React drops plugin-rsc's own preloads for a client component whose module loads during the decode, before the render
+  const jsLinks = [...js].map((href) => <link key={href} rel="modulepreload" href={href} crossOrigin="" />);
+  return dangerouslySkipEscape(renderToStaticMarkup([...cssLinks, ...jsLinks]));
 }
