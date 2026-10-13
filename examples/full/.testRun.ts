@@ -665,7 +665,10 @@ function testUsePageContext() {
 function testWrapper() {
   test("Wrapper wraps the Layout", async () => {
     await page.goto(getServerUrl() + "/");
-    expect(await page.locator("[data-wrapper] header").count()).to.equal(1);
+    // A pre-rendered page reveals its layout with React's inline script, a few ms after load
+    await autoRetry(async () => {
+      expect(await page.locator("[data-wrapper] header").count()).to.equal(1);
+    });
   });
 }
 
