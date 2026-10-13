@@ -98,6 +98,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testUsePageContext();
   testWrapper();
   testHead();
+  testClientCss();
   testMisuse();
   // A static host has no server: nothing renders per request, and server actions can't run.
   if (!isStatic) {
@@ -554,6 +555,20 @@ function testHead() {
     expect(await fetchHtml("/")).to.include("<title>Vike RSC demo</title>");
     await page.goto(getServerUrl() + "/");
     expect(await page.title()).to.equal("Vike RSC demo");
+  });
+}
+
+function testClientCss() {
+  test("A client component's CSS applies before hydration", async () => {
+    // Without JavaScript, the page shows what the server rendered
+    const context = await page.context().browser()!.newContext({ javaScriptEnabled: false });
+    const noJsPage = await context.newPage();
+    await noJsPage.goto(getServerUrl() + "/client-css");
+    const color = (selector: string) => noJsPage.$eval(selector, (element) => getComputedStyle(element).color);
+    expect(await color("[data-styled-client]")).to.equal("rgb(0, 128, 0)");
+    // The CSS of a client component it imports
+    expect(await color("[data-nested-client]")).to.equal("rgb(0, 0, 128)");
+    await context.close();
   });
 }
 
