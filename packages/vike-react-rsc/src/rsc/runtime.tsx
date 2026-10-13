@@ -17,10 +17,11 @@ export const rscRuntime: RscRuntime = {
 
   async runAction(pageContext, { id, body, responseHeaders }) {
     const outcome: ActionOutcome = { returnValue: undefined, rerender: false };
+    const scope = { pageContext, action: { outcome, responseHeaders } };
     // A form submitted before hydration: its fields name the action
     if (id === undefined) {
       const action = await decodeAction(body as FormData);
-      const returnValue = await runInScope({ pageContext, action: { outcome, responseHeaders } }, action);
+      const returnValue = await runInScope(scope, action);
       const formState = await decodeFormState(returnValue, body as FormData);
       if (formState) formStates.set(pageContext, formState);
       return outcome;
@@ -33,7 +34,7 @@ export const rscRuntime: RscRuntime = {
     ]);
     // E.g. a tab opened before a deploy calls an action this build doesn't have
     if (typeof serverFunction !== "function") return { ...outcome, isUnknownAction: true };
-    outcome.returnValue = await runInScope({ pageContext, action: { outcome, responseHeaders } }, () => serverFunction(...args));
+    outcome.returnValue = await runInScope(scope, () => serverFunction(...args));
     return outcome;
   },
 };
