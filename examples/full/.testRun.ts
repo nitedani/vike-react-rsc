@@ -115,6 +115,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testActionValueSurvivesDataError();
     testActionPageFailure();
     testStaleAction();
+    testActionRedirectToScript();
     testCrossSiteAction();
     testRscComponentCall();
     testRscPropsChange();
@@ -461,6 +462,20 @@ function testStaticHostAction() {
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] Server action failed: HTTP 404");
     });
+  });
+}
+
+function testActionRedirectToScript() {
+  test("Server action: a redirect to a javascript: URL rejects the call and runs nothing", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Redirect to a javascript: URL")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.equal(
+        "Rejected: [vike-react-rsc] The server action redirected to javascript:void(window.__redirected=1), which isn't an http(s) URL"
+      );
+    });
+    expect(await page.evaluate(() => "__redirected" in window)).to.equal(false);
   });
 }
 

@@ -21,7 +21,12 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
 
   const redirectTo = response.headers.get(REDIRECT_HEADER);
   if (redirectTo) {
-    window.location.href = redirectTo;
+    const url = new URL(redirectTo, location.href);
+    // An HTTP redirect never runs e.g. a javascript: URL, but location.href would
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error(`[vike-react-rsc] The server action redirected to ${redirectTo}, which isn't an http(s) URL`);
+    }
+    window.location.href = url.href;
     // Never settles: the caller doesn't resume, the document goes away
     return new Promise(() => {});
   }

@@ -1,6 +1,7 @@
 "use server";
 
 import type { ReactElement } from "react";
+import { redirect } from "vike/abort";
 import { rerender } from "vike-react-rsc/server";
 
 // Read by the hooks of /actions, which run in another environment
@@ -24,6 +25,11 @@ export async function slowSave() {
   await new Promise((resolve) => setTimeout(resolve, 1500));
   rerender();
   return "saved";
+}
+
+// As if the target came from user input, e.g. ?next=: the browser must not run it
+export async function redirectToScript(): Promise<string> {
+  throw redirect("javascript:void(window.__redirected=1)");
 }
 
 // Loaded with rsc(): the client keeps showing the fallback
