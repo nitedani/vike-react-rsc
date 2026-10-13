@@ -24,10 +24,11 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
     pageContext.headersResponse.set("content-type", FLIGHT_CONTENT_TYPE);
     return;
   }
-  return clientCss.run(new Set(), () => renderPage(pageContext));
+  const css = new Set<string>();
+  return clientCss.run(css, () => renderPage(pageContext, css));
 };
 
-async function renderPage(pageContext: PageContextServer) {
+async function renderPage(pageContext: PageContextServer, css: Set<string>) {
   // The page renders to Flight once: one copy becomes the HTML, Vike inlines the other for hydration
   const [forHtml, forBrowser] = pageContext.rscPayload.tee();
   pageContext.rscPayload = forBrowser;
@@ -46,6 +47,8 @@ async function renderPage(pageContext: PageContextServer) {
     html = await renderToStream(page, { userAgent: pageContext.headers?.["user-agent"], streamOptions: { nonce } });
     void html.streamEnd.then(() => htmlSent.abort());
   }
+  // Once the shell has rendered, React has loaded every client component in it
+  const clientCssLinks = renderClientCss(css);
 
   return {
     documentHtml: escapeInject`<!DOCTYPE html>
@@ -53,7 +56,7 @@ async function renderPage(pageContext: PageContextServer) {
   <head>
     <meta charset="UTF-8" />
     ${renderHead(pageContext)}
-    ${renderClientCss()}
+    ${clientCssLinks}
   </head>
   <body>
     <div id="root">${html}</div>
@@ -80,8 +83,14 @@ function renderHead(pageContext: PageContextServer) {
   return dangerouslySkipEscape(tags.join(""));
 }
 
-// Read once the shell has rendered: by then, React has loaded every client component in it
-function renderClientCss() {
-  const links = [...clientCss.getStore()!].map((href) => <link key={href} rel="stylesheet" href={href} />);
+function renderClientCss(css: Set<string>) {
+  const links = [...css].map((href) =>
+    // In dev, the shape of Vike's own CSS links, so Vike's dev cleanup removes them once Vite has injected the CSS
+    import.meta.env.DEV ? (
+      <link key={href} rel="stylesheet" type="text/css" href={`${href}?direct`} />
+    ) : (
+      <link key={href} rel="stylesheet" href={href} />
+    )
+  );
   return dangerouslySkipEscape(renderToStaticMarkup(links));
 }

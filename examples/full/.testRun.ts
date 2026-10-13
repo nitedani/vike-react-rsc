@@ -99,6 +99,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testWrapper();
   testHead();
   testClientCss();
+  if (isDev) testClientCssLinkRemoved();
   testMisuse();
   // A static host has no server: nothing renders per request, and server actions can't run.
   if (!isStatic) {
@@ -569,6 +570,19 @@ function testClientCss() {
     // The CSS of a client component it imports
     expect(await color("[data-nested-client]")).to.equal("rgb(0, 0, 128)");
     await context.close();
+  });
+}
+
+function testClientCssLinkRemoved() {
+  test("In dev, a client component's CSS link goes once Vite has injected the CSS", async () => {
+    // Else, removing the CSS import wouldn't remove its styles until a reload
+    await page.goto(getServerUrl() + "/client-css");
+    await autoRetry(async () => {
+      expect(await page.$$('link[href*="StyledClient.css"]')).to.have.length(0);
+    });
+    expect(await page.$eval("[data-styled-client]", (element) => getComputedStyle(element).color)).to.equal(
+      "rgb(0, 128, 0)"
+    );
   });
 }
 
