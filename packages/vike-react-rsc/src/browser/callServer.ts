@@ -21,7 +21,7 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
   if (changesData) markRscOutputsStale();
 
   // The page loads again with the new build's actions; the call rejects below when it already did for this id
-  if (response.headers.has(UNKNOWN_ACTION_HEADER) && isFirstReload(id)) {
+  if (response.headers.has(UNKNOWN_ACTION_HEADER) && claimReload(id)) {
     location.reload();
     // Never settles: the caller doesn't resume, the document goes away
     return new Promise(() => {});
@@ -53,7 +53,7 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
 }
 
 // Once per action id and tab: an rsc() load that runs on mount would otherwise reload forever
-function isFirstReload(id: string): boolean {
+function claimReload(id: string): boolean {
   const key = `vike-react-rsc:reloaded-for:${id}`;
   try {
     if (sessionStorage.getItem(key)) return false;
