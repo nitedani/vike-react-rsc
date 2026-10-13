@@ -74,6 +74,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (isDev && logText.includes(REACT_DEV_PERF_TRACK_ERROR)) ||
       // testCrossSiteAction()
       (logSource === "stderr" && logText.includes("HTTP response ← /todos 403")) ||
+      // testActionBodyLimit()
+      (logSource === "stderr" && logText.includes("HTTP response ← /todos 413")) ||
       // testActionValueSurvivesDataError()
       (logSource === "stderr" &&
         (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
@@ -124,6 +126,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testUnknownAction();
     testFormBeforeHydration();
     testCrossSiteAction();
+    testActionBodyLimit();
     testRscComponentCall();
     testRscPropsChange();
     testRscLoadError();
@@ -563,6 +566,28 @@ function testCrossSiteAction() {
       });
     expect((await post({ "sec-fetch-site": "cross-site" })).status).to.equal(403);
     expect((await post({ origin: "https://example.com" })).status).to.equal(403);
+  });
+}
+
+function testActionBodyLimit() {
+  test("Server action: a body over rsc.bodySizeLimit is refused, even without a Content-Length", async () => {
+    // The default limit is 1 MB; this streams 2 MB
+    const chunk = new Uint8Array(64 * 1024).fill(97);
+    let sent = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (sent >= 2 * 1024 * 1024) return controller.close();
+        sent += chunk.byteLength;
+        controller.enqueue(chunk);
+      },
+    });
+    const response = await fetch(getServerUrl() + "/todos", {
+      method: "POST",
+      headers: { "x-rsc-action": "any", "content-type": "text/plain" },
+      body,
+      duplex: "half",
+    } as RequestInit);
+    expect(response.status).to.equal(413);
   });
 }
 

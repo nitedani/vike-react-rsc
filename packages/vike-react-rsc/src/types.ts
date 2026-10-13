@@ -51,6 +51,8 @@ declare global {
       rsc?: {
         /** For how many milliseconds rsc() reuses a component it loaded, instead of loading it again. `0` turns that off. Default: 60 000. A navigation always loads the page. */
         staleTime?: number;
+        /** The most bytes a server action's request body may have; a bigger one gets a 413. Default: 1 048 576 (1 MB). */
+        bodySizeLimit?: number;
       };
       /** Internal: the rsc env's runtime */
       rscRuntime?: RscRuntime | ImportString;

@@ -11,6 +11,7 @@ React RSC integration for [Vike](https://vike.dev).
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
   - An action runs before `guard()` and `data()` of its request, so they see what it changed, including cookies it sets with **`getResponseHeaders()`**.
   - `guard()` doesn't protect an action: check authorization in the action itself.
+  - An action's request body over **`rsc.bodySizeLimit`** bytes (default 1 MB) is refused with a 413, before it's buffered whole.
   - During an action request, `pageContext` doesn't carry what your server adds (e.g. `pageContext.user`): read the session from the request's cookies instead (vikejs/vike#3407).
   - With the Vike version this package uses, each action runs your [`+middleware`](https://vike.dev/middleware) twice. It first sees a GET request for the page render that answers the action, then the action's POST request, after the action ran.
 - **RSC over RPC**: on the client-side upon user interaction (e.g. click on button "show details"), you can load Server Component elements instead of loading data. So that you don't have to load heavy Components (e.g. markdown) on the client-side — even if they are a part of a dynamic UI.
