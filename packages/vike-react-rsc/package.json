@@ -49,7 +49,7 @@
     "react-dom": "^19.2.8",
     "tsdown": "^0.22.14",
     "typescript": "^7.0.2",
-    "vike": "0.4.267-commit-e667e7c",
+    "vike": "0.4.267-commit-83049a4",
     "vite": "^8.2.0",
     "@vitejs/plugin-rsc": "^0.5.36"
   }
