@@ -249,10 +249,6 @@ function testPageNavigation() {
   });
 }
 
-// A user navigates after the page is interactive, not merely after its
-// server-rendered DOM exists. Wait until React has attached the button's
-// event props so a test measures normal client-side navigation rather than a
-// synthetic pre-hydration click.
 // No script file loads, so the page never hydrates; React's inline scripts still reveal streamed content
 async function withoutScripts(run: (noJs: typeof page) => Promise<void>) {
   const context = await page.context().browser()!.newContext();
@@ -264,6 +260,10 @@ async function withoutScripts(run: (noJs: typeof page) => Promise<void>) {
   }
 }
 
+// A user navigates after the page is interactive, not merely after its
+// server-rendered DOM exists. Wait until React has attached the button's
+// event props so a test measures normal client-side navigation rather than a
+// synthetic pre-hydration click.
 async function waitForHydration(buttonText = "Increment") {
   await autoRetry(
     async () => {

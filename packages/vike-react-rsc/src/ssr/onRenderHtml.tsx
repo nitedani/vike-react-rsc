@@ -20,7 +20,7 @@ setOnClientReference(({ deps }) => {
   const js = deps.js.filter((href) => !store.js.has(href));
   for (const href of css) store.css.add(href);
   for (const href of js) store.js.add(href);
-  // Once the head is sent, the links go in the stream, before the Suspense boundary that renders the component
+  // Once the shell has rendered, the links go in the stream, before the Suspense boundary that renders the component
   if (store.injectToStream && (css.length || js.length)) store.injectToStream(renderClientLinks({ css, js }));
 });
 
