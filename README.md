@@ -12,8 +12,7 @@ React RSC integration for [Vike](https://vike.dev).
   - An action runs before `guard()` and `data()` of its request, so they see what it changed, including cookies it sets with **`getResponseHeaders()`**.
   - `guard()` doesn't protect an action: check authorization in the action itself.
   - An action's request body over **`rsc.bodySizeLimit`** bytes (default 1 MB) is refused with a 413, before it's buffered whole.
-  - During an action request, `pageContext` doesn't carry what your server adds (e.g. `pageContext.user`): read the session from the request's cookies instead (vikejs/vike#3407).
-  - With the Vike version this package uses, each action runs your [`+middleware`](https://vike.dev/middleware) twice. It first sees a GET request for the page render that answers the action, then the action's POST request, after the action ran.
+  - An action's `pageContext` has what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `pageContext.user`).
 - **RSC over RPC**: on the client-side upon user interaction (e.g. click on button "show details"), you can load Server Component elements instead of loading data. So that you don't have to load heavy Components (e.g. markdown) on the client-side — even if they are a part of a dynamic UI.
 - Built-in default **`<Loading>` fallback**, customizable globally, per page, or per component.
 - **Caching**: components loaded with `rsc()` are cached on the client for `rsc.staleTime` ms (default 1 minute, `0` disables). Page navigation always fetches a fresh payload.
