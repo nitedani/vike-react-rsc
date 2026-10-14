@@ -66,7 +66,7 @@ export async function actionMiddleware(request: Request): Promise<Response | und
   if (isCrossSite(request)) return new Response(null, { status: 403 });
 
   const body = id ? await readBody(request, limit) : form;
-  if (body === undefined) return new Response(null, { status: 413 });
+  if (form === "too-large" || body === undefined) return new Response(null, { status: 413 });
   const call = new ActionCall(id, body);
   const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction: call });
   const { statusCode } = httpResponse;
@@ -98,12 +98,12 @@ export async function actionMiddleware(request: Request): Promise<Response | und
 
 // React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
 // before hydration. Read from a copy: any other POST reaches the next handler with its body. Null when the request
-// isn't such a form, undefined when it's one over `limit`.
-async function getActionForm(request: Request, limit: number): Promise<FormData | null | undefined> {
+// isn't such a form.
+async function getActionForm(request: Request, limit: number): Promise<FormData | "too-large" | null> {
   const contentType = request.headers.get("content-type");
   if (!contentType?.startsWith("multipart/form-data")) return null;
   const form = await readBody(request.clone(), limit).catch(() => null);
-  if (form === undefined) return (await startsWithActionField(request.clone(), contentType)) ? undefined : null;
+  if (form === undefined) return (await startsWithActionField(request.clone(), contentType)) ? "too-large" : null;
   return form instanceof FormData && [...form.keys()].some((key) => key.startsWith("$ACTION_")) ? form : null;
 }
 
