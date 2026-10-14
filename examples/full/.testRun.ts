@@ -6,7 +6,6 @@ import {
   fetchHtml,
   page,
   autoRetry,
-  skip,
   getServerUrl,
   sleep,
   editFile,
@@ -173,13 +172,8 @@ function testResponseTail() {
   });
 }
 
-// TODO: unskip with the first release of vite-plugin-compiled-react containing
-// nitedani/vite-plugin-compiled-react#3 (Vite 8 / @vitejs/plugin-react 6 support).
-// Until then the `css` prop reaches the HTML untransformed.
 function testCssProp() {
   test("css prop is transformed", async () => {
-    skip("vite-plugin-compiled-react does not support Vite 8 yet");
-    return;
     const html = await fetchHtml("/");
     expect(html).to.not.include('css="[object Object]"');
   });

@@ -16,7 +16,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.7.0",
   "dependencies": {
-    "@compiled/react": "^1.0.0",
+    "@compiled/react": "^2.0.0",
     "@types/react": "^19.2.18",
     "@universal-deploy/node": "^0.1.9",
     "@universal-middleware/hono": "^0.4.21",
@@ -33,6 +33,6 @@
     "vike": "0.4.267-commit-5676e14",
     "vike-react-rsc": "^1.0.0",
     "vite": "^8.2.0",
-    "vite-plugin-compiled-react": "1.3.1"
+    "vite-plugin-compiled-react": "^2.0.0"
   }
 }

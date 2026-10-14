@@ -4,7 +4,7 @@ import { defineConfig } from "vite";
 import { compiled } from "vite-plugin-compiled-react";
 
 export default defineConfig({
-  plugins: [react(), vike(), compiled({ extract: true })],
+  plugins: [react(), vike(), compiled()],
 
   resolve: {
     noExternal: ["@compiled/react"],
