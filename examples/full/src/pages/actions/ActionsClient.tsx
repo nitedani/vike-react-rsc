@@ -2,13 +2,15 @@
 
 import { useActionState, useState } from "react";
 import { rsc } from "vike-react-rsc/client";
-import { countSubmit, FailingComponent, redirectToScript, saveThenFailData, saveThenGuard404, slowSave } from "../../actions/edgeCases";
+import { countSubmit, FailingComponent, RedirectOnceComponent, redirectToScript, saveThenFailData, saveThenGuard404, slowSave } from "../../actions/edgeCases";
 
 const FailingComponentRsc = rsc(FailingComponent);
+const RedirectOnceComponentRsc = rsc(RedirectOnceComponent);
 
 export default function ActionsClient() {
   const [result, setResult] = useState("");
   const [showFailing, setShowFailing] = useState(false);
+  const [showRedirecting, setShowRedirecting] = useState(false);
   const [submits, countSubmitAction] = useActionState(countSubmit, 0);
   const call = (action: () => Promise<string>) => async () => {
     let message: string;
@@ -30,6 +32,8 @@ export default function ActionsClient() {
       <p data-result="">{result}</p>
       <button onClick={() => setShowFailing(true)}>Load a failing server component</button>
       {showFailing && <FailingComponentRsc fallback={<p data-rsc-fallback="">Not loaded</p>} />}
+      <button onClick={() => setShowRedirecting(true)}>Load a redirecting server component</button>
+      <p data-rsc-redirecting="">{showRedirecting && <RedirectOnceComponentRsc fallback="Not loaded" />}</p>
       <form action={countSubmitAction}>
         <button type="submit">Count a submit</button>
       </form>

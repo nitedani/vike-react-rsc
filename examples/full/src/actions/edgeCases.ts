@@ -37,6 +37,16 @@ export async function countSubmit(submits: number): Promise<number> {
   return submits + 1;
 }
 
+// Loaded with rsc(): redirects on its first load, as when a session is missing
+let hasRedirected = false;
+export async function RedirectOnceComponent(): Promise<string> {
+  if (!hasRedirected) {
+    hasRedirected = true;
+    throw redirect("/");
+  }
+  return "Loaded";
+}
+
 // Loaded with rsc(): the client keeps showing the fallback
 export async function FailingComponent(): Promise<ReactElement> {
   throw new Error("FailingComponent failed on demand");

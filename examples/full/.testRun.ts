@@ -129,6 +129,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscComponentCall();
     testRscPropsChange();
     testRscLoadError();
+    testRscLoadRedirect();
     testRscCache();
     testRscCacheInvalidation();
     testRscCacheInvalidationOnRejection();
@@ -457,6 +458,21 @@ function testRscLoadError() {
     page.off("pageerror", onPageError);
     expect(pageErrors.map((error) => error.message)).to.deep.equal([]);
     expect(await page.textContent("[data-rsc-fallback]")).to.equal("Not loaded");
+  });
+}
+
+function testRscLoadRedirect() {
+  test("rsc(): a load that redirected isn't cached, so coming back loads the server component", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Load a redirecting server component")');
+    await page.waitForURL(getServerUrl() + "/");
+    await page.goBack();
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Load a redirecting server component")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-rsc-redirecting]")).to.equal("Loaded");
+    });
   });
 }
 
