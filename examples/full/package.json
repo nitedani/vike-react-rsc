@@ -31,7 +31,7 @@
     "react-server-dom-webpack": "19.2.8",
     "server-only": "0.0.1",
     "typescript": "^7.0.2",
-    "vike": "0.4.267-commit-5676e14",
+    "vike": "0.4.267-commit-e667e7c",
     "vike-react-rsc": "^1.0.0",
     "vite": "^8.2.0",
     "vite-plugin-compiled-react": "^2.0.0"
