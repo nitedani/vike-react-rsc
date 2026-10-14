@@ -252,6 +252,17 @@ function testPageNavigation() {
 // server-rendered DOM exists. Wait until React has attached the button's
 // event props so a test measures normal client-side navigation rather than a
 // synthetic pre-hydration click.
+// No script file loads, so the page never hydrates; React's inline scripts still reveal streamed content
+async function withoutScripts(run: (noJs: typeof page) => Promise<void>) {
+  const context = await page.context().browser()!.newContext();
+  await context.route("**/*", (route) => (route.request().resourceType() === "script" ? route.abort() : route.continue()));
+  try {
+    await run(await context.newPage());
+  } finally {
+    await context.close();
+  }
+}
+
 async function waitForHydration(buttonText = "Increment") {
   await autoRetry(
     async () => {
@@ -530,11 +541,7 @@ function testUnknownAction() {
 
 function testFormBeforeHydration() {
   test("Server action: a form submitted before hydration runs it, and useActionState() keeps its state", async () => {
-    // No script file loads, so the page never hydrates; React's inline scripts still reveal streamed content
-    const context = await page.context().browser()!.newContext();
-    await context.route("**/*", (route) => (route.request().resourceType() === "script" ? route.abort() : route.continue()));
-    const noJs = await context.newPage();
-    try {
+    await withoutScripts(async (noJs) => {
       // The action sets the cookie, then the guard of /login redirects to /account
       await noJs.goto(getServerUrl() + "/login");
       await noJs.click('button:has-text("Log in")');
@@ -546,9 +553,7 @@ function testFormBeforeHydration() {
       await noJs.waitForSelector("[data-submits]:has-text('Submitted 1 times')");
       await noJs.click('button:has-text("Count a submit")');
       await noJs.waitForSelector("[data-submits]:has-text('Submitted 2 times')");
-    } finally {
-      await context.close();
-    }
+    });
 
     // form.submit() skips React's handler, as a submit before hydration does: the page hydrates with the state the
     // server rendered, then counts on
