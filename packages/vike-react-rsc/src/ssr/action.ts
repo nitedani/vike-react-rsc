@@ -62,10 +62,10 @@ export async function actionMiddleware(request: Request): Promise<Response | und
   const id = request.headers.get(ACTION_HEADER) ?? undefined;
   const limit = (await getGlobalContext()).config.rsc?.bodySizeLimit ?? 1024 * 1024;
   const form = id ? undefined : await getActionForm(request, limit);
-  if (!id && !form) return;
+  if (form === null) return;
   if (isCrossSite(request)) return new Response(null, { status: 403 });
 
-  const body = form ?? (await readBody(request, limit));
+  const body = id ? await readBody(request, limit) : form;
   if (body === undefined) return new Response(null, { status: 413 });
   const call = new ActionCall(id, body);
   const { httpResponse } = await renderPage({ urlOriginal: request.url, headersOriginal: request.headers, rscAction: call });
@@ -97,11 +97,28 @@ export async function actionMiddleware(request: Request): Promise<Response | und
 }
 
 // React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
-// before hydration. Read from a copy: any other POST reaches the next handler with its body.
-async function getActionForm(request: Request, limit: number): Promise<FormData | undefined> {
-  if (!request.headers.get("content-type")?.startsWith("multipart/form-data")) return;
-  const form = await readBody(request.clone(), limit).catch(() => undefined);
-  return form instanceof FormData && [...form.keys()].some((key) => key.startsWith("$ACTION_")) ? form : undefined;
+// before hydration. Read from a copy: any other POST reaches the next handler with its body. Null when the request
+// isn't such a form, undefined when it's one over `limit`.
+async function getActionForm(request: Request, limit: number): Promise<FormData | null | undefined> {
+  const contentType = request.headers.get("content-type");
+  if (!contentType?.startsWith("multipart/form-data")) return null;
+  const form = await readBody(request.clone(), limit).catch(() => null);
+  if (form === undefined) return (await startsWithActionField(request.clone(), contentType)) ? undefined : null;
+  return form instanceof FormData && [...form.keys()].some((key) => key.startsWith("$ACTION_")) ? form : null;
+}
+
+// React writes a form's $ACTION_ fields right after <form>, so a browser sends them first
+async function startsWithActionField(request: Request, contentType: string): Promise<boolean> {
+  const prefix = `--${contentType.split("boundary=")[1]}\r\nContent-Disposition: form-data; name="$ACTION_`;
+  const reader = request.body!.pipeThrough(new TextDecoderStream()).getReader();
+  let head = "";
+  while (head.length < prefix.length) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    head += value;
+  }
+  void reader.cancel();
+  return head.startsWith(prefix);
 }
 
 // Undefined when the body has more than `limit` bytes: reading stops there, so a bigger body is never buffered whole

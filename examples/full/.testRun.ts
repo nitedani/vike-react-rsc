@@ -74,7 +74,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testCrossSiteAction()
       (logSource === "stderr" && logText.includes("HTTP response ← /todos 403")) ||
       // testActionBodyLimit()
-      (logSource === "stderr" && logText.includes("HTTP response ← /todos 413")) ||
+      (logSource === "stderr" &&
+        (logText.includes("HTTP response ← /todos 413") || logText.includes("HTTP response ← /actions 413"))) ||
       // testActionValueSurvivesDataError()
       (logSource === "stderr" &&
         (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
@@ -603,6 +604,21 @@ function testActionBodyLimit() {
       duplex: "half",
     } as RequestInit);
     expect(response.status).to.equal(413);
+
+    // A form submitted before hydration
+    await withoutScripts(async (noJs) => {
+      await noJs.goto(getServerUrl() + "/actions");
+      await noJs.setInputFiles('input[name="attachment"]', {
+        name: "attachment.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.alloc(2 * 1024 * 1024, "a"),
+      });
+      const [submitted] = await Promise.all([
+        noJs.waitForResponse((response) => response.request().method() === "POST"),
+        noJs.click('button:has-text("Count a submit")'),
+      ]);
+      expect(submitted.status()).to.equal(413);
+    });
   });
 }
 

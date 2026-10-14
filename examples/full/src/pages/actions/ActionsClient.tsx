@@ -35,6 +35,7 @@ export default function ActionsClient() {
       <button onClick={() => setShowRedirecting(true)}>Load a redirecting server component</button>
       <p data-rsc-redirecting="">{showRedirecting && <RedirectOnceComponentRsc fallback="Not loaded" />}</p>
       <form action={countSubmitAction}>
+        <input type="file" name="attachment" />
         <button type="submit">Count a submit</button>
       </form>
       <p data-submits="">Submitted {submits} times</p>
