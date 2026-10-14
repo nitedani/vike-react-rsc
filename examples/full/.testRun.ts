@@ -730,13 +730,23 @@ function testClientCss() {
     const context = await page.context().browser()!.newContext({ javaScriptEnabled: false });
     const noJsPage = await context.newPage();
     await noJsPage.goto(getServerUrl() + "/client-css");
-    const color = (selector: string) => noJsPage.$eval(selector, (element) => getComputedStyle(element).color);
-    expect(await color("[data-styled-client]")).to.equal("rgb(0, 128, 0)");
+    expect(await getColor(noJsPage, "[data-styled-client]")).to.equal("rgb(0, 128, 0)");
     // The CSS of a client component it imports
-    expect(await color("[data-nested-client]")).to.equal("rgb(0, 0, 128)");
+    expect(await getColor(noJsPage, "[data-nested-client]")).to.equal("rgb(0, 0, 128)");
     await context.close();
+
+    // Rendered after React's shell, in a Suspense boundary that React's inline scripts reveal
+    await withoutScripts(async (noJs) => {
+      await noJs.goto(getServerUrl() + "/client-css-streamed");
+      await noJs.waitForSelector("[data-styled-client]");
+      expect(await getColor(noJs, "[data-styled-client]")).to.equal("rgb(0, 128, 0)");
+      expect(await getColor(noJs, "[data-nested-client]")).to.equal("rgb(0, 0, 128)");
+    });
   });
 }
+
+const getColor = (somePage: typeof page, selector: string) =>
+  somePage.$eval(selector, (element) => getComputedStyle(element).color);
 
 function testClientCssLinkRemoved() {
   test("In dev, a client component's CSS link goes once Vite has injected the CSS", async () => {

@@ -10,12 +10,18 @@ import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import type { PagePayload } from "../types";
 
-// The CSS and JS of the client components a page's HTML renders, for the head
+// The CSS and JS of the client components a page's HTML renders, for their links
 const clientDeps = new AsyncLocalStorage<ClientDeps>();
-type ClientDeps = { css: Set<string>; js: Set<string> };
+type ClientDeps = { css: Set<string>; js: Set<string>; injectToStream?: (html: string) => void };
 setOnClientReference(({ deps }) => {
-  for (const href of deps.css) clientDeps.getStore()?.css.add(href);
-  for (const href of deps.js) clientDeps.getStore()?.js.add(href);
+  const store = clientDeps.getStore();
+  if (!store) return;
+  const css = deps.css.filter((href) => !store.css.has(href));
+  const js = deps.js.filter((href) => !store.js.has(href));
+  for (const href of css) store.css.add(href);
+  for (const href of js) store.js.add(href);
+  // Once the head is sent, the links go in the stream, before the Suspense boundary that renders the component
+  if (store.injectToStream && (css.length || js.length)) store.injectToStream(renderClientLinks({ css, js }));
 });
 
 export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
@@ -48,9 +54,10 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
   } else {
     html = await renderToStream(page, { userAgent: pageContext.headers?.["user-agent"], streamOptions: { nonce, formState } });
     void html.streamEnd.then(() => htmlSent.abort());
+    deps.injectToStream = html.injectToStream;
   }
   // Once the shell has rendered, React has loaded every client component in it
-  const clientLinks = renderClientLinks(deps);
+  const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
 
   return {
     documentHtml: escapeInject`<!DOCTYPE html>
@@ -85,16 +92,17 @@ function renderHead(pageContext: PageContextServer) {
   return dangerouslySkipEscape(tags.join(""));
 }
 
-function renderClientLinks({ css, js }: ClientDeps) {
+function renderClientLinks({ css, js }: { css: Iterable<string>; js: Iterable<string> }) {
   const cssLinks = [...css].map((href) =>
     // In dev, the shape of Vike's own CSS links, so Vike's dev cleanup removes them once Vite has injected the CSS
     import.meta.env.DEV ? (
       <link key={href} rel="stylesheet" type="text/css" href={`${href}?direct`} />
     ) : (
-      <link key={href} rel="stylesheet" href={href} />
+      // The crossOrigin of React's preload for the same file, so the browser uses that preload
+      <link key={href} rel="stylesheet" href={href} crossOrigin="" />
     )
   );
   // React drops plugin-rsc's own preloads for a client component whose module loads during the decode, before the render
   const jsLinks = [...js].map((href) => <link key={href} rel="modulepreload" href={href} crossOrigin="" />);
-  return dangerouslySkipEscape(renderToStaticMarkup([...cssLinks, ...jsLinks]));
+  return renderToStaticMarkup([...cssLinks, ...jsLinks]);
 }
