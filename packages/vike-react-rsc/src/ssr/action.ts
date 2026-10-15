@@ -32,7 +32,7 @@ export class ActionCall {
   }
 
   /** The request's headers as the hooks after the action see them: with its cookies, e.g. a session for guard() */
-  requestHeaders(headers: Record<string, string> | null): Record<string, string> | null {
+  withActionCookies(headers: Record<string, string> | null): Record<string, string> | null {
     const actionCookies = this.responseHeaders.getSetCookie().map((setCookie) => setCookie.split(";", 1)[0]);
     if (!actionCookies.length) return headers;
     // name=value pairs: the action's replace the request's of the same name
