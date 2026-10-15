@@ -9,8 +9,8 @@ export function vikeReactRscPlugins(): Plugin[] {
       enforce: "pre",
       config: ({ build }) => ({
         environments: {
-          // Pre-bundling would copy @vitejs/plugin-rsc/browser into this package's bundle, and callServer() would
-          // then register on a copy that React's server functions don't call
+          // Vike pre-bundles the entry its hooks import, but not the other entries of a linked copy, so the browser
+          // would load the page store and rsc()'s cache twice
           client: { optimizeDeps: { exclude: ["vike-react-rsc"] } },
           // Vike deploys dist/server, rsc included
           rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
