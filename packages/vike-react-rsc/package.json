@@ -36,8 +36,14 @@
     "@vitejs/plugin-rsc": "^0.5.36",
     "react": ">=19.3.1 <20",
     "react-dom": ">=19.3.1 <20",
+    "react-server-dom-webpack": ">=19.3.1 <20",
     "vike": ">=0.4.268",
     "vite": ">=8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react-server-dom-webpack": {
+      "optional": true
+    }
   },
   "dependencies": {
     "react-streaming": "^0.4.21"
