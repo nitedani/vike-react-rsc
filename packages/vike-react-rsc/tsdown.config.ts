@@ -17,9 +17,6 @@ export default defineConfig({
   format: ["esm"],
   // The exports map resolves to dist/*.js, so output extensions must stay .js.
   fixedExtension: false,
-  deps: {
-    neverBundle: [/^vike-react-rsc\//, /^@vitejs\/plugin-rsc\//],
-  },
   dts: {
     sourcemap: process.argv.slice(2).includes("--sourcemap"),
   },
