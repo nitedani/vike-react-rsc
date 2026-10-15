@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vike dev",
     "build": "vike build",
-    "preview": "vike build && sh ./preview.sh",
+    "preview": "vike build && vike preview",
     "preview:static": "VIKE_CONFIG='{prerender:{noExtraDir:true}}' vike build && node ./preview-static.mjs"
   },
   "keywords": [],
