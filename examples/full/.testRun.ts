@@ -139,11 +139,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   if (isDev) testServerCssHmr();
 }
 
-// The RSC payload and Vike's progressive-hydration bootstrap are independent
-// producers sharing react-streaming's ordered sink. Their relative order is
-// intentionally unspecified: the client can start consuming the still-open RSC
-// stream. What must remain ordered is each producer's own protocol, and the RSC
-// close marker must be written before the enclosing HTML stream ends.
+// Each stream keeps its own order, and the HTML stays open until the Flight's end marker
 function testResponseTail() {
   test("Response tail is complete and ordered", async () => {
     const html = await fetchHtml("/");
@@ -254,10 +250,7 @@ async function withoutScripts(run: (noJs: typeof page) => Promise<void>) {
   }
 }
 
-// A user navigates after the page is interactive, not merely after its
-// server-rendered DOM exists. Wait until React has attached the button's
-// event props so a test measures normal client-side navigation rather than a
-// synthetic pre-hydration click.
+// Until React has attached the button's handlers, a click doesn't do what a user's would
 async function waitForHydration(buttonText = "Increment") {
   await autoRetry(
     async () => {
