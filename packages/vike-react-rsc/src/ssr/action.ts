@@ -69,7 +69,7 @@ export async function actionMiddleware(
   if (isCrossSite(request)) return new Response(null, { status: 403 });
 
   const body = id ? await readBody(request, limit) : form;
-  if (form === "too-large" || body === undefined) return new Response(null, { status: 413 });
+  if (body === undefined) return new Response(null, { status: 413 });
   const call = new ActionCall(id, body);
   // A middleware returns either context or a response function: the context is the object Vike merges into the page's
   // pageContext, so it gets the action directly
@@ -111,12 +111,12 @@ function toAnswer(call: ActionCall, response: Response): Response {
 
 // React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
 // before hydration. Read from a copy: any other POST reaches the next handler with its body. Null when the request
-// isn't such a form.
-async function getActionForm(request: Request, limit: number): Promise<FormData | "too-large" | null> {
+// isn't such a form, undefined when it's one with more than `limit` bytes.
+async function getActionForm(request: Request, limit: number): Promise<FormData | undefined | null> {
   const contentType = request.headers.get("content-type");
   if (!contentType?.startsWith("multipart/form-data")) return null;
   const form = await readBody(request.clone(), limit).catch(() => null);
-  if (form === undefined) return (await startsWithActionField(request.clone(), contentType)) ? "too-large" : null;
+  if (form === undefined) return (await startsWithActionField(request.clone(), contentType)) ? undefined : null;
   return form instanceof FormData && [...form.keys()].some((key) => key.startsWith("$ACTION_")) ? form : null;
 }
 
