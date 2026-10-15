@@ -5,8 +5,6 @@ import { vikeReactRscPlugins } from "./vite";
 // Users add it with `extends: [vikeReactRsc]`
 const vikeReactRsc: Config = {
   name: "vike-react-rsc",
-  // A placeholder until Vike releases Vike environments, streamed pageContext values and the response API: then it
-  // requires that release
   require: { vike: ">=0.4.268" },
 
   onCreatePageContext: "import:vike-react-rsc/__internal/ssr:onCreatePageContext",
