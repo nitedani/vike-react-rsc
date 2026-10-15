@@ -11,7 +11,9 @@ type Scope = {
   action?: { outcome: ActionOutcome; responseHeaders: Headers };
 };
 
-const storage = new AsyncLocalStorage<Scope>();
+// Every copy of this package, e.g. a library's own, shares it
+const shared = globalThis as { [key: symbol]: AsyncLocalStorage<Scope> | undefined };
+const storage = (shared[Symbol.for("vike-react-rsc:scope")] ??= new AsyncLocalStorage<Scope>());
 
 export function runInScope<T>(scope: Scope, run: () => T): T {
   return storage.run(scope, run);
