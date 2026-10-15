@@ -30,9 +30,6 @@ const pages = {
   },
 } as const;
 
-const REACT_RSC_STYLESHEET_PRELOAD_WARNING =
-  "<link rel=preload> must have a valid `as` value";
-
 // React requires eval() in development and says so under a CSP without
 // 'unsafe-eval'; it never uses eval() in production.
 const REACT_DEV_EVAL_CSP_ERROR =
@@ -63,11 +60,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       log.includes("Local:") || log.includes("ready in"),
     // The preview commands build before they serve.
     additionalTimeout: isDev ? 0 : 60000,
-    // React 19.2.8 mislabels plugin-rsc stylesheet hints (fixed by #34760,
-    // d446597). Remove this tolerance with the first release containing the fix.
     tolerateError: ({ logSource, logText }) =>
-      (logSource === "Browser Warning" &&
-        logText === REACT_RSC_STYLESHEET_PRELOAD_WARNING) ||
       // Vite also forwards the browser's error to the server's stderr.
       (isDev && logText.includes(REACT_DEV_EVAL_CSP_ERROR)) ||
       (isDev && logText.includes(REACT_DEV_PERF_TRACK_ERROR)) ||
@@ -100,7 +93,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testEnvironments();
   testBinaryPayload();
   testScriptBreakout();
-  testCspNonce();
+  testCspNonce(isStatic);
   testResponseTail();
   testUsePageContext();
   testWrapper();
@@ -143,6 +136,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testPendingPage();
   testNavigationKeepsPage();
   if (isDev) testErrorOverlay();
+  if (isDev) testServerCssHmr();
 }
 
 // The RSC payload and Vike's progressive-hydration bootstrap are independent
@@ -662,14 +656,14 @@ function testScriptBreakout() {
   });
 }
 
-function testCspNonce() {
+function testCspNonce(isStatic: boolean) {
   test("Every inline script carries the CSP nonce", async () => {
     const html = await fetchHtml("/csp");
     const nonce = /<script[^>]* nonce="([^"]+)"/.exec(html)?.[1];
     expect(nonce, "nonce missing from response").to.be.a("string");
     const inlineScripts = [...html.matchAll(/<script(?![^>]*\ssrc=)[^>]*>[^<]*/g)].map(([script]) => script);
-    // React's own, for the streamed boundary, besides Vike's
-    expect(inlineScripts.some((script) => !/vike/i.test(script))).to.equal(true);
+    // React's own, for the streamed boundary, besides Vike's. A pre-rendered page has the boundary's content in place.
+    if (!isStatic) expect(inlineScripts.some((script) => !/vike/i.test(script))).to.equal(true);
     for (const script of inlineScripts) {
       expect(script).to.include(` nonce="${nonce}"`);
     }
@@ -1079,5 +1073,26 @@ function testErrorOverlay() {
     await autoRetry(async () => {
       expect(await overlays.count()).to.equal(0);
     });
+  });
+}
+
+function testServerCssHmr() {
+  test("Dev: editing the CSS a server component imports updates the page without a reload", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    const backgroundColor = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    // +Layout.tsx imports it
+    editFile("./src/styles/global.css", (source) =>
+      source.replace("background-color: #f9fafb;", "background-color: rgb(1, 2, 3);")
+    );
+    await autoRetry(async () => {
+      expect(await backgroundColor()).to.equal("rgb(1, 2, 3)");
+    });
+    editFileRevert();
+    await autoRetry(async () => {
+      expect(await backgroundColor()).to.equal("rgb(249, 250, 251)");
+    });
+    expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
   });
 }
