@@ -20,7 +20,11 @@ export const rscRuntime: RscRuntime = {
     const scope = { pageContext, action: { outcome, responseHeaders } };
     // A form submitted before hydration: its fields name the action
     if (id === undefined) {
-      const action = await decodeAction(body as FormData);
+      const action = await decodeAction(body as FormData).catch((error: unknown) => {
+        console.error("[vike-react-rsc] Couldn't load the server action; the browser loads the page again:", error);
+      });
+      // E.g. a page rendered before a deploy names an action this build doesn't have
+      if (!action) return { ...outcome, isUnknownAction: true };
       const returnValue = await runInScope(scope, action);
       const formState = await decodeFormState(returnValue, body as FormData);
       if (formState) formStates.set(pageContext, formState);

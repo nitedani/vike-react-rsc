@@ -15,7 +15,8 @@ export class ActionCall {
 
   constructor(
     readonly id: string | undefined,
-    readonly body: string | FormData
+    readonly body: string | FormData,
+    readonly url: string
   ) {}
 
   // Vike creates a pageContext for every page it renders, and an error or a `throw render()` makes it render another
@@ -53,6 +54,11 @@ export class ActionCall {
     const { status } = response;
     if (this.outcome?.isUnknownAction) {
       void response.body?.cancel();
+      // A form can't reload as callServer() does, so the browser gets the page again, from this build
+      if (this.isForm) {
+        const { pathname, search } = new URL(this.url);
+        return new Response(null, { status: 303, headers: { location: pathname + search } });
+      }
       return new Response(null, { status: 404, headers: { [UNKNOWN_ACTION_HEADER]: "1" } });
     }
     // The hooks' headers, then the action's
@@ -98,7 +104,7 @@ export async function actionMiddleware(
 
   const body = id ? await readBody(request, limit) : form;
   if (body === undefined) return new Response(null, { status: 413 });
-  const call = new ActionCall(id, body);
+  const call = new ActionCall(id, body, request.url);
   // A middleware returns either context or a response function: the context is the object Vike merges into the page's
   // pageContext, so it gets the action directly
   Object.assign(context, { rscAction: call });

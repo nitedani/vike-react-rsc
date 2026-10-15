@@ -525,6 +525,13 @@ function testUnknownAction() {
       expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] Server action failed: HTTP 404");
     });
   });
+
+  test("Server action: a form submitted before hydration with an id the server doesn't know loads its page again", async () => {
+    const form = new FormData();
+    form.append(`$ACTION_ID_/gone.ts#action${Date.now()}`, "");
+    const response = await fetch(getServerUrl() + "/actions", { method: "POST", body: form, redirect: "manual" });
+    expect([response.status, response.headers.get("location")]).to.deep.equal([303, "/actions"]);
+  });
 }
 
 function testFormBeforeHydration() {
