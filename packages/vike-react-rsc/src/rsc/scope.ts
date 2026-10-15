@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { PageContext } from "vike/types";
 import { notInServerAction } from "../errors";
+import { getShared } from "../shared";
 import type { ActionOutcome } from "../types";
 
 // React and user code call server components and server actions without a pageContext argument, so they find their
@@ -11,9 +12,7 @@ type Scope = {
   action?: { outcome: ActionOutcome; responseHeaders: Headers };
 };
 
-// Every copy of this package, e.g. a library's own, shares it
-const shared = globalThis as { [key: symbol]: AsyncLocalStorage<Scope> | undefined };
-const storage = (shared[Symbol.for("vike-react-rsc:scope")] ??= new AsyncLocalStorage<Scope>());
+const storage = getShared("scope", () => new AsyncLocalStorage<Scope>());
 
 export function runInScope<T>(scope: Scope, run: () => T): T {
   return storage.run(scope, run);
