@@ -302,26 +302,17 @@ function testNavigationRequests() {
 function testCounter() {
   test("Counter functionality", async () => {
     await page.goto(getServerUrl() + "/");
+    await waitForHydration();
 
     // The client component's display container; its only child holds the count.
     const readCount = async () =>
       Number(await page.textContent("[data-shared-util-client] div"));
 
-    await autoRetry(
-      async () => {
-        expect(await page.textContent("body")).to.include("Increment");
-      },
-      { timeout: 5000 }
-    );
-
-    // The value, not the label: a server action that runs but never updates the
-    // client leaves the button in place and the number unchanged. The click is
-    // retried because one landing before hydration is a no-op, and the count is
-    // server-side global state, so assert it grew rather than pinning an absolute.
+    // The count is the server's, shared by every run: it only has to grow
     const before = await readCount();
+    await page.click('button:has-text("Increment")');
     await autoRetry(
       async () => {
-        await page.click('button:has-text("Increment")');
         expect(await readCount()).to.be.greaterThan(before);
       },
       { timeout: 15000 }
@@ -751,9 +742,7 @@ function testClientCssLinkRemoved() {
     await autoRetry(async () => {
       expect(await page.$$('link[href*="StyledClient.css"]')).to.have.length(0);
     });
-    expect(await page.$eval("[data-styled-client]", (element) => getComputedStyle(element).color)).to.equal(
-      "rgb(0, 128, 0)"
-    );
+    expect(await getColor(page, "[data-styled-client]")).to.equal("rgb(0, 128, 0)");
   });
 }
 
