@@ -48,10 +48,38 @@ export class ActionCall {
     return runtime.renderAnswer(rscPageContext, { returnValue, rerender });
   }
 
-  /** The answer without the page, e.g. when guard() or data() failed after the action */
-  renderValueOnly(): ReadableStream<Uint8Array> {
-    const { runtime, pageContext } = this.#rsc!;
-    return runtime.renderAnswer(pageContext, { returnValue: this.outcome?.returnValue, rerender: false });
+  /** The answer to the action, from the response of the page Vike rendered */
+  answer(response: Response): Response {
+    const { status } = response;
+    if (this.outcome?.isUnknownAction) {
+      void response.body?.cancel();
+      return new Response(null, { status: 404, headers: { [UNKNOWN_ACTION_HEADER]: "1" } });
+    }
+    // The hooks' headers, then the action's
+    const headers = new Headers([...response.headers, ...this.responseHeaders]);
+    // The page, or a redirect a browser follows
+    if (this.isForm) return new Response(response.body, { status, headers });
+
+    // Without rerender() the page isn't part of the answer, so neither is guard()'s or data()'s failure: the caller
+    // gets what the action returned
+    if (this.outcome && !this.outcome.rerender && status !== 200) {
+      void response.body?.cancel();
+      const { runtime, pageContext } = this.#rsc!;
+      const body = runtime.renderAnswer(pageContext, { returnValue: this.outcome.returnValue, rerender: false });
+      return new Response(body, {
+        headers: new Headers([...this.responseHeaders, ["content-type", FLIGHT_CONTENT_TYPE]]),
+      });
+    }
+    // A redirect thrown by the action, guard() or data(). fetch() would follow it and hand the new page's HTML to the
+    // Flight decoder, so callServer() gets the target in a header and navigates.
+    const location = headers.get("location");
+    if (status >= 300 && status < 400 && location) {
+      void response.body?.cancel();
+      headers.delete("location");
+      headers.set(REDIRECT_HEADER, location);
+      return new Response(null, { headers });
+    }
+    return new Response(response.body, { status, headers });
   }
 }
 
@@ -74,39 +102,7 @@ export async function actionMiddleware(
   // A middleware returns either context or a response function: the context is the object Vike merges into the page's
   // pageContext, so it gets the action directly
   Object.assign(context, { rscAction: call });
-  return (response: Response) => toAnswer(call, response);
-}
-
-// The answer to the action, from the response of the page Vike rendered
-function toAnswer(call: ActionCall, response: Response): Response {
-  const { status } = response;
-  if (call.outcome?.isUnknownAction) {
-    void response.body?.cancel();
-    return new Response(null, { status: 404, headers: { [UNKNOWN_ACTION_HEADER]: "1" } });
-  }
-  // The hooks' headers, then the action's
-  const headers = new Headers([...response.headers, ...call.responseHeaders]);
-  // The page, or a redirect a browser follows
-  if (call.isForm) return new Response(response.body, { status, headers });
-
-  // Without rerender() the page isn't part of the answer, so neither is guard()'s or data()'s failure: the caller gets
-  // what the action returned
-  if (call.outcome && !call.outcome.rerender && status !== 200) {
-    void response.body?.cancel();
-    return new Response(call.renderValueOnly(), {
-      headers: new Headers([...call.responseHeaders, ["content-type", FLIGHT_CONTENT_TYPE]]),
-    });
-  }
-  // A redirect thrown by the action, guard() or data(). fetch() would follow it and hand the new page's HTML to the
-  // Flight decoder, so callServer() gets the target in a header and navigates.
-  const location = headers.get("location");
-  if (status >= 300 && status < 400 && location) {
-    void response.body?.cancel();
-    headers.delete("location");
-    headers.set(REDIRECT_HEADER, location);
-    return new Response(null, { headers });
-  }
-  return new Response(response.body, { status, headers });
+  return (response: Response) => call.answer(response);
 }
 
 // React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
