@@ -120,7 +120,7 @@ async function getActionForm(request: Request, limit: number): Promise<FormData 
   return form instanceof FormData && [...form.keys()].some((key) => key.startsWith("$ACTION_")) ? form : null;
 }
 
-// React writes a form's $ACTION_ fields right after <form>, so a browser sends them first
+// React writes a <form action>'s $ACTION_ fields right after <form>, so a browser sends them first
 async function startsWithActionField(request: Request, contentType: string): Promise<boolean> {
   const prefix = `--${contentType.split("boundary=")[1]}\r\nContent-Disposition: form-data; name="$ACTION_`;
   const reader = request.body!.pipeThrough(new TextDecoderStream()).getReader();
