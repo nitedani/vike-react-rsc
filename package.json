@@ -5,8 +5,7 @@
   "type": "module",
   "pnpm": {
     "overrides": {
-      "vike-react-rsc": "link:./packages/vike-react-rsc/",
-      "react-server-dom-webpack": "19.3.1"
+      "vike-react-rsc": "link:./packages/vike-react-rsc/"
     }
   },
   "devDependencies": {
