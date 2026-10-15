@@ -7,7 +7,7 @@ const vikeReactRsc: Config = {
   name: "vike-react-rsc",
   // A placeholder until Vike releases Vike environments, streamed pageContext values and the response API: then it
   // requires that release
-  require: { vike: ">=0.4.260" },
+  require: { vike: ">=0.4.268" },
 
   onCreatePageContext: "import:vike-react-rsc/__internal/ssr:onCreatePageContext",
   onRenderHtml: "import:vike-react-rsc/__internal/ssr:onRenderHtml",
