@@ -32,7 +32,7 @@ declare global {
     }
 
     interface PageContextServer {
-      /** The request's cookies: `get()`, and `set()` and `delete()`, which add a `Set-Cookie` header to the response */
+      /** The request's cookies: `get()`, and `set()` and `delete()`, which add a `Set-Cookie` header to the response. Not yet in your own `+onCreatePageContext`, which runs before vike-react-rsc's. */
       cookies: Cookies;
     }
 

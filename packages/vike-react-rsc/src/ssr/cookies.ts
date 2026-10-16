@@ -24,7 +24,10 @@ export type Cookies = {
 export function createCookies(pageContext: PageContextServer): Cookies {
   const cookies: Cookies = {
     get(name) {
-      const setCookie = pageContext.headersResponse.getSetCookie().findLast((line) => getName(line) === name);
+      // Also the cookies set before a `throw render()`, which Vike keeps on the pageContexts it aborted
+      const setCookie = [...pageContext.pageContextsAborted, pageContext]
+        .flatMap(({ headersResponse }) => headersResponse?.getSetCookie() ?? [])
+        .findLast((line) => getName(line) === name);
       if (setCookie !== undefined) {
         return /;\s*max-age=0\s*(;|$)/i.test(setCookie) ? undefined : decode(setCookie.slice(name.length + 1).split(";", 1)[0]);
       }
