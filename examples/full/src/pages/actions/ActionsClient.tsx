@@ -40,6 +40,10 @@ export default function ActionsClient() {
         <input type="file" name="attachment" />
         <button type="submit">Count a submit</button>
       </form>
+      <form>
+        <input type="file" name="attachment" />
+        <button formAction={countSubmitAction}>Count via formAction</button>
+      </form>
       <p data-submits="">Submitted {submits} times</p>
     </>
   );

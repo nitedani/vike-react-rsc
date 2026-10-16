@@ -578,6 +578,8 @@ function testFormBeforeHydration() {
       await noJs.waitForSelector("[data-submits]:has-text('Submitted 1 times')");
       await noJs.click('button:has-text("Count a submit")');
       await noJs.waitForSelector("[data-submits]:has-text('Submitted 2 times')");
+      await noJs.click('button:has-text("Count via formAction")');
+      await noJs.waitForSelector("[data-submits]:has-text('Submitted 3 times')");
     });
 
     // form.submit() skips React's handler, as a submit before hydration does: the page hydrates with the state the
