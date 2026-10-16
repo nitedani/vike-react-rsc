@@ -9,10 +9,10 @@ import { runInScope } from "./scope";
 const formStates = new WeakMap<PageContext, ReactFormState>();
 
 export const rscRuntime: RscRuntime = {
-  renderPage: (pageContext) =>
+  pagePayload: (pageContext) =>
     renderOnRead<PagePayload>(pageContext, () => ({ root: getPage(pageContext), formState: formStates.get(pageContext) })),
 
-  renderAnswer: (pageContext, { returnValue, rerender }) =>
+  actionPayload: (pageContext, { returnValue, rerender }) =>
     renderOnRead<ActionPayload>(pageContext, () => (rerender ? { returnValue, root: getPage(pageContext) } : { returnValue })),
 
   async runAction(pageContext, { id, body, responseHeaders }) {

@@ -8,5 +8,5 @@ export async function onCreatePageContext(pageContext: PageContextServer): Promi
     pageContext.headers = call.withActionCookies(pageContext.headers);
   }
   const { runtime, pageContext: rscPageContext } = getRsc(pageContext);
-  pageContext.rscPayload = runtime.renderPage(rscPageContext);
+  pageContext.rscPayload = runtime.pagePayload(rscPageContext);
 }

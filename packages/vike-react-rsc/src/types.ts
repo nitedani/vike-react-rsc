@@ -11,8 +11,8 @@ export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknown
 
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */
 export type RscRuntime = {
-  renderPage(pageContext: PageContext): ReadableStream<Uint8Array>;
-  renderAnswer(pageContext: PageContext, outcome: ActionOutcome): ReadableStream<Uint8Array>;
+  pagePayload(pageContext: PageContext): ReadableStream<Uint8Array>;
+  actionPayload(pageContext: PageContext, outcome: ActionOutcome): ReadableStream<Uint8Array>;
   runAction(
     pageContext: PageContext,
     call: { id: string | undefined; body: string | FormData; responseHeaders: Headers }

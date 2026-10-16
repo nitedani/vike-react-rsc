@@ -46,7 +46,7 @@ export class ActionCall {
   renderAnswer(pageContext: PageContextServer): ReadableStream<Uint8Array> {
     const { runtime, pageContext: rscPageContext } = getRsc(pageContext);
     const { returnValue, rerender = false } = this.outcome ?? {};
-    return runtime.renderAnswer(rscPageContext, { returnValue, rerender });
+    return runtime.actionPayload(rscPageContext, { returnValue, rerender });
   }
 
   /** The answer to the action, from the response of the page Vike rendered */
@@ -71,7 +71,7 @@ export class ActionCall {
     if (this.outcome && !this.outcome.rerender && status !== 200) {
       void response.body?.cancel();
       const { runtime, pageContext } = this.#rsc!;
-      const body = runtime.renderAnswer(pageContext, { returnValue: this.outcome.returnValue, rerender: false });
+      const body = runtime.actionPayload(pageContext, { returnValue: this.outcome.returnValue, rerender: false });
       return new Response(body, {
         headers: new Headers([...this.responseHeaders, ["content-type", FLIGHT_CONTENT_TYPE]]),
       });
