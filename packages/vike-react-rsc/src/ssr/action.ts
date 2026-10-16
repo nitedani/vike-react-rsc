@@ -127,13 +127,15 @@ export async function actionMiddleware(
 
 // React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
 // before hydration, which the browser sends as a navigation. Read from a copy: any other POST reaches the next handler
-// with its body. Null when the request isn't such a form, undefined when it's one over `limit` or of unknown size.
+// with its body. Null if the request isn't such a form, undefined for a <form action> over `limit` or of unknown size.
 async function getActionForm(request: Request, limit: number): Promise<FormData | undefined | null> {
   // Reading part of a fetch() upload breaks its connection's next request when the route doesn't read the rest
   if (request.headers.get("sec-fetch-mode") !== "navigate") return null;
   const contentType = request.headers.get("content-type");
   if (!contentType?.startsWith("multipart/form-data")) return null;
   // @vikejs/express hands the next handler a body only if a middleware read at most 1 MiB of it, the default limit
+  // TODO: a bigger limit loses such a body: the next handler gets it empty, or a 413 once
+  // https://github.com/magne4000/universal-middleware/pull/457 is released
   const length = request.headers.get("content-length");
   if (length === null || Number(length) > limit) {
     return (await startsWithActionField(request.clone(), contentType)) ? undefined : null;
