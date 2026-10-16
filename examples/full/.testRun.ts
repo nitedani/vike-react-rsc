@@ -1018,6 +1018,18 @@ function testRscCacheKey() {
     // FailingComponent's own load ran
     await logged;
   });
+
+  test("rsc(): a server component that throws is answered with its status, without the error page", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    const sent = page.waitForRequest((request) => !!request.headers()["x-rsc-action"]);
+    await page.click('button:has-text("Load a failing server component")');
+    const request = await sent;
+    // The same call again, to read the answer the browser drops
+    const response = await fetch(request.url(), { method: "POST", headers: request.headers(), body: request.postData() });
+    expect(response.status).to.equal(500);
+    expect(await response.text()).to.not.include("Something went wrong");
+  });
 }
 
 function testPendingPage() {
