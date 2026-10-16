@@ -2,6 +2,7 @@ import { createFromReadableStream, setServerCallback } from "@vitejs/plugin-rsc/
 import { hydrateRoot } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync } from "vike/types";
+import { getAbort } from "../abort";
 import type { PagePayload } from "../types";
 import { callServer } from "./callServer";
 import { Root, setCurrentPageContext, show } from "./page";
@@ -14,7 +15,14 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   const { root, formState } = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
   const page = { pageContext, root };
   show(page);
-  if (pageContext.isHydration) hydrateRoot(document.getElementById("root")!, <Root page={page} />, { formState });
+  if (!pageContext.isHydration) return;
+  hydrateRoot(document.getElementById("root")!, <Root page={page} />, {
+    formState,
+    // AbortBoundary acts on a server component's `throw redirect()`: it isn't an error to report
+    onCaughtError: (error, errorInfo) => {
+      if (!getAbort(error)) console.error(error, errorInfo.componentStack);
+    },
+  });
 };
 
 if (import.meta.hot) {

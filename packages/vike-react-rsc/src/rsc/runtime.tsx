@@ -2,6 +2,7 @@ import { decodeAction, decodeFormState, decodeReply, loadServerAction, renderToR
 import { Suspense, type ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
+import { getAbortDigest } from "../abort";
 import type { ActionOutcome, ActionPayload, PagePayload } from "../types";
 import { runInScope } from "./scope";
 
@@ -64,6 +65,9 @@ function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Paylo
       renderToReadableStream(getPayload(), {
         signal: stopped.signal,
         onError: (error: unknown) => {
+          // A `throw redirect()` or `throw render()`: the HTML render, or the browser, acts on it
+          const abortDigest = getAbortDigest(error);
+          if (abortDigest) return abortDigest;
           // Not the abort, nor what failed because of it
           if (!stopped.signal.aborted) console.error("[vike-react-rsc] A server component failed:", error);
         },
