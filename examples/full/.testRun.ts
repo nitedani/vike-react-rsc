@@ -786,6 +786,8 @@ function testMisuse() {
       "[vike-react-rsc] pageContext.cookies.set() and delete() can&#x27;t run while server components render: call them in a server action, or in a hook such as guard() or data()"
     );
     expect(error("data:setCookie")).to.equal("No error");
+    // has() and getAll() see it in the same request
+    expect(error("data:cookieSeen")).to.equal("true 1");
   });
 }
 

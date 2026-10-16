@@ -7,7 +7,7 @@ const getPageContextError = getError(getPageContext);
 
 // What each call throws where it can't work
 export default function Page() {
-  const data = getPageContext().data as { rerender: string; setCookie: string };
+  const data = getPageContext().data as { rerender: string; setCookie: string; cookieSeen: string };
   return (
     <ul>
       <li data-misuse="getPageContext">{getPageContextError}</li>
@@ -15,6 +15,7 @@ export default function Page() {
       <li data-misuse="data:rerender">{data.rerender}</li>
       <li data-misuse="setCookie">{getError(() => getPageContext().cookies.set("misuse", "1"))}</li>
       <li data-misuse="data:setCookie">{data.setCookie}</li>
+      <li data-misuse="data:cookieSeen">{data.cookieSeen}</li>
     </ul>
   );
 }
