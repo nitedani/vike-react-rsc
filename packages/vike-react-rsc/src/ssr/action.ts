@@ -126,15 +126,21 @@ export async function actionMiddleware(
 }
 
 // React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
-// before hydration, which the browser sends as a navigation. Read from a copy: any other POST reaches the next handler
-// with its body. Null when the request isn't such a form, undefined when it's one with more than `limit` bytes.
+// before hydration, which the browser sends as a navigation. Read from a copy, whole only when its Content-Length is at
+// most `limit`, else up to its first field: any other POST reaches the next handler with its body. Null when the
+// request isn't such a form, undefined when it's one with more than `limit` bytes.
 async function getActionForm(request: Request, limit: number): Promise<FormData | undefined | null> {
   // Reading part of a fetch() upload breaks its connection's next request when the route doesn't read the rest
   if (request.headers.get("sec-fetch-mode") !== "navigate") return null;
   const contentType = request.headers.get("content-type");
   if (!contentType?.startsWith("multipart/form-data")) return null;
+  // @vikejs/express gives the next handler a body a middleware read only if it read at most 1 MiB of it
+  const length = request.headers.get("content-length");
+  if (length === null || Number(length) > limit) {
+    return (await startsWithActionField(request.clone(), contentType)) ? undefined : null;
+  }
+  // A <button formAction>'s $ACTION_ fields come where the button is, after the fields before it
   const form = await readBody(request.clone(), limit).catch(() => null);
-  if (form === undefined) return (await startsWithActionField(request.clone(), contentType)) ? undefined : null;
   return form instanceof FormData && [...form.keys()].some((key) => /^\$ACTION_(ID|REF)_/.test(key)) ? form : null;
 }
 
