@@ -27,6 +27,12 @@ export function getPageContext(): PageContextServer {
   return scope.pageContext as PageContextServer;
 }
 
+/** Whether server components render here, e.g. a page's, outside a server action */
+export function isRenderingServerComponents(): boolean {
+  const scope = storage.getStore();
+  return !!scope && !scope.action;
+}
+
 export function rerender(): void {
   getAction("rerender").outcome.rerender = true;
 }

@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { ImportString } from "vike/types";
 import type { ActionCall } from "./ssr/action";
+import type { Cookies } from "./ssr/cookies";
 
 /** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */
 export type PagePayload = { root: ReactNode; formState?: ReactFormState };
@@ -28,6 +29,11 @@ declare global {
       rscPayload: ReadableStream<Uint8Array>;
       /** On the server, while it answers a server action */
       rscAction?: ActionCall;
+    }
+
+    interface PageContextServer {
+      /** The request's cookies: `get()`, and `set()` and `delete()`, which add a `Set-Cookie` header to the response */
+      cookies: Cookies;
     }
 
     interface Config {

@@ -9,11 +9,11 @@ export async function login(formData: FormData) {
   increment("login");
   const user = String(formData.get("user"));
   // Without a name, the guard of /account still shows the login page
-  if (user) getPageContext().headersResponse.append("Set-Cookie", `session=${encodeURIComponent(user)}; Path=/; HttpOnly; SameSite=Lax`);
+  if (user) getPageContext().cookies.set("session", user, { path: "/", httpOnly: true, sameSite: "lax" });
   rerender();
 }
 
 export async function logout() {
-  getPageContext().headersResponse.append("Set-Cookie", "session=; Path=/; Max-Age=0");
+  getPageContext().cookies.delete("session", { path: "/" });
   throw redirect("/");
 }

@@ -772,7 +772,7 @@ function testClientCssLinkRemoved() {
 }
 
 function testMisuse() {
-  test("getPageContext() and rerender() throw where they can't work", async () => {
+  test("getPageContext(), rerender() and cookies.set() throw where they can't work", async () => {
     const html = await fetchHtml("/misuse");
     const error = (call: string) => new RegExp(`data-misuse="${call}">([^<]*)<`).exec(html)?.[1];
     expect(error("getPageContext")).to.equal(
@@ -781,6 +781,11 @@ function testMisuse() {
     expect(error("rerender")).to.equal("[vike-react-rsc] rerender() needs a running server action, and none runs here");
     // The same message from data(), which runs outside the rsc env
     expect(error("data:rerender")).to.equal(error("rerender"));
+    // A server component inside <Suspense> renders after the headers are sent; data() runs before
+    expect(error("setCookie")).to.equal(
+      "[vike-react-rsc] pageContext.cookies.set() and delete() can&#x27;t run while server components render: call them in a server action, or in a hook such as guard() or data()"
+    );
+    expect(error("data:setCookie")).to.equal("No error");
   });
 }
 
