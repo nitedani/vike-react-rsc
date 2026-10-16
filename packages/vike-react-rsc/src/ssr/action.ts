@@ -51,8 +51,9 @@ export class ActionCall {
   /** The answer for the page Vike rendered: the return value, and the page after rerender() */
   renderAnswer(pageContext: PageContextServer): ReadableStream<Uint8Array> {
     const { runtime, pageContext: rscPageContext } = getRsc(pageContext);
-    // No outcome: the action threw render(), so the answer is the page Vike rendered instead, as for a form
-    const { returnValue, rerender } = this.outcome ?? { returnValue: undefined, rerender: true };
+    // No outcome: the action threw. After render() to a page, the answer is that page, as for a form; Vike's error
+    // page (is404 set) is left out, as callServer() rejects on its status without reading it
+    const { returnValue, rerender } = this.outcome ?? { returnValue: undefined, rerender: pageContext.is404 === null };
     return runtime.actionPayload(rscPageContext, { returnValue, rerender });
   }
 
@@ -70,7 +71,7 @@ export class ActionCall {
     }
     // The hooks' headers, then the action's
     const headers = new Headers(response.headers);
-    // Vike sends them, unless it rendered another page, e.g. its error page
+    // Vike sends them, except on its error page
     const sent = headers.getSetCookie();
     for (const setCookie of this.#setCookies) if (!sent.includes(setCookie)) headers.append("set-cookie", setCookie);
     // The page, or a redirect a browser follows
