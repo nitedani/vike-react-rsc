@@ -6,7 +6,7 @@ import { getPageContext } from "vike-react-rsc/pageContext";
 import { rerender } from "vike-react-rsc/server";
 
 // Read by the hooks of /actions, which run in another environment
-const failNext = ((globalThis as { __failNext?: { data?: boolean; guard?: boolean } }).__failNext ??= {});
+const failNext = ((globalThis as { __failNext?: { data?: boolean; guard?: boolean; page?: boolean } }).__failNext ??= {});
 
 // Without rerender(), the caller gets the return value even though data() throws after the action
 export async function saveThenFailData() {
@@ -17,6 +17,13 @@ export async function saveThenFailData() {
 // With rerender(), the answer is the page, which the guard replaces with a 404: the call rejects
 export async function saveThenGuard404() {
   failNext.guard = true;
+  rerender();
+  return "saved";
+}
+
+// With rerender(), the answer is the page, which throws redirect() once
+export async function saveThenRedirectPage() {
+  failNext.page = true;
   rerender();
   return "saved";
 }
