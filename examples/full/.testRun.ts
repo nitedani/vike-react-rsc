@@ -565,6 +565,14 @@ function testFormBeforeHydration() {
       expect(await page.textContent("[data-submits]")).to.equal("Submitted 2 times");
     });
   });
+
+  test("Server action: a multipart POST that names no action reaches the page", async () => {
+    for (const field of ["attachment", "$ACTION_KEY"]) {
+      const form = new FormData();
+      form.append(field, "x");
+      expect((await fetch(getServerUrl() + "/actions", { method: "POST", body: form })).status).to.equal(200);
+    }
+  });
 }
 
 function testCrossSiteAction() {
