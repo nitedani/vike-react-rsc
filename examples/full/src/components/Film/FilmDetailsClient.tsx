@@ -24,6 +24,8 @@ const FilmDetailsComponent = rsc(FilmDetails);
 // Client component that uses the rsc utility to display film details
 export function FilmDetailsClient({ id }: { id: number }) {
   const [showDetails, setShowDetails] = useState(false);
+  // "Next film" changes the props of the rsc() component, which loads the other film
+  const [detailsId, setDetailsId] = useState(id);
 
   // Cleanup when component unmounts
   useEffect(() => {
@@ -38,6 +40,7 @@ export function FilmDetailsClient({ id }: { id: number }) {
     const padding = getScrollbarWidth();
     document.body.style.overflow = "hidden";
     document.body.style.paddingRight = `${padding}px`;
+    setDetailsId(id);
     setShowDetails(true);
   };
 
@@ -61,7 +64,8 @@ export function FilmDetailsClient({ id }: { id: number }) {
         >
           ×
         </button>
-        <FilmDetailsComponent id={id} fallback={<FilmDetailsLoading />} />
+        <FilmDetailsComponent id={detailsId} fallback={<FilmDetailsLoading />} />
+        <button onClick={() => setDetailsId((detailsId % 6) + 1)}>Next film</button>
       </div>
     </div>
   );

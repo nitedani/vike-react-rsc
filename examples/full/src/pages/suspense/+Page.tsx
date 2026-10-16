@@ -1,11 +1,8 @@
-import { getPageContext } from "vike-react-rsc/pageContext";
 import { sharedStyles } from "../../styles/shared";
 import { FilmGrid } from "../../components/Film/FilmGrid";
+import { LoadCountClient } from "../../components/LoadCount/LoadCountClient";
 
 export default async function Page() {
-  const ctx = getPageContext();
-  console.log(ctx.pageId);
-
   return (
     <div css={sharedStyles.pageContainer}>
       {/* Header Section */}
@@ -41,6 +38,17 @@ export default async function Page() {
         </p>
 
         <FilmGrid withDelay={true} />
+      </section>
+
+      {/* rsc() Section */}
+      <section css={sharedStyles.section}>
+        <h2 css={sharedStyles.sectionHeading}>Server Components Loaded with rsc()</h2>
+        <p css={sharedStyles.paragraph}>
+          A client component shows a server component on demand. Its result is cached for <code>rsc.staleTime</code>,
+          until a server action marks it stale.
+        </p>
+
+        <LoadCountClient />
       </section>
 
       {/* How It Works Section */}

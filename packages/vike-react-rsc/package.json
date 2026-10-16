@@ -5,27 +5,26 @@
   "type": "module",
   "scripts": {
     "dev": "tsdown --watch --sourcemap",
-    "build": "tsdown --clean"
+    "build": "tsdown"
   },
   "exports": {
     "./config": "./dist/config.js",
-    "./server": "./dist/server.js",
-    "./client": "./dist/client.js",
-    "./pageContext": {
-      "react-server": "./dist/hooks/pageContext/pageContext-server.js",
-      "default": "./dist/hooks/pageContext/pageContext-client.js"
+    "./server": {
+      "react-server": "./dist/server.rsc.js",
+      "default": "./dist/server.js"
     },
-    "./__internal/integration/onRenderHtml": "./dist/integration/onRenderHtml.js",
-    "./__internal/integration/onRenderClient": "./dist/integration/onRenderClient.js",
-    "./__internal/integration/onBeforeRender": "./dist/integration/onBeforeRender.js",
-    "./__internal/integration/onPageTransitionStart": "./dist/integration/onPageTransitionStart.js",
-    "./__internal/integration/rscMiddleware": "./dist/integration/rscMiddleware.js",
-    "./__internal/integration/client": "./dist/integration/client.js",
-    "./__internal/register/browser": "./dist/register/browser.js",
-    "./__internal/register/server": "./dist/register/server.js",
-    "./__internal/register/ssr": "./dist/register/ssr.js",
-    "./__internal/runtime/server": "./dist/runtime/server.js",
-    "./__internal/runtime/ssr": "./dist/runtime/ssr.js"
+    "./client": {
+      "react-server": "./dist/client.rsc.js",
+      "default": "./dist/client.js"
+    },
+    "./pageContext": {
+      "react-server": "./dist/pageContext.rsc.js",
+      "default": "./dist/pageContext.js"
+    },
+    "./__internal/browser": "./dist/__internal/browser.js",
+    "./__internal/ssr": "./dist/__internal/ssr.server.js",
+    "./__internal/rsc": "./dist/__internal/rsc.js",
+    "./__internal/middleware": "./dist/__internal/middleware.js"
   },
   "files": [
     "dist"
@@ -34,28 +33,30 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "react": "*",
-    "react-dom": "*",
-    "vike": "*",
-    "vite": "*"
+    "@vitejs/plugin-rsc": "^0.5.36",
+    "react": ">=19.3.1 <20",
+    "react-dom": ">=19.3.1 <20",
+    "react-server-dom-webpack": ">=19.3.1 <20",
+    "vike": ">=0.4.268",
+    "vite": ">=8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react-server-dom-webpack": {
+      "optional": true
+    }
   },
   "dependencies": {
-    "@brillout/json-serializer": "^0.5.15",
-    "@hiogawa/transforms": "^0.0.0",
-    "@hiogawa/utils": "^1.7.0",
-    "react-streaming": "^0.4.12"
+    "react-streaming": "^0.4.21"
   },
   "devDependencies": {
-    "@brillout/vite-plugin-server-entry": "^0.7.5",
-    "@types/react": "^19.0.12",
-    "@types/react-dom": "^19.0.4",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "tsdown": "^0.6.10",
-    "typescript": "^5.8.2",
-    "vike": "0.4.246",
-    "vite": "^7.2.2",
-    "@vitejs/plugin-rsc": "^0.5.1",
-    "vitefu": "^1.1.1"
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tsdown": "^0.22.14",
+    "typescript": "^7.0.2",
+    "vike": "0.4.268",
+    "vite": "^8.2.0",
+    "@vitejs/plugin-rsc": "^0.5.36"
   }
 }

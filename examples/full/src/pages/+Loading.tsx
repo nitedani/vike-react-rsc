@@ -1,6 +1,6 @@
 export const Loading = {
   layout: () => (
-    <div css={{
+    <div data-loading-layout="" css={{
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
@@ -40,4 +40,6 @@ export const Loading = {
       </div>
     </div>
   ),
+  // The fallback of rsc() components without a `fallback` prop
+  component: () => <p data-loading-component="">Loading...</p>,
 };

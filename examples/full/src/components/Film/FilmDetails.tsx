@@ -2,6 +2,7 @@
 
 // Server component that fetches and displays detailed film information
 import { filmStyles } from "./styles";
+import { OpeningCrawlClient } from "./OpeningCrawlClient";
 
 // Define the Film type based on the API response
 type Film = {
@@ -56,9 +57,11 @@ export async function FilmDetails({ id }: { id: number }) {
         <h3 css={filmStyles.sectionTitle}>
           Opening Crawl
         </h3>
-        <div css={filmStyles.crawlText}>
-          {formattedCrawl}
-        </div>
+        <OpeningCrawlClient>
+          <div css={filmStyles.crawlText}>
+            {formattedCrawl}
+          </div>
+        </OpeningCrawlClient>
       </div>
     </div>
   );

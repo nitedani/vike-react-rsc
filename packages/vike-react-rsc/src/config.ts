@@ -1,72 +1,38 @@
-export { config as default };
-
 import type { Config } from "vike/types";
-import vikeRscPlugin from "./plugin";
+import "./types.js";
+import { vikeReactRscPlugins } from "./vite";
 
-//@ts-expect-error
-const config: Config = {
+// Users add it with `extends: [vikeReactRsc]`
+const vikeReactRsc: Config = {
   name: "vike-react-rsc",
-  require: {
-    vike: ">=0.4.182",
-  },
-  // https://vike.dev/onRenderHtml
-  onRenderHtml:
-    "import:vike-react-rsc/__internal/integration/onRenderHtml:onRenderHtml",
-  // https://vike.dev/onRenderClient
-  onRenderClient:
-    "import:vike-react-rsc/__internal/integration/onRenderClient:onRenderClient",
+  require: { vike: ">=0.4.268" },
 
-  onBeforeRender:
-    "import:vike-react-rsc/__internal/integration/onBeforeRender:onBeforeRender",
-
-  onPageTransitionStart:
-    "import:vike-react-rsc/__internal/integration/onPageTransitionStart:onPageTransitionStart",
-
-  client: "import:vike-react-rsc/__internal/integration/client",
-
-  //@ts-expect-error
-  middleware: "import:vike-react-rsc/__internal/integration/rscMiddleware",
-
-  passToClient: ["rscPayloadString"],
-
-  // https://vike.dev/clientRouting
+  onCreatePageContext: "import:vike-react-rsc/__internal/ssr:onCreatePageContext",
+  onRenderHtml: "import:vike-react-rsc/__internal/ssr:onRenderHtml",
+  onRenderClient: "import:vike-react-rsc/__internal/browser:onRenderClient",
+  // Vike's type doesn't list import strings, which it accepts
+  // TODO: remove the cast once https://github.com/vikejs/vike/pull/3627 is released
+  middleware: "import:vike-react-rsc/__internal/middleware:actionMiddleware" as never,
+  rscRuntime: "import:vike-react-rsc/__internal/rsc:rscRuntime",
+  passToClient: ["rscPayload"],
   clientRouting: true,
+  // The browser has no Page to load: its onRenderClient decodes the Flight
+  clientHooks: true,
   hydrationCanBeAborted: true,
 
-  // https://vike.dev/meta
   meta: {
-    rsc: {
-      env: {
-        server: true,
-        client: false,
-      },
-    },
-    onBeforeRender: {
-      env: {
-        server: true,
-        client: false,
-      },
-    },
-    Head: {
-      env: { server: true },
-      cumulative: true,
-    },
-    Wrapper: {
-      env: { client: true, server: true },
-      cumulative: true,
-    },
-    Layout: {
-      env: { server: true, client: true },
-      cumulative: true,
-    },
-    Loading: {
-      env: { server: true, client: true },
-    },
+    Page: { env: { rsc: true } },
+    Layout: { env: { rsc: true }, cumulative: true },
+    Wrapper: { env: { rsc: true }, cumulative: true },
+    // `layout` renders in the rsc env, `component` in the browser and in the HTML
+    Loading: { env: { rsc: true, server: true, client: true } },
+    Head: { env: { server: true }, cumulative: true },
+    // rsc() reads it in the browser, the action middleware on the server; unrelated to the rsc env
+    rsc: { env: { client: true, server: true }, global: true },
+    rscRuntime: { env: { rsc: true } },
   },
-  vite6BuilderApp: true,
-  vite: {
-    plugins: [vikeRscPlugin()],
-  },
-} satisfies Config;
 
-import "./types/Config.js";
+  vite: { plugins: vikeReactRscPlugins() },
+};
+
+export default vikeReactRsc;
