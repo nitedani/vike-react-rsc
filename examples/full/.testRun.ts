@@ -772,19 +772,15 @@ function testClientCssLinkRemoved() {
 }
 
 function testMisuse() {
-  test("getPageContext(), rerender() and getResponseHeaders() throw where they can't work", async () => {
+  test("getPageContext() and rerender() throw where they can't work", async () => {
     const html = await fetchHtml("/misuse");
     const error = (call: string) => new RegExp(`data-misuse="${call}">([^<]*)<`).exec(html)?.[1];
     expect(error("getPageContext")).to.equal(
       "[vike-react-rsc] getPageContext() needs a server component render or a server action, and neither runs here"
     );
     expect(error("rerender")).to.equal("[vike-react-rsc] rerender() needs a running server action, and none runs here");
-    expect(error("getResponseHeaders")).to.equal(
-      "[vike-react-rsc] getResponseHeaders() needs a running server action, and none runs here"
-    );
     // The same message from data(), which runs outside the rsc env
     expect(error("data:rerender")).to.equal(error("rerender"));
-    expect(error("data:getResponseHeaders")).to.equal(error("getResponseHeaders"));
   });
 }
 

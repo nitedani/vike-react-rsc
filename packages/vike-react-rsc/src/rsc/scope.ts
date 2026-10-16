@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { PageContext } from "vike/types";
+import type { PageContext, PageContextServer } from "vike/types";
 import { notInServerAction } from "../errors";
 import { getShared } from "../shared";
 import type { ActionOutcome } from "../types";
@@ -9,7 +9,7 @@ import type { ActionOutcome } from "../types";
 type Scope = {
   pageContext: PageContext;
   // The outcome the running action builds
-  action?: { outcome: ActionOutcome; responseHeaders: Headers };
+  action?: { outcome: ActionOutcome };
 };
 
 const storage = getShared("scope", () => new AsyncLocalStorage<Scope>());
@@ -18,20 +18,17 @@ export function runInScope<T>(scope: Scope, run: () => T): T {
   return storage.run(scope, run);
 }
 
-export function getPageContext(): PageContext {
+export function getPageContext(): PageContextServer {
   const scope = storage.getStore();
   if (!scope) {
     throw new Error("[vike-react-rsc] getPageContext() needs a server component render or a server action, and neither runs here");
   }
-  return scope.pageContext;
+  // The rsc env's view of the server's pageContext
+  return scope.pageContext as PageContextServer;
 }
 
 export function rerender(): void {
   getAction("rerender").outcome.rerender = true;
-}
-
-export function getResponseHeaders(): Headers {
-  return getAction("getResponseHeaders").responseHeaders;
 }
 
 function getAction(name: string): NonNullable<Scope["action"]> {

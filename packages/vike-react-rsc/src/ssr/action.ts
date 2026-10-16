@@ -5,10 +5,11 @@ import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEA
 import type { ActionOutcome } from "../types";
 import { getRsc } from "./bridge";
 
-/** One action request. The rsc env runs it with `id`, `body` and `responseHeaders`; without `id`, `body` is a form
- * submitted before hydration. */
+/** One action request. The rsc env runs it with `id` and `body`; without `id`, `body` is a form submitted before
+ * hydration. */
 export class ActionCall {
-  readonly responseHeaders: Headers = new Headers();
+  /** The Set-Cookie lines the action appended to pageContext.headersResponse */
+  #setCookies: string[] = [];
   /** Set once the action returned */
   outcome?: ActionOutcome;
   #rsc?: ReturnType<typeof getRsc>;
@@ -24,7 +25,12 @@ export class ActionCall {
   async run(pageContext: PageContextServer): Promise<void> {
     if (this.#rsc) return;
     this.#rsc = getRsc(pageContext);
-    this.outcome = await this.#rsc.runtime.runAction(this.#rsc.pageContext, this);
+    const before = pageContext.headersResponse.getSetCookie().length;
+    try {
+      this.outcome = await this.#rsc.runtime.runAction(this.#rsc.pageContext, this);
+    } finally {
+      this.#setCookies = pageContext.headersResponse.getSetCookie().slice(before);
+    }
   }
 
   /** A form submitted before hydration: the answer is the page's HTML */
@@ -34,7 +40,7 @@ export class ActionCall {
 
   /** The request's headers as the hooks after the action see them: with its cookies, e.g. a session for guard() */
   withActionCookies(headers: Record<string, string> | null): Record<string, string> | null {
-    const actionCookies = this.responseHeaders.getSetCookie().map((setCookie) => setCookie.split(";", 1)[0]);
+    const actionCookies = this.#setCookies.map((setCookie) => setCookie.split(";", 1)[0]);
     if (!actionCookies.length) return headers;
     // name=value pairs: the action's replace the request's of the same name
     const pairs = [...(headers?.cookie?.split(";") ?? []), ...actionCookies].map((pair) => pair.trim()).filter(Boolean);
@@ -63,7 +69,10 @@ export class ActionCall {
       return new Response(null, { status: 404, headers: { [UNKNOWN_ACTION_HEADER]: "1" } });
     }
     // The hooks' headers, then the action's
-    const headers = new Headers([...response.headers, ...this.responseHeaders]);
+    const headers = new Headers(response.headers);
+    // Vike sends them, unless it rendered another page, e.g. its error page
+    const sent = headers.getSetCookie();
+    for (const setCookie of this.#setCookies) if (!sent.includes(setCookie)) headers.append("set-cookie", setCookie);
     // The page, or a redirect a browser follows
     if (this.isForm) return new Response(response.body, { status, headers });
 
@@ -74,7 +83,7 @@ export class ActionCall {
       const { runtime, pageContext } = this.#rsc!;
       const body = runtime.actionPayload(pageContext, { returnValue: this.outcome.returnValue, rerender: false });
       return new Response(body, {
-        headers: new Headers([...this.responseHeaders, ["content-type", FLIGHT_CONTENT_TYPE]]),
+        headers: new Headers([...this.#setCookies.map((setCookie): [string, string] => ["set-cookie", setCookie]), ["content-type", FLIGHT_CONTENT_TYPE]]),
       });
     }
     // A redirect thrown by the action, guard() or data(). fetch() would follow it and hand the new page's HTML to the

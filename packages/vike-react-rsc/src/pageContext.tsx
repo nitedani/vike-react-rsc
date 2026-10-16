@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactElement, type ReactNode } from "react";
-import type { PageContext } from "vike/types";
+import type { PageContext, PageContextServer } from "vike/types";
 import { getShared } from "./shared";
 
 // Every client component renders inside PageContextProvider: the browser's Root, the HTML render and Head
@@ -15,6 +15,6 @@ export function usePageContext(): PageContext {
 }
 
 /** The pageContext, in a server component or a server action */
-export function getPageContext(): PageContext {
+export function getPageContext(): PageContextServer {
   throw new Error("[vike-react-rsc] getPageContext() is for server components and server actions: call usePageContext() in a client component");
 }

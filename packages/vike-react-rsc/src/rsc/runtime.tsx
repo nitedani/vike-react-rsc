@@ -26,10 +26,10 @@ export function actionPayload(
 
 export async function runAction(
   pageContext: PageContext,
-  { id, body, responseHeaders }: { id: string | undefined; body: string | FormData; responseHeaders: Headers }
+  { id, body }: { id: string | undefined; body: string | FormData }
 ): Promise<ActionOutcome> {
   const outcome: ActionOutcome = { returnValue: undefined, rerender: false };
-  const scope = { pageContext, action: { outcome, responseHeaders } };
+  const scope = { pageContext, action: { outcome } };
   // A form submitted before hydration: its fields name the action
   if (id === undefined) {
     const action = await decodeAction(body as FormData).catch((error: unknown) => {

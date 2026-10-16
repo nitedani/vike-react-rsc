@@ -5,8 +5,3 @@ import { notInServerAction } from "./errors";
 export function rerender(): void {
   throw notInServerAction("rerender");
 }
-
-/** Headers sent with the server action's answer. A cookie set here also reaches guard() and data() of the same request. */
-export function getResponseHeaders(): Headers {
-  throw notInServerAction("getResponseHeaders");
-}

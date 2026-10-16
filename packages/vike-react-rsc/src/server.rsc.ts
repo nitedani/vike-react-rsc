@@ -1,1 +1,1 @@
-export { rerender, getResponseHeaders } from "./rsc/scope";
+export { rerender } from "./rsc/scope";
