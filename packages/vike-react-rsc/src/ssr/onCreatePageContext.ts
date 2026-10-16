@@ -4,11 +4,7 @@ import { createCookies } from "./cookies";
 
 export async function onCreatePageContext(pageContext: PageContextServer): Promise<void> {
   pageContext.cookies = createCookies(pageContext);
-  const call = pageContext.rscAction;
-  if (call) {
-    await call.run(pageContext);
-    pageContext.headers = call.withActionCookies(pageContext.headers);
-  }
+  await pageContext.rscAction?.run(pageContext);
   const { runtime, pageContext: rscPageContext } = getRsc(pageContext);
   pageContext.rscPayload = runtime.pagePayload(rscPageContext);
 }

@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { rsc } from "vike-react-rsc/client";
-import { countSubmit, FailingComponent, RedirectOnceComponent, redirectToScript, requireLogin, saveThenFailData, saveThenGuard404, slowSave } from "../../actions/edgeCases";
+import { countSubmit, FailingComponent, RedirectOnceComponent, redirectToScript, requireLogin, loginThenRender, saveThenFailData, saveThenGuard404, slowSave } from "../../actions/edgeCases";
 
 const FailingComponentRsc = rsc(FailingComponent);
 const RedirectOnceComponentRsc = rsc(RedirectOnceComponent);
@@ -30,6 +30,7 @@ export default function ActionsClient() {
       <button onClick={call(slowSave)}>Slow save</button>
       <button onClick={call(redirectToScript)}>Redirect to a javascript: URL</button>
       <button onClick={call(requireLogin)}>Require a login</button>
+      <button onClick={call(loginThenRender)}>Log in, then render the account</button>
       <p data-result="">{result}</p>
       <button onClick={() => setShowFailing(true)}>Load a failing server component</button>
       {showFailing && <FailingComponentRsc fallback={<p data-rsc-fallback="">Not loaded</p>} />}

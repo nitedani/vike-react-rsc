@@ -509,6 +509,16 @@ function testActionRedirectToScript() {
     });
     expect(new URL(page.url()).pathname).to.equal("/actions");
   });
+
+  test("Server action: a cookie it sets before throw render() reaches that page's guard()", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Log in, then render the account")');
+    await autoRetry(async () => {
+      expect(await page.textContent("#account-user")).to.equal("Logged in as bob");
+    });
+    await page.context().clearCookies();
+  });
 }
 
 function testUnknownAction() {

@@ -2,6 +2,7 @@
 
 import type { ReactElement } from "react";
 import { redirect, render } from "vike/abort";
+import { getPageContext } from "vike-react-rsc/pageContext";
 import { rerender } from "vike-react-rsc/server";
 
 // Read by the hooks of /actions, which run in another environment
@@ -35,6 +36,12 @@ export async function redirectToScript(): Promise<string> {
 // As when the session is missing: the caller shows the login page, at the same URL
 export async function requireLogin(): Promise<string> {
   throw render("/login");
+}
+
+// Its cookie reaches the guard of the page it renders
+export async function loginThenRender(): Promise<string> {
+  getPageContext().cookies.set("session", "bob", { path: "/" });
+  throw render("/account");
 }
 
 // With useActionState(): its count survives a submit without JavaScript

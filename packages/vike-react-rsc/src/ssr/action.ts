@@ -38,16 +38,6 @@ export class ActionCall {
     return this.id === undefined;
   }
 
-  /** The request's headers as the hooks after the action see them: with its cookies, e.g. a session for guard() */
-  withActionCookies(headers: Record<string, string> | null): Record<string, string> | null {
-    const actionCookies = this.#setCookies.map((setCookie) => setCookie.split(";", 1)[0]);
-    if (!actionCookies.length) return headers;
-    // name=value pairs: the action's replace the request's of the same name
-    const pairs = [...(headers?.cookie?.split(";") ?? []), ...actionCookies].map((pair) => pair.trim()).filter(Boolean);
-    const byName = new Map(pairs.map((pair) => [pair.split("=", 1)[0], pair]));
-    return { ...headers, cookie: Array.from(byName.values()).join("; ") };
-  }
-
   /** The answer for the page Vike rendered: the return value, and the page after rerender() */
   renderAnswer(pageContext: PageContextServer): ReadableStream<Uint8Array> {
     const { runtime, pageContext: rscPageContext } = getRsc(pageContext);
