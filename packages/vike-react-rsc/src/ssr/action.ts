@@ -71,7 +71,7 @@ export class ActionCall {
     }
     // The hooks' headers, then the action's
     const headers = new Headers(response.headers);
-    // Vike sends them, except on its error page
+    // Vike sends them, except on the error page it renders after an error
     const sent = headers.getSetCookie();
     for (const setCookie of this.#setCookies) if (!sent.includes(setCookie)) headers.append("set-cookie", setCookie);
     // The page, or a redirect a browser follows

@@ -34,11 +34,7 @@ export function isRenderingServerComponents(): boolean {
 }
 
 export function rerender(): void {
-  getAction("rerender").outcome.rerender = true;
-}
-
-function getAction(name: string): NonNullable<Scope["action"]> {
   const action = storage.getStore()?.action;
-  if (!action) throw notInServerAction(name);
-  return action;
+  if (!action) throw notInServerAction();
+  action.outcome.rerender = true;
 }

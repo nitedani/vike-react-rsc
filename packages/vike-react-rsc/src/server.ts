@@ -3,5 +3,5 @@ import { notInServerAction } from "./errors";
 
 /** Makes the server action's answer include the page, rendered again once the action returned. Without it, the answer is only the return value. */
 export function rerender(): void {
-  throw notInServerAction("rerender");
+  throw notInServerAction();
 }

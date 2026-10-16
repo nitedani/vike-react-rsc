@@ -466,6 +466,7 @@ function testRscLoadRedirect() {
     await waitForHydration("Slow save");
     await page.click('button:has-text("Load a redirecting server component")');
     await page.waitForURL(getServerUrl() + "/");
+    await page.waitForSelector('h1:has-text("Vike React Server Components")');
     await page.goBack();
     await waitForHydration("Slow save");
     await page.click('button:has-text("Load a redirecting server component")');
