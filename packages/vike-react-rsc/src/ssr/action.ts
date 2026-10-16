@@ -119,7 +119,7 @@ async function getActionForm(request: Request, limit: number): Promise<FormData 
   if (!contentType?.startsWith("multipart/form-data")) return null;
   const form = await readBody(request.clone(), limit).catch(() => null);
   if (form === undefined) return (await startsWithActionField(request.clone(), contentType)) ? undefined : null;
-  return form instanceof FormData && [...form.keys()].some((key) => key.startsWith("$ACTION_")) ? form : null;
+  return form instanceof FormData && [...form.keys()].some((key) => /^\$ACTION_(ID|REF)_/.test(key)) ? form : null;
 }
 
 // React writes a <form action>'s $ACTION_ fields right after <form>, so a browser sends them first
