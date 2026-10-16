@@ -9,7 +9,7 @@ React RSC integration for [Vike](https://vike.dev).
   - Progressive hydration
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
-  - An action runs before `guard()` and `data()` of its request, so they see what it changed, including the cookies it sets.
+  - An action runs before `guard()` and `data()` of its request, so they see what it changed, including the cookies it sets, through `pageContext.cookies`.
   - `guard()` doesn't protect an action: check authorization in the action itself.
   - An action's request body over **`rsc.bodySizeLimit`** bytes (default 1 MB) is refused with a 413, before it's buffered whole.
   - An action's `pageContext` has what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `pageContext.user`).

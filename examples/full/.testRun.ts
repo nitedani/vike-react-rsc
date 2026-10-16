@@ -115,7 +115,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testActionValueSurvivesDataError();
     testActionPageFailure();
     testStaleAction();
-    testActionRedirectToScript();
+    testActionAbort();
     testUnknownAction();
     testFormBeforeHydration();
     testCrossSiteAction();
@@ -487,7 +487,7 @@ function testStaticHostAction() {
   });
 }
 
-function testActionRedirectToScript() {
+function testActionAbort() {
   test("Server action: a redirect to a javascript: URL rejects the call and runs nothing", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
