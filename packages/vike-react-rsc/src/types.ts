@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
-import type { ImportString, PageContext } from "vike/types";
+import type { ImportString } from "vike/types";
 import type { ActionCall } from "./ssr/action";
 
 /** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */
@@ -10,14 +10,7 @@ export type ActionPayload = { returnValue: unknown; root?: ReactNode };
 export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
 
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */
-export type RscRuntime = {
-  pagePayload(pageContext: PageContext): ReadableStream<Uint8Array>;
-  actionPayload(pageContext: PageContext, outcome: ActionOutcome): ReadableStream<Uint8Array>;
-  runAction(
-    pageContext: PageContext,
-    call: { id: string | undefined; body: string | FormData; responseHeaders: Headers }
-  ): Promise<ActionOutcome>;
-};
+export type RscRuntime = typeof import("./rsc/runtime");
 
 type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
 type HeadValue = ReactNode | (() => ReactNode);

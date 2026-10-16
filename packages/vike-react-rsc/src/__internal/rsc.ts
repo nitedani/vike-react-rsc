@@ -1,1 +1,1 @@
-export { rscRuntime } from "../rsc/runtime";
+export * as rscRuntime from "../rsc/runtime";

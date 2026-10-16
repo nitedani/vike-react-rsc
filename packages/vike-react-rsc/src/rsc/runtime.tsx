@@ -2,46 +2,57 @@ import { decodeAction, decodeFormState, decodeReply, loadServerAction, renderToR
 import { Suspense, type ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
-import type { ActionOutcome, ActionPayload, PagePayload, RscRuntime } from "../types";
+import type { ActionOutcome, ActionPayload, PagePayload } from "../types";
 import { runInScope } from "./scope";
 
 // Per page render, after a form submitted before hydration
 const formStates = new WeakMap<PageContext, ReactFormState>();
 
-export const rscRuntime: RscRuntime = {
-  pagePayload: (pageContext) =>
-    renderOnRead<PagePayload>(pageContext, () => ({ root: getPage(pageContext), formState: formStates.get(pageContext) })),
+export function pagePayload(pageContext: PageContext): ReadableStream<Uint8Array> {
+  return renderOnRead<PagePayload>(pageContext, () => ({
+    root: getPage(pageContext),
+    formState: formStates.get(pageContext),
+  }));
+}
 
-  actionPayload: (pageContext, { returnValue, rerender }) =>
-    renderOnRead<ActionPayload>(pageContext, () => (rerender ? { returnValue, root: getPage(pageContext) } : { returnValue })),
+export function actionPayload(
+  pageContext: PageContext,
+  { returnValue, rerender }: ActionOutcome
+): ReadableStream<Uint8Array> {
+  return renderOnRead<ActionPayload>(pageContext, () =>
+    rerender ? { returnValue, root: getPage(pageContext) } : { returnValue }
+  );
+}
 
-  async runAction(pageContext, { id, body, responseHeaders }) {
-    const outcome: ActionOutcome = { returnValue: undefined, rerender: false };
-    const scope = { pageContext, action: { outcome, responseHeaders } };
-    // A form submitted before hydration: its fields name the action
-    if (id === undefined) {
-      const action = await decodeAction(body as FormData).catch((error: unknown) => {
-        console.error("[vike-react-rsc] Couldn't load the server action; the browser loads the page again:", error);
-      });
-      // E.g. a page rendered before a deploy names an action this build doesn't have
-      if (!action) return { ...outcome, isUnknownAction: true };
-      const returnValue = await runInScope(scope, action);
-      const formState = await decodeFormState(returnValue, body as FormData);
-      if (formState) formStates.set(pageContext, formState);
-      return outcome;
-    }
-    const [serverFunction, args] = await Promise.all([
-      loadServerAction(id).catch((error: unknown) => {
-        console.error("[vike-react-rsc] Couldn't load the server action; the browser gets a 404:", error);
-      }),
-      decodeReply(body),
-    ]);
-    // E.g. a tab opened before a deploy calls an action this build doesn't have
-    if (typeof serverFunction !== "function") return { ...outcome, isUnknownAction: true };
-    outcome.returnValue = await runInScope(scope, () => serverFunction(...args));
+export async function runAction(
+  pageContext: PageContext,
+  { id, body, responseHeaders }: { id: string | undefined; body: string | FormData; responseHeaders: Headers }
+): Promise<ActionOutcome> {
+  const outcome: ActionOutcome = { returnValue: undefined, rerender: false };
+  const scope = { pageContext, action: { outcome, responseHeaders } };
+  // A form submitted before hydration: its fields name the action
+  if (id === undefined) {
+    const action = await decodeAction(body as FormData).catch((error: unknown) => {
+      console.error("[vike-react-rsc] Couldn't load the server action; the browser loads the page again:", error);
+    });
+    // E.g. a page rendered before a deploy names an action this build doesn't have
+    if (!action) return { ...outcome, isUnknownAction: true };
+    const returnValue = await runInScope(scope, action);
+    const formState = await decodeFormState(returnValue, body as FormData);
+    if (formState) formStates.set(pageContext, formState);
     return outcome;
-  },
-};
+  }
+  const [serverFunction, args] = await Promise.all([
+    loadServerAction(id).catch((error: unknown) => {
+      console.error("[vike-react-rsc] Couldn't load the server action; the browser gets a 404:", error);
+    }),
+    decodeReply(body),
+  ]);
+  // E.g. a tab opened before a deploy calls an action this build doesn't have
+  if (typeof serverFunction !== "function") return { ...outcome, isUnknownAction: true };
+  outcome.returnValue = await runInScope(scope, () => serverFunction(...args));
+  return outcome;
+}
 
 // The Flight starts rendering when its stream is first read: for a page, that's after data(), and never if nobody
 // reads it. A reader that stops early, e.g. because the client left, aborts the render.
