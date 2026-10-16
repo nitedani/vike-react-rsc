@@ -1,7 +1,7 @@
 "use server";
 
 import type { ReactElement } from "react";
-import { redirect } from "vike/abort";
+import { redirect, render } from "vike/abort";
 import { rerender } from "vike-react-rsc/server";
 
 // Read by the hooks of /actions, which run in another environment
@@ -30,6 +30,11 @@ export async function slowSave() {
 // As if the target came from user input, e.g. ?next=: the browser must not run it
 export async function redirectToScript(): Promise<string> {
   throw redirect("javascript:void(window.__redirected=1)");
+}
+
+// As when the session is missing: the caller shows the login page, at the same URL
+export async function requireLogin(): Promise<string> {
+  throw render("/login");
 }
 
 // With useActionState(): its count survives a submit without JavaScript

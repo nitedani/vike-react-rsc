@@ -498,6 +498,16 @@ function testActionRedirectToScript() {
     });
     expect(await page.evaluate(() => "__redirected" in window)).to.equal(false);
   });
+
+  test("Server action: throw render() shows that page, at the same URL", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Require a login")');
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.equal("Log in");
+    });
+    expect(new URL(page.url()).pathname).to.equal("/actions");
+  });
 }
 
 function testUnknownAction() {

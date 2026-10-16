@@ -45,7 +45,8 @@ export class ActionCall {
   /** The answer for the page Vike rendered: the return value, and the page after rerender() */
   renderAnswer(pageContext: PageContextServer): ReadableStream<Uint8Array> {
     const { runtime, pageContext: rscPageContext } = getRsc(pageContext);
-    const { returnValue, rerender = false } = this.outcome ?? {};
+    // No outcome: the action threw render(), so the answer is the page Vike rendered instead, as for a form
+    const { returnValue, rerender } = this.outcome ?? { returnValue: undefined, rerender: true };
     return runtime.actionPayload(rscPageContext, { returnValue, rerender });
   }
 
