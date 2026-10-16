@@ -610,6 +610,7 @@ function testFormBeforeHydration() {
     const response = await fetch(getServerUrl() + "/actions", { method: "POST", body: form });
     await response.text();
     expect(response.status).to.equal(200);
+    // The first request after the upload takes a new connection; a later one reuses the upload's
     for (let i = 0; i < 3; i++) {
       const next = await fetch(getServerUrl() + "/");
       await next.text();

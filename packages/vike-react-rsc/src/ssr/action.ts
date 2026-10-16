@@ -126,11 +126,10 @@ export async function actionMiddleware(
 }
 
 // React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
-// before hydration, which the browser sends as a navigation. Read from a copy, so the POST reaches the next handler
-// with its body, and only a navigation: reading part of a fetch() upload breaks the client's next request on that
-// connection when the route answers without reading the rest. Null when the request isn't such a form, undefined
-// when it's one with more than `limit` bytes.
+// before hydration, which the browser sends as a navigation. Read from a copy: any other POST reaches the next handler
+// with its body. Null when the request isn't such a form, undefined when it's one with more than `limit` bytes.
 async function getActionForm(request: Request, limit: number): Promise<FormData | undefined | null> {
+  // Reading part of a fetch() upload breaks its connection's next request when the route doesn't read the rest
   if (request.headers.get("sec-fetch-mode") !== "navigate") return null;
   const contentType = request.headers.get("content-type");
   if (!contentType?.startsWith("multipart/form-data")) return null;
