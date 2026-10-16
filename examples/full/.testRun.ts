@@ -250,6 +250,15 @@ async function withoutScripts(run: (noJs: typeof page) => Promise<void>) {
   }
 }
 
+// What a browser sends for a form submitted before hydration: Node's fetch() always sends `sec-fetch-mode: cors`
+function submitForm(pathname: string, form: FormData) {
+  return page.request.post(getServerUrl() + pathname, {
+    multipart: form,
+    headers: { "sec-fetch-mode": "navigate" },
+    maxRedirects: 0,
+  });
+}
+
 // Until React has attached the button's handlers, a click doesn't do what a user's would
 async function waitForHydration(buttonText = "Increment") {
   await autoRetry(
@@ -549,9 +558,9 @@ function testUnknownAction() {
 
   test("Server action: a form submitted before hydration with an id the server doesn't know loads its page again", async () => {
     const form = new FormData();
-    form.append(`$ACTION_ID_/gone.ts#action${Date.now()}`, "");
-    const response = await fetch(getServerUrl() + "/actions", { method: "POST", body: form, redirect: "manual" });
-    expect([response.status, response.headers.get("location")]).to.deep.equal([303, "/actions"]);
+    form.append(`$ACTION_ID_/gone.ts#action${Date.now()}`, "x");
+    const response = await submitForm("/actions", form);
+    expect([response.status(), response.headers().location]).to.deep.equal([303, "/actions"]);
   });
 }
 
@@ -591,7 +600,21 @@ function testFormBeforeHydration() {
     for (const field of ["attachment", "$ACTION_KEY"]) {
       const form = new FormData();
       form.append(field, "x");
-      expect((await fetch(getServerUrl() + "/actions", { method: "POST", body: form })).status).to.equal(200);
+      expect((await submitForm("/actions", form)).status()).to.equal(200);
+    }
+  });
+
+  test("Server action: an upload over rsc.bodySizeLimit from fetch() reaches the page, and the next requests work", async () => {
+    const form = new FormData();
+    form.append("attachment", new Blob([new Uint8Array(2 * 1024 * 1024)]));
+    const response = await fetch(getServerUrl() + "/actions", { method: "POST", body: form });
+    await response.text();
+    expect(response.status).to.equal(200);
+    for (let i = 0; i < 3; i++) {
+      const next = await fetch(getServerUrl() + "/");
+      await next.text();
+      expect(next.status).to.equal(200);
+      await sleep(50);
     }
   });
 }
