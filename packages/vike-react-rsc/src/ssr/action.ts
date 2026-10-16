@@ -50,44 +50,57 @@ export class ActionCall {
   /** The answer to the action, from the response of the page Vike rendered */
   answer(response: Response): Response {
     const { status } = response;
-    if (this.outcome?.isUnknownAction) {
-      void response.body?.cancel();
-      // A form can't reload as callServer() does, so the browser gets the page again, from this build
-      if (this.isForm) {
-        const { pathname, search } = new URL(this.url);
-        return new Response(null, { status: 303, headers: { location: pathname + search } });
-      }
-      return new Response(null, { status: 404, headers: { [UNKNOWN_ACTION_HEADER]: "1" } });
-    }
-    // The hooks' headers, then the action's
-    const headers = new Headers(response.headers);
-    // Vike sends them, except on the error page it renders after an error
-    const sent = headers.getSetCookie();
-    for (const setCookie of this.#setCookies) if (!sent.includes(setCookie)) headers.append("set-cookie", setCookie);
+    if (this.outcome?.isUnknownAction) return this.#answerUnknownAction(response);
+    const headers = this.#headersWithCookies(response);
     // The page, or a redirect a browser follows
     if (this.isForm) return new Response(response.body, { status, headers });
 
     // Without rerender() the page isn't part of the answer, so neither is guard()'s or data()'s failure: the caller
     // gets what the action returned
     if (this.outcome && !this.outcome.rerender && status !== 200) {
-      void response.body?.cancel();
-      const { runtime, pageContext } = this.#rsc!;
-      const body = runtime.actionPayload(pageContext, { returnValue: this.outcome.returnValue, rerender: false });
-      return new Response(body, {
-        headers: new Headers([...this.#setCookies.map((setCookie): [string, string] => ["set-cookie", setCookie]), ["content-type", FLIGHT_CONTENT_TYPE]]),
-      });
+      return this.#answerReturnValue(response, this.outcome.returnValue);
     }
     // A redirect thrown by the action, guard() or data(). fetch() would follow it and hand the new page's HTML to the
     // Flight decoder, so callServer() gets the target in a header and navigates.
     const location = headers.get("location");
-    if (status >= 300 && status < 400 && location) {
-      void response.body?.cancel();
-      headers.delete("location");
-      headers.set(REDIRECT_HEADER, location);
-      return new Response(null, { headers });
-    }
+    if (status >= 300 && status < 400 && location) return answerRedirect(response, headers, location);
     return new Response(response.body, { status, headers });
   }
+
+  #answerUnknownAction(response: Response): Response {
+    void response.body?.cancel();
+    // A form can't reload as callServer() does, so the browser gets the page again, from this build
+    if (this.isForm) {
+      const { pathname, search } = new URL(this.url);
+      return new Response(null, { status: 303, headers: { location: pathname + search } });
+    }
+    return new Response(null, { status: 404, headers: { [UNKNOWN_ACTION_HEADER]: "1" } });
+  }
+
+  // The hooks' headers, then the action's
+  #headersWithCookies(response: Response): Headers {
+    const headers = new Headers(response.headers);
+    // Vike sends them, except on the error page it renders after an error
+    const sent = headers.getSetCookie();
+    for (const setCookie of this.#setCookies) if (!sent.includes(setCookie)) headers.append("set-cookie", setCookie);
+    return headers;
+  }
+
+  #answerReturnValue(response: Response, returnValue: unknown): Response {
+    void response.body?.cancel();
+    const { runtime, pageContext } = this.#rsc!;
+    const body = runtime.actionPayload(pageContext, { returnValue, rerender: false });
+    return new Response(body, {
+      headers: new Headers([...this.#setCookies.map((setCookie): [string, string] => ["set-cookie", setCookie]), ["content-type", FLIGHT_CONTENT_TYPE]]),
+    });
+  }
+}
+
+function answerRedirect(response: Response, headers: Headers, location: string): Response {
+  void response.body?.cancel();
+  headers.delete("location");
+  headers.set(REDIRECT_HEADER, location);
+  return new Response(null, { headers });
 }
 
 // Vike's +middleware. It hands the action to the page Vike renders after every middleware: onCreatePageContext runs it
