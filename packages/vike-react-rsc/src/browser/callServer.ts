@@ -3,6 +3,7 @@ import { startTransition } from "react";
 import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
+import { getRedirectUrl } from "../redirect";
 import type { ActionPayload } from "../types";
 import { getCurrentPageContext, showRoot } from "./page";
 import { isRscLoad, markRscOutputsStale } from "./rsc";
@@ -32,11 +33,8 @@ async function postAction(url: string, id: string, args: unknown[]): Promise<Res
 }
 
 async function followRedirect(redirectTo: string): Promise<undefined> {
-  const url = new URL(redirectTo, location.href);
-  // An HTTP redirect never runs e.g. a javascript: URL, but location.href would
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error(`[vike-react-rsc] The server action redirected to ${redirectTo}, which isn't an http(s) URL`);
-  }
+  const url = getRedirectUrl(redirectTo, location.href);
+  if (!url) throw new Error(`[vike-react-rsc] The server action redirected to ${redirectTo}, which isn't an http(s) URL`);
   if (url.origin !== location.origin) return leavePage(() => (window.location.href = url.href));
   // Settles after the navigation, so a form action's pending transition doesn't hold the new page back
   await navigate(url.pathname + url.search + url.hash);

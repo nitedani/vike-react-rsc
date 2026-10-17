@@ -1,6 +1,7 @@
 import { Component, useEffect, type ReactNode } from "react";
 import { navigate } from "vike/client/router";
 import { getAbort } from "../abort";
+import { getRedirectUrl } from "../redirect";
 
 type Props = { children: ReactNode };
 type State = { children?: ReactNode; redirectTo?: string };
@@ -30,9 +31,10 @@ export class AbortBoundary extends Component<Props, State> {
 function Redirect({ url }: { url: string }) {
   useEffect(() => {
     const leave = () => {
+      const target = getRedirectUrl(url, location.href);
+      if (!target) throw new Error(`[vike-react-rsc] A server component redirected to ${url}, which isn't an http(s) URL`);
       // The HTML's redirect meta makes the browser load the target: only once
       if (document.querySelector("meta[data-vike-react-rsc-redirect]")) return;
-      const target = new URL(url, location.href);
       if (target.origin !== location.origin) location.replace(target.href);
       else void navigate(target.pathname + target.search + target.hash, { overwriteLastHistoryEntry: true });
     };

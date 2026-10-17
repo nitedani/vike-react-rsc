@@ -9,6 +9,7 @@ import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { getAbort, toVikeAbort, type Abort } from "../abort";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
+import { getRedirectUrl } from "../redirect";
 import type { PagePayload } from "../types";
 
 // The CSS and JS of the client components a page's HTML renders, for their links
@@ -123,7 +124,8 @@ function renderAbortMeta(abort: Abort) {
   return renderToStaticMarkup(
     <>
       <meta name="robots" content="noindex" />
-      {"redirect" in abort && (
+      {/* A path keeps the page's own scheme, so any http(s) base tells the same */}
+      {"redirect" in abort && getRedirectUrl(abort.redirect.url, "http://localhost") && (
         <meta httpEquiv="refresh" content={`0;url=${abort.redirect.url}`} data-vike-react-rsc-redirect="" />
       )}
     </>

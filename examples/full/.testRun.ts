@@ -49,6 +49,10 @@ const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server comp
 // Logged on the server by testUnknownAction()
 const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
 
+// Thrown in the browser by testServerComponentAbort()
+const SCRIPT_REDIRECT_ERROR =
+  "[vike-react-rsc] A server component redirected to javascript:void(window.__redirected=1), which isn't an http(s) URL";
+
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
   // Pre-rendered, and served like a static host would
@@ -80,6 +84,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testUnknownAction()
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
+      // testServerComponentAbort(), with React's warning for it. In dev, Vite also forwards both to the server's stderr.
+      logText.includes(SCRIPT_REDIRECT_ERROR) ||
+      logText.includes("An error occurred in the <Redirect> component") ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
@@ -531,6 +538,25 @@ function testServerComponentAbort() {
       await noJs.goto(getServerUrl() + "/abort/redirect-streamed");
       await noJs.waitForURL(getServerUrl() + "/");
     });
+  });
+
+  test("Server component: throw redirect() to a javascript: URL runs nothing", async () => {
+    const html = await fetchHtml("/abort/redirect-to-script");
+    expect(html).to.include('<meta name="robots" content="noindex"/>');
+    expect(html).to.not.include('http-equiv="refresh"');
+
+    await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
+    await page.evaluate(() =>
+      document.body.append(
+        Object.assign(document.createElement("a"), { href: "/abort/redirect-to-script", textContent: "Redirect" })
+      )
+    );
+    const thrown = page.waitForEvent("pageerror", (error) => error.message === SCRIPT_REDIRECT_ERROR);
+    await page.click('a[href="/abort/redirect-to-script"]');
+    await thrown;
+    expect(await page.evaluate(() => "__redirected" in window)).to.equal(false);
+    expect(new URL(page.url()).pathname).to.equal("/abort/redirect-to-script");
   });
 
   // Each one leaves for the target with a client navigation, not a document load
