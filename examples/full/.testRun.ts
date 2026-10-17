@@ -84,6 +84,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testUnknownAction()
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
+      // testServerComponentAbort(): the redirect an app's error boundary caught, as React logs it in dev and in production
+      logText.includes("Error: AbortRender") ||
+      (logSource === "Browser Error" && logText.includes("Minified React error #441")) ||
       // testServerComponentAbort(), with React's warning for it. In dev, Vite also forwards both to the server's stderr.
       logText.includes(SCRIPT_REDIRECT_ERROR) ||
       logText.includes("An error occurred in the <Redirect> component") ||
@@ -557,6 +560,19 @@ function testServerComponentAbort() {
     await thrown;
     expect(await page.evaluate(() => "__redirected" in window)).to.equal(false);
     expect(new URL(page.url()).pathname).to.equal("/abort/redirect-to-script");
+  });
+
+  test("Server component: an error boundary of the app's that catches a throw redirect() logs it", async () => {
+    await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
+    await page.evaluate(() =>
+      document.body.append(Object.assign(document.createElement("a"), { href: "/abort/redirect-caught", textContent: "Caught" }))
+    );
+    const logged = page.waitForEvent("console", (message) => message.type() === "error");
+    await page.click('a[href="/abort/redirect-caught"]');
+    await logged;
+    expect(await page.textContent("[data-boundary-fallback]")).to.equal("Caught");
+    expect(new URL(page.url()).pathname).to.equal("/abort/redirect-caught");
   });
 
   // Each one leaves for the target with a client navigation, not a document load
