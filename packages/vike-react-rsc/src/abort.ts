@@ -30,7 +30,7 @@ export function toVikeAbort(abort: Abort): Error {
   return render(abort.statusCode, abort.reason as string);
 }
 
-// TODO: use Vike's public isAbortError() and abort read once <VIKE_PR_URL> is released
+// TODO: use getAbortInfo() from vike/abort once <VIKE_PR_URL> is released
 function readVikeAbort(error: unknown): Abort | undefined {
   if (typeof error !== "object" || error === null) return;
   if (!("_isAbortError" in error && "_pageContextAbort" in error)) return;
