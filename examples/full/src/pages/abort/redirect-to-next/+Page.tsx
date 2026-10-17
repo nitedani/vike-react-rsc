@@ -1,16 +1,19 @@
 import { Suspense } from "react";
 import { redirect } from "vike/abort";
+import { getPageContext } from "vike-react-rsc/pageContext";
 
-// As if the target came from user input, e.g. ?next=: the browser must not run it. Throws once the HTML has started.
+// To ?next=, which comes from user input: the browser must not follow it unless it's an http(s) URL. Throws once the
+// HTML has started.
 async function Redirect(): Promise<never> {
+  const { next } = getPageContext().urlParsed.search;
   await new Promise((resolve) => setTimeout(resolve, 300));
-  throw redirect("javascript:void(window.__redirected=1)");
+  throw redirect(next!);
 }
 
 export default function Page() {
   return (
     <>
-      <h1>Redirect to a javascript: URL</h1>
+      <h1>Redirect to ?next=</h1>
       <Suspense fallback={<p>Loading</p>}>
         <Redirect />
       </Suspense>
