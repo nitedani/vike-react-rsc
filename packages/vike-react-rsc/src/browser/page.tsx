@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
+import { AbortBoundary } from "./AbortBoundary";
 
 type Shown = { pageContext: PageContextClient; root: ReactNode };
 
@@ -37,5 +38,9 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shown);
   }, []);
-  return <PageContextProvider pageContext={state.pageContext}>{state.root}</PageContextProvider>;
+  return (
+    <PageContextProvider pageContext={state.pageContext}>
+      <AbortBoundary>{state.root}</AbortBoundary>
+    </PageContextProvider>
+  );
 }

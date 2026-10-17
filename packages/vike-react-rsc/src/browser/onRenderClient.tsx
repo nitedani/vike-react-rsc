@@ -3,6 +3,7 @@ import { hydrateRoot } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync } from "vike/types";
 import type { PagePayload } from "../types";
+import { AbortBoundary } from "./AbortBoundary";
 import { callServer } from "./callServer";
 import { Root, setCurrentPageContext, show } from "./page";
 import { markRscOutputsStale } from "./rsc";
@@ -14,7 +15,14 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   const { root, formState } = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
   const page = { pageContext, root };
   show(page);
-  if (pageContext.isHydration) hydrateRoot(document.getElementById("root")!, <Root page={page} />, { formState });
+  if (!pageContext.isHydration) return;
+  hydrateRoot(document.getElementById("root")!, <Root page={page} />, {
+    formState,
+    // AbortBoundary catches only the redirects it follows; a boundary of the app's may swallow one, so it's reported
+    onCaughtError: (error, errorInfo) => {
+      if (!(errorInfo.errorBoundary instanceof AbortBoundary)) console.error(error, errorInfo.componentStack);
+    },
+  });
 };
 
 if (import.meta.hot) {

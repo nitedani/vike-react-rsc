@@ -49,6 +49,10 @@ const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server comp
 // Logged on the server by testUnknownAction()
 const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
 
+// Thrown in the browser by testServerComponentAbort()
+const getRefusedRedirectError = (next: string) =>
+  `[vike-react-rsc] A server component redirected to ${next}, which isn't an http(s) URL`;
+
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
   // Pre-rendered, and served like a static host would
@@ -80,6 +84,12 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testUnknownAction()
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
+      // testServerComponentAbort(): the redirect an app's error boundary caught, as React logs it in dev and in production
+      logText.includes("Error: AbortRender") ||
+      (logSource === "Browser Error" && logText.includes("Minified React error #441")) ||
+      // testServerComponentAbort(), with React's warning for it. In dev, Vite also forwards both to the server's stderr.
+      logText.includes("[vike-react-rsc] A server component redirected to") ||
+      logText.includes("An error occurred in the <Redirect> component") ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
@@ -124,6 +134,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscPropsChange();
     testRscLoadError();
     testRscLoadRedirect();
+    testServerComponentAbort();
     testRscCache();
     testRscCacheInvalidation();
     testRscCacheInvalidationOnRejection();
@@ -482,6 +493,131 @@ function testRscLoadRedirect() {
     await autoRetry(async () => {
       expect(await page.textContent("[data-rsc-redirecting]")).to.equal("Loaded");
     });
+  });
+}
+
+function testServerComponentAbort() {
+  test("Server component: throw redirect() before the HTML starts is a 302", async () => {
+    const response = await fetch(getServerUrl() + "/abort/redirect", { redirect: "manual" });
+    expect([response.status, response.headers.get("location")]).to.deep.equal([302, "/"]);
+    // A crawler gets the whole page at once, so inside <Suspense> too
+    const crawled = await fetch(getServerUrl() + "/abort/redirect-streamed", {
+      redirect: "manual",
+      headers: { "user-agent": "Googlebot/2.1" },
+    });
+    expect([crawled.status, crawled.headers.get("location")]).to.deep.equal([302, "/"]);
+  });
+
+  test("Server component: throw render(404) before the HTML starts is the error page, with its status", async () => {
+    const response = await fetch(getServerUrl() + "/abort/not-found");
+    expect(response.status).to.equal(404);
+    expect(await response.text()).to.include("Page not found");
+  });
+
+  test("Server component: throw redirect() inside <Suspense> loads the target once, with or without JavaScript", async () => {
+    const html = await fetchHtml("/abort/redirect-streamed");
+    expect(html).to.match(/<meta http-equiv="refresh" content="0;url=\/"/);
+    expect(html).to.include('<meta name="robots" content="noindex"/>');
+
+    const requests: string[] = [];
+    const onRequest = (request: { url(): string; resourceType(): string }) => {
+      if (["document", "fetch", "xhr"].includes(request.resourceType())) requests.push(new URL(request.url()).pathname);
+    };
+    page.on("request", onRequest);
+    // The target answers late, so the page hydrates while the meta's navigation waits for it
+    const target = getServerUrl() + "/";
+    await page.route(target, async (route) => {
+      await sleep(2000);
+      await route.continue();
+    });
+    await page.goto(getServerUrl() + "/abort/redirect-streamed");
+    await page.waitForURL(target);
+    await waitForHydration();
+    await page.unroute(target);
+    page.off("request", onRequest);
+    expect(requests).to.deep.equal(["/abort/redirect-streamed", "/"]);
+
+    await withoutScripts(async (noJs) => {
+      await noJs.goto(getServerUrl() + "/abort/redirect-streamed");
+      await noJs.waitForURL(getServerUrl() + "/");
+    });
+  });
+
+  // Neither the HTML's meta nor the browser follows it, and the browser reports it
+  const expectRedirectRefused = async (next: string) => {
+    const href = `/abort/redirect-to-next?next=${encodeURIComponent(next)}`;
+    const html = await fetchHtml(href);
+    expect(html).to.include('<meta name="robots" content="noindex"/>');
+    expect(html).to.not.include('http-equiv="refresh"');
+
+    await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
+    await page.evaluate(
+      (href) => document.body.append(Object.assign(document.createElement("a"), { href, textContent: "Next" })),
+      href
+    );
+    const thrown = page.waitForEvent("pageerror", (error) => error.message === getRefusedRedirectError(next));
+    await page.click(`a[href="${href}"]`);
+    await thrown;
+    expect(new URL(page.url()).pathname).to.equal("/abort/redirect-to-next");
+  };
+
+  test("Server component: throw redirect() to a javascript: URL runs nothing", async () => {
+    await expectRedirectRefused("javascript:void(window.__redirected=1)");
+    expect(await page.evaluate(() => "__redirected" in window)).to.equal(false);
+  });
+
+  test("Server component: throw redirect() to a URL that doesn't parse is refused, and the server doesn't throw", async () => {
+    await expectRedirectRefused("//[");
+  });
+
+  test("Server component: an error boundary of the app's that catches a throw redirect() logs it", async () => {
+    await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
+    await page.evaluate(() =>
+      document.body.append(Object.assign(document.createElement("a"), { href: "/abort/redirect-caught", textContent: "Caught" }))
+    );
+    const logged = page.waitForEvent("console", (message) => message.type() === "error");
+    await page.click('a[href="/abort/redirect-caught"]');
+    await logged;
+    expect(await page.textContent("[data-boundary-fallback]")).to.equal("Caught");
+    expect(new URL(page.url()).pathname).to.equal("/abort/redirect-caught");
+  });
+
+  // Each one leaves for the target with a client navigation, not a document load
+  const expectRedirectedHome = async (timeOrigin: number) => {
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/");
+      expect(await page.textContent("h1")).to.include("Vike React Server Components");
+    });
+    expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
+  };
+
+  test("Server component: throw redirect() on a client navigation", async () => {
+    await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    await page.evaluate(() =>
+      document.body.append(Object.assign(document.createElement("a"), { href: "/abort/redirect", textContent: "Redirect" }))
+    );
+    await page.click('a[href="/abort/redirect"]');
+    await expectRedirectedHome(timeOrigin);
+  });
+
+  test("Server component: throw redirect() in what an rsc() load renders", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    await page.click('button:has-text("Load a server component whose child redirects")');
+    await expectRedirectedHome(timeOrigin);
+  });
+
+  test("Server component: throw redirect() in the page a server action's rerender() renders", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    await page.click('button:has-text("Save, then the page throws redirect()")');
+    await expectRedirectedHome(timeOrigin);
   });
 }
 
