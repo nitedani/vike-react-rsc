@@ -60,7 +60,7 @@ function renderViewport(viewport: Viewport) {
 // Vike lists a cumulative setting's values from the most specific, so the app's override its extensions'
 function mergeAttributes(settings: Setting<TagAttributes, PageContextServer>[] | undefined, pageContext: PageContextServer) {
   const merged: TagAttributes = {};
-  for (const setting of [...(settings ?? [])].reverse()) Object.assign(merged, resolveSetting(setting, pageContext));
+  for (const setting of (settings ?? []).toReversed()) Object.assign(merged, resolveSetting(setting, pageContext));
   return merged;
 }
 
