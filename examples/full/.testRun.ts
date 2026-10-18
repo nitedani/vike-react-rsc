@@ -46,6 +46,9 @@ const DATA_ERROR = "data() failed on demand";
 const RSC_LOAD_ERROR = "FailingComponent failed on demand";
 const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server component";
 
+// Thrown by /head-settings-throw's +title in the browser
+const HEAD_SETTING_ERROR = "+title failed in the browser on demand";
+
 // Logged on the server by testUnknownAction()
 const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
 
@@ -80,6 +83,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testUnknownAction()
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
+      // testHeadSettings(): in dev, Vite also forwards the browser's uncaught error to the server's stderr
+      ((logSource === "Browser Error" || (isDev && logSource === "stderr")) && logText.includes(HEAD_SETTING_ERROR)) ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
@@ -842,6 +847,24 @@ function testHeadSettings() {
       "Head settings removed",
       "Vike React Server Components",
     ]);
+  });
+
+  test("Head settings: a setting that throws in the browser keeps the page on screen, and the error is uncaught", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await page.evaluate(() => {
+      const errors: string[] = [];
+      Object.assign(window, { uncaughtErrors: errors });
+      addEventListener("error", (event) => errors.push(event.message));
+      document.body.append(Object.assign(document.createElement("a"), { href: "/head-settings-throw", textContent: "/head-settings-throw" }));
+    });
+    await page.click('a[href="/head-settings-throw"]');
+    await autoRetry(async () => {
+      const errors = await page.evaluate(() => (window as { uncaughtErrors?: string[] }).uncaughtErrors);
+      expect(errors!.some((message) => message.includes(HEAD_SETTING_ERROR))).to.equal(true);
+    });
+    expect(await page.textContent("h1")).to.equal("Head setting throws");
+    expect(await page.title()).to.equal("Vike RSC demo");
   });
 }
 

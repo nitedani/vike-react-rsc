@@ -40,7 +40,13 @@ export function Root({ page }: { page: Shown }): ReactElement {
   }, []);
   // Once React has committed the next page; rerender() keeps the pageContext, and the HTML has the hydrated page's
   useEffect(() => {
-    if (!state.pageContext.isHydration) applyHeadSettings(state.pageContext);
+    if (state.pageContext.isHydration) return;
+    try {
+      applyHeadSettings(state.pageContext);
+    } catch (err) {
+      // Thrown in the effect, it would make React unmount the page
+      reportError(err);
+    }
   }, [state.pageContext]);
   return <PageContextProvider pageContext={state.pageContext}>{state.root}</PageContextProvider>;
 }
