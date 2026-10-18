@@ -8,7 +8,7 @@ React RSC integration for [Vike](https://vike.dev).
   - Progressive rendering
   - Progressive hydration
   - **`throw redirect()`** and **`throw render()`** inside a server component
-    - In the HTML, outside every `<Suspense>`, Vike answers them as it does in `guard()`: with the redirect, or with the error page and its status. A crawler gets the page whole, so Vike answers them inside `<Suspense>` too.
+    - In the HTML, outside every `<Suspense>`, Vike answers them as in `guard()`: the redirect, `render(url)`'s page, or the error page and its status. A crawler gets the page whole, so Vike answers them inside `<Suspense>` too.
     - Inside `<Suspense>`, on a client navigation, in an `rsc()` load and after `rerender()`, the browser still goes to the redirect's target (from the HTML, without JavaScript too). `render()` shows a blank page there, until Vike can show its error page from a component.
     - On a client navigation, in an `rsc()` load or after `rerender()`, an error boundary of yours around the throwing component catches the redirect first and shows its fallback, so the browser stays on the page (Next has the same limit).
     - `Loading.layout` puts the page inside `<Suspense>`: for a real 302 or 404 in a browser, throw in `guard()` or `data()`, or set `Loading = {}`.
