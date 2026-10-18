@@ -98,6 +98,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testUsePageContext();
   testWrapper();
   testHead();
+  testHeadSettings();
   // plugin-rsc has no client JS to preload in dev
   if (!isDev) testClientJsPreload();
   testClientCss();
@@ -110,6 +111,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testClientDisconnect();
     testCounter();
     testTodoForm();
+    testHeadSettingsRerender();
     testSession();
     testActionOnce();
     testActionValueSurvivesDataError();
@@ -754,9 +756,106 @@ function testWrapper() {
 
 function testHead() {
   test("Head sets the document's head", async () => {
-    expect(await fetchHtml("/")).to.include("<title>Vike RSC demo</title>");
+    const html = await fetchHtml("/");
+    expect(html.slice(0, html.indexOf("</head>"))).to.include('<meta name="theme-color" content="#f9fafb"/>');
+  });
+}
+
+function testHeadSettings() {
+  test("Head settings: the HTML has their tags and attributes, the defaults, and none for null", async () => {
+    const html = await fetchHtml("/");
+    const head = html.slice(0, html.indexOf("</head>"));
+    expect(html).to.include('<html data-html="" lang="en">');
+    expect(head).to.include('<title>Vike RSC demo</title><meta property="og:title" content="Vike RSC demo" />');
+    expect(head).to.include(
+      '<meta name="description" content="A demo of Vike with React Server Components" /><meta property="og:description" content="A demo of Vike with React Server Components" />'
+    );
+    expect(head).to.include('<link rel="icon" href="/vike.svg" />');
+    expect(head.match(/<meta name="viewport"[^>]*>/g)).to.deep.equal(['<meta name="viewport" content="width=device-width,initial-scale=1" />']);
+    const positions = [
+      "<!-- headHtmlBegin -->",
+      "<title>",
+      '<meta name="theme-color"',
+      "<!-- headHtmlEnd -->",
+      "</head>",
+      '<body data-body="">',
+      "<!-- bodyHtmlBegin -->",
+      '<div id="root" data-root="">',
+      "<!-- bodyHtmlEnd -->",
+      "</body>",
+    ].map((tag) => html.indexOf(tag));
+    expect(positions).to.not.include(-1);
+    expect(positions).to.deep.equal([...positions].sort((a, b) => a - b));
+
+    const set = await fetchHtml("/head-settings");
+    expect(set).to.include('<html data-html="" lang="fr">');
+    expect(set).to.include("<title>Head settings from +data</title>");
+    expect(set).to.include('<meta name="description" content="Set by +description" />');
+    expect(set).to.include('<meta property="og:image" content="/vike.svg" /><meta name="twitter:card" content="summary_large_image" />');
+    expect(set).to.include('<meta name="viewport" content="width=1024" />');
+
+    const removed = await fetchHtml("/head-settings-null");
+    expect(removed).to.include('<html data-html="">');
+    expect(removed).to.not.match(/<title>|<meta name="(description|viewport)"|<meta property="og:/);
+  });
+
+  test("Head settings: a navigation applies the title, description and lang once its page shows", async () => {
     await page.goto(getServerUrl() + "/");
-    expect(await page.title()).to.equal("Vike RSC demo");
+    await waitForHydration();
+    // The heading on screen at each change of the title
+    await page.evaluate(() => {
+      const headings: string[] = [];
+      Object.assign(window, { headingsAtTitleChange: headings });
+      new MutationObserver(() => headings.push(document.querySelector("h1")!.textContent!)).observe(
+        document.querySelector("title")!,
+        { childList: true, characterData: true, subtree: true }
+      );
+    });
+    const navigate = async (href: string, heading: string) => {
+      await page.evaluate((href) => document.body.append(Object.assign(document.createElement("a"), { href, textContent: href })), href);
+      await page.click(`a[href="${href}"]`);
+      await autoRetry(async () => expect(await page.textContent("h1")).to.equal(heading));
+    };
+    const description = () => page.getAttribute('meta[name="description"]', "content");
+
+    // /head-settings' Page takes 500 ms, during which / stays on screen
+    await navigate("/head-settings", "Head settings");
+    await autoRetry(async () => expect(await page.title()).to.equal("Head settings from +data"));
+    expect(await page.getAttribute("html", "lang")).to.equal("fr");
+    expect(await description()).to.equal("Set by +description");
+    expect(await page.getAttribute('meta[property="og:title"]', "content")).to.equal("Head settings from +data");
+
+    await navigate("/head-settings-null", "Head settings removed");
+    await autoRetry(async () => expect(await page.title()).to.equal(""));
+    expect(await page.getAttribute("html", "lang")).to.equal("en");
+    expect(await page.locator('meta[name="description"], meta[property^="og:"]').count()).to.equal(0);
+
+    await navigate("/", "Vike React Server Components");
+    await autoRetry(async () => expect(await page.title()).to.equal("Vike RSC demo"));
+    expect(await description()).to.equal("A demo of Vike with React Server Components");
+    expect(await page.locator("title").count()).to.equal(1);
+    expect(await page.evaluate(() => (window as { headingsAtTitleChange?: string[] }).headingsAtTitleChange)).to.deep.equal([
+      "Head settings",
+      "Head settings removed",
+      "Vike React Server Components",
+    ]);
+  });
+}
+
+function testHeadSettingsRerender() {
+  test("Head settings: rerender() keeps a title the page set in the browser", async () => {
+    // A navigation, so the page isn't the hydrated one, whose settings the HTML has
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await page.click('a[href="/todos"]');
+    await waitForHydration("Add Task");
+    await page.evaluate(() => (document.title = "Set in the browser"));
+    await page.fill('input[placeholder="What needs to be done?"]', "Head settings todo");
+    await page.click('button:has-text("Add Task")');
+    await autoRetry(async () => {
+      expect(await page.textContent("body")).to.include("Head settings todo");
+    });
+    expect(await page.title()).to.equal("Set in the browser");
   });
 }
 
