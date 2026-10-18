@@ -483,12 +483,17 @@ function testRscLoadError() {
 
 function testRscLoadRedirect() {
   test("rsc(): a load that redirected isn't cached, so coming back loads the server component", async () => {
-    await page.goto(getServerUrl() + "/actions");
-    await waitForHydration("Slow save");
-    await page.click('button:has-text("Load a redirecting server component")');
+    await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
+    await navigateToActions();
+    // A click with no pointer or key event before it, as a screen reader's: the redirect keeps the page in history
+    await page.locator('button:has-text("Load a redirecting server component")').evaluate((button: HTMLElement) => button.click());
     await page.waitForURL(getServerUrl() + "/");
     await page.waitForSelector('h1:has-text("Vike React Server Components")');
     await page.goBack();
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/actions");
+    });
     await waitForHydration("Slow save");
     await page.click('button:has-text("Load a redirecting server component")');
     await autoRetry(async () => {

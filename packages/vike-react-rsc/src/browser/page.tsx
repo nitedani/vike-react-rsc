@@ -10,9 +10,9 @@ let current: PageContextClient;
 // What Root shows, and how to change it once Root has mounted
 let shown: Shown;
 let setRootState: ((shown: Shown) => void) | undefined;
-// The page the user last pressed a pointer or a key on: a link's press counts for the page it leaves
+// The page the user last pressed a pointer or a key on, or clicked: a link's click counts for the page it leaves
 let actedOn: PageContextClient | undefined;
-for (const type of ["pointerdown", "keydown"]) document.addEventListener(type, () => (actedOn = current), { capture: true });
+for (const type of ["pointerdown", "keydown", "click"]) document.addEventListener(type, () => (actedOn = current), { capture: true });
 
 export function setCurrentPageContext(pageContext: PageContextClient): void {
   current = pageContext;
@@ -22,7 +22,7 @@ export function getCurrentPageContext(): PageContextClient {
   return current;
 }
 
-/** Whether the user pressed a pointer or a key on the current page since Vike rendered it */
+/** Whether the user pressed a pointer or a key on the current page, or clicked it, since Vike rendered it */
 export function hasUserActed(): boolean {
   return actedOn === current;
 }
