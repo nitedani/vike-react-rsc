@@ -54,13 +54,13 @@ function Redirect({ url }: { url: string }) {
       if (!target) throw new Error(`[vike-react-rsc] A server component redirected to ${url}, which isn't an http(s) URL`);
       // The HTML's redirect meta makes the browser load the target: only once
       if (document.querySelector("meta[data-vike-react-rsc-redirect]")) return;
-      if (target.origin !== location.origin) return location.replace(target.href);
-      // An rsc() output that threw it would throw it again, shown from the cache
-      dropRscOutputs();
       // Thrown in what Vike navigated to, or what the page loaded on its own: as with an HTTP redirect, the page's URL
       // doesn't stay in history
-      const overwriteLastHistoryEntry = !answeredPages.has(pageContext);
-      void navigate(target.pathname + target.search + target.hash, { overwriteLastHistoryEntry });
+      const keepsPage = answeredPages.has(pageContext);
+      if (target.origin !== location.origin) return location[keepsPage ? "assign" : "replace"](target.href);
+      // An rsc() output that threw it would throw it again, shown from the cache
+      dropRscOutputs();
+      void navigate(target.pathname + target.search + target.hash, { overwriteLastHistoryEntry: !keepsPage });
     };
     // The meta comes after the error in the HTML
     if (document.readyState !== "loading") return leave();

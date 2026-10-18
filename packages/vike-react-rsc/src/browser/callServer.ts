@@ -38,7 +38,7 @@ async function postAction(url: string, id: string, args: unknown[]): Promise<Res
 async function followRedirect(redirectTo: string, keepsPage: boolean): Promise<undefined> {
   const url = getRedirectUrl(redirectTo, location.href);
   if (!url) throw new Error(`[vike-react-rsc] The server action redirected to ${redirectTo}, which isn't an http(s) URL`);
-  if (url.origin !== location.origin) return leavePage(() => (window.location.href = url.href));
+  if (url.origin !== location.origin) return leavePage(() => location[keepsPage ? "assign" : "replace"](url.href));
   // Settles after the navigation, so a form action's pending transition doesn't hold the new page back
   await navigate(url.pathname + url.search + url.hash, { overwriteLastHistoryEntry: !keepsPage });
   return undefined;
