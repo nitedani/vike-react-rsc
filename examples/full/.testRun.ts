@@ -482,7 +482,7 @@ function testRscLoadError() {
 }
 
 function testRscLoadRedirect() {
-  test("rsc(): a load that redirected isn't cached, so coming back loads the server component", async () => {
+  test("rsc(): a load that redirected after a click keeps the page in history and isn't cached, so coming back loads the server component", async () => {
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
     await navigateToActions();

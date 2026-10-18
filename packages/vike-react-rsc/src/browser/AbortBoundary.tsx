@@ -37,8 +37,7 @@ export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInf
   if (!(errorInfo.errorBoundary instanceof AbortBoundary)) console.error(error, errorInfo.componentStack);
 };
 
-// The pages showing what a server function answered, called after the user acted on the page: an rsc() load's
-// output, or an action's rerender()
+// The pages on which a server function answered a call the user started
 const answeredPages = new WeakSet<PageContext>();
 
 /** A redirect thrown in what a server function answered keeps the page in history, as callServer()'s redirects do,
