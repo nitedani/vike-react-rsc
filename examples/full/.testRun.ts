@@ -85,7 +85,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testUnknownAction()
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
       // testServerComponentAbort(): the redirect an app's error boundary caught, as React logs it in dev and in production
-      logText.includes("Error: AbortRender") ||
+      ((logSource === "Browser Error" || (isDev && logSource === "stderr" && logText.includes("[vite][console.error]"))) &&
+        logText.includes("Error: AbortRender")) ||
       (logSource === "Browser Error" && logText.includes("Minified React error #441")) ||
       // testServerComponentAbort(), with React's warning for it. In dev, Vite also forwards both to the server's stderr.
       logText.includes("[vike-react-rsc] A server component redirected to") ||
@@ -524,6 +525,7 @@ function testServerComponentAbort() {
       if (["document", "fetch", "xhr"].includes(request.resourceType())) requests.push(new URL(request.url()).pathname);
     };
     page.on("request", onRequest);
+    const consoleErrors = trackConsoleErrors();
     // The target answers late, so the page hydrates while the meta's navigation waits for it
     const target = getServerUrl() + "/";
     await page.route(target, async (route) => {
@@ -536,6 +538,7 @@ function testServerComponentAbort() {
     await page.unroute(target);
     page.off("request", onRequest);
     expect(requests).to.deep.equal(["/abort/redirect-streamed", "/"]);
+    expect(consoleErrors.stop()).to.deep.equal([]);
 
     await withoutScripts(async (noJs) => {
       await noJs.goto(getServerUrl() + "/abort/redirect-streamed");
@@ -577,37 +580,35 @@ function testServerComponentAbort() {
     expect(new URL(page.url()).pathname).to.equal("/abort/redirect-caught");
   });
 
-  // Each one leaves for the target with a client navigation, not a document load
-  const expectRedirectedHome = async (timeOrigin: number) => {
+  // Each one leaves for the target with a client navigation, not a document load, and logs no error
+  const expectRedirectedHome = async (leave: () => Promise<void>) => {
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    const consoleErrors = trackConsoleErrors();
+    await leave();
     await autoRetry(async () => {
       expect(new URL(page.url()).pathname).to.equal("/");
       expect(await page.textContent("h1")).to.include("Vike React Server Components");
     });
     expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
+    expect(consoleErrors.stop()).to.deep.equal([]);
   };
 
   test("Server component: throw redirect() on a client navigation", async () => {
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
-    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
-    await clickNewLink("/abort/redirect");
-    await expectRedirectedHome(timeOrigin);
+    await expectRedirectedHome(() => clickNewLink("/abort/redirect"));
   });
 
   test("Server component: throw redirect() in what an rsc() load renders", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
-    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
-    await page.click('button:has-text("Load a server component whose child redirects")');
-    await expectRedirectedHome(timeOrigin);
+    await expectRedirectedHome(() => page.click('button:has-text("Load a server component whose child redirects")'));
   });
 
   test("Server component: throw redirect() in the page a server action's rerender() renders", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
-    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
-    await page.click('button:has-text("Save, then the page throws redirect()")');
-    await expectRedirectedHome(timeOrigin);
+    await expectRedirectedHome(() => page.click('button:has-text("Save, then the page throws redirect()")'));
   });
 }
 
@@ -1086,6 +1087,21 @@ async function showLoadCounts() {
 async function navigateToActions() {
   await clickNewLink("/actions");
   await waitForHydration("Slow save");
+}
+
+// The console errors the page logs until stop() is called
+function trackConsoleErrors() {
+  const errors: string[] = [];
+  const onConsole = (message: { type(): string; text(): string }) => {
+    if (message.type() === "error") errors.push(message.text());
+  };
+  page.on("console", onConsole);
+  return {
+    stop: () => {
+      page.off("console", onConsole);
+      return errors;
+    },
+  };
 }
 
 // No page links there. Vike's client router handles any link, so this is a client navigation.
