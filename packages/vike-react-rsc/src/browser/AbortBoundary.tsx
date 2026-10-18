@@ -1,4 +1,5 @@
 import { Component, useEffect, type ReactNode } from "react";
+import type { HydrationOptions } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import { getAbort } from "../abort";
 import { getRedirectUrl } from "../redirect";
@@ -27,6 +28,11 @@ export class AbortBoundary extends Component<Props, State> {
     return this.state.redirectTo ? <Redirect url={this.state.redirectTo} /> : this.props.children;
   }
 }
+
+// AbortBoundary catches only the redirects it follows; a boundary of the app's may swallow one, so it's reported
+export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInfo) => {
+  if (!(errorInfo.errorBoundary instanceof AbortBoundary)) console.error(error, errorInfo.componentStack);
+};
 
 function Redirect({ url }: { url: string }) {
   useEffect(() => {
