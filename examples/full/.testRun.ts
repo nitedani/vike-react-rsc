@@ -599,10 +599,18 @@ function testServerComponentAbort() {
     await expectRedirectedHome(() => clickNewLink("/abort/redirect"));
   });
 
-  test("Server component: throw redirect() in what an rsc() load renders", async () => {
+  test("Server component: throw redirect() in what an rsc() load renders, and coming back loads it again", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
-    await expectRedirectedHome(() => page.click('button:has-text("Load a server component whose child redirects")'));
+    const loadChild = () => page.click('button:has-text("Load a server component whose child redirects")');
+    await expectRedirectedHome(loadChild);
+    // The child doesn't redirect anymore, but the output that redirected is still fresh
+    await navigateToActions();
+    await loadChild();
+    await autoRetry(async () => {
+      expect(await page.locator("[data-rsc-redirecting-child]").allTextContents()).to.deep.equal(["Loaded"]);
+    });
+    expect(new URL(page.url()).pathname).to.equal("/actions");
   });
 
   test("Server component: throw redirect() in the page a server action's rerender() renders", async () => {

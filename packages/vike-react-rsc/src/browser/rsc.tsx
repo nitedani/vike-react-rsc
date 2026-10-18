@@ -60,6 +60,10 @@ export function markRscOutputsStale(): void {
   state.generation++;
 }
 
+export function dropRscOutputs(): void {
+  outputs.clear();
+}
+
 // Resolves to undefined when the load fails: the fallback, or the last output, stays
 function load(key: string, call: () => Promise<ReactNode>, staleTime: number): Promise<ReactNode | undefined> {
   const pending = loads.get(key);

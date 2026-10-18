@@ -3,6 +3,7 @@ import type { HydrationOptions } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import { getAbort } from "../abort";
 import { getRedirectUrl } from "../redirect";
+import { dropRscOutputs } from "./rsc";
 
 type Props = { children: ReactNode };
 type State = { children?: ReactNode; redirectTo?: string };
@@ -41,8 +42,10 @@ function Redirect({ url }: { url: string }) {
       if (!target) throw new Error(`[vike-react-rsc] A server component redirected to ${url}, which isn't an http(s) URL`);
       // The HTML's redirect meta makes the browser load the target: only once
       if (document.querySelector("meta[data-vike-react-rsc-redirect]")) return;
-      if (target.origin !== location.origin) location.replace(target.href);
-      else void navigate(target.pathname + target.search + target.hash, { overwriteLastHistoryEntry: true });
+      if (target.origin !== location.origin) return location.replace(target.href);
+      // An rsc() output that threw it would throw it again, shown from the cache
+      dropRscOutputs();
+      void navigate(target.pathname + target.search + target.hash, { overwriteLastHistoryEntry: true });
     };
     // The meta comes after the error in the HTML
     if (document.readyState !== "loading") return leave();
