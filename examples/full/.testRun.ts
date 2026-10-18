@@ -778,7 +778,7 @@ function testHeadSettings() {
       '<meta name="theme-color"',
       "<!-- headHtmlEnd -->",
       "</head>",
-      '<body data-body="">',
+      '<body data-body=""',
       "<!-- bodyHtmlBegin -->",
       '<div id="root" data-root="">',
       "<!-- bodyHtmlEnd -->",
@@ -786,6 +786,9 @@ function testHeadSettings() {
     ].map((tag) => html.indexOf(tag));
     expect(positions).to.not.include(-1);
     expect(positions).to.deep.equal([...positions].sort((a, b) => a - b));
+    await page.goto(getServerUrl() + "/");
+    expect(await page.getAttribute("body", "data-quoted")).to.equal('"><b>&amp;');
+    expect(await page.locator("body > b").count()).to.equal(0);
 
     const set = await fetchHtml("/head-settings");
     expect(set).to.include('<html data-html="" lang="fr">');

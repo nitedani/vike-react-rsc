@@ -71,7 +71,8 @@ function renderAttributes(attributes: TagAttributes) {
       if (!/^[a-z][a-z0-9-]*$/i.test(name) || name.endsWith("-")) {
         throw new Error(`[vike-react-rsc] Invalid HTML attribute name ${JSON.stringify(name)}`);
       }
-      return ` ${name}=${JSON.stringify(String(value))}`;
+      // In a quoted attribute value, only `&` and `"` are markup
+      return ` ${name}="${String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;")}"`;
     });
   return dangerouslySkipEscape(rendered.join(""));
 }

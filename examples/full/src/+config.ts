@@ -10,7 +10,7 @@ export default {
   favicon: "/vike.svg",
   // Every page's HTML has them, see testHeadSettings()
   htmlAttributes: { "data-html": "" },
-  bodyAttributes: { "data-body": "" },
+  bodyAttributes: { "data-body": "", "data-quoted": '"><b>&amp;' },
   rootAttributes: { "data-root": "" },
   headHtmlBegin: "<!-- headHtmlBegin -->",
   headHtmlEnd: "<!-- headHtmlEnd -->",
