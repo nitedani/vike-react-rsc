@@ -41,7 +41,13 @@ export default function ActionsClient() {
       <button onClick={() => setShowRedirecting(true)}>Load a redirecting server component</button>
       <p data-rsc-redirecting="">{showRedirecting && <RedirectOnceComponentRsc fallback="Not loaded" />}</p>
       <button onClick={() => setShowRedirectingChild(true)}>Load a server component whose child redirects</button>
-      {showRedirectingChild && <RedirectingChildComponentRsc />}
+      {showRedirectingChild && (
+        <>
+          <RedirectingChildComponentRsc />
+          {/* Answers after the other one's redirect */}
+          <RedirectingChildComponentRsc delay={1000} />
+        </>
+      )}
       <form action={countSubmitAction}>
         <input type="file" name="attachment" />
         <button type="submit">Count a submit</button>

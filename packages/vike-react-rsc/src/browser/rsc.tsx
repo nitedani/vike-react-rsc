@@ -15,6 +15,8 @@ const serverComponentIds = new Map<Function, number>();
 const state = getShared("rsc", () => ({
   // Raised by every server action except rsc()'s loads: an output loaded before may show data the action changed
   generation: 0,
+  // Raised by every redirect that drops the outputs: a load that started before is neither shared nor cached
+  drops: 0,
   isLoading: false,
 }));
 
@@ -63,12 +65,15 @@ export function markRscOutputsStale(): void {
 }
 
 export function dropRscOutputs(): void {
+  state.drops++;
   for (const copyOutputs of outputsOfEveryCopy) copyOutputs.clear();
 }
 
 // Resolves to undefined when the load fails: the fallback, or the last output, stays
 function load(key: string, call: () => Promise<ReactNode>, staleTime: number): Promise<ReactNode | undefined> {
-  const pending = loads.get(key);
+  const startedAfter = state.drops;
+  const loadKey = `${startedAfter}:${key}`;
+  const pending = loads.get(loadKey);
   if (pending) return pending;
   // An action that runs while this loads may change what it shows
   const startedIn = state.generation;
@@ -78,7 +83,7 @@ function load(key: string, call: () => Promise<ReactNode>, staleTime: number): P
   const loading = request
     .then(
       (node) => {
-        if (staleTime > 0 && node !== undefined) outputs.set(key, { node, generation: startedIn, loadedAt: Date.now() });
+        if (staleTime > 0 && node !== undefined && startedAfter === state.drops) outputs.set(key, { node, generation: startedIn, loadedAt: Date.now() });
         return node;
       },
       (error: unknown) => {
@@ -86,7 +91,7 @@ function load(key: string, call: () => Promise<ReactNode>, staleTime: number): P
         return undefined;
       }
     )
-    .finally(() => loads.delete(key));
-  loads.set(key, loading);
+    .finally(() => loads.delete(loadKey));
+  loads.set(loadKey, loading);
   return loading;
 }

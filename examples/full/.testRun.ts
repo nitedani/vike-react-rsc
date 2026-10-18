@@ -630,12 +630,14 @@ function testServerComponentAbort() {
     await waitForHydration("Slow save");
     const loadChild = () => page.click('button:has-text("Load a server component whose child redirects")');
     await expectRedirectedHome(loadChild);
-    // The child doesn't redirect anymore, but the output that redirected is still fresh
+    // The slower child answers after the redirect
+    await sleep(1000);
+    // The children don't redirect anymore, but the outputs that redirected are still fresh
     await page.goBack();
     await waitForHydration("Slow save");
     await loadChild();
     await autoRetry(async () => {
-      expect(await page.locator("[data-rsc-redirecting-child]").allTextContents()).to.deep.equal(["Loaded"]);
+      expect(await page.locator("[data-rsc-redirecting-child]").allTextContents()).to.deep.equal(["Loaded", "Loaded"]);
     });
     expect(new URL(page.url()).pathname).to.equal("/actions");
   });
