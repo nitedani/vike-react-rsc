@@ -5,6 +5,8 @@ import { getShared } from "../shared";
 type Output = { node: ReactNode; generation: number; loadedAt: number };
 
 const outputs = new Map<string, Output>();
+// Every copy's outputs: a redirect thrown in what a library's own rsc() loaded drops those too
+const outputsOfEveryCopy = getShared("rscOutputs", () => new Set<Map<string, Output>>()).add(outputs);
 // One load per key at a time, shared by every component that renders it
 const loads = new Map<string, Promise<ReactNode | undefined>>();
 // Production builds name every server function "action", so the key tells them apart by identity
@@ -61,7 +63,7 @@ export function markRscOutputsStale(): void {
 }
 
 export function dropRscOutputs(): void {
-  outputs.clear();
+  for (const copyOutputs of outputsOfEveryCopy) copyOutputs.clear();
 }
 
 // Resolves to undefined when the load fails: the fallback, or the last output, stays
