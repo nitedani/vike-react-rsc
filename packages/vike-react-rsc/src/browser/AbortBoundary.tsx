@@ -1,7 +1,9 @@
 import { Component, useEffect, type ReactNode } from "react";
 import type { HydrationOptions } from "react-dom/client";
 import { navigate } from "vike/client/router";
+import type { PageContext } from "vike/types";
 import { getAbort } from "../abort";
+import { usePageContext } from "../pageContext";
 import { getRedirectUrl } from "../redirect";
 import { dropRscOutputs } from "./rsc";
 
@@ -35,7 +37,16 @@ export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInf
   if (!(errorInfo.errorBoundary instanceof AbortBoundary)) console.error(error, errorInfo.componentStack);
 };
 
+// The pages showing what a server function answered: an rsc() load's output, or an action's rerender()
+const answeredPages = new WeakSet<PageContext>();
+
+/** A redirect thrown in what a server function answered keeps the page in history, as callServer()'s redirects do */
+export function markAnswered(pageContext: PageContext): void {
+  answeredPages.add(pageContext);
+}
+
 function Redirect({ url }: { url: string }) {
+  const pageContext = usePageContext();
   useEffect(() => {
     const leave = () => {
       const target = getRedirectUrl(url, location.href);
@@ -45,7 +56,9 @@ function Redirect({ url }: { url: string }) {
       if (target.origin !== location.origin) return location.replace(target.href);
       // An rsc() output that threw it would throw it again, shown from the cache
       dropRscOutputs();
-      void navigate(target.pathname + target.search + target.hash, { overwriteLastHistoryEntry: true });
+      // Thrown in what Vike navigated to: as with an HTTP redirect, the page's URL doesn't stay in history
+      const overwriteLastHistoryEntry = !answeredPages.has(pageContext);
+      void navigate(target.pathname + target.search + target.hash, { overwriteLastHistoryEntry });
     };
     // The meta comes after the error in the HTML
     if (document.readyState !== "loading") return leave();

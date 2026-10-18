@@ -5,6 +5,7 @@ import type { PageContextClient } from "vike/types";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import { getRedirectUrl } from "../redirect";
 import type { ActionPayload } from "../types";
+import { markAnswered } from "./AbortBoundary";
 import { getCurrentPageContext, showRoot } from "./page";
 import { isRscLoad, markRscOutputsStale } from "./rsc";
 
@@ -46,6 +47,7 @@ async function readAnswer(response: Response, pageContext: PageContextClient): P
   const isFlight = response.headers.get("content-type")?.split(";")[0] === FLIGHT_CONTENT_TYPE.split(";")[0];
   if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
   const { returnValue, root } = await createFromFetch<ActionPayload>(Promise.resolve(response));
+  markAnswered(pageContext);
   // The page changed since the call: this answer's page is out of date
   if (root && getCurrentPageContext() === pageContext) startTransition(() => showRoot(root));
   return returnValue;

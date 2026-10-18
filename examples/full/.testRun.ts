@@ -593,10 +593,14 @@ function testServerComponentAbort() {
     expect(consoleErrors.stop()).to.deep.equal([]);
   };
 
-  test("Server component: throw redirect() on a client navigation", async () => {
+  test("Server component: throw redirect() on a client navigation, which doesn't stay in history", async () => {
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
     await expectRedirectedHome(() => clickNewLink("/abort/redirect"));
+    await page.goBack();
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/todos");
+    });
   });
 
   test("Server component: throw redirect() in what an rsc() load renders, and coming back loads it again", async () => {
@@ -613,10 +617,15 @@ function testServerComponentAbort() {
     expect(new URL(page.url()).pathname).to.equal("/actions");
   });
 
-  test("Server component: throw redirect() in the page a server action's rerender() renders", async () => {
-    await page.goto(getServerUrl() + "/actions");
-    await waitForHydration("Slow save");
+  test("Server component: throw redirect() in the page a server action's rerender() renders, and Back returns to it", async () => {
+    await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
+    await navigateToActions();
     await expectRedirectedHome(() => page.click('button:has-text("Save, then the page throws redirect()")'));
+    await page.goBack();
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/actions");
+    });
   });
 }
 
