@@ -51,7 +51,7 @@ declare global {
       title?: Setting<HeadString>;
       /** `<meta name="description">` and `og:description`, also updated on client navigation. @see https://vike.dev/description */
       description?: Setting<HeadString>;
-      /** `<html lang>`, also updated on client navigation. Default: `"en"`; `null` removes it. @see https://vike.dev/lang */
+      /** `<html lang>`, also updated on client navigation. Default: `"en"`; `null` removes it from the HTML, but a client navigation sets `"en"`. @see https://vike.dev/lang */
       lang?: Setting<HeadString>;
       /** `og:image` and `twitter:card`. @see https://vike.dev/image */
       image?: Setting<HeadString, PageContextServer>;
