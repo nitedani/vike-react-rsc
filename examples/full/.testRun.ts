@@ -552,12 +552,8 @@ function testServerComponentAbort() {
 
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
-    await page.evaluate(
-      (href) => document.body.append(Object.assign(document.createElement("a"), { href, textContent: "Next" })),
-      href
-    );
     const thrown = page.waitForEvent("pageerror", (error) => error.message === getRefusedRedirectError(next));
-    await page.click(`a[href="${href}"]`);
+    await clickNewLink(href);
     await thrown;
     expect(new URL(page.url()).pathname).to.equal("/abort/redirect-to-next");
   };
@@ -574,11 +570,8 @@ function testServerComponentAbort() {
   test("Server component: an error boundary of the app's that catches a throw redirect() logs it", async () => {
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
-    await page.evaluate(() =>
-      document.body.append(Object.assign(document.createElement("a"), { href: "/abort/redirect-caught", textContent: "Caught" }))
-    );
     const logged = page.waitForEvent("console", (message) => message.type() === "error");
-    await page.click('a[href="/abort/redirect-caught"]');
+    await clickNewLink("/abort/redirect-caught");
     await logged;
     expect(await page.textContent("[data-boundary-fallback]")).to.equal("Caught");
     expect(new URL(page.url()).pathname).to.equal("/abort/redirect-caught");
@@ -597,10 +590,7 @@ function testServerComponentAbort() {
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
-    await page.evaluate(() =>
-      document.body.append(Object.assign(document.createElement("a"), { href: "/abort/redirect", textContent: "Redirect" }))
-    );
-    await page.click('a[href="/abort/redirect"]');
+    await clickNewLink("/abort/redirect");
     await expectRedirectedHome(timeOrigin);
   });
 
@@ -1094,11 +1084,17 @@ async function showLoadCounts() {
 
 // No page links to /actions. Vike's client router handles any link, so the rsc() cache survives the navigation.
 async function navigateToActions() {
-  await page.evaluate(() =>
-    document.body.append(Object.assign(document.createElement("a"), { href: "/actions", textContent: "Actions" }))
-  );
-  await page.click('a[href="/actions"]');
+  await clickNewLink("/actions");
   await waitForHydration("Slow save");
+}
+
+// No page links there. Vike's client router handles any link, so this is a client navigation.
+async function clickNewLink(href: string) {
+  await page.evaluate(
+    (href) => document.body.append(Object.assign(document.createElement("a"), { href, textContent: href })),
+    href
+  );
+  await page.click(`a[href="${href}"]`);
 }
 
 function testRscCache() {
@@ -1234,10 +1230,7 @@ function testNavigationKeepsPage() {
       }
       await route.fulfill({ response });
     });
-    await page.evaluate(() =>
-      document.body.append(Object.assign(document.createElement("a"), { href: "/client", textContent: "Client" }))
-    );
-    await page.click('a[href="/client"]');
+    await clickNewLink("/client");
     // /client's Page is a client component: its module is held
     await autoRetry(() => expect(isHeld).to.equal(true));
     await sleep(500);
