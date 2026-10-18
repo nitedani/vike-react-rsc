@@ -820,8 +820,7 @@ function testHeadSettings() {
       );
     });
     const navigate = async (href: string, heading: string) => {
-      await page.evaluate((href) => document.body.append(Object.assign(document.createElement("a"), { href, textContent: href })), href);
-      await page.click(`a[href="${href}"]`);
+      await clickNewLink(href);
       await autoRetry(async () => expect(await page.textContent("h1")).to.equal(heading));
     };
     const description = () => page.getAttribute('meta[name="description"]', "content");
@@ -856,9 +855,8 @@ function testHeadSettings() {
       const errors: string[] = [];
       Object.assign(window, { uncaughtErrors: errors });
       addEventListener("error", (event) => errors.push(event.message));
-      document.body.append(Object.assign(document.createElement("a"), { href: "/head-settings-throw", textContent: "/head-settings-throw" }));
     });
-    await page.click('a[href="/head-settings-throw"]');
+    await clickNewLink("/head-settings-throw");
     await autoRetry(async () => {
       const errors = await page.evaluate(() => (window as { uncaughtErrors?: string[] }).uncaughtErrors);
       expect(errors!.some((message) => message.includes(HEAD_SETTING_ERROR))).to.equal(true);
@@ -1083,11 +1081,17 @@ async function showLoadCounts() {
 
 // No page links to /actions. Vike's client router handles any link, so the rsc() cache survives the navigation.
 async function navigateToActions() {
-  await page.evaluate(() =>
-    document.body.append(Object.assign(document.createElement("a"), { href: "/actions", textContent: "Actions" }))
-  );
-  await page.click('a[href="/actions"]');
+  await clickNewLink("/actions");
   await waitForHydration("Slow save");
+}
+
+// No page links there. Vike's client router handles any link, so this is a client navigation.
+async function clickNewLink(href: string) {
+  await page.evaluate(
+    (href) => document.body.append(Object.assign(document.createElement("a"), { href, textContent: href })),
+    href
+  );
+  await page.click(`a[href="${href}"]`);
 }
 
 function testRscCache() {
@@ -1223,10 +1227,7 @@ function testNavigationKeepsPage() {
       }
       await route.fulfill({ response });
     });
-    await page.evaluate(() =>
-      document.body.append(Object.assign(document.createElement("a"), { href: "/client", textContent: "Client" }))
-    );
-    await page.click('a[href="/client"]');
+    await clickNewLink("/client");
     // /client's Page is a client component: its module is held
     await autoRetry(() => expect(isHeld).to.equal(true));
     await sleep(500);
