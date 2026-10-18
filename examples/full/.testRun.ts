@@ -1085,13 +1085,13 @@ async function navigateToActions() {
   await waitForHydration("Slow save");
 }
 
-// No page links there. Vike's client router handles any link, so this is a client navigation.
+// Clicks a link appended to the page, so it works where no page links to href. Vike's client router handles any link, so this is a client navigation.
 async function clickNewLink(href: string) {
   await page.evaluate(
     (href) => document.body.append(Object.assign(document.createElement("a"), { href, textContent: href })),
     href
   );
-  await page.click(`a[href="${href}"]`);
+  await page.locator(`a[href="${href}"]`).last().click();
 }
 
 function testRscCache() {
