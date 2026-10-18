@@ -9,6 +9,7 @@ import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import type { PagePayload } from "../types";
+import { renderHeadSettings, renderHtmlInjections, renderTagAttributes } from "./headSettings";
 
 // The CSS and JS of the client components a page's HTML renders, for their links
 const clientDeps = new AsyncLocalStorage<ClientDeps>();
@@ -58,17 +59,24 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
   }
   // Once the shell has rendered, React has loaded every client component in it
   const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
+  const attributes = renderTagAttributes(pageContext);
+  const injections = renderHtmlInjections(pageContext);
 
   return {
     documentHtml: escapeInject`<!DOCTYPE html>
-<html>
+<html${attributes.html}>
   <head>
     <meta charset="UTF-8" />
+    ${injections.headBegin}
+    ${renderHeadSettings(pageContext)}
     ${renderHead(pageContext)}
     ${clientLinks}
+    ${injections.headEnd}
   </head>
-  <body>
-    <div id="root">${html}</div>
+  <body${attributes.body}>
+    ${injections.bodyBegin}
+    <div${attributes.root}>${html}</div>
+    ${injections.bodyEnd}
   </body>
 </html>`,
     pageContext: { enableEagerStreaming: true },

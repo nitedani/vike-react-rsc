@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
+import { applyHeadSettings } from "./headSettings";
 
 type Shown = { pageContext: PageContextClient; root: ReactNode };
 
@@ -37,5 +38,9 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shown);
   }, []);
+  // Once React has committed the next page; rerender() keeps the pageContext, and the HTML has the hydrated page's
+  useEffect(() => {
+    if (!state.pageContext.isHydration) applyHeadSettings(state.pageContext);
+  }, [state.pageContext]);
   return <PageContextProvider pageContext={state.pageContext}>{state.root}</PageContextProvider>;
 }
