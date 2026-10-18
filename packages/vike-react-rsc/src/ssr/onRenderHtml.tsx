@@ -119,7 +119,7 @@ async function renderWhole(page: ReactNode, nonce: string | undefined, onAbort: 
   return dangerouslySkipEscape(await new Response(stream).text());
 }
 
-// Next's tags once the HTML has started: search engines skip the page, and a redirect works without JavaScript
+// Once the HTML has started: search engines skip the page, and a redirect works without JavaScript
 function renderAbortMeta(abort: Abort) {
   return renderToStaticMarkup(
     <>
