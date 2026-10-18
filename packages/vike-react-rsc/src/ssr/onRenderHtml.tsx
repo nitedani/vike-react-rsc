@@ -85,7 +85,7 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
     const thrown = getAbort(error);
     throw thrown ? handOver(thrown) : error;
   }
-  // Inside one, before the shell rendered
+  // Inside one, but reported before this hook returns, e.g. a crawler's
   if (abort) throw handOver(abort);
   // Once the shell has rendered, React has loaded every client component in it
   const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
