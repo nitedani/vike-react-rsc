@@ -1,0 +1,5 @@
+import { render } from "vike/abort";
+
+export default async function Page() {
+  throw render("/abort/reason", "Rewritten by a server component");
+}

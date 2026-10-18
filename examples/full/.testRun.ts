@@ -520,6 +520,11 @@ function testServerComponentAbort() {
     expect(await response.text()).to.include("Page not found");
   });
 
+  test("Server component: throw render(url, reason) before the HTML starts shows that page, with the reason", async () => {
+    const html = await fetchHtml("/abort/rewrite");
+    expect(html).to.include('id="abort-reason">Rewritten by a server component<');
+  });
+
   test("Server component: throw redirect() inside <Suspense> loads the target once, with or without JavaScript", async () => {
     const html = await fetchHtml("/abort/redirect-streamed");
     expect(html).to.match(/<meta http-equiv="refresh" content="0;url=\/"/);

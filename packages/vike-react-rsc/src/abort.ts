@@ -7,7 +7,7 @@ const DIGEST_PREFIX = "vike-react-rsc:abort:";
 type StatusCode = 401 | 403 | 404 | 410 | 429 | 500 | 503;
 export type Abort =
   | { redirect: { url: string; statusCode: 301 | 302 } }
-  | { rewrite: `/${string}` }
+  | { rewrite: `/${string}`; reason?: unknown }
   | { statusCode: StatusCode; reason?: unknown };
 
 /** The rsc env: the digest of a Vike abort, else undefined */
@@ -26,7 +26,7 @@ export function getAbort(error: unknown): Abort | undefined {
 /** The ssr env: the same abort, for a hook to throw so that Vike answers it */
 export function toVikeAbort(abort: Abort): Error {
   if ("redirect" in abort) return redirect(abort.redirect.url, abort.redirect.statusCode);
-  if ("rewrite" in abort) return render(abort.rewrite);
+  if ("rewrite" in abort) return render(abort.rewrite, abort.reason as string);
   return render(abort.statusCode, abort.reason as string);
 }
 
@@ -36,7 +36,7 @@ function readVikeAbort(error: unknown): Abort | undefined {
   if (!("_isAbortError" in error && "_pageContextAbort" in error)) return;
   const { _urlRedirect, _urlRewrite, abortStatusCode, abortReason } = (error as VikeAbortError)._pageContextAbort;
   if (_urlRedirect) return { redirect: { url: _urlRedirect.url, statusCode: _urlRedirect.statusCode } };
-  if (_urlRewrite) return { rewrite: _urlRewrite };
+  if (_urlRewrite) return { rewrite: _urlRewrite, reason: abortReason };
   return { statusCode: abortStatusCode!, reason: abortReason };
 }
 type VikeAbortError = {
