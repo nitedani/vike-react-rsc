@@ -37,10 +37,12 @@ export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInf
   if (!(errorInfo.errorBoundary instanceof AbortBoundary)) console.error(error, errorInfo.componentStack);
 };
 
-// The pages showing what a server function answered: an rsc() load's output, or an action's rerender()
+// The pages showing what a server function answered, called after the user acted on the page: an rsc() load's
+// output, or an action's rerender()
 const answeredPages = new WeakSet<PageContext>();
 
-/** A redirect thrown in what a server function answered keeps the page in history, as callServer()'s redirects do */
+/** A redirect thrown in what a server function answered keeps the page in history, as callServer()'s redirects do,
+ * when the user acted on the page before calling it */
 export function markAnswered(pageContext: PageContext): void {
   answeredPages.add(pageContext);
 }
@@ -56,7 +58,8 @@ function Redirect({ url }: { url: string }) {
       if (target.origin !== location.origin) return location.replace(target.href);
       // An rsc() output that threw it would throw it again, shown from the cache
       dropRscOutputs();
-      // Thrown in what Vike navigated to: as with an HTTP redirect, the page's URL doesn't stay in history
+      // Thrown in what Vike navigated to, or what the page loaded on its own: as with an HTTP redirect, the page's URL
+      // doesn't stay in history
       const overwriteLastHistoryEntry = !answeredPages.has(pageContext);
       void navigate(target.pathname + target.search + target.hash, { overwriteLastHistoryEntry });
     };

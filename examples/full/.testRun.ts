@@ -603,13 +603,26 @@ function testServerComponentAbort() {
     });
   });
 
-  test("Server component: throw redirect() in what an rsc() load renders, and coming back loads it again", async () => {
+  test("Server component: throw redirect() on an rsc() load the page starts on mount, which doesn't stay in history", async () => {
+    for (const href of ["/abort/redirect-on-load", "/abort/redirect-on-load?in=server-function"]) {
+      await page.goto(getServerUrl() + "/todos");
+      await waitForHydration("Add Task");
+      await expectRedirectedHome(() => clickNewLink(href));
+      await page.goBack();
+      await autoRetry(async () => {
+        expect(new URL(page.url()).pathname).to.equal("/todos");
+      });
+    }
+  });
+
+  test("Server component: throw redirect() in what an rsc() load renders, and Back loads it again", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
     const loadChild = () => page.click('button:has-text("Load a server component whose child redirects")');
     await expectRedirectedHome(loadChild);
     // The child doesn't redirect anymore, but the output that redirected is still fresh
-    await navigateToActions();
+    await page.goBack();
+    await waitForHydration("Slow save");
     await loadChild();
     await autoRetry(async () => {
       expect(await page.locator("[data-rsc-redirecting-child]").allTextContents()).to.deep.equal(["Loaded"]);
