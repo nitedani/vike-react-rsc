@@ -15,7 +15,7 @@ const shared = getShared(
     // What Root shows, and how to change it once Root has mounted
     shown?: Shown;
     setRootState?: (shown: Shown) => void;
-    // The React root Root renders in, to mount Root again after an error unmounted it
+    // The React root Root renders in, to mount Root again after an error unmounted it or kept it from mounting
     reactRoot?: ReactRoot;
     // The navigation waiting until React shows its page, or throws on it
     rendering?: { resolve: () => void; reject: (error: unknown) => void };
@@ -61,6 +61,8 @@ export function onUncaughtError(error: unknown, errorInfo: { componentStack?: st
   console.error(error, errorInfo.componentStack);
   // Vike renders the error page, and doesn't log the error again
   if (error instanceof Error) Object.assign(error, { isAlreadyLogged: true });
+  // React unmounted Root, or never mounted it when hydrating threw: the next page, e.g. the error page, mounts it again
+  shared.setRootState = (shown) => shared.reactRoot!.render(<Root page={shown} />);
   settle(error);
 }
 
@@ -75,10 +77,6 @@ export function Root({ page }: { page: Shown }): ReactElement {
     shared.setRootState = setState;
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
-    // An uncaught error unmounts Root: the next page, e.g. the error page, mounts it again
-    return () => {
-      shared.setRootState = (shown) => shared.reactRoot!.render(<Root page={shown} />);
-    };
   }, []);
   useEffect(() => {
     if (state === shared.shown) settle();
