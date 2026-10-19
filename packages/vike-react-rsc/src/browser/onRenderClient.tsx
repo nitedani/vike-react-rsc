@@ -3,6 +3,7 @@ import { createRoot, hydrateRoot } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import { getPageElement } from "../integration/getPageElement";
+import { findServerComponent } from "../rendersFlight";
 import type { PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { callServer } from "./callServer";
@@ -15,6 +16,7 @@ declare const __VIKE_REACT_RSC_CLIENT_DEFAULT__: boolean;
 setServerCallback(callServer);
 
 export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
+  if (__VIKE_REACT_RSC_CLIENT_DEFAULT__) assertRendersInBrowser(pageContext);
   setCurrentPageContext(pageContext);
   // Use case:
   // - Store hydration https://github.com/vikejs/vike-react/issues/110
@@ -34,6 +36,15 @@ async function getPagePayload(pageContext: PageContextClient): Promise<PagePaylo
   // A page that renders as in vike-react has no Flight, or only what a form submitted before hydration returned
   if (!__VIKE_REACT_RSC_CLIENT_DEFAULT__ || flight?.root) return flight!;
   return { root: getPageElement(pageContext), formState: flight?.formState };
+}
+
+// A page with ssr: false renders only in the browser, where a server component can't render
+function assertRendersInBrowser(pageContext: PageContextClient) {
+  const serverComponent = pageContext.config.ssr === false && findServerComponent(pageContext);
+  if (!serverComponent) return;
+  throw new Error(
+    `[vike-react-rsc] ${serverComponent.file} starts with "use server component", so it renders on the server, but the page ${pageContext.pageId} sets ssr to false, so it renders only in the browser: remove "use server component" or ssr: false`
+  );
 }
 
 if (import.meta.hot) {

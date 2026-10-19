@@ -8,6 +8,7 @@ import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRev
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_FUNCTION_CALL_ERROR = "which is a client component file, so it can't run on the server";
 const CLIENT_HOOK_ERROR = "is for client components";
+const SSR_FALSE_ERROR = 'starts with "use server component", so it renders on the server';
 
 function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   const isDev = cmd === "pnpm run dev";
@@ -18,11 +19,15 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
     additionalTimeout: isDev ? 0 : 60000,
     tolerateError: ({ logSource, logText }) =>
       // testClientFunctionCalls() and testClientHooks(), and the dev server also sees the edits the builds make
-      logSource === "stderr" &&
-      (logText.includes(CLIENT_FUNCTION_CALL_ERROR) ||
-        logText.includes(CLIENT_HOOK_ERROR) ||
-        logText.includes("HTTP response ← /helper 500") ||
-        logText.includes("No error page found")),
+      (logSource === "stderr" &&
+        (logText.includes(CLIENT_FUNCTION_CALL_ERROR) ||
+          logText.includes(CLIENT_HOOK_ERROR) ||
+          logText.includes("HTTP response ← /helper 500") ||
+          logText.includes("No error page found"))) ||
+      // testComponentsConfig(): a page's error in the browser, then Vike's that the app has no error page to show for it,
+      // which Vite forwards to stderr
+      ((logSource === "Browser Error" || logSource === "stderr") &&
+        (logText.includes(SSR_FALSE_ERROR) || logText.includes("No error page defined"))),
   });
 
   testClientComponents();
@@ -314,11 +319,20 @@ function testComponentsConfig() {
     expect(output).to.include("Set components once, in the root +config.js: pages set it to");
   });
 
-  test("Build: ssr: false on a page with a server component fails the build, naming both", async () => {
-    const output = await getBuildError("./pages/spa/+Page.tsx", (source) => `"use server component";\n${source}`);
-    expect(output).to.include(
-      'pages/spa/+Page.tsx starts with "use server component", so it renders on the server, but the page /pages/spa sets ssr to false, so it renders only in the browser: remove "use server component" or ssr: false'
-    );
+  test("Dev: ssr: false on a page with a server component throws in the browser, naming both", async () => {
+    editFile("./pages/spa/+Page.tsx", (source) => `"use server component";\n${source}`);
+    try {
+      await page.goto(getServerUrl() + "/spa");
+      await autoRetry(async () => {
+        expectLog(
+          `pages/spa/+Page.tsx ${SSR_FALSE_ERROR}, but the page /pages/spa sets ssr to false, so it renders only in the browser: remove "use server component" or ssr: false`,
+          { filter: ({ logSource }) => logSource === "Browser Error" }
+        );
+      });
+    } finally {
+      await page.goto("about:blank");
+      editFileRevert();
+    }
   });
 
   test("Build: ssr: false under components: 'server' builds, with a warning", async () => {
