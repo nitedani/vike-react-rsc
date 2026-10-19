@@ -25,11 +25,10 @@ export function show(next: Shown): void {
 }
 
 /** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent */
-export function showRoot(root: ReactNode, passed?: Record<string, unknown>): void {
+export function showRoot(root: ReactNode, passed: Record<string, unknown>): void {
   // A new object, so usePageContext() renders again. Its prototype is Vike's pageContext, which answers the other keys,
   // e.g. globalContext; copying them would read a key Vike couldn't serialize, which throws.
-  const pageContext = passed ? Object.assign(Object.create(current), passed) : shown.pageContext;
-  show({ pageContext, root });
+  show({ pageContext: Object.assign(Object.create(current), passed), root });
 }
 
 /** Hydrates `page`, then shows what show() shows */
