@@ -18,7 +18,7 @@ export function clientDefault(): Plugin {
   };
 }
 
-function isClientDefault(): boolean {
+export function isClientDefault(): boolean {
   // One module is one component in the rsc env, so all pages have the same default
   const values = new Set(Object.values(getVikeConfig().pages).map((page) => page.config.components));
   if (values.size > 1) {

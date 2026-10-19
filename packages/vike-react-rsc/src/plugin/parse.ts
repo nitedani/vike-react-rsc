@@ -1,4 +1,5 @@
 import { hasDirective } from "@vitejs/plugin-rsc/transforms";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseAstAsync, type ESTree } from "vite";
 
@@ -16,10 +17,31 @@ export function getDirectives(program: ESTree.Program): Directive[] {
   return directives.filter((directive) => hasDirective(program.body, directive));
 }
 
-/** A .jsx or .tsx file of the app, not of a package */
-export function isComponentFile(id: string): boolean {
+/** The directives of a module that isn't being transformed, e.g. one the module being transformed imports */
+export async function readDirectives(id: string): Promise<Directive[]> {
+  const code = await readFile(getFile(id), "utf8");
+  return /["']use /.test(code) ? getDirectives(await parse(code, id)) : [];
+}
+
+/** The source of each name the module imports: a default, named or namespace import */
+export function getImports(program: ESTree.Program): Map<string, string> {
+  const imports = new Map<string, string>();
+  for (const statement of program.body) {
+    if (statement.type !== "ImportDeclaration" || statement.importKind === "type") continue;
+    for (const specifier of statement.specifiers) imports.set(specifier.local.name, String(statement.source.value));
+  }
+  return imports;
+}
+
+/** A JavaScript or TypeScript module of the app, not of a package */
+export function isAppFile(id: string): boolean {
   const file = getFile(id);
-  return /\.[jt]sx$/.test(file) && !file.includes("/node_modules/");
+  return !id.startsWith("\0") && path.extname(file) in langs && !file.includes("/node_modules/");
+}
+
+/** A .jsx or .tsx file of the app */
+export function isComponentFile(id: string): boolean {
+  return isAppFile(id) && /\.[jt]sx$/.test(getFile(id));
 }
 
 export function getFile(id: string): string {
