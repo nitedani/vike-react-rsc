@@ -32,6 +32,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
   if (isDev) testClientFunctionCalls();
+  if (isDev) testMarkerHmr();
 }
 
 function testClientComponents() {
@@ -193,6 +194,19 @@ function testClientFunctionCalls() {
       expect(output).to.include(`pages/helper/+Page.tsx calls ${called} from components/Badge.tsx`);
       expect(output).to.include(fix);
     }
+  });
+}
+
+function testMarkerHmr() {
+  test('Dev: adding or removing "use server component" reloads the page', async () => {
+    await page.goto(getServerUrl() + "/hmr");
+    await waitForHydration("#layout-counter");
+    editFile("./pages/hmr/+Page.tsx", (source) =>
+      `"use server component";\n${source.replace("Rendered by a client component", "Rendered by a server component")}`
+    );
+    await page.waitForSelector("text=Rendered by a server component");
+    editFileRevert();
+    await page.waitForSelector("text=Rendered by a client component");
   });
 }
 

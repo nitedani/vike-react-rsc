@@ -6,6 +6,8 @@ import { getDirectives, getFile, getImports, isAppFile, isComponentFile, isPlusC
 /** Under `components: 'client'`, an unmarked .jsx or .tsx file is a client component, and `"use server component"` marks
  * a server component */
 export function clientDefault(): Plugin {
+  // Whether the file had the marker when the env last transformed it, by env and file
+  const isMarked = new Map<string, boolean>();
   return {
     name: "vike-react-rsc:client-default",
     // The code as the user wrote it, before plugin-rsc reads its directives
@@ -14,6 +16,7 @@ export function clientDefault(): Plugin {
       if (!isAppFile(id) || !isClientDefault()) return;
       const program = await parse(code, id);
       const directives = getDirectives(program);
+      if (isComponentFile(id)) isMarked.set(`${this.environment.name}:${getFile(id)}`, directives.includes("use server component"));
       if (this.environment.name !== "rsc") {
         if (!isPlusComponentFile(id) || !directives.includes("use server component")) return;
         // The page renders from its Flight, which has what this component rendered in the rsc env
@@ -39,6 +42,16 @@ export function clientDefault(): Plugin {
           : `move it to a .js or .ts file, or start ${from} with "use server component"`;
         this.error(`${path.relative(root, getFile(id))} calls ${call}() from ${from}, which is a client component file, so it can't run on the server: ${fix}`);
       }
+    },
+    async hotUpdate({ file, read, server }) {
+      const key = `${this.environment.name}:${file}`;
+      if (!isMarked.has(key) || getDirectives(await parse(await read(), file)).includes("use server component") === isMarked.get(key)) return;
+      // The env loads the file as another kind of module, e.g. a stub instead of a client component: it starts over
+      isMarked.delete(key);
+      if (this.environment.name !== "client") this.environment.hot.send({ type: "full-reload", triggeredBy: file });
+      // The browser reloads once every env did, so that the page it gets is rendered from the new modules
+      if (![...isMarked.keys()].some((other) => other.endsWith(`:${file}`))) server.environments.client!.hot.send({ type: "full-reload" });
+      return [];
     },
   };
 }
