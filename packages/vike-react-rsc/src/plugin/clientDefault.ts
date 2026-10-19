@@ -12,6 +12,8 @@ export function clientDefault(): Plugin {
   const isMarked = new Map<string, boolean>();
   // The server component files the client build loads, other than + files
   const serverComponentsInBrowser = new Set<string>();
+  // Under 'client', as configResolved() found it: in hotUpdate(), getVikeConfig() is still the config before the edit
+  let checksConfigFiles = false;
   return {
     name: "vike-react-rsc:client-default",
     // The code as the user wrote it, before plugin-rsc reads its directives
@@ -20,7 +22,8 @@ export function clientDefault(): Plugin {
       // Under 'server', every page renders from its Flight, which only the server renders
       const ssrFalse = !isClientDefault() && Object.values(getVikeConfig().pages).find((page) => page.config.ssr === false);
       if (ssrFalse) warnOnce(`${ssrFalse._source.ssr!.definedAt} sets ssr to false, which applies only under components: 'client'`);
-      if (isClientDefault()) await assertComponentsInPlusFiles(root);
+      checksConfigFiles = isClientDefault();
+      if (checksConfigFiles) for (const file of getConfigFiles(root)) await assertComponentsInPlusFiles(file, await readFile(file, "utf8"), root);
     },
     async transform(code, id) {
       if (!isPlusComponentFile(id)) {
@@ -59,6 +62,11 @@ export function clientDefault(): Plugin {
       }
     },
     async hotUpdate({ file, read }) {
+      // Vike reloads an edited +config file without restarting Vite, so configResolved() doesn't check it again. Logged: an
+      // error thrown here would skip the hotUpdate() of the plugins after this one, Vike's included
+      if (checksConfigFiles && this.environment.name === "client" && path.basename(file).startsWith("+config.")) {
+        await assertComponentsInPlusFiles(file, await read(), this.environment.config.root).catch((error: Error) => this.environment.logger.error(error.message));
+      }
       const key = `${this.environment.name}:${file}`;
       if (!isMarked.has(key)) return;
       if (getDirectives(await parse(await read(), file)).includes("use server component") !== isMarked.get(key)) {
@@ -82,22 +90,20 @@ function warnOnce(message: string) {
 }
 
 // A component that a +config file imports has no + file of its own to say where it runs
-async function assertComponentsInPlusFiles(root: string) {
-  for (const file of getConfigFiles(root)) {
-    const program = await parse(await readFile(file, "utf8"), file);
-    const imports = getImports(program);
-    new Visitor({
-      Property: ({ key, computed, value }) => {
-        const name = getKeyName({ key, computed });
-        if (!name || !/^(Page|Layout|Wrapper|Loading)$/.test(name)) return;
-        const isImport = value.type === "Identifier" ? imports.has(value.name) : value.type === "Literal" && String(value.value).startsWith("import:");
-        if (!isImport) return;
-        throw new Error(
-          `[vike-react-rsc] ${path.relative(root, file)} sets ${name} by an import, but only a +${name} file runs where components says: export it from a +${name} file`
-        );
-      },
-    }).visit(program);
-  }
+async function assertComponentsInPlusFiles(file: string, code: string, root: string) {
+  const program = await parse(code, file);
+  const imports = getImports(program);
+  new Visitor({
+    Property: ({ key, computed, value }) => {
+      const name = getKeyName({ key, computed });
+      if (!name || !/^(Page|Layout|Wrapper|Loading)$/.test(name)) return;
+      const isImport = value.type === "Identifier" ? imports.has(value.name) : value.type === "Literal" && String(value.value).startsWith("import:");
+      if (!isImport) return;
+      throw new Error(
+        `[vike-react-rsc] ${path.relative(root, file)} sets ${name} by an import, but only a +${name} file runs where components says: export it from a +${name} file`
+      );
+    },
+  }).visit(program);
 }
 
 function getConfigFiles(dir: string): string[] {

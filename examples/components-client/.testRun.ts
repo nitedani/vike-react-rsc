@@ -9,6 +9,7 @@ const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes i
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
 const SSR_FALSE_ERROR = 'starts with "use server component", so it renders on the server';
+const CONFIG_IMPORT_ERROR = "by an import, but only a +Layout file runs where components says: export it from a +Layout file";
 
 function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   const isDev = cmd === "pnpm run dev";
@@ -26,6 +27,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
           logText.includes("createContext is not a function") ||
           logText.includes("Class extends value undefined") ||
           logText.includes("HTTP response ← /helper 500") ||
+          logText.includes(CONFIG_IMPORT_ERROR) ||
           logText.includes("No error page found"))) ||
       // testComponentsConfig(): a page's error in the browser, then Vike's that the app has no error page to show for it,
       // which Vite forwards to stderr
@@ -395,9 +397,20 @@ function testComponentsConfig() {
       const output = await getBuildError("./pages/spa/+config.ts", (source) =>
         `import Layout from "../../components/Badge";\n${source.replace("ssr: false,", `ssr: false,\n  ${property}`)}`
       );
-      expect(output).to.include(
-        "pages/spa/+config.ts sets Layout by an import, but only a +Layout file runs where components says: export it from a +Layout file"
-      );
+      expect(output).to.include(`pages/spa/+config.ts sets Layout ${CONFIG_IMPORT_ERROR}`);
+    }
+  });
+
+  test("Dev: a Layout that a +config file imports, added while the dev server runs, logs the same error", async () => {
+    editFile("./pages/spa/+config.ts", (source) =>
+      `import Layout from "../../components/Badge";\n${source.replace("ssr: false,", "ssr: false,\n  Layout,")}`
+    );
+    try {
+      await autoRetry(async () => {
+        expectLog(`pages/spa/+config.ts sets Layout ${CONFIG_IMPORT_ERROR}`);
+      });
+    } finally {
+      editFileRevert();
     }
   });
 
