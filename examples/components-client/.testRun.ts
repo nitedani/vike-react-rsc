@@ -31,11 +31,11 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testFormBeforeHydration();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
+  if (isDev) testComponentsConfig();
   if (isDev) testClientFunctionCalls();
   if (isDev) testMarkerHmr();
   if (isDev) testServerComponentHmr();
   if (isDev) testServerComponentImports();
-  if (isDev) testSsrFalseServerComponents();
 }
 
 function testClientComponents() {
@@ -275,12 +275,19 @@ function testServerComponentImports() {
   });
 }
 
-function testSsrFalseServerComponents() {
+function testComponentsConfig() {
   test("Build: ssr: false on a page with a server component fails the build, naming both", async () => {
+    // The dev server sees the edits too, and renders nothing with them while no page is open
+    await page.goto("about:blank");
     const output = await getBuildError("./pages/spa/+Page.tsx", (source) => `"use server component";\n${source}`);
     expect(output).to.include(
       'pages/spa/+Page.tsx starts with "use server component", so it renders on the server, but the page /pages/spa sets ssr to false, so it renders only in the browser: remove "use server component" or ssr: false'
     );
+  });
+
+  test("Build: ssr: false under components: 'server' fails the build", async () => {
+    const output = await getBuildError("./pages/+config.ts", (source) => source.replace('components: "client"', 'components: "server"'));
+    expect(output).to.include("/pages/spa/+config.ts > export default { ssr } sets ssr to false, which applies only under components: 'client'");
   });
 }
 

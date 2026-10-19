@@ -58,10 +58,16 @@ export function clientDefault(): Plugin {
 }
 
 export function isClientDefault(): boolean {
+  const pages = Object.values(getVikeConfig().pages);
   // One module is one component in the rsc env, so all pages have the same default
-  const values = new Set(Object.values(getVikeConfig().pages).map((page) => page.config.components));
+  const values = new Set(pages.map((page) => page.config.components));
   if (values.size > 1) {
     throw new Error(`[vike-react-rsc] Set components once, in the root +config.js: pages set it to ${[...values].join(" and ")}`);
+  }
+  // Under 'server', every page renders from its Flight, which only the server renders
+  const ssrFalse = !values.has("client") && pages.find((page) => page.config.ssr === false);
+  if (ssrFalse) {
+    throw new Error(`[vike-react-rsc] ${ssrFalse._source.ssr!.definedAt} sets ssr to false, which applies only under components: 'client'`);
   }
   return values.has("client");
 }
