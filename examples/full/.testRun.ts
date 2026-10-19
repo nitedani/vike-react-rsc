@@ -117,6 +117,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testCounter();
     testTodoForm();
     testSession();
+    testGonePassToClientValue();
     testActionOnce();
     testActionValueSurvivesDataError();
     testActionPageFailure();
@@ -872,6 +873,20 @@ function testClientDisconnect() {
     controller.abort();
     await sleep(2500);
     expect(await getServerCount("slow")).to.equal(before + 1);
+  });
+}
+
+function testGonePassToClientValue() {
+  test("After rerender(), a passToClient value the server no longer sets is gone, as after a navigation", async () => {
+    await page.context().addCookies([{ name: "visitor", value: "alice", url: getServerUrl() }]);
+    await page.goto(getServerUrl() + "/client");
+    await waitForHydration("Render again");
+    expect(await page.textContent("[data-visitor]")).to.equal("alice");
+    await page.context().clearCookies({ name: "visitor" });
+    await page.click('button:has-text("Render again")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-visitor]")).to.equal("none");
+    });
   });
 }
 
