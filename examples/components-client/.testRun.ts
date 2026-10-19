@@ -196,6 +196,13 @@ function testLoading() {
     expect(fallback, "fallback missing from response").to.not.equal(-1);
     expect(html.indexOf('<p id="loaded">')).to.be.greaterThan(fallback);
   });
+
+  test("components: 'client': a +Loading without layout adds no Suspense boundary, as in vike-react", async () => {
+    const html = await fetchHtml("/loading-component");
+    expect(html).to.include('<p id="loaded">');
+    // React's marker of a boundary whose content streams in later
+    expect(html).to.not.include("<!--$?-->");
+  });
 }
 
 function testServerFunctionComponents() {
