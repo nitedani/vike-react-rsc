@@ -26,7 +26,7 @@ type LoadingValue = {
 declare global {
   namespace Vike {
     interface PageContext {
-      /** The page's Flight: inlined in the HTML, or streamed in the pageContext a navigation fetches. None for a page that renders as in vike-react. */
+      /** The page's Flight: inlined in the HTML, or streamed in the pageContext a navigation fetches. For a page that renders as in vike-react, only useActionState()'s state after a form submitted before hydration. */
       rscPayload?: ReadableStream<Uint8Array>;
       /** On the server, while it answers a server action */
       rscAction?: ActionCall;
@@ -54,7 +54,7 @@ declare global {
         /** The most bytes a server action's request body may have; a bigger one gets a 413. Default: 1 048 576 (1 MB). */
         bodySizeLimit?: number;
       };
-      /** Where a +Page, +Layout, +Wrapper or +Loading without a directive runs: on the server (`'server'`, React's default) or in the browser (`'client'`, as in vike-react). Any other file runs where the file that imports it runs, and `"use client"` at the top of a file puts it in the browser, `"use server component"` on the server. Set once, in the root `+config.js`. Default: `'server'`. */
+      /** Where a +Page, +Layout, +Wrapper or +Loading's `layout` without a directive runs: on the server (`'server'`, React's default) or in the browser (`'client'`, as in vike-react). +Loading's `component`, the fallback of rsc(), always renders in the browser and the HTML. Any other file runs where the file that imports it runs, and `"use client"` at the top of a file puts it in the browser, `"use server component"` on the server. Set once, in the root `+config.js`. Default: `'server'`. */
       components?: "client" | "server";
       /**
        * If `true`, the page is rendered twice: on the server-side (to HTML) and on the client-side (hydration).

@@ -5,7 +5,7 @@ import { getVikeConfig } from "vike/plugin";
 import { Visitor, type ESTree, type Plugin } from "vite";
 import { getDirectives, getFile, getImports, isAppFile, isPlusComponentFile, parse } from "./parse";
 
-/** A file runs where the file that imports it runs, and a +Page, +Layout, +Wrapper or +Loading where `components` says, unless
+/** A file runs where the file that imports it runs, and a +Page, +Layout, +Wrapper or +Loading's `layout` where `components` says, unless
  * `"use client"` at its top puts it in the browser or `"use server component"` on the server */
 export function clientDefault(): Plugin {
   // Whether the file had the marker when the env last transformed it, by env and file
