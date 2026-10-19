@@ -10,6 +10,7 @@ import {
   sleep,
   editFile,
   editFileRevert,
+  expectLog,
 } from "@brillout/test-e2e";
 
 const pages = {
@@ -49,6 +50,10 @@ const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server comp
 // Logged on the server by testUnknownAction()
 const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
 
+// Thrown by /browser-error's guard() in the browser, then logged with why the error page can't render there
+const BROWSER_GUARD_ERROR = "guard() failed in the browser on demand";
+const ERROR_PAGE_IN_BROWSER_ERROR = "has to render in the browser, e.g. the error page after an error there";
+
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
   // Pre-rendered, and served like a static host would
@@ -80,6 +85,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testUnknownAction()
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
+      // testErrorPageInBrowser(): in dev, Vite also forwards the browser's log to the server's stderr
+      logText.includes(BROWSER_GUARD_ERROR) ||
+      logText.includes(ERROR_PAGE_IN_BROWSER_ERROR) ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
@@ -135,6 +143,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testPageNavigation();
   testPendingPage();
   testNavigationKeepsPage();
+  testErrorPageInBrowser();
   if (isDev) testErrorOverlay();
   if (isDev) testServerCssHmr();
 }
@@ -1055,6 +1064,22 @@ function testRscCacheKey() {
     const response = await fetch(request.url(), { method: "POST", headers: request.headers(), body: request.postData() });
     expect(response.status).to.equal(500);
     expect(await response.text()).to.not.include("Something went wrong");
+  });
+}
+
+function testErrorPageInBrowser() {
+  test("The error page after an error in the browser: the console says why it can't render there, and the page stays", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<a id="browser-error" href="/browser-error">Go</a>'));
+    await page.click("#browser-error");
+    await autoRetry(async () => {
+      expectLog(
+        `[vike-react-rsc] The page /src/pages/_error ${ERROR_PAGE_IN_BROWSER_ERROR}, but components: 'server' makes it a server component, which renders only on the server`,
+        { filter: ({ logSource }) => logSource === "Browser Error" }
+      );
+    });
+    expect(await page.textContent("h1")).to.include("Vike React Server Components");
   });
 }
 

@@ -33,9 +33,17 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
 
 async function getPagePayload(pageContext: PageContextClient): Promise<PagePayload> {
   const flight = pageContext.rscPayload && (await createFromReadableStream<PagePayload>(pageContext.rscPayload));
-  // A page that renders as in vike-react has no Flight, or only what a form submitted before hydration returned
-  if (!__VIKE_REACT_RSC_CLIENT_DEFAULT__ || flight?.root) return flight!;
+  if (flight?.root) return flight;
+  // A page that renders as in vike-react has no Flight, or only what a form submitted before hydration returned. So has
+  // the error page after an error in the browser, whatever its components.
+  if (!__VIKE_REACT_RSC_CLIENT_DEFAULT__ || !pageContext.config.Page) throw cannotRenderInBrowser(pageContext, "components: 'server' makes it a server component");
+  const serverComponent = findServerComponent(pageContext);
+  if (serverComponent) throw cannotRenderInBrowser(pageContext, `${serverComponent.file} starts with "use server component"`);
   return { root: getPageElement(pageContext), formState: flight?.formState };
+}
+
+function cannotRenderInBrowser(pageContext: PageContextClient, cause: string): Error {
+  return new Error(`[vike-react-rsc] The page ${pageContext.pageId} has to render in the browser, e.g. the error page after an error there, but ${cause}, which renders only on the server`);
 }
 
 // A page with ssr: false renders only in the browser, where a server component can't render
