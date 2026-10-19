@@ -111,6 +111,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testClientCss();
   if (isDev) testClientCssLinkRemoved();
   testMisuse();
+  testServerLoading();
   // A static host has no server: nothing renders per request, and server actions can't run.
   if (!isStatic) {
     testPageLoading();
@@ -834,6 +835,22 @@ function testMisuse() {
     expect(error("data:setCookie")).to.equal("No error");
     // has() and getAll() see it in the same request
     expect(error("data:cookieSeen")).to.equal("true 1");
+  });
+}
+
+function testServerLoading() {
+  test('A +Loading that starts with "use server component" reaches the browser only as a stub', async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<a id="server-loading" href="/server-loading">Go</a>'));
+    await page.click("#server-loading");
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include("A page whose +Loading is a server component");
+    });
+    const scripts = await page.evaluate(() =>
+      performance.getEntriesByType("resource").map((entry) => entry.name).filter((url) => /\.[cm]?[jt]sx?$/.test(new URL(url).pathname))
+    );
+    for (const url of scripts) expect(await (await fetch(url)).text(), url).to.not.include("read on the server");
   });
 }
 

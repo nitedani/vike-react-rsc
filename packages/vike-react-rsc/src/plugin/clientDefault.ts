@@ -19,14 +19,16 @@ export function clientDefault(): Plugin {
     },
     async transform(code, id) {
       if (!isPlusComponentFile(id)) return;
-      // Under 'server', plugin-rsc's own rule: a file without "use client" is a server component
-      if (!isClientDefault()) return;
+      const isRsc = this.environment.name === "rsc";
+      // Under 'server', plugin-rsc's own rule: a file without "use client" is a server component. Of the + files, only a
+      // +Loading also loads outside the rsc env, so a server one gets the stub there, as under 'client'
+      if (!isClientDefault() && isRsc) return;
       // MDX has no directives, and its plugin has compiled it to JavaScript
-      if (!isAppFile(id)) return this.environment.name === "rsc" ? { code: `"use client";${code}`, map: null } : undefined;
+      if (!isAppFile(id)) return isRsc ? { code: `"use client";${code}`, map: null } : undefined;
       const program = await parse(code, id);
       const directives = getDirectives(program);
       isMarked.set(`${this.environment.name}:${getFile(id)}`, directives.includes("use server component"));
-      if (this.environment.name === "rsc") {
+      if (isRsc) {
         // On the first line, so the source map stays valid
         if (directives.length === 0) return { code: `"use client";${code}`, map: null };
         return;
