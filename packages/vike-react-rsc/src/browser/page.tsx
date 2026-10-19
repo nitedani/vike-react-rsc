@@ -41,6 +41,6 @@ export function Root({ page }: { page: Shown }): ReactElement {
     setState(shown);
   }, []);
   // Called, not rendered: React's dev performance track reads every key of a component's old props, and Vike's pageContext throws on a key it couldn't serialize
-  // TODO: remove once https://github.com/react/react/pull/36867 is released
+  // TODO: remove once the react peer dependency requires a React release that includes https://github.com/react/react/pull/36867
   return PageContextProvider({ pageContext: state.pageContext, children: state.root });
 }
