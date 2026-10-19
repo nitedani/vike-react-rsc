@@ -1,10 +1,10 @@
-import { parse } from "@brillout/json-serializer/parse";
 import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
 import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
-import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, STREAMED_MARKER, UNKNOWN_ACTION_HEADER } from "../protocol";
-import type { ActionPayload, PassedToClient } from "../types";
+import { parsePassedToClient } from "../passedToClient";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
+import type { ActionPayload } from "../types";
 import { getCurrentPageContext, showRoot } from "./page";
 import { isRscLoad, markRscOutputsStale } from "./rsc";
 
@@ -51,37 +51,10 @@ async function readAnswer(response: Response, pageContext: PageContextClient): P
   const { returnValue, root, passedToClient } = await createFromFetch<ActionPayload>(Promise.resolve(response));
   // The page changed since the call: this answer's page is out of date
   if (root && getCurrentPageContext() === pageContext) {
-    const passed = parsePassedToClient(passedToClient!) as Record<string, unknown>;
+    const passed = parsePassedToClient(passedToClient!);
     startTransition(() => showRoot(root, passed));
   }
   return returnValue;
-}
-
-function parsePassedToClient({ serialized, streamed }: PassedToClient): unknown {
-  const revived: unknown[] = [];
-  return parse(serialized, {
-    reviver: (_path, value) => {
-      if (!value.startsWith(STREAMED_MARKER)) return undefined;
-      const id = Number(value.slice(STREAMED_MARKER.length));
-      return { replacement: (revived[id] ??= parseStreamed(streamed[id] as PromiseLike<PassedToClient> | AsyncIterable<PassedToClient>)) };
-    },
-  });
-}
-
-// The promise or stream that Flight carried, yielding what the server serialized
-function parseStreamed(value: PromiseLike<PassedToClient> | AsyncIterable<PassedToClient>): unknown {
-  if (value instanceof ReadableStream) {
-    return value.pipeThrough(new TransformStream({ transform: (chunk, controller) => controller.enqueue(parsePassedToClient(chunk)) }));
-  }
-  if ("then" in value) {
-    const promise = Promise.resolve(value).then(parsePassedToClient);
-    // As Vike's: no unhandled rejection when nobody awaits it
-    promise.catch(() => {});
-    return promise;
-  }
-  return (async function* () {
-    for await (const chunk of value) yield parsePassedToClient(chunk);
-  })();
 }
 
 // Never settles: the caller doesn't resume, the document goes away

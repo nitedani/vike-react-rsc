@@ -1,8 +1,8 @@
 // Vike loads +middleware at startup, before Vite optimizes React, so neither this module nor its imports may import React
-import { stringify } from "@brillout/json-serializer/stringify";
 import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
-import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, STREAMED_MARKER, UNKNOWN_ACTION_HEADER } from "../protocol";
+import { serializePassedToClient } from "../passedToClient";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import type { ActionOutcome, PassedToClient } from "../types";
 import { getRsc } from "./bridge";
 
@@ -120,55 +120,10 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
     for (const key of keys.slice(0, -1)) to = (to[key] ??= {}) as Record<string, unknown>;
     to[last] = value;
   }
-  try {
-    return serialize(passed);
-  } catch {
-    // As Vike does, a value the serializer can't carry, e.g. a function only server components read, is left out
-    for (const [key, value] of Object.entries(passed)) {
-      try {
-        stringify(value, { forbidReactElements: true, valueName: `pageContext.${key}` });
-      } catch (error) {
-        console.warn(`[vike-react-rsc] Client components get pageContext.${key} as undefined after rerender(): ${(error as Error).message}`);
-        passed[key] = undefined;
-      }
-    }
-    return serialize(passed);
-  }
-}
-
-// Flight carries the promises and streams, e.g. a promise data() returns for the browser to await, and the serializer
-// what each of them yields, as Vike serializes it
-function serialize(value: unknown): PassedToClient {
-  const streamed: (PromiseLike<unknown> | AsyncIterable<unknown>)[] = [];
-  const serialized = stringify(value, {
-    forbidReactElements: true,
-    // Read by the browser's parse(), never put in HTML
-    htmlScriptSafe: false,
-    replacer: (_key, value) => {
-      if (!isStreamed(value)) return undefined;
-      // The same value referenced twice is sent once
-      const id = streamed.includes(value) ? streamed.indexOf(value) : streamed.push(value) - 1;
-      return { replacement: STREAMED_MARKER + id };
-    },
-  });
-  // Only once the serializer succeeded: a stream can be read only once
-  return { serialized, streamed: streamed.map(serializeStreamed) };
-}
-
-function serializeStreamed(value: PromiseLike<unknown> | AsyncIterable<unknown>): unknown {
-  if (value instanceof ReadableStream) {
-    return value.pipeThrough(new TransformStream({ transform: (chunk, controller) => controller.enqueue(serialize(chunk)) }));
-  }
-  if ("then" in value) return Promise.resolve(value).then(serialize);
-  return (async function* () {
-    for await (const chunk of value) yield serialize(chunk);
-  })();
+  return serializePassedToClient(passed);
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
-// A promise, a ReadableStream or an async iterable, as Vike streams them
-const isStreamed = (value: unknown): value is PromiseLike<unknown> | AsyncIterable<unknown> =>
-  isObject(value) && (typeof value.then === "function" || Symbol.asyncIterator in value);
 
 function answerRedirect(response: Response, headers: Headers, location: string): Response {
   void response.body?.cancel();
