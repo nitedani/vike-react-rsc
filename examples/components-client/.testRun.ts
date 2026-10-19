@@ -215,11 +215,17 @@ function testServerFunctionComponents() {
     expect(output).to.include(`pages/js-page/+Page.js ${SERVER_FUNCTION_COMPONENT_ERROR}`);
   });
 
-  test('Build: a "use server" export rendered as a component fails the build', async () => {
-    const output = await getBuildError("./components/Markdown.tsx", (source) =>
-      source.replace('"use server component";', '"use server";')
+  test('Build: a "use server" export rendered as a component fails the build, by JSX or by createElement() imported as another name', async () => {
+    const useServer = (source: string) => source.replace('"use server component";', '"use server";');
+    const error = `pages/markdown/+Page.tsx renders Markdown, but components/Markdown.tsx ${SERVER_FUNCTION_COMPONENT_ERROR}`;
+    expect(await getBuildError("./components/Markdown.tsx", useServer)).to.include(error);
+    editFile("./components/Markdown.tsx", useServer);
+    const output = await getBuildError("./pages/markdown/+Page.tsx", (source) =>
+      source
+        .replace("import { Markdown }", 'import { createElement as h } from "react";\n$&')
+        .replace(/<Markdown source=(".*") \/>/, "h(Markdown, { source: $1 })")
     );
-    expect(output).to.include(`pages/markdown/+Page.tsx renders Markdown, but components/Markdown.tsx ${SERVER_FUNCTION_COMPONENT_ERROR}`);
+    expect(output).to.include(error);
   });
 }
 

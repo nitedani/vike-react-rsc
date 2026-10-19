@@ -58,6 +58,16 @@ function serverFunctionError(file: string): string {
 // The local names used as a JSX tag (`<Markdown />`, `<ui.Markdown />`) or as createElement()'s first argument
 function getRenderedNames(program: ESTree.Program): Set<string> {
   const names = new Set<string>();
+  // Also under the name the module imports it as from React, e.g. `h`
+  const createElement = new Set(["createElement"]);
+  for (const statement of program.body) {
+    if (statement.type !== "ImportDeclaration" || statement.source.value !== "react") continue;
+    for (const specifier of statement.specifiers) {
+      if (specifier.type === "ImportSpecifier" && specifier.imported.type === "Identifier" && specifier.imported.name === "createElement") {
+        createElement.add(specifier.local.name);
+      }
+    }
+  }
   const add = (node: ESTree.Node | undefined) => {
     if (node?.type === "JSXIdentifier" || node?.type === "Identifier") names.add(node.name);
     if (node?.type === "JSXMemberExpression" || node?.type === "MemberExpression") add(node.object as ESTree.Node);
@@ -67,7 +77,7 @@ function getRenderedNames(program: ESTree.Program): Set<string> {
     CallExpression: (node) => {
       const { callee } = node;
       const name = callee.type === "MemberExpression" ? callee.property : callee;
-      if (name.type === "Identifier" && name.name === "createElement") add(node.arguments[0] as ESTree.Node);
+      if (name.type === "Identifier" && createElement.has(name.name)) add(node.arguments[0] as ESTree.Node);
     },
   }).visit(program);
   return names;
