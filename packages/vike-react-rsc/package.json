@@ -39,7 +39,7 @@
     "./__internal/rsc": "./dist/__internal/rsc.js",
     "./__internal/middleware": "./dist/__internal/middleware.js",
     "./__internal/onError": "./dist/__internal/onError.js",
-    "./__internal/LoadingLayout": "./dist/components/LoadingLayout.js"
+    "./__internal/LoadingBoundary": "./dist/components/LoadingBoundary.js"
   },
   "files": [
     "dist"

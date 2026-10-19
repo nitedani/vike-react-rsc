@@ -21,6 +21,8 @@ type LoadingValue = {
   layout?: ComponentType;
   /** The fallback of a component that rsc() made, until it loads */
   component?: ComponentType;
+  /** Internal: in the rsc env, a client +Loading, whose layout only the HTML and the browser know */
+  boundary?: ComponentType<{ children: ReactNode }>;
 };
 
 declare global {

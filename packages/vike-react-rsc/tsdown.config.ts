@@ -22,7 +22,7 @@ export default defineConfig({
     "src/components/ClientOnly.tsx",
     "src/components/ClientOnly.rsc.ts",
     // A client reference in the rsc env, so it stays a module of its own
-    "src/components/LoadingLayout.tsx",
+    "src/components/LoadingBoundary.tsx",
   ],
   format: ["esm"],
   // The exports map resolves to dist/*.js, so output extensions must stay .js.

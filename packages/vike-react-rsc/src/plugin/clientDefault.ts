@@ -126,30 +126,14 @@ function getServerComponentStub(program: ESTree.Program, id: string, file: strin
   return { code: hasDefaultExport ? `export default ${stub};` : `export const ${name} = ${stub};`, map: null };
 }
 
-// In the rsc env, a client +Loading: its layout renders through LoadingLayout, which reads it in the HTML and the browser
+// In the rsc env, a client +Loading: LoadingBoundary renders its layout, if it has one, where the file is loaded
 function getClientLoadingStub(program: ESTree.Program) {
   const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
   const exportLoading = (loading: string) => (hasDefaultExport ? `export default ${loading};` : `export const Loading = ${loading};`);
-  // Without `layout`, getPageElement() adds no Suspense boundary, as in vike-react
-  if (!hasLayout(program)) return { code: exportLoading("{}"), map: null };
-  return { code: `import { LoadingLayout } from "vike-react-rsc/__internal/LoadingLayout";\n${exportLoading("{ layout: LoadingLayout }")}`, map: null };
+  return { code: `import { LoadingBoundary } from "vike-react-rsc/__internal/LoadingBoundary";\n${exportLoading("{ boundary: LoadingBoundary }")}`, map: null };
 }
 
-// Whether the object the +Loading file exports can have `layout`: anything but an object literal without it can
-function hasLayout(program: ESTree.Program): boolean {
-  let loading: ESTree.Node | null | undefined;
-  for (const statement of program.body) {
-    if (statement.type === "ExportDefaultDeclaration") loading = statement.declaration as ESTree.Node;
-    if (statement.type === "ExportNamedDeclaration" && statement.declaration?.type === "VariableDeclaration") {
-      loading ??= statement.declaration.declarations.find(({ id }) => id.type === "Identifier" && id.name === "Loading")?.init;
-    }
-  }
-  while (loading?.type === "TSSatisfiesExpression" || loading?.type === "TSAsExpression") loading = loading.expression;
-  if (loading?.type !== "ObjectExpression") return true;
-  return loading.properties.some((property) => property.type !== "Property" || [undefined, "layout"].includes(getKeyName(property)));
-}
-
-// `layout` for `layout:` and `"layout":`, undefined for a key computed at runtime
+// `Layout` for `Layout:` and `"Layout":`, undefined for a key computed at runtime
 function getKeyName({ key, computed }: { key: ESTree.PropertyKey; computed: boolean }): string | undefined {
   if (key.type === "Literal") return String(key.value);
   if (key.type === "Identifier" && !computed) return key.name;
