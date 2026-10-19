@@ -7,8 +7,7 @@ import { useHydrated } from '../hooks/useHydrated.js'
 /**
  * Render children only on the client-side.
  *
- * Children are completely removed and never loaded on the server. In a server component, they come to the browser in
- * its Flight.
+ * Children are completely removed and never loaded on the server.
  *
  * https://vike.dev/ClientOnly
  */

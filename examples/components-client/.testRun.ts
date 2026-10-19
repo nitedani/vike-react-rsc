@@ -136,16 +136,13 @@ function testVikeReactImports() {
     expect(await page.textContent("#data")).to.equal("Data from +data");
   });
 
-  test("components: 'client': <ClientOnly> and useHydrated() in a server component", async () => {
+  test("components: 'client': a server component renders <ClientOnly> through a client component, and calls useHydrated()", async () => {
+    // The child reads window when its module loads, so loading it on the server would fail the render
     const html = await fetchHtml("/client-only");
     expect(html).to.include("Loading in the browser");
-    expect(html).to.not.include('<button id="counter"');
+    expect(html).to.not.include("Window width");
     await page.goto(getServerUrl() + "/client-only");
-    await waitForHydration("#counter");
-    await page.click("#counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#counter")).to.equal("Counter 1");
-    });
+    await page.waitForSelector("text=Window width");
     // A server component renders only on the server
     expect(await page.textContent("#hydrated")).to.equal("Not hydrated");
   });
@@ -235,6 +232,25 @@ function testClientHooks() {
         expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
       });
     }
+  });
+
+  test('Dev: <ClientOnly> in a server component throws, saying to render it in a "use client" file', async () => {
+    editFile("./pages/helper/+Page.tsx", () =>
+      `"use server component";\nimport { ClientOnly } from "vike-react-rsc/ClientOnly";\nexport default function Page() {\n  return <ClientOnly><p>Rendered in the browser</p></ClientOnly>;\n}\n`
+    );
+    try {
+      await autoRetry(async () => {
+        expect((await fetch(getServerUrl() + "/helper")).status).to.equal(500);
+      });
+      expectLog(`<ClientOnly> ${CLIENT_HOOK_ERROR}: render it in a "use client" file, so its children never load on the server`);
+    } finally {
+      // Reverted within milliseconds, Vite sends no update for the fix
+      await sleep(1000);
+      editFileRevert();
+    }
+    await autoRetry(async () => {
+      expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
+    });
   });
 
   test('Dev: a server component calling useState() gets React\'s error, naming its file and "use client"', async () => {

@@ -19,6 +19,7 @@ export default defineConfig({
     "src/hooks/useData.rsc.ts",
     "src/hooks/useHydrated.ts",
     "src/components/ClientOnly.tsx",
+    "src/components/ClientOnly.rsc.ts",
     // A client reference in the rsc env, so it stays a module of its own
     "src/components/LoadingLayout.tsx",
   ],
