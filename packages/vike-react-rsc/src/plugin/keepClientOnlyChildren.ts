@@ -5,7 +5,7 @@ const source = "vike-react-rsc/ClientOnly";
 
 /** A server component's `<ClientOnly>` children go to the browser in its Flight, but Vike's +staticReplace strips them
  * in every server env. It matches the import path, so the rsc env imports ClientOnly by its resolved path. */
-// TODO: remove once Vike's +staticReplace can leave out the rsc env
+// TODO: remove once Vike's +staticReplace can leave out the rsc env (https://github.com/vikejs/vike/pull/3635)
 export function keepClientOnlyChildren(): Plugin {
   return {
     name: "vike-react-rsc:keep-client-only-children",
