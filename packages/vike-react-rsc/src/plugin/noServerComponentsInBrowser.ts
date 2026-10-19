@@ -15,7 +15,10 @@ export function noServerComponentsInBrowser(): Plugin {
       if (isPlusComponentFile(id)) return;
       if (!isAppFile(id) || this.environment.name !== "client" || !(await isServerComponentFile(code, id))) return;
       // The build knows every importer once it has loaded all modules
-      if (this.environment.mode !== "dev") return void serverComponentsInBrowser.add(id);
+      if (this.environment.mode !== "dev") {
+        serverComponentsInBrowser.add(id);
+        return;
+      }
       const { moduleGraph } = this.environment;
       const chain = getImportChain(id, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])][0]?.id ?? undefined);
       this.error(getServerComponentInBrowserError(chain, this.environment.config.root));
