@@ -1,5 +1,5 @@
 "use server component";
-import { Counter } from "../../components/Counter";
+import { Counter } from "../../components";
 
 export default async function Page() {
   const where = await Promise.resolve(typeof window === "undefined" ? "server" : "browser");

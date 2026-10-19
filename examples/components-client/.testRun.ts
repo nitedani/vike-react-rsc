@@ -318,19 +318,17 @@ function testServerComponentImports() {
     );
   });
 
-  test("Build: a client component importing a server component through a barrel fails the build, naming the barrel", async () => {
+  test("Build: a client component importing a barrel that re-exports a server component fails the build, naming the barrel", async () => {
     // The dev server sees the edit too, and renders nothing with it while no page is open
     await page.goto("about:blank");
-    const output = await getBuildError("./pages/index/+Page.tsx", (source) =>
-      source.replace("{ Counter }", "{ Counter, Markdown }").replace("<Counter />", '<Counter />\n      <Markdown source="**A** page" />')
-    );
+    const output = await getBuildError("./pages/index/+Page.tsx", (source) => source.replace("../../components/Counter", "../../components"));
     expect(output).to.include(
-      'pages/index/+Page.tsx imports components/index.ts, which re-exports components/Markdown.tsx, which starts with "use server component"'
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/index/+Page.tsx imports it through components/index.ts: start pages/index/+Page.tsx with "use server component"'
     );
   });
 
   test("Build: a barrel or +data.ts importing from a server component file builds", async () => {
-    // The index page imports Counter from components/index.ts, which re-exports Markdown too
+    // The server page imports Counter from components/index.ts, which re-exports Markdown too
     editFile("./components/Markdown.tsx", (source) => `${source}\nexport const MARKDOWN_ID = "markdown";\n`);
     const { isSuccess } = await build("./pages/hooks/+data.ts", (source) =>
       `import { MARKDOWN_ID } from "../../components/Markdown";\n${source.replace('greeting: "Data from +data"', '$&, id: MARKDOWN_ID')}`
