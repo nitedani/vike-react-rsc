@@ -20,9 +20,8 @@ export function clientDefault(): Plugin {
       if (ssrFalse) warnOnce(`${ssrFalse._source.ssr!.definedAt} sets ssr to false, which applies only under components: 'client'`);
     },
     async transform(code, id) {
-      if (!isAppFile(id)) return;
       if (!isPlusComponentFile(id)) {
-        if (this.environment.name !== "client" || !(await isServerComponentFile(code, id))) return;
+        if (!isAppFile(id) || this.environment.name !== "client" || !(await isServerComponentFile(code, id))) return;
         // The build knows every importer once it has loaded all modules
         if (this.environment.mode !== "dev") return void serverComponentsInBrowser.add(id);
         const { moduleGraph } = this.environment;
@@ -31,6 +30,8 @@ export function clientDefault(): Plugin {
       }
       // Under 'server', plugin-rsc's own rule: a file without "use client" is a server component
       if (!isClientDefault()) return;
+      // MDX has no directives, and its plugin has compiled it to JavaScript
+      if (!isAppFile(id)) return this.environment.name === "rsc" ? { code: `"use client";${code}`, map: null } : undefined;
       const program = await parse(code, id);
       const directives = getDirectives(program);
       isMarked.set(`${this.environment.name}:${getFile(id)}`, directives.includes("use server component"));

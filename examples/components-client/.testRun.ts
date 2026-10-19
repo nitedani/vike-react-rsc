@@ -58,14 +58,19 @@ function testClientComponents() {
     });
   });
 
-  test("components: 'client': an unmarked +Page.js is a client component, in a server layout too, as in vike-react", async () => {
-    await page.goto(getServerUrl() + "/admin/js-page");
-    expect(await page.textContent("#admin-layout")).to.equal("A server layout, rendered on the server");
-    await waitForHydration("#js-counter");
-    await page.click("#js-counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#js-counter")).to.equal("JS counter 1");
-    });
+  test("components: 'client': an unmarked +Page.js or +Page.mdx is a client component, in a server layout too, as in vike-react", async () => {
+    for (const [pathname, counter, clicked] of [
+      ["/admin/js-page", "#js-counter", "JS counter 1"],
+      ["/admin/mdx-page", "#mdx-counter", "MDX counter 1"],
+    ]) {
+      await page.goto(getServerUrl() + pathname);
+      expect(await page.textContent("#admin-layout")).to.equal("A server layout, rendered on the server");
+      await waitForHydration(counter);
+      await page.click(counter);
+      await autoRetry(async () => {
+        expect(await page.textContent(counter)).to.equal(clicked);
+      });
+    }
   });
 }
 

@@ -1,0 +1,10 @@
+import { useState } from "react";
+
+export function Counter() {
+  const [clicks, setClicks] = useState(0);
+  return <button id="mdx-counter" onClick={() => setClicks(clicks + 1)}>MDX counter {clicks}</button>;
+}
+
+# A vike-react page written in MDX
+
+<Counter />

@@ -21,5 +21,8 @@
     "vike": "0.4.268",
     "vike-react-rsc": "^1.0.0",
     "vite": "^8.2.0"
+  },
+  "devDependencies": {
+    "@mdx-js/rollup": "^3"
   }
 }
