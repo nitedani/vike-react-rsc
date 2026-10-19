@@ -276,9 +276,16 @@ function testServerComponentImports() {
 }
 
 function testComponentsConfig() {
-  test("Build: ssr: false on a page with a server component fails the build, naming both", async () => {
+  test("Build: components set by a page, not once in the root +config.js, fails the build", async () => {
     // The dev server sees the edits too, and renders nothing with them while no page is open
     await page.goto("about:blank");
+    const output = await getBuildError("./pages/spa/+config.ts", (source) =>
+      source.replace("ssr: false,", 'ssr: false,\n  components: "server",')
+    );
+    expect(output).to.include("Set components once, in the root +config.js: pages set it to");
+  });
+
+  test("Build: ssr: false on a page with a server component fails the build, naming both", async () => {
     const output = await getBuildError("./pages/spa/+Page.tsx", (source) => `"use server component";\n${source}`);
     expect(output).to.include(
       'pages/spa/+Page.tsx starts with "use server component", so it renders on the server, but the page /pages/spa sets ssr to false, so it renders only in the browser: remove "use server component" or ssr: false'
