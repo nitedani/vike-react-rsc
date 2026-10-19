@@ -24,8 +24,9 @@ export function show(next: Shown): void {
   startTransition(() => setRootState?.(next));
 }
 
-/** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent */
-export function showRoot(root: ReactNode, passed: Record<string, unknown>): void {
+/** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent and none of the passToClient `keys` it didn't */
+export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys: string[]): void {
+  for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(current, key);
   // Set on Vike's pageContext, which throws on reading a value it couldn't serialize; a new object, so usePageContext() renders again
   Object.assign(current, passed);
   show({ pageContext: Object.create(current), root });

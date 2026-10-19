@@ -50,9 +50,10 @@ async function readAnswer(response: Response, pageContext: PageContextClient): P
   if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
   const payload = await createFromFetch<ActionPayload>(Promise.resolve(response));
   if ("root" in payload) {
-    const passed = (await readPageContextJson(new Response(payload.passedToClient))) as Record<string, unknown>;
+    const { json, keys } = payload.passedToClient;
+    const passed = (await readPageContextJson(new Response(json))) as Record<string, unknown>;
     // The page changed since the call: this answer's page is out of date
-    if (getCurrentPageContext() === pageContext) startTransition(() => showRoot(payload.root, passed));
+    if (getCurrentPageContext() === pageContext) startTransition(() => showRoot(payload.root, passed, keys));
   }
   return payload.returnValue;
 }
