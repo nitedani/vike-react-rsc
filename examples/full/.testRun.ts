@@ -522,7 +522,8 @@ function testServerComponentAbort() {
 
   test("Server component: throw render(url, reason) before the HTML starts shows that page, with the reason", async () => {
     const html = await fetchHtml("/abort/rewrite");
-    expect(html).to.include('id="abort-reason">Rewritten by a server component<');
+    // Its Date arrives as a Date, as from guard()
+    expect(html).to.include('id="abort-reason">Rewritten by a server component, at 2026-10-19T00:00:00.000Z<');
   });
 
   test("Server component: throw redirect() inside <Suspense> loads the target once, with or without JavaScript", async () => {
