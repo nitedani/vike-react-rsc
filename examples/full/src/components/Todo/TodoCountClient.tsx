@@ -7,11 +7,14 @@ import { sharedStyles } from "../../styles/shared";
 type Data = { todoCount: number; todoCountStreamed: Promise<{ todoCount: number }> };
 
 export default function TodoCountClient() {
-  const { todoCount, todoCountStreamed } = usePageContext().data as Data;
+  const pageContext = usePageContext();
+  const { todoCount, todoCountStreamed } = pageContext.data as Data;
+  // From globalContext, which pageContext also answers
+  const { appName } = pageContext as { appName?: string };
   return (
     <>
       <p id="todo-count-client" css={sharedStyles.paragraph}>
-        A client component reads the same {todoCount} tasks from <code>usePageContext().data</code>
+        A client component of {appName} reads the same {todoCount} tasks from <code>usePageContext().data</code>
       </p>
       <Suspense>
         <TodoCountStreamed todoCountStreamed={todoCountStreamed} />

@@ -355,6 +355,7 @@ function testTodoForm() {
     expect(await readTodoCount()).to.equal(countBefore + 1);
     // Client components get the new pageContext too
     expect(await readTodoCount("#todo-count-client")).to.equal(countBefore + 1);
+    expect(await page.textContent("#todo-count-client")).to.include("Task Manager");
     expect(await readTodoCount("#todo-count-streamed")).to.equal(countBefore + 1);
     expect(requests).to.deep.equal(["POST /todos"]);
     page.off("request", onRequest);

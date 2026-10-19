@@ -112,11 +112,13 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
     if (!(keys[0]! in passed)) passed[keys[0]!] = undefined;
     const last = keys.at(-1)!;
     const parent = keys.slice(0, -1).reduce<unknown>((obj, key) => (isObject(obj) ? obj[key] : undefined), pageContext);
-    // Like Vike, a key the server has is passed even when its value is undefined
-    if (!isObject(parent) || !(last in parent)) continue;
+    const value = isObject(parent) ? parent[last] : undefined;
+    // Like Vike, a key the server has is passed even when its value is undefined. Vike's pageContext also answers a key
+    // it doesn't have from globalContext, e.g. one onCreateGlobalContext() sets.
+    if (!isObject(parent) || (!(last in parent) && value === undefined)) continue;
     let to = passed;
     for (const key of keys.slice(0, -1)) to = (to[key] ??= {}) as Record<string, unknown>;
-    to[last] = parent[last];
+    to[last] = value;
   }
   try {
     return serialize(passed);
