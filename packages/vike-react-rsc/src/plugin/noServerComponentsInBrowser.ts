@@ -3,7 +3,7 @@ import type { Plugin } from "vite";
 import { getDirectives, getFile, isAppFile, isPlusComponentFile, parse } from "./parse";
 
 /** The browser importing a `"use server component"` file is an error, in dev and in the build, naming the importers and the + file
- * to mark. A + file with the directive is skipped: the browser gets a stub of it instead (see getServerComponentStub) */
+ * to mark. A + file with the directive is skipped: the browser gets at most a stub of it (see getServerComponentStub) */
 export function noServerComponentsInBrowser(): Plugin {
   // The server component files the client build imports
   const serverComponentsInBrowser = new Set<string>();
