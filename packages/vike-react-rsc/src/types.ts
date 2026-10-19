@@ -1,8 +1,10 @@
 import type { ComponentType, ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
-import type { ImportString, PageContext, PageContextServer } from "vike/types";
+import type { ImportString, PageContext } from "vike/types";
 import type { ActionCall } from "./ssr/action";
+import type { HtmlInjection, Viewport } from "./ssr/onRenderHtml";
 import type { Cookies } from "./ssr/cookies";
+import type { TagAttributes } from "./utils/getTagAttributesString.js";
 
 /** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */
 export type PagePayload = { root: ReactNode; formState?: ReactFormState };
@@ -14,13 +16,7 @@ export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknown
 export type RscRuntime = typeof import("./rsc/runtime");
 
 type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
-type HeadValue = ReactNode | (() => ReactNode);
-/** A setting's value, or a function of the pageContext that returns it */
-export type Setting<Value, PageContext_ = PageContext> = Value | ((pageContext: PageContext_) => Value);
-type HeadString = string | null | undefined;
-export type Viewport = "responsive" | number | null | undefined;
-export type TagAttributes = Record<string, string | number | boolean | null | undefined>;
-type HtmlInjection = Setting<string, PageContextServer>;
+export type HeadValue = ReactNode | (() => ReactNode);
 type LoadingValue = {
   /** Shown by Suspense while the page, or a Layout or Wrapper, waits for data */
   layout?: ComponentType;
@@ -47,32 +43,133 @@ declare global {
       Page?: (() => ReactNode | Promise<ReactNode>) | ImportString;
       /** Tags for the page's `<head>`: an element, or a component, which can call `usePageContext()`. @see https://vike.dev/Head */
       Head?: HeadValue | ImportString;
-      /** `<title>` and `og:title`, also updated on client navigation. @see https://vike.dev/title */
-      title?: Setting<HeadString>;
-      /** `<meta name="description">` and `og:description`, also updated on client navigation. @see https://vike.dev/description */
-      description?: Setting<HeadString>;
-      /** `<html lang>`, also updated on client navigation. Default: `"en"`; `null` removes it from the HTML, but a client navigation sets `"en"`. @see https://vike.dev/lang */
-      lang?: Setting<HeadString>;
-      /** `og:image` and `twitter:card`. @see https://vike.dev/image */
-      image?: Setting<HeadString, PageContextServer>;
-      /** `<meta name="viewport">`. Default: `"responsive"`; `null` removes it. @see https://vike.dev/viewport */
-      viewport?: Setting<Viewport, PageContextServer>;
-      /** `<link rel="icon">`. @see https://vike.dev/favicon */
-      favicon?: Setting<HeadString, PageContextServer>;
-      /** @see https://vike.dev/htmlAttributes */
-      htmlAttributes?: Setting<TagAttributes, PageContextServer>;
-      /** @see https://vike.dev/bodyAttributes */
-      bodyAttributes?: Setting<TagAttributes, PageContextServer>;
-      /** The attributes of the `<div id="root">` the page renders in. @see https://vike.dev/rootAttributes */
-      rootAttributes?: Setting<TagAttributes, PageContextServer>;
-      /** Raw HTML at the start of `<head>`. @see https://vike.dev/headHtmlBegin */
-      headHtmlBegin?: HtmlInjection;
-      /** Raw HTML at the end of `<head>`. @see https://vike.dev/headHtmlEnd */
-      headHtmlEnd?: HtmlInjection;
-      /** Raw HTML at the start of `<body>`. @see https://vike.dev/bodyHtmlBegin */
+
+      /**
+       * Set the page's tilte.
+       *
+       * Generates:
+       * ```jsx
+       * <head>
+       *   <title>{title}</title>
+       *   <meta property="og:title" content={title} />
+       * </head>
+       * ```
+       *
+       * https://vike.dev/title
+       */
+      title?: string | null | ((pageContext: PageContext_) => string | null | undefined);
+
+      /**
+       * Set the page's description.
+       *
+       * Generates:
+       * ```jsx
+       * <head>
+       *   <meta name="description" content={description}>
+       *   <meta property="og:description" content={description}>
+       * </head>
+       * ```
+       *
+       * https://vike.dev/description
+       */
+      description?: string | null | ((pageContext: PageContext_) => string | null | undefined);
+
+      /**
+       * Set the page's preview image upon URL sharing.
+       *
+       * Generates:
+       * ```jsx
+       * <head>
+       *   <meta property="og:image" content={image}>
+       *   <meta name="twitter:card" content="summary_large_image">
+       * </head>
+       * ```
+       *
+       * https://vike.dev/image
+       */
+      image?: string | null | ((pageContext: PageContextServer) => string | null | undefined);
+
+      /**
+       * Set the page's width shown to the user on mobile/tablet devices.
+       *
+       * @default "responsive"
+       *
+       * https://vike.dev/viewport
+       */
+      viewport?: Viewport | ((pageContext: PageContextServer) => Viewport | undefined);
+
+      /**
+       * Set the page's favicon.
+       *
+       * Generates:
+       * ```jsx
+       * <head>
+       *   <link rel="icon" href={favicon} />
+       * </head>
+       * ```
+       *
+       * https://vike.dev/favicon
+       */
+      favicon?: string | null | ((pageContext: PageContextServer) => string | null | undefined);
+
+      /**
+       * Set the page's language (`<html lang>`).
+       *
+       * @default 'en'
+       *
+       * https://vike.dev/lang
+       */
+      lang?: string | null | ((pageContext: PageContext_) => string | null | undefined);
+
+      /**
+       * Raw HTML injected at the start of `<body>`.
+       *
+       * https://vike.dev/bodyHtmlBegin
+       */
       bodyHtmlBegin?: HtmlInjection;
-      /** Raw HTML at the end of `<body>`. @see https://vike.dev/bodyHtmlEnd */
+
+      /**
+       * Raw HTML injected at the end of `<body>`.
+       *
+       * https://vike.dev/bodyHtmlEnd
+       */
       bodyHtmlEnd?: HtmlInjection;
+
+      /**
+       * Raw HTML injected at the start of `<head>`.
+       *
+       * https://vike.dev/headHtmlBegin
+       */
+      headHtmlBegin?: HtmlInjection;
+
+      /**
+       * Raw HTML injected at the end of `<head>`.
+       *
+       * https://vike.dev/headHtmlEnd
+       */
+      headHtmlEnd?: HtmlInjection;
+
+      /**
+       * Add tag attributes such as `<html class="dark">`.
+       *
+       * https://vike.dev/htmlAttributes
+       */
+      htmlAttributes?: TagAttributes | ((pageContext: PageContextServer) => TagAttributes | undefined);
+
+      /**
+       * Add tag attributes such as `<body class="dark">`.
+       *
+       * https://vike.dev/bodyAttributes
+       */
+      bodyAttributes?: TagAttributes | ((pageContext: PageContextServer) => TagAttributes | undefined);
+
+      /**
+       * Add tag attributes to the root element such as `<div id="root" role="none">`.
+       *
+       * https://vike.dev/rootAttributes
+       */
+      rootAttributes?: TagAttributes | ((pageContext: PageContextServer) => TagAttributes | undefined);
+
       /** A server component around the page, e.g. its navigation and footer. With several, the one closest to the page is innermost. @see https://vike.dev/Layout */
       Layout?: WrapperComponent | ImportString;
       /** A server component around the page and all its layouts. @see https://vike.dev/Wrapper */
@@ -92,13 +189,13 @@ declare global {
     interface ConfigResolved {
       Page?: () => ReactNode | Promise<ReactNode>;
       Head?: HeadValue[];
-      htmlAttributes?: Setting<TagAttributes, PageContextServer>[];
-      bodyAttributes?: Setting<TagAttributes, PageContextServer>[];
-      rootAttributes?: Setting<TagAttributes, PageContextServer>[];
-      headHtmlBegin?: HtmlInjection[];
-      headHtmlEnd?: HtmlInjection[];
       bodyHtmlBegin?: HtmlInjection[];
       bodyHtmlEnd?: HtmlInjection[];
+      headHtmlBegin?: HtmlInjection[];
+      headHtmlEnd?: HtmlInjection[];
+      bodyAttributes?: TagAttributes[];
+      htmlAttributes?: TagAttributes[];
+      rootAttributes?: TagAttributes[];
       Layout?: WrapperComponent[];
       Wrapper?: WrapperComponent[];
       Loading?: LoadingValue;
@@ -106,3 +203,8 @@ declare global {
     }
   }
 }
+
+// Be able to reference it from within `namespace Vike`
+// - https://stackoverflow.com/questions/46559021/typescript-use-of-global-type-inside-namespace-with-same-type
+// - https://github.com/Microsoft/TypeScript/issues/983
+type PageContext_ = PageContext;

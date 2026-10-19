@@ -776,11 +776,12 @@ function testHeadSettings() {
       '<meta name="description" content="A demo of Vike with React Server Components" /><meta property="og:description" content="A demo of Vike with React Server Components" />'
     );
     expect(head).to.include('<link rel="icon" href="/vike.svg" />');
-    expect(head.match(/<meta name="viewport"[^>]*>/g)).to.deep.equal(['<meta name="viewport" content="width=device-width,initial-scale=1" />']);
+    expect(head.match(/<meta name="viewport"[^>]*>/g)).to.deep.equal(['<meta name="viewport" content="width=device-width,initial-scale=1">']);
     const positions = [
       "<!-- headHtmlBegin -->",
       "<title>",
       '<meta name="theme-color"',
+      '<link rel="icon"',
       "<!-- headHtmlEnd -->",
       "</head>",
       '<body data-body=""',
@@ -799,8 +800,8 @@ function testHeadSettings() {
     expect(set).to.include('<html data-html="" lang="fr">');
     expect(set).to.include("<title>Head settings from +data</title>");
     expect(set).to.include('<meta name="description" content="Set by +description" />');
-    expect(set).to.include('<meta property="og:image" content="/vike.svg" /><meta name="twitter:card" content="summary_large_image" />');
-    expect(set).to.include('<meta name="viewport" content="width=1024" />');
+    expect(set).to.include('<meta property="og:image" content="/vike.svg"><meta name="twitter:card" content="summary_large_image">');
+    expect(set).to.include('<meta name="viewport" content="width=1024">');
 
     const removed = await fetchHtml("/head-settings-null");
     expect(removed).to.include('<html data-html="">');

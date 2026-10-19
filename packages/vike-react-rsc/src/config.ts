@@ -30,17 +30,18 @@ const vikeReactRsc: Config = {
     // vike-react's head settings; title, description and lang also apply on client navigation
     title: { env: { server: true, client: true } },
     description: { env: { server: true, client: true } },
-    lang: { env: { server: true, client: true } },
     image: { env: { server: true } },
     viewport: { env: { server: true } },
     favicon: { env: { server: true }, global: true },
+    lang: { env: { server: true, client: true } },
+    bodyHtmlBegin: { env: { server: true }, cumulative: true, global: true },
+    bodyHtmlEnd: { env: { server: true }, cumulative: true, global: true },
+    headHtmlBegin: { env: { server: true }, cumulative: true, global: true },
+    headHtmlEnd: { env: { server: true }, cumulative: true, global: true },
+    // cumulative for Vike extensions
     htmlAttributes: { env: { server: true }, global: true, cumulative: true },
     bodyAttributes: { env: { server: true }, global: true, cumulative: true },
     rootAttributes: { env: { server: true }, global: true, cumulative: true },
-    headHtmlBegin: { env: { server: true }, global: true, cumulative: true },
-    headHtmlEnd: { env: { server: true }, global: true, cumulative: true },
-    bodyHtmlBegin: { env: { server: true }, global: true, cumulative: true },
-    bodyHtmlEnd: { env: { server: true }, global: true, cumulative: true },
     // rsc() reads it in the browser, the action middleware on the server; unrelated to the rsc env
     rsc: { env: { client: true, server: true }, global: true },
     rscRuntime: { env: { rsc: true } },

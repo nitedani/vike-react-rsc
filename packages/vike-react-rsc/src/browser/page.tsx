@@ -1,7 +1,8 @@
 import { startTransition, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
-import { applyHeadSettings } from "./headSettings";
+import { applyHeadSettings } from "../integration/applyHeadSettings";
+import { getHeadSetting } from "../integration/getHeadSetting";
 
 type Shown = { pageContext: PageContextClient; root: ReactNode };
 
@@ -42,11 +43,18 @@ export function Root({ page }: { page: Shown }): ReactElement {
   useEffect(() => {
     if (state.pageContext.isHydration) return;
     try {
-      applyHeadSettings(state.pageContext);
+      applyHead(state.pageContext);
     } catch (err) {
       // Thrown in the effect, it would make React unmount the page
       reportError(err);
     }
   }, [state.pageContext]);
   return <PageContextProvider pageContext={state.pageContext}>{state.root}</PageContextProvider>;
+}
+
+function applyHead(pageContext: PageContextClient) {
+  const title = getHeadSetting<string | null>("title", pageContext);
+  const lang = getHeadSetting<string | null>("lang", pageContext);
+  const description = getHeadSetting<string | null>("description", pageContext);
+  applyHeadSettings(title, lang, description);
 }
