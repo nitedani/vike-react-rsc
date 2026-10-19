@@ -1,6 +1,6 @@
 import { startTransition, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { PageContextClient } from "vike/types";
-import { PageContextProvider } from "../pageContext";
+import { Context } from "../pageContext";
 
 type Shown = { pageContext: PageContextClient; root: ReactNode };
 
@@ -38,5 +38,7 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shown);
   }, []);
-  return <PageContextProvider pageContext={state.pageContext}>{state.root}</PageContextProvider>;
+  // Not PageContextProvider: React's dev performance track reads every key of a component's old props, and Vike's pageContext throws on a key it couldn't serialize
+  // TODO: remove once https://github.com/react/react/pull/36867 is released
+  return <Context value={state.pageContext}>{state.root}</Context>;
 }

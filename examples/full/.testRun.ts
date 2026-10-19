@@ -49,6 +49,10 @@ const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server comp
 // Logged on the server by testUnknownAction()
 const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
 
+// Logged on the server for /unserializable, whose data holds a function
+const UNSERIALIZABLE_LOG = "can't be serialized and, therefore, can't be passed to the client side";
+const UNSERIALIZABLE_RERENDER_LOG = "[vike-react-rsc] Client components get pageContext.data as undefined after rerender()";
+
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
   // Pre-rendered, and served like a static host would
@@ -80,6 +84,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testUnknownAction()
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
+      // testUnserializableData()
+      (logSource === "stderr" && (logText.includes(UNSERIALIZABLE_LOG) || logText.includes(UNSERIALIZABLE_RERENDER_LOG))) ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
@@ -128,6 +134,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscCacheInvalidation();
     testRscCacheInvalidationOnRejection();
     testRscCacheKey();
+    testUnserializableData();
   } else {
     testStaticHostAction();
   }
@@ -1061,6 +1068,27 @@ function testRscCacheKey() {
     const response = await fetch(request.url(), { method: "POST", headers: request.headers(), body: request.postData() });
     expect(response.status).to.equal(500);
     expect(await response.text()).to.not.include("Something went wrong");
+  });
+}
+
+function testUnserializableData() {
+  test("A page whose data holds a function updates on navigation and after rerender()", async () => {
+    await page.goto(getServerUrl() + "/unserializable?page=1");
+    await waitForHydration("Render again");
+    for (const next of ["2", "3"]) {
+      await page.click('a:has-text("Next page")');
+      await autoRetry(async () => {
+        expect(await page.textContent("[data-page]")).to.equal(next);
+      });
+    }
+    const readRender = async () => Number(await page.textContent("[data-render]"));
+    for (let i = 0; i < 2; i++) {
+      const before = await readRender();
+      await page.click('button:has-text("Render again")');
+      await autoRetry(async () => {
+        expect(await readRender()).to.be.greaterThan(before);
+      });
+    }
   });
 }
 
