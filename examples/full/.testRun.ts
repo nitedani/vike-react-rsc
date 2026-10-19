@@ -612,6 +612,7 @@ function testServerComponentAbort() {
     await autoRetry(async () => {
       expect(new URL(page.url()).pathname).to.equal("/todos");
     });
+    await waitForHydration("Add Task");
   });
 
   test("Server component: throw redirect() on an rsc() load the page starts on mount, which doesn't stay in history", async () => {
@@ -623,6 +624,7 @@ function testServerComponentAbort() {
       await autoRetry(async () => {
         expect(new URL(page.url()).pathname).to.equal("/todos");
       });
+      await waitForHydration("Add Task");
     }
   });
 
@@ -655,6 +657,7 @@ function testServerComponentAbort() {
     await autoRetry(async () => {
       expect(new URL(page.url()).pathname).to.equal("/actions");
     });
+    await waitForHydration("Slow save");
   });
 }
 
