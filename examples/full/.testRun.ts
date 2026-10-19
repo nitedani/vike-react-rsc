@@ -337,6 +337,7 @@ function testTodoForm() {
       Number((await page.textContent(selector))?.match(/\d+/)?.[0]);
     const countBefore = await readTodoCount();
     expect(await readTodoCount("#todo-count-client")).to.equal(countBefore);
+    expect(await readTodoCount("#todo-count-streamed")).to.equal(countBefore);
     const requests: string[] = [];
     const onRequest = (request: { method(): string; url(): string; resourceType(): string }) => {
       if (["document", "fetch", "xhr"].includes(request.resourceType())) {
@@ -354,6 +355,7 @@ function testTodoForm() {
     expect(await readTodoCount()).to.equal(countBefore + 1);
     // Client components get the new pageContext too
     expect(await readTodoCount("#todo-count-client")).to.equal(countBefore + 1);
+    expect(await readTodoCount("#todo-count-streamed")).to.equal(countBefore + 1);
     expect(requests).to.deep.equal(["POST /todos"]);
     page.off("request", onRequest);
   });

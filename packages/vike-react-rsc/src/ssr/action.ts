@@ -118,20 +118,41 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
     for (const key of keys.slice(0, -1)) to = (to[key] ??= {}) as Record<string, unknown>;
     to[last] = parent[last];
   }
+  return serialize(passed);
+}
+
+// Flight carries the promises and streams, e.g. a promise data() returns for the browser to await, and the serializer
+// what each of them yields, as Vike serializes it
+function serialize(value: unknown): PassedToClient {
   const streamed: unknown[] = [];
-  const serialized = stringify(passed, {
+  const ids = new Map<unknown, number>();
+  const serialized = stringify(value, {
     forbidReactElements: true,
     // Read by the browser's parse(), never put in HTML
     htmlScriptSafe: false,
-    // Flight carries what the serializer can't, e.g. a promise data() returns for the browser to await
-    replacer: (_key, value) => (isStreamed(value) ? { replacement: STREAMED_MARKER + (streamed.push(value) - 1) } : undefined),
+    replacer: (_key, value) => {
+      if (!isStreamed(value)) return undefined;
+      // A stream can be read only once
+      if (!ids.has(value)) ids.set(value, streamed.push(serializeStreamed(value)) - 1);
+      return { replacement: STREAMED_MARKER + ids.get(value) };
+    },
   });
   return { serialized, streamed };
 }
 
+function serializeStreamed(value: PromiseLike<unknown> | AsyncIterable<unknown>): unknown {
+  if (value instanceof ReadableStream) {
+    return value.pipeThrough(new TransformStream({ transform: (chunk, controller) => controller.enqueue(serialize(chunk)) }));
+  }
+  if ("then" in value) return Promise.resolve(value).then(serialize);
+  return (async function* () {
+    for await (const chunk of value) yield serialize(chunk);
+  })();
+}
+
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 // A promise, a ReadableStream or an async iterable, as Vike streams them
-const isStreamed = (value: unknown): boolean =>
+const isStreamed = (value: unknown): value is PromiseLike<unknown> | AsyncIterable<unknown> =>
   isObject(value) && (typeof value.then === "function" || Symbol.asyncIterator in value);
 
 function answerRedirect(response: Response, headers: Headers, location: string): Response {

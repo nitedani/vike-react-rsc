@@ -51,17 +51,37 @@ async function readAnswer(response: Response, pageContext: PageContextClient): P
   const { returnValue, root, passedToClient } = await createFromFetch<ActionPayload>(Promise.resolve(response));
   // The page changed since the call: this answer's page is out of date
   if (root && getCurrentPageContext() === pageContext) {
-    const passed = parsePassedToClient(passedToClient!);
+    const passed = parsePassedToClient(passedToClient!) as Record<string, unknown>;
     startTransition(() => showRoot(root, passed));
   }
   return returnValue;
 }
 
-function parsePassedToClient({ serialized, streamed }: PassedToClient): Record<string, unknown> {
+function parsePassedToClient({ serialized, streamed }: PassedToClient): unknown {
+  const revived: unknown[] = [];
   return parse(serialized, {
-    reviver: (_path, value) =>
-      value.startsWith(STREAMED_MARKER) ? { replacement: streamed[Number(value.slice(STREAMED_MARKER.length))] } : undefined,
-  }) as Record<string, unknown>;
+    reviver: (_path, value) => {
+      if (!value.startsWith(STREAMED_MARKER)) return undefined;
+      const id = Number(value.slice(STREAMED_MARKER.length));
+      return { replacement: (revived[id] ??= parseStreamed(streamed[id] as PromiseLike<PassedToClient> | AsyncIterable<PassedToClient>)) };
+    },
+  });
+}
+
+// The promise or stream that Flight carried, yielding what the server serialized
+function parseStreamed(value: PromiseLike<PassedToClient> | AsyncIterable<PassedToClient>): unknown {
+  if (value instanceof ReadableStream) {
+    return value.pipeThrough(new TransformStream({ transform: (chunk, controller) => controller.enqueue(parsePassedToClient(chunk)) }));
+  }
+  if ("then" in value) {
+    const promise = Promise.resolve(value).then(parsePassedToClient);
+    // As Vike's: no unhandled rejection when nobody awaits it
+    promise.catch(() => {});
+    return promise;
+  }
+  return (async function* () {
+    for await (const chunk of value) yield parsePassedToClient(chunk);
+  })();
 }
 
 // Never settles: the caller doesn't resume, the document goes away
