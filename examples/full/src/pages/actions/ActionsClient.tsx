@@ -44,8 +44,9 @@ export default function ActionsClient() {
       {showRedirectingChild && (
         <>
           <RedirectingChildComponentRsc />
-          {/* Answers after the other one's redirect */}
+          {/* Answer after the other one's redirect: one before Back, the other still loading when the page shows them again */}
           <RedirectingChildComponentRsc delay={1000} />
+          <RedirectingChildComponentRsc delay={3000} />
         </>
       )}
       <form action={countSubmitAction}>
