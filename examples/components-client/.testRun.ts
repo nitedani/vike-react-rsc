@@ -7,6 +7,7 @@ import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRev
 // What the errors the tests below cause say
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_HOOK_ERROR = "is for client components";
+const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
 const SSR_FALSE_ERROR = 'starts with "use server component", so it renders on the server';
 
 function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
@@ -20,6 +21,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
       // testClientHooks(), and the dev server also sees the edits the builds make
       (logSource === "stderr" &&
         (logText.includes(CLIENT_HOOK_ERROR) ||
+          logText.includes(CLIENT_API_ERROR) ||
+          logText.includes("useState is not a function") ||
           logText.includes("HTTP response ← /helper 500") ||
           logText.includes("No error page found"))) ||
       // testComponentsConfig(): a page's error in the browser, then Vike's that the app has no error page to show for it,
@@ -232,6 +235,25 @@ function testClientHooks() {
         expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
       });
     }
+  });
+
+  test('Dev: a server component calling useState() gets React\'s error, naming its file and "use client"', async () => {
+    editFile("./pages/helper/+Page.tsx", () =>
+      `"use server component";\nimport { useState } from "react";\nexport default function Page() {\n  useState(0);\n  return null;\n}\n`
+    );
+    try {
+      await autoRetry(async () => {
+        expect((await fetch(getServerUrl() + "/helper")).status).to.equal(500);
+      });
+      expectLog(`pages/helper/+Page.tsx calls useState(), ${CLIENT_API_ERROR}: start it with "use client": TypeError`);
+    } finally {
+      // Reverted within milliseconds, Vite sends no update for the fix
+      await sleep(1000);
+      editFileRevert();
+    }
+    await autoRetry(async () => {
+      expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
+    });
   });
 }
 
