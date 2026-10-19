@@ -1,7 +1,6 @@
 import rsc from "@vitejs/plugin-rsc";
 import type { Plugin } from "vite";
 import { clientDefault, isClientDefault } from "./plugin/clientDefault";
-import { loadingBoundary } from "./plugin/loadingBoundary";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
 
@@ -27,7 +26,6 @@ export function vikeReactRscPlugins(): Plugin[] {
         if (name === "client") return { define: { __VIKE_REACT_RSC_CLIENT_DEFAULT__: String(command === "serve" || isClientDefault()) } };
       },
     },
-    loadingBoundary(),
     noServerFunctionComponents(),
     noServerComponentsInBrowser(),
     clientDefault(),
