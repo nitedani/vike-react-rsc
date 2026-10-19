@@ -54,6 +54,9 @@ const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
 const BROWSER_GUARD_ERROR = "guard() failed in the browser on demand";
 const ERROR_PAGE_IN_BROWSER_ERROR = "has to render in the browser, e.g. the error page after an error there";
 
+// Thrown by /throws on the server, then logged there, and by React in the browser: in production as its error #441
+const THROWS_ERROR = "A server component failed on demand";
+
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
   // Pre-rendered, and served like a static host would
@@ -88,6 +91,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testErrorPageInBrowser(): in dev, Vite also forwards the browser's log to the server's stderr
       logText.includes(BROWSER_GUARD_ERROR) ||
       logText.includes(ERROR_PAGE_IN_BROWSER_ERROR) ||
+      // testServerComponentThrows()
+      logText.includes(THROWS_ERROR) ||
+      (logSource === "Browser Error" && logText.includes("react.dev/errors/441")) ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
@@ -146,6 +152,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testPendingPage();
   testNavigationKeepsPage();
   testErrorPageInBrowser();
+  // /throws isn't pre-rendered: a static host has neither its HTML nor its pageContext
+  if (!isStatic) testServerComponentThrows();
   if (isDev) testErrorOverlay();
   if (isDev) testServerCssHmr();
 }
@@ -1126,6 +1134,27 @@ function testErrorPageInBrowser() {
   });
 }
 
+function testServerComponentThrows() {
+  test("A client navigation to a server component that throws: the console says why the error page can't render, and the next navigation shows its page", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<a id="throws" href="/throws">Go</a>'));
+    await page.click("#throws");
+    // components: 'server' makes the error page a server component, which can't render in the browser
+    await autoRetry(async () => {
+      expectLog(
+        `[vike-react-rsc] The page /src/pages/_error ${ERROR_PAGE_IN_BROWSER_ERROR}, but components: 'server' makes it a server component, which renders only on the server`,
+        { filter: ({ logSource }) => logSource === "Browser Error" }
+      );
+    });
+    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<a id="client" href="/client">Go</a>'));
+    await page.click("#client");
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
+    });
+  });
+}
+
 function testPendingPage() {
   test("A navigation that ends before React commits the hydration shows its page", async () => {
     // /hydration has no Loading.layout, so React commits its hydration only once its client component has loaded
@@ -1179,6 +1208,8 @@ function testNavigationKeepsPage() {
     await autoRetry(async () => {
       expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
     });
+    // The navigation ends once React shows the page
+    expect(await page.evaluate(() => (window as { shownAtTransitionEnd?: string | null }).shownAtTransitionEnd)).to.equal("/client");
     await page.unroute("**/*");
   });
 }

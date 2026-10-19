@@ -8,6 +8,8 @@ import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRev
 // What the errors the tests below cause say
 // testServerComponentImports(): in dev, the error on the server, then the browser's for the page it can't load
 const SERVER_COMPONENT_IN_BROWSER_ERROR = 'starts with "use server component", but the browser loads it';
+// Thrown by /throws, then logged by React in the browser, which Vite forwards to stderr in dev
+const THROWS_ERROR = "A client component failed on demand";
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
@@ -33,7 +35,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // Vite forwards these from the browser to stderr too
       logText.includes("Failed to fetch dynamically imported module") ||
-      logText.includes("No error page defined"),
+      logText.includes("No error page defined") ||
+      logText.includes(THROWS_ERROR),
   });
 
   testClientComponents();
@@ -149,6 +152,17 @@ function testVikeReactRendering() {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");
     await page.waitForSelector("text=Rendered in the browser, after onBeforeRenderClient() for /spa");
+  });
+
+  test("components: 'client': a client navigation to a page that throws shows the error page, as vike-react does", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<a id="throws" href="/throws">Go</a>'));
+    await page.click("#throws");
+    await autoRetry(async () => {
+      expect(await page.textContent("#error-page")).to.equal("Something went wrong");
+    });
+    expect(new URL(page.url()).pathname).to.equal("/throws");
   });
 
   test("components: 'client': ssr: false on a page with a server component: the browser renders it from its Flight", async () => {
