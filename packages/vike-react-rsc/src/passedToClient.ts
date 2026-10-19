@@ -1,4 +1,5 @@
 // The pageContext values rerender() sends to the browser, serialized as Vike serializes them for a navigation
+// TODO: use getPageContextJson() from vike/__internal and readPageContextJson() from vike/__internal/client once https://github.com/vikejs/vike/pull/3638 is released, and remove this file
 import { parse } from "@brillout/json-serializer/parse";
 import { stringify } from "@brillout/json-serializer/stringify";
 import type { PageContextServer } from "vike/types";
