@@ -626,21 +626,24 @@ function testServerComponentAbort() {
     }
   });
 
-  test("Server component: throw redirect() in what an rsc() load renders, and Back loads it again", async () => {
-    await page.goto(getServerUrl() + "/actions");
-    await waitForHydration("Slow save");
-    const loadChild = () => page.click('button:has-text("Load a server component whose child redirects")');
-    await expectRedirectedHome(loadChild);
-    // The 1000 ms child answers before Back, the 3000 ms one is still loading at the next click
-    await sleep(1000);
-    // The children don't redirect anymore, but the outputs that redirected are still fresh
-    await page.goBack();
-    await waitForHydration("Slow save");
-    await loadChild();
-    await autoRetry(async () => {
-      expect(await page.locator("[data-rsc-redirecting-child]").allTextContents()).to.deep.equal(["Loaded", "Loaded", "Loaded"]);
-    });
-    expect(new URL(page.url()).pathname).to.equal("/actions");
+  test("Server component: throw redirect() in what an rsc() load renders, or in its server function, and Back loads it again", async () => {
+    // The first panel's redirect comes from AbortBoundary, then from callServer()
+    for (const button of ["Load a server component whose child redirects", "Load a server component that redirects, then ones whose child redirects"]) {
+      await page.goto(getServerUrl() + "/actions");
+      await waitForHydration("Slow save");
+      const loadPanels = () => page.click(`button:has-text("${button}")`);
+      await expectRedirectedHome(loadPanels);
+      // The 1000 ms child answers before Back, the 3000 ms one is still loading at the next click
+      await sleep(1000);
+      // The children don't redirect anymore, but the outputs that redirected are still fresh
+      await page.goBack();
+      await waitForHydration("Slow save");
+      await loadPanels();
+      await autoRetry(async () => {
+        expect(await page.locator("[data-rsc-redirecting-child]").allTextContents()).to.deep.equal(["Loaded", "Loaded", "Loaded"]);
+      });
+      expect(new URL(page.url()).pathname).to.equal("/actions");
+    }
   });
 
   test("Server component: throw redirect() in the page a server action's rerender() renders, and Back returns to it", async () => {

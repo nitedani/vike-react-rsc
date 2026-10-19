@@ -13,7 +13,7 @@ export default function ActionsClient() {
   const [result, setResult] = useState("");
   const [showFailing, setShowFailing] = useState(false);
   const [showRedirecting, setShowRedirecting] = useState(false);
-  const [showRedirectingChild, setShowRedirectingChild] = useState(false);
+  const [firstRedirect, setFirstRedirect] = useState<"child" | "server-function">();
   const [submits, countSubmitAction] = useActionState(countSubmit, 0);
   const call = (action: () => Promise<string>) => async () => {
     let message: string;
@@ -40,13 +40,14 @@ export default function ActionsClient() {
       {showFailing && <FailingComponentRsc fallback={<p data-rsc-fallback="">Not loaded</p>} />}
       <button onClick={() => setShowRedirecting(true)}>Load a redirecting server component</button>
       <p data-rsc-redirecting="">{showRedirecting && <RedirectOnceComponentRsc fallback="Not loaded" />}</p>
-      <button onClick={() => setShowRedirectingChild(true)}>Load a server component whose child redirects</button>
-      {showRedirectingChild && (
+      <button onClick={() => setFirstRedirect("child")}>Load a server component whose child redirects</button>
+      <button onClick={() => setFirstRedirect("server-function")}>Load a server component that redirects, then ones whose child redirects</button>
+      {firstRedirect && (
         <>
-          <RedirectingChildComponentRsc />
-          {/* Answer after the other one's redirect: one before Back, the other still loading when the page shows them again */}
-          <RedirectingChildComponentRsc delay={1000} />
-          <RedirectingChildComponentRsc delay={3000} />
+          <RedirectingChildComponentRsc first={firstRedirect} />
+          {/* Answer after the first one's redirect: one before Back, the other still loading when the page shows them again */}
+          <RedirectingChildComponentRsc first={firstRedirect} delay={1000} />
+          <RedirectingChildComponentRsc first={firstRedirect} delay={3000} />
         </>
       )}
       <form action={countSubmitAction}>

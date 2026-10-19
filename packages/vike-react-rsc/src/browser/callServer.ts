@@ -7,7 +7,7 @@ import { getRedirectUrl } from "../redirect";
 import type { ActionPayload } from "../types";
 import { markAnswered } from "./AbortBoundary";
 import { getCurrentPageContext, hasUserActed, showRoot } from "./page";
-import { isRscLoad, markRscOutputsStale } from "./rsc";
+import { dropRscOutputs, isRscLoad, markRscOutputsStale } from "./rsc";
 
 /** React calls it for every server function the browser calls, rsc()'s included */
 export async function callServer(id: string, args: unknown[]): Promise<unknown> {
@@ -39,6 +39,8 @@ async function followRedirect(redirectTo: string, keepsPage: boolean): Promise<u
   const url = getRedirectUrl(redirectTo, location.href);
   if (!url) throw new Error(`[vike-react-rsc] The server action redirected to ${redirectTo}, which isn't an http(s) URL`);
   if (url.origin !== location.origin) return leavePage(() => location[keepsPage ? "assign" : "replace"](url.href));
+  // An rsc() output that throws redirect(), loaded or still loading, would throw it again after Back
+  dropRscOutputs();
   // Settles after the navigation, so a form action's pending transition doesn't hold the new page back
   await navigate(url.pathname + url.search + url.hash, { overwriteLastHistoryEntry: !keepsPage });
   return undefined;
