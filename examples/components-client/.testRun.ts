@@ -238,61 +238,25 @@ function testClientHooks() {
       ["usePageContext", "call getPageContext() in a server component or a server action"],
       ["useData", "read getPageContext().data in a server component"],
     ]) {
-      editFile("./pages/helper/+Page.tsx", () =>
-        `"use server component";\nimport { ${hook} } from "vike-react-rsc/${hook}";\nexport default function Page() {\n  ${hook}();\n  return null;\n}\n`
+      await expectHelperPageError(
+        `"use server component";\nimport { ${hook} } from "vike-react-rsc/${hook}";\nexport default function Page() {\n  ${hook}();\n  return null;\n}\n`,
+        `${hook}() ${CLIENT_HOOK_ERROR}: ${fix}`
       );
-      try {
-        await autoRetry(async () => {
-          expect((await fetch(getServerUrl() + "/helper")).status).to.equal(500);
-        });
-        expectLog(`${hook}() ${CLIENT_HOOK_ERROR}: ${fix}`);
-      } finally {
-        // Reverted within milliseconds, Vite sends no update for the fix
-        await sleep(1000);
-        editFileRevert();
-      }
-      await autoRetry(async () => {
-        expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
-      });
     }
   });
 
   test('Dev: <ClientOnly> in a server component throws, saying to render it in a "use client" file', async () => {
-    editFile("./pages/helper/+Page.tsx", () =>
-      `"use server component";\nimport { ClientOnly } from "vike-react-rsc/ClientOnly";\nexport default function Page() {\n  return <ClientOnly><p>Rendered in the browser</p></ClientOnly>;\n}\n`
+    await expectHelperPageError(
+      `"use server component";\nimport { ClientOnly } from "vike-react-rsc/ClientOnly";\nexport default function Page() {\n  return <ClientOnly><p>Rendered in the browser</p></ClientOnly>;\n}\n`,
+      `<ClientOnly> ${CLIENT_HOOK_ERROR}: render it in a "use client" file, so its children never load on the server`
     );
-    try {
-      await autoRetry(async () => {
-        expect((await fetch(getServerUrl() + "/helper")).status).to.equal(500);
-      });
-      expectLog(`<ClientOnly> ${CLIENT_HOOK_ERROR}: render it in a "use client" file, so its children never load on the server`);
-    } finally {
-      // Reverted within milliseconds, Vite sends no update for the fix
-      await sleep(1000);
-      editFileRevert();
-    }
-    await autoRetry(async () => {
-      expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
-    });
   });
 
   test('Dev: a server component calling useState() gets React\'s error, naming its file and "use client"', async () => {
-    editFile("./pages/helper/+Page.tsx", () =>
-      `"use server component";\nimport { useState } from "react";\nexport default function Page() {\n  useState(0);\n  return null;\n}\n`
+    await expectHelperPageError(
+      `"use server component";\nimport { useState } from "react";\nexport default function Page() {\n  useState(0);\n  return null;\n}\n`,
+      `pages/helper/+Page.tsx calls useState(), ${CLIENT_API_ERROR}: start it with "use client": TypeError`
     );
-    try {
-      await autoRetry(async () => {
-        expect((await fetch(getServerUrl() + "/helper")).status).to.equal(500);
-      });
-      expectLog(`pages/helper/+Page.tsx calls useState(), ${CLIENT_API_ERROR}: start it with "use client": TypeError`);
-    } finally {
-      // Reverted within milliseconds, Vite sends no update for the fix
-      await sleep(1000);
-      editFileRevert();
-    }
-    await autoRetry(async () => {
-      expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
-    });
   });
 
   test('Dev: a server file calling createContext() or extending Component as it loads gets the same hint', async () => {
@@ -300,21 +264,26 @@ function testClientHooks() {
       ['import { createContext } from "react";\nconst Context = createContext(null);\nexport default function Page() {\n  return null;\n}\n', "calls createContext()"],
       ['import { Component } from "react";\nexport default class Page extends Component {\n  render() {\n    return null;\n  }\n}\n', "extends Component or PureComponent"],
     ]) {
-      editFile("./pages/helper/+Page.tsx", () => `"use server component";\n${code}`);
-      try {
-        await autoRetry(async () => {
-          expect((await fetch(getServerUrl() + "/helper")).status).to.equal(500);
-        });
-        expectLog(`pages/helper/+Page.tsx ${use}, ${CLIENT_API_ERROR}: start it with "use client"`);
-      } finally {
-        // Reverted within milliseconds, Vite sends no update for the fix
-        await sleep(1000);
-        editFileRevert();
-      }
-      await autoRetry(async () => {
-        expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
-      });
+      await expectHelperPageError(`"use server component";\n${code}`, `pages/helper/+Page.tsx ${use}, ${CLIENT_API_ERROR}: start it with "use client"`);
     }
+  });
+}
+
+// /helper with `source` as its +Page answers 500 and logs `log`, then 200 again once the page is reverted
+async function expectHelperPageError(source: string, log: string) {
+  editFile("./pages/helper/+Page.tsx", () => source);
+  try {
+    await autoRetry(async () => {
+      expect((await fetch(getServerUrl() + "/helper")).status).to.equal(500);
+    });
+    expectLog(log);
+  } finally {
+    // Reverted within milliseconds, Vite sends no update for the fix
+    await sleep(1000);
+    editFileRevert();
+  }
+  await autoRetry(async () => {
+    expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
   });
 }
 
