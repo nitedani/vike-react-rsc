@@ -118,26 +118,39 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
     for (const key of keys.slice(0, -1)) to = (to[key] ??= {}) as Record<string, unknown>;
     to[last] = parent[last];
   }
-  return serialize(passed);
+  try {
+    return serialize(passed);
+  } catch {
+    // As Vike does, a value the serializer can't carry, e.g. a function only server components read, is left out
+    for (const [key, value] of Object.entries(passed)) {
+      try {
+        stringify(value, { forbidReactElements: true, valueName: `pageContext.${key}` });
+      } catch (error) {
+        console.warn(`[vike-react-rsc] Client components get pageContext.${key} as undefined after rerender(): ${(error as Error).message}`);
+        passed[key] = undefined;
+      }
+    }
+    return serialize(passed);
+  }
 }
 
 // Flight carries the promises and streams, e.g. a promise data() returns for the browser to await, and the serializer
 // what each of them yields, as Vike serializes it
 function serialize(value: unknown): PassedToClient {
-  const streamed: unknown[] = [];
-  const ids = new Map<unknown, number>();
+  const streamed: (PromiseLike<unknown> | AsyncIterable<unknown>)[] = [];
   const serialized = stringify(value, {
     forbidReactElements: true,
     // Read by the browser's parse(), never put in HTML
     htmlScriptSafe: false,
     replacer: (_key, value) => {
       if (!isStreamed(value)) return undefined;
-      // A stream can be read only once
-      if (!ids.has(value)) ids.set(value, streamed.push(serializeStreamed(value)) - 1);
-      return { replacement: STREAMED_MARKER + ids.get(value) };
+      // The same value referenced twice is sent once
+      const id = streamed.includes(value) ? streamed.indexOf(value) : streamed.push(value) - 1;
+      return { replacement: STREAMED_MARKER + id };
     },
   });
-  return { serialized, streamed };
+  // Only once the serializer succeeded: a stream can be read only once
+  return { serialized, streamed: streamed.map(serializeStreamed) };
 }
 
 function serializeStreamed(value: PromiseLike<unknown> | AsyncIterable<unknown>): unknown {
