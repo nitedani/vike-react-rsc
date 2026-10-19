@@ -48,6 +48,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   if (isDev) testClientHooks();
   if (isDev) testMarkerHmr();
   if (isDev) testServerComponentHmr();
+  if (isDev) testClientComponentHmr();
   if (isDev) testServerComponentImports();
 }
 
@@ -346,6 +347,25 @@ function testServerComponentHmr() {
     editFileRevert();
     await page.waitForSelector("h1:text-is('A server page')");
     expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
+    expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
+  });
+}
+
+function testClientComponentHmr() {
+  test("Dev: after an edit of the client Layout, client navigation shows the next page, without a reload", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#layout-counter");
+    await page.click("#layout-counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
+    });
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    editFile("./pages/+Layout.tsx", (source) => source.replace("Layout {clicks}", "Edited layout {clicks}"));
+    await page.waitForSelector("text=Edited layout 1");
+    await page.click('a[href="/server"]');
+    await page.waitForSelector("text=Rendered on the server");
+    editFileRevert();
+    await page.waitForSelector("text=Layout 1");
     expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
   });
 }
