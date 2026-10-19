@@ -141,7 +141,7 @@ function testVikeReactRendering() {
 }
 
 function testVikeReactImports() {
-  test("components: 'client': vike-react's useData(), useHydrated() and <ClientOnly> from vike-react-rsc", async () => {
+  test("components: 'client': vike-react's useData(), useHydrated() and <ClientOnly> from vike-react-rsc, in a React.lazy +Wrapper", async () => {
     const html = await fetchHtml("/hooks");
     expect(html).to.include("Data from +data");
     expect(html).to.include("Not hydrated yet");
@@ -151,6 +151,7 @@ function testVikeReactImports() {
     await page.waitForSelector("text=Rendered in the browser");
     expect(await page.textContent("#hydrated")).to.equal("Hydrated");
     expect(await page.textContent("#data")).to.equal("Data from +data");
+    expect(await page.$("#lazy-wrapper")).to.not.equal(null);
   });
 
   test("components: 'client': a server component renders <ClientOnly> through a client component, and calls useHydrated()", async () => {
