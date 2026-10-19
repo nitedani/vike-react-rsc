@@ -1,9 +1,21 @@
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
 import { Visitor, type ESTree, type Plugin } from "vite";
-import { getDirectives, getFile, getImports, getImportSources, isAppFile, isComponentFile, isPlusComponentFile, parse, readDirectives } from "./parse";
+import {
+  getBindings,
+  getDirectives,
+  getExportNames,
+  getFile,
+  getImports,
+  isAppFile,
+  isComponentFile,
+  isPlusComponentFile,
+  parse,
+  readDirectives,
+  readProgram,
+} from "./parse";
 
-type Resolve = (source: string) => Promise<string | undefined>;
+type Resolve = (source: string, importer?: string) => Promise<string | undefined>;
 
 /** Under `components: 'client'`, an unmarked .jsx or .tsx file, +Page, +Layout or +Wrapper is a client component, and
  * `"use server component"` marks a server component */
@@ -26,7 +38,7 @@ export function clientDefault(): Plugin {
       if (isComponentFile(id)) isMarked.set(`${this.environment.name}:${getFile(id)}`, directives.includes("use server component"));
       const root = this.environment.config.root;
       const file = path.relative(root, getFile(id));
-      const resolve: Resolve = async (source) => (await this.resolve(source, id))?.id;
+      const resolve: Resolve = async (source, importer = id) => (await this.resolve(source, importer))?.id;
       if (this.environment.name === "rsc") {
         // On the first line, so the source map stays valid
         if (isComponentFile(id) && directives.length === 0) return { code: `"use client";${code}`, map: null };
@@ -98,12 +110,32 @@ async function findClientFunctionCall(program: ESTree.Program, file: string, res
   }
 }
 
-// A client component's imports load in the browser, where a server component can't render
+// A client component's imports load in the browser, where a server component can't render, so no binding it imports may
+// come from a server component file, directly or re-exported by modules that aren't components, e.g. a barrel
 async function findServerComponentImport(program: ESTree.Program, file: string, resolve: Resolve, root: string) {
-  for (const source of getImportSources(program)) {
+  for (const { source, imported } of getBindings(program)) {
     const resolved = await resolve(source);
-    if (!resolved || !isComponentFile(resolved) || !(await readDirectives(resolved)).includes("use server component")) continue;
-    return `${file} imports ${path.relative(root, getFile(resolved))}, which starts with "use server component", so it's a client component importing a server component: start ${file} with "use server component" too`;
+    const files = resolved && (await findServerComponentFile(resolved, imported, resolve));
+    if (!files) continue;
+    const chain = files.map((id) => path.relative(root, getFile(id))).join(", which re-exports ");
+    return `${file} imports ${chain}, which starts with "use server component", so it's a client component importing a server component: start ${file} with "use server component" too`;
+  }
+}
+
+// The modules from `id` to the server component file that defines its export `name` ("*" for any)
+async function findServerComponentFile(id: string, name: string, resolve: Resolve, seen = new Set<string>()): Promise<string[] | undefined> {
+  if (!isAppFile(id) || seen.has(`${id}:${name}`)) return;
+  seen.add(`${id}:${name}`);
+  const program = await readProgram(id);
+  const directives = getDirectives(program);
+  if (directives.includes("use server component")) return name === "*" || getExportNames(program).includes(name) ? [id] : undefined;
+  // A component checks its own imports, and a "use server" module's exports are references in the browser
+  if (directives.length > 0 || isComponentFile(id)) return;
+  for (const { source, imported, exported } of getBindings(program)) {
+    if (!exported || (name !== "*" && exported !== "*" && exported !== name)) continue;
+    const resolved = await resolve(source, id);
+    const files = resolved && (await findServerComponentFile(resolved, exported === "*" ? name : imported, resolve, seen));
+    if (files) return [id, ...files];
   }
 }
 

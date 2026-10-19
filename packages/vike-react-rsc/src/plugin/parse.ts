@@ -23,6 +23,11 @@ export async function readDirectives(id: string): Promise<Directive[]> {
   return /["']use /.test(code) ? getDirectives(await parse(code, id)) : [];
 }
 
+/** A module that isn't being transformed, e.g. one the module being transformed imports */
+export async function readProgram(id: string): Promise<ESTree.Program> {
+  return parse(await readFile(getFile(id), "utf8"), id);
+}
+
 /** The source of each name the module imports: a default, named or namespace import */
 export function getImports(program: ESTree.Program): Map<string, string> {
   const imports = new Map<string, string>();
@@ -33,16 +38,51 @@ export function getImports(program: ESTree.Program): Map<string, string> {
   return imports;
 }
 
-/** What the module imports or re-exports from, except types */
-export function getImportSources(program: ESTree.Program): string[] {
-  return program.body.flatMap((statement) =>
-    (statement.type === "ImportDeclaration" || statement.type === "ExportNamedDeclaration" || statement.type === "ExportAllDeclaration") &&
-    statement.source &&
-    !("importKind" in statement && statement.importKind === "type") &&
-    !("exportKind" in statement && statement.exportKind === "type")
-      ? [String(statement.source.value)]
-      : []
-  );
+type Binding = { source: string; imported: string; exported?: string };
+
+/** The bindings the module imports or re-exports, except types: `imported` is its name in `source` ("*" for all of
+ * them), `exported` the name the module re-exports it under ("*" for `export * from`) */
+export function getBindings(program: ESTree.Program): Binding[] {
+  const imports = new Map<string, Binding>();
+  const bindings: Binding[] = [];
+  for (const statement of program.body) {
+    if (statement.type === "ImportDeclaration" && statement.importKind !== "type") {
+      for (const specifier of statement.specifiers) {
+        const imported =
+          specifier.type === "ImportSpecifier" ? getName(specifier.imported) : specifier.type === "ImportDefaultSpecifier" ? "default" : "*";
+        const binding = { source: String(statement.source.value), imported };
+        imports.set(specifier.local.name, binding);
+        bindings.push(binding);
+      }
+    }
+    if (statement.type === "ExportAllDeclaration" && statement.exportKind !== "type") {
+      bindings.push({ source: String(statement.source.value), imported: "*", exported: statement.exported ? getName(statement.exported) : "*" });
+    }
+    if (statement.type === "ExportNamedDeclaration" && statement.exportKind !== "type") {
+      for (const specifier of statement.specifiers) {
+        const local = getName(specifier.local);
+        const binding = statement.source ? { source: String(statement.source.value), imported: local } : imports.get(local);
+        if (binding) bindings.push({ ...binding, exported: getName(specifier.exported) });
+      }
+    }
+  }
+  return bindings;
+}
+
+/** The names the module exports, except through `export * from` */
+export function getExportNames(program: ESTree.Program): string[] {
+  return program.body.flatMap((statement) => {
+    if (statement.type === "ExportDefaultDeclaration") return ["default"];
+    if (statement.type !== "ExportNamedDeclaration") return [];
+    const { declaration } = statement;
+    if (!declaration) return statement.specifiers.map((specifier) => getName(specifier.exported));
+    if (declaration.type === "VariableDeclaration") return declaration.declarations.flatMap(({ id }) => (id.type === "Identifier" ? [id.name] : []));
+    return "id" in declaration && declaration.id?.type === "Identifier" ? [declaration.id.name] : [];
+  });
+}
+
+function getName(name: ESTree.ModuleExportName): string {
+  return name.type === "Literal" ? String(name.value) : name.name;
 }
 
 /** A JavaScript or TypeScript module of the app, not of a package */
