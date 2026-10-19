@@ -1,6 +1,6 @@
 import rsc from "@vitejs/plugin-rsc";
 import type { Plugin } from "vite";
-import { clientDefault } from "./plugin/clientDefault";
+import { clientDefault, isClientDefault } from "./plugin/clientDefault";
 import { keepClientOnlyChildren } from "./plugin/keepClientOnlyChildren";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
 
@@ -19,6 +19,10 @@ export function vikeReactRscPlugins(): Plugin[] {
           rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
         },
       }),
+      // The client build leaves out what renders a page without a Flight, unless components is 'client'
+      configEnvironment: (name, _config, { command }) => {
+        if (name === "client") return { define: { __VIKE_REACT_RSC_CLIENT_DEFAULT__: String(command === "serve" || isClientDefault()) } };
+      },
     },
     noServerFunctionComponents(),
     clientDefault(),

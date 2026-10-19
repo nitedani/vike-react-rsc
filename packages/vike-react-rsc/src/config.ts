@@ -55,7 +55,7 @@ const vikeReactRsc: Config = {
     ssr: { env: { config: true }, effect: ssrEffect },
     // The plugin reads it too, and checks that all pages have the same value
     components: {
-      env: { config: true, server: true, client: true },
+      env: { config: true, server: true },
       effect: ({ configDefinedAt, configValue }) => {
         if (configValue !== "client" && configValue !== "server") throw new Error(`${configDefinedAt} should be "client" or "server"`);
         // Under 'client', a page without server components renders as in vike-react, so its + files load everywhere
