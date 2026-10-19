@@ -15,13 +15,9 @@ export function pagePayload(pageContext: PageContext): ReadableStream<Uint8Array
   }));
 }
 
-export function actionPayload(
-  pageContext: PageContext,
-  { returnValue, rerender }: ActionOutcome,
-  passedToClient?: PassedToClient
-): ReadableStream<Uint8Array> {
+export function actionPayload(pageContext: PageContext, returnValue: unknown, passedToClient?: PassedToClient): ReadableStream<Uint8Array> {
   return renderOnRead<ActionPayload>(pageContext, () =>
-    rerender ? { returnValue, root: getPage(pageContext), passedToClient } : { returnValue }
+    passedToClient ? { returnValue, root: getPage(pageContext), passedToClient } : { returnValue }
   );
 }
 

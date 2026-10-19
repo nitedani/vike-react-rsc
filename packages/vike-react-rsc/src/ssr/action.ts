@@ -45,7 +45,7 @@ export class ActionCall {
     // No outcome: the action threw. After render() to a page, the answer is that page, as for a form; Vike's error
     // page (is404 set) is left out, as callServer() rejects on its status without reading it
     const { returnValue, rerender } = this.outcome ?? { returnValue: undefined, rerender: pageContext.is404 === null };
-    return runtime.actionPayload(rscPageContext, { returnValue, rerender }, rerender ? getPassedToClient(pageContext) : undefined);
+    return runtime.actionPayload(rscPageContext, returnValue, rerender ? getPassedToClient(pageContext) : undefined);
   }
 
   /** The answer to the action, from the response of the page Vike rendered */
@@ -90,7 +90,7 @@ export class ActionCall {
   #answerReturnValue(response: Response, returnValue: unknown): Response {
     void response.body?.cancel();
     const { runtime, pageContext } = this.#rsc!;
-    const body = runtime.actionPayload(pageContext, { returnValue, rerender: false });
+    const body = runtime.actionPayload(pageContext, returnValue);
     return new Response(body, {
       headers: new Headers([...this.#setCookies.map((setCookie): [string, string] => ["set-cookie", setCookie]), ["content-type", FLIGHT_CONTENT_TYPE]]),
     });
