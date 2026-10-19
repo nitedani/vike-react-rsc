@@ -392,8 +392,8 @@ function testComponentsConfig() {
     expect(output).to.include("Set components once, in the root +config.js: pages set it to");
   });
 
-  test("Build: a Layout that a +config file imports fails the build, saying to export it from a +Layout file, with a quoted key too", async () => {
-    for (const property of ["Layout,", '"Layout": Layout,']) {
+  test("Build: a Layout that a +config file imports fails the build, saying to export it from a +Layout file, with a quoted key or an import: string too", async () => {
+    for (const property of ["Layout,", '"Layout": Layout,', 'Layout: "import:../../components/Badge:default",']) {
       const output = await getBuildError("./pages/spa/+config.ts", (source) =>
         `import Layout from "../../components/Badge";\n${source.replace("ssr: false,", `ssr: false,\n  ${property}`)}`
       );
