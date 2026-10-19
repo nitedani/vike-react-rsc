@@ -1,5 +1,4 @@
 import { hasDirective } from "@vitejs/plugin-rsc/transforms";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseAstAsync, type ESTree } from "vite";
 
@@ -15,12 +14,6 @@ export function parse(code: string, id: string): Promise<ESTree.Program> {
 /** The directives of the module's prologue that say where it runs */
 export function getDirectives(program: ESTree.Program): Directive[] {
   return directives.filter((directive) => hasDirective(program.body, directive));
-}
-
-/** The directives of a module that isn't being transformed, e.g. one the module being transformed imports */
-export async function readDirectives(id: string): Promise<Directive[]> {
-  const code = await readFile(getFile(id), "utf8");
-  return /["']use /.test(code) ? getDirectives(await parse(code, id)) : [];
 }
 
 /** The source of each name the module imports: a default, named or namespace import */

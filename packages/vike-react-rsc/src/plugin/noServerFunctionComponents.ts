@@ -1,33 +1,53 @@
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Visitor, type ESTree, type Plugin } from "vite";
 import { isClientDefault } from "./clientDefault";
-import { getDirectives, getFile, getImports, isAppFile, isPlusComponentFile, parse, readDirectives } from "./parse";
+import { getDirectives, getFile, getImports, isAppFile, isPlusComponentFile, parse, type Directive } from "./parse";
+
+type Module = { code: string; directives: Directive[]; imports: Map<string, string>; renderedNames: Set<string> };
 
 /** `"use server"` makes every export a server function that any browser can call, e.g. past the page's guard(): a
  * component marked so by mistake fails the build */
 export function noServerFunctionComponents(): Plugin {
+  // By file, for both envs and every file that renders its exports
+  const modules = new Map<string, Promise<Module>>();
+  const getModule = async (file: string, code?: string): Promise<Module> => {
+    const cached = modules.get(file);
+    if (cached && (code === undefined || (await cached).code === code)) return cached;
+    const module = readModule(file, code);
+    modules.set(file, module);
+    return module;
+  };
   return {
     name: "vike-react-rsc:no-server-function-components",
     enforce: "pre",
     async transform(code, id) {
       if (!isAppFile(id) || this.environment.name === "ssr") return;
-      const program = await parse(code, id);
       const file = getFile(id);
+      const { directives, imports, renderedNames } = await getModule(file, code);
       const root = this.environment.config.root;
-      if (isPlusComponentFile(id) && getDirectives(program).includes("use server")) {
+      if (isPlusComponentFile(id) && directives.includes("use server")) {
         this.error(serverFunctionError(path.relative(root, file)));
       }
-      const imports = getImports(program);
-      for (const name of getRenderedNames(program)) {
+      for (const name of renderedNames) {
         const source = imports.get(name);
         const resolved = source && (await this.resolve(source, id));
         if (!resolved || !isAppFile(resolved.id)) continue;
-        if ((await readDirectives(resolved.id)).includes("use server")) {
+        if ((await getModule(getFile(resolved.id))).directives.includes("use server")) {
           this.error(`${path.relative(root, file)} renders ${name}, but ${serverFunctionError(path.relative(root, getFile(resolved.id)))}`);
         }
       }
     },
+    watchChange(id) {
+      modules.delete(getFile(id));
+    },
   };
+}
+
+async function readModule(file: string, code?: string): Promise<Module> {
+  code ??= await readFile(file, "utf8");
+  const program = await parse(code, file);
+  return { code, directives: getDirectives(program), imports: getImports(program), renderedNames: getRenderedNames(program) };
 }
 
 function serverFunctionError(file: string): string {
