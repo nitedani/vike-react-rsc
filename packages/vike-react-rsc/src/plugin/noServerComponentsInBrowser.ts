@@ -2,10 +2,10 @@ import path from "node:path";
 import type { Plugin } from "vite";
 import { getDirectives, getFile, isAppFile, isPlusComponentFile, parse } from "./parse";
 
-/** The browser loading a `"use server component"` file, other than a + file, fails the build, naming the importers and the + file
- * to mark */
+/** The browser importing a `"use server component"` file is an error, in dev and in the build, naming the importers and the + file
+ * to mark. A + file with the directive is skipped: the browser gets a stub of it instead (see getServerComponentStub) */
 export function noServerComponentsInBrowser(): Plugin {
-  // The server component files the client build loads, other than + files
+  // The server component files the client build imports
   const serverComponentsInBrowser = new Set<string>();
   return {
     name: "vike-react-rsc:no-server-components-in-browser",
