@@ -27,6 +27,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testServerComponents();
   testLoading();
   testVikeReactRendering();
+  testVikeReactImports();
   // The preview server answers server actions too
   testFormBeforeHydration();
   // The dev server serves the sources, so a build can run beside it
@@ -96,6 +97,20 @@ function testVikeReactRendering() {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");
     await page.waitForSelector("text=Rendered in the browser, after onBeforeRenderClient() for /spa");
+  });
+}
+
+function testVikeReactImports() {
+  test("components: 'client': vike-react's useData(), useHydrated() and <ClientOnly> from vike-react-rsc", async () => {
+    const html = await fetchHtml("/hooks");
+    expect(html).to.include("Data from +data");
+    expect(html).to.include("Not hydrated yet");
+    expect(html).to.include("Loading in the browser");
+    expect(html).to.not.include("Rendered in the browser");
+    await page.goto(getServerUrl() + "/hooks");
+    await page.waitForSelector("text=Rendered in the browser");
+    expect(await page.textContent("#hydrated")).to.equal("Hydrated");
+    expect(await page.textContent("#data")).to.equal("Data from +data");
   });
 }
 

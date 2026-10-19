@@ -13,6 +13,12 @@ export default defineConfig({
     "src/__internal/middleware.ts",
     "src/pageContext.tsx",
     "src/pageContext.rsc.ts",
+    "src/hooks/usePageContext.tsx",
+    "src/hooks/usePageContext.rsc.ts",
+    "src/hooks/useData.tsx",
+    "src/hooks/useData.rsc.ts",
+    "src/hooks/useHydrated.ts",
+    "src/components/ClientOnly.tsx",
   ],
   format: ["esm"],
   // The exports map resolves to dist/*.js, so output extensions must stay .js.

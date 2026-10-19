@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { usePageContext } from "vike-react-rsc/pageContext";
+import { usePageContext } from "vike-react-rsc/usePageContext";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const [clicks, setClicks] = useState(0);

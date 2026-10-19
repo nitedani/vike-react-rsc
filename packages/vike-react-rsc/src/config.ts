@@ -22,6 +22,34 @@ const vikeReactRsc: Config = {
   hydrationCanBeAborted: true,
   components: "server",
 
+  // Remove <ClientOnly> children on server
+  staticReplace: [
+    {
+      env: "server",
+      filter: "vike-react-rsc/ClientOnly",
+      type: "call",
+      match: {
+        function: ["import:react/jsx-runtime:jsx", "import:react/jsx-runtime:jsxs", "import:react/jsx-dev-runtime:jsxDEV"],
+        args: { 0: "import:vike-react-rsc/ClientOnly:ClientOnly" },
+      },
+      remove: { arg: 1, prop: "children" },
+    },
+    {
+      env: "server",
+      filter: "vike-react-rsc/ClientOnly",
+      type: "call",
+      match: { function: "import:react:createElement", args: { 0: "import:vike-react-rsc/ClientOnly:ClientOnly" } },
+      remove: { argsFrom: 2 },
+    },
+    {
+      env: "server",
+      filter: "vike-react-rsc/useHydrated",
+      type: "call",
+      match: { function: "import:vike-react-rsc/useHydrated:useHydrated" },
+      replace: { with: false },
+    },
+  ],
+
   meta: {
     // Before components, whose effect overrides it under components: 'server'
     ssr: { env: { config: true }, effect: ssrEffect },

@@ -21,6 +21,16 @@
       "react-server": "./dist/pageContext.rsc.js",
       "default": "./dist/pageContext.js"
     },
+    "./usePageContext": {
+      "react-server": "./dist/hooks/usePageContext.rsc.js",
+      "default": "./dist/hooks/usePageContext.js"
+    },
+    "./useData": {
+      "react-server": "./dist/hooks/useData.rsc.js",
+      "default": "./dist/hooks/useData.js"
+    },
+    "./useHydrated": "./dist/hooks/useHydrated.js",
+    "./ClientOnly": "./dist/components/ClientOnly.js",
     "./__internal/browser": "./dist/__internal/browser.js",
     "./__internal/ssr": "./dist/__internal/ssr.server.js",
     "./__internal/rsc": "./dist/__internal/rsc.js",
