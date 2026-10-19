@@ -68,7 +68,8 @@ function serialize(value: unknown): PassedToClient {
     replacer: (_key, value) => {
       if (!isStreamed(value)) return undefined;
       // The same value referenced twice is sent once
-      const id = streamed.includes(value) ? streamed.indexOf(value) : streamed.push(value) - 1;
+      let id = streamed.indexOf(value);
+      if (id === -1) id = streamed.push(value) - 1;
       return { replacement: STREAMED_MARKER + id };
     },
   });
