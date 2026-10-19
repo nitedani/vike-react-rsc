@@ -38,7 +38,7 @@ function getPageElement(pageContext: PageContext): React.JSX.Element | null {
 }
 
 // React keeps a layer whose type changes from plain to lazy, as a Flight's client components are, but not from lazy to plain
-// TODO: remove once https://github.com/facebook/react/pull/REACT_PR is released
+// TODO: remove once https://github.com/react/react/issues/37899 is fixed and released
 function asLazy<Props>(Component: React.ComponentType<Props>): React.ComponentType<Props> {
   if (import.meta.env.SSR) return Component
   const loaded = { then: (resolve: (module: { default: typeof Component }) => void) => resolve({ default: Component }) }
