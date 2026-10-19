@@ -29,7 +29,7 @@ export function clientDefault(): Plugin {
         const program = await parse(code, id);
         const directives = getDirectives(program);
         // Its object would be a client reference here, which has no `layout`
-        if (directives.includes("use client") || (isClientDefault() && directives.length === 0)) return getClientLoadingStub(program);
+        if (directives.includes("use client") || (isClientDefault() && directives.length === 0)) return getClientLoadingStub(program, id);
       }
       // Under 'server', plugin-rsc's own rule: a file without "use client" is a server component
       if (!isClientDefault()) return;
@@ -111,17 +111,19 @@ export function isClientDefault(): boolean {
 
 // Outside the rsc env, a server Page, Layout, Wrapper or Loading: the page renders from its Flight, which has what it rendered
 function getServerComponentStub(program: ESTree.Program, id: string, file: string) {
-  const stub = `Object.assign(() => null, { isServerComponent: true, file: ${JSON.stringify(file)} })`;
-  const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
-  const name = path.basename(getFile(id)).split(".")[0]!.slice(1);
-  return { code: hasDefaultExport ? `export default ${stub};` : `export const ${name} = ${stub};`, map: null };
+  return { code: exportValue(program, id, `Object.assign(() => null, { isServerComponent: true, file: ${JSON.stringify(file)} })`), map: null };
 }
 
 // In the rsc env, a client +Loading: LoadingBoundary renders its layout, if it has one, where the file is loaded
-function getClientLoadingStub(program: ESTree.Program) {
+function getClientLoadingStub(program: ESTree.Program, id: string) {
+  return { code: `import { LoadingBoundary } from "vike-react-rsc/__internal/LoadingBoundary";\n${exportValue(program, id, "{ boundary: LoadingBoundary }")}`, map: null };
+}
+
+// `value`, exported as the + file exports its own: `export default`, or e.g. `export const Page` from a +Page file
+function exportValue(program: ESTree.Program, id: string, value: string): string {
   const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
-  const exportLoading = (loading: string) => (hasDefaultExport ? `export default ${loading};` : `export const Loading = ${loading};`);
-  return { code: `import { LoadingBoundary } from "vike-react-rsc/__internal/LoadingBoundary";\n${exportLoading("{ boundary: LoadingBoundary }")}`, map: null };
+  const name = path.basename(getFile(id)).split(".")[0]!.slice(1);
+  return hasDefaultExport ? `export default ${value};` : `export const ${name} = ${value};`;
 }
 
 // `Layout` for `Layout:` and `"Layout":`, undefined for a key computed at runtime
