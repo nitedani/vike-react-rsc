@@ -10,7 +10,7 @@ export default function Page() {
       <p id="data">{greeting}</p>
       <p id="hydrated">{hydrated ? "Hydrated" : "Not hydrated yet"}</p>
       <ClientOnly fallback={<p>Loading in the browser</p>}>
-        <p>Rendered in the browser</p>
+        <p>Rendered in the browser, at {window.location.pathname}</p>
       </ClientOnly>
     </>
   );

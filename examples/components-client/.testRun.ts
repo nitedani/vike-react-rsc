@@ -111,6 +111,20 @@ function testVikeReactImports() {
     expect(await page.textContent("#hydrated")).to.equal("Hydrated");
     expect(await page.textContent("#data")).to.equal("Data from +data");
   });
+
+  test("components: 'client': <ClientOnly> and useHydrated() in a server component", async () => {
+    const html = await fetchHtml("/client-only");
+    expect(html).to.include("Loading in the browser");
+    expect(html).to.not.include('<button id="counter"');
+    await page.goto(getServerUrl() + "/client-only");
+    await waitForHydration("#counter");
+    await page.click("#counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#counter")).to.equal("Counter 1");
+    });
+    // A server component renders only on the server
+    expect(await page.textContent("#hydrated")).to.equal("Not hydrated");
+  });
 }
 
 function testFormBeforeHydration() {
