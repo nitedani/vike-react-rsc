@@ -32,6 +32,8 @@ export function clientDefault(): Plugin {
       }
       if (directives.includes("use server component")) return isPlusComponentFile(id) ? getServerComponentStub(program, id) : undefined;
       if (directives.includes("use server")) return;
+      // Not a client component, e.g. a barrel or +data.ts
+      if (!isComponentFile(id) && !isPlusComponentFile(id) && !directives.includes("use client")) return;
       const error = await findServerComponentImport(program, file, resolve, root);
       if (error) this.error(error);
     },
