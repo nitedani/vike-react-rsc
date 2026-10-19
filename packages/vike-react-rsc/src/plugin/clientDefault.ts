@@ -87,12 +87,13 @@ async function assertComponentsInPlusFiles(root: string) {
     const program = await parse(await readFile(file, "utf8"), file);
     const imports = getImports(program);
     new Visitor({
-      Property: ({ key, value }) => {
-        if (key.type !== "Identifier" || !/^(Page|Layout|Wrapper|Loading)$/.test(key.name)) return;
+      Property: ({ key, computed, value }) => {
+        const name = getKeyName({ key, computed });
+        if (!name || !/^(Page|Layout|Wrapper|Loading)$/.test(name)) return;
         const isImport = value.type === "Identifier" ? imports.has(value.name) : value.type === "Literal" && String(value.value).startsWith("import:");
         if (!isImport) return;
         throw new Error(
-          `[vike-react-rsc] ${path.relative(root, file)} sets ${key.name} by an import, but only a +${key.name} file runs where components says: export it from a +${key.name} file`
+          `[vike-react-rsc] ${path.relative(root, file)} sets ${name} by an import, but only a +${name} file runs where components says: export it from a +${name} file`
         );
       },
     }).visit(program);
