@@ -35,14 +35,12 @@ export function clientDefault(): Plugin {
       const error = await findServerComponentImport(program, file, resolve, root);
       if (error) this.error(error);
     },
-    async hotUpdate({ file, read, server }) {
+    async hotUpdate({ file, read }) {
       const key = `${this.environment.name}:${file}`;
       if (!isMarked.has(key) || getDirectives(await parse(await read(), file)).includes("use server component") === isMarked.get(key)) return;
       // The env loads the file as another kind of module, e.g. a stub instead of a client component: it starts over
       isMarked.delete(key);
-      if (this.environment.name !== "client") this.environment.hot.send({ type: "full-reload", triggeredBy: file });
-      // The browser reloads once every env did, so that the page it gets is rendered from the new modules
-      if (![...isMarked.keys()].some((other) => other.endsWith(`:${file}`))) server.environments.client!.hot.send({ type: "full-reload" });
+      this.environment.hot.send({ type: "full-reload", triggeredBy: file });
       return [];
     },
   };

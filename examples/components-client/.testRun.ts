@@ -220,6 +220,8 @@ function testMarkerHmr() {
       `"use server component";\n${source.replace("Rendered by a client component", "Rendered by a server component")}`
     );
     await page.waitForSelector("text=Rendered by a server component");
+    // Reverted while the page still loads, the page would hydrate with the reverted module
+    await waitForHydration("#layout-counter");
     editFileRevert();
     await page.waitForSelector("text=Rendered by a client component");
   });
