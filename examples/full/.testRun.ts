@@ -787,7 +787,7 @@ function testHeadSettings() {
       '<body data-body=""',
       "<!-- bodyHtmlBegin -->",
       '<div id="root" data-root="">',
-      "<!-- bodyHtmlEnd -->",
+      "<!-- bodyHtmlEnd / -->",
       "</body>",
     ].map((tag) => html.indexOf(tag));
     expect(positions).to.not.include(-1);
