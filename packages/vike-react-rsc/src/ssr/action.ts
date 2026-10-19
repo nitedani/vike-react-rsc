@@ -110,11 +110,13 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
     const keys = prop.split(/(?<!\\)\./).map((key) => key.replace(/\\\./g, "."));
     // A value the server no longer has is gone in the browser too
     if (!(keys[0]! in passed)) passed[keys[0]!] = undefined;
-    const value = keys.reduce<unknown>((obj, key) => (isObject(obj) ? obj[key] : undefined), pageContext);
-    if (value === undefined) continue;
+    const last = keys.at(-1)!;
+    const parent = keys.slice(0, -1).reduce<unknown>((obj, key) => (isObject(obj) ? obj[key] : undefined), pageContext);
+    // Like Vike, a key the server has is passed even when its value is undefined
+    if (!isObject(parent) || !(last in parent)) continue;
     let to = passed;
     for (const key of keys.slice(0, -1)) to = (to[key] ??= {}) as Record<string, unknown>;
-    to[keys.at(-1)!] = value;
+    to[last] = parent[last];
   }
   const streamed: unknown[] = [];
   const serialized = stringify(passed, {
