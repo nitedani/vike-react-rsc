@@ -1,6 +1,6 @@
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
-import type { ESTree, Plugin } from "vite";
+import type { Plugin } from "vite";
 import { getDirectives, getFile, isAppFile, isPlusComponentFile, parse } from "./parse";
 
 /** A file runs where the file that imports it runs, and a +Page, +Layout, +Wrapper or +Loading's `layout` where `components` says, unless
@@ -31,7 +31,7 @@ export function clientDefault(): Plugin {
         if (directives.length === 0) return { code: `"use client";${code}`, map: null };
         return;
       }
-      if (directives.includes("use server component")) return getServerComponentStub(program, id, path.relative(this.environment.config.root, getFile(id)));
+      if (directives.includes("use server component")) return getServerComponentStub(path.relative(this.environment.config.root, getFile(id)));
     },
     async hotUpdate({ type, file, read }) {
       if (type === "delete") return;
@@ -67,10 +67,7 @@ export function isClientDefault(): boolean {
 }
 
 // Outside the rsc env, a server Page, Layout, Wrapper or Loading: the page renders from its Flight, which has what it
-// rendered. Exported as the + file exports its own: `export default`, or e.g. `export const Page` from a +Page file
-function getServerComponentStub(program: ESTree.Program, id: string, file: string) {
-  const stub = `Object.assign(() => null, { isServerComponent: true, file: ${JSON.stringify(file)} })`;
-  const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
-  const name = path.basename(getFile(id)).split(".")[0]!.slice(1);
-  return { code: hasDefaultExport ? `export default ${stub};` : `export const ${name} = ${stub};`, map: null };
+// rendered. A default export, which Vike reads from any + file, whatever the file exports itself
+function getServerComponentStub(file: string) {
+  return { code: `export default Object.assign(() => null, { isServerComponent: true, file: ${JSON.stringify(file)} });`, map: null };
 }
