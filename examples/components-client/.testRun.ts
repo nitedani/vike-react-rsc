@@ -7,6 +7,7 @@ import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRev
 // What the errors the tests below cause say
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_FUNCTION_CALL_ERROR = "which is a client component file, so it can't run on the server";
+const CLIENT_HOOK_ERROR = "is for client components";
 
 function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   const isDev = cmd === "pnpm run dev";
@@ -16,9 +17,10 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
     // The preview command builds before it serves
     additionalTimeout: isDev ? 0 : 60000,
     tolerateError: ({ logSource, logText }) =>
-      // testClientFunctionCalls(): the dev server also sees the edits its builds make
+      // testClientFunctionCalls() and testClientHooks(), and the dev server also sees the edits the builds make
       logSource === "stderr" &&
       (logText.includes(CLIENT_FUNCTION_CALL_ERROR) ||
+        logText.includes(CLIENT_HOOK_ERROR) ||
         logText.includes("HTTP response ← /helper 500") ||
         logText.includes("No error page found")),
   });
@@ -33,6 +35,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   if (isDev) testServerFunctionComponents();
   if (isDev) testComponentsConfig();
   if (isDev) testClientFunctionCalls();
+  if (isDev) testClientHooks();
   if (isDev) testMarkerHmr();
   if (isDev) testServerComponentHmr();
   if (isDev) testServerComponentImports();
@@ -224,6 +227,32 @@ function testClientFunctionCalls() {
       const output = await getBuildError("./pages/helper/+Page.tsx", () => helperPage(imports!, call!));
       expect(output).to.include(`pages/helper/+Page.tsx calls ${called} from components/Badge.tsx`);
       expect(output).to.include(fix);
+    }
+  });
+}
+
+function testClientHooks() {
+  test("Dev: usePageContext() and useData() in a server component throw, naming what to call instead", async () => {
+    for (const [hook, fix] of [
+      ["usePageContext", "call getPageContext() in a server component or a server action"],
+      ["useData", "read getPageContext().data in a server component"],
+    ]) {
+      editFile("./pages/helper/+Page.tsx", () =>
+        `"use server component";\nimport { ${hook} } from "vike-react-rsc/${hook}";\nexport default function Page() {\n  ${hook}();\n  return null;\n}\n`
+      );
+      try {
+        await autoRetry(async () => {
+          expect((await fetch(getServerUrl() + "/helper")).status).to.equal(500);
+        });
+        expectLog(`${hook}() ${CLIENT_HOOK_ERROR}: ${fix}`);
+      } finally {
+        // Reverted within milliseconds, Vite sends no update for the fix
+        await sleep(1000);
+        editFileRevert();
+      }
+      await autoRetry(async () => {
+        expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
+      });
     }
   });
 }
