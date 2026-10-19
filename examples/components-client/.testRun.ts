@@ -33,6 +33,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   if (isDev) testServerFunctionComponents();
   if (isDev) testClientFunctionCalls();
   if (isDev) testMarkerHmr();
+  if (isDev) testServerComponentImports();
 }
 
 function testClientComponents() {
@@ -207,6 +208,20 @@ function testMarkerHmr() {
     await page.waitForSelector("text=Rendered by a server component");
     editFileRevert();
     await page.waitForSelector("text=Rendered by a client component");
+  });
+}
+
+function testServerComponentImports() {
+  test("Build: a client component importing a server component fails the build, saying to mark the importer", async () => {
+    const output = await getBuildError(
+      "./pages/js-page/+Page.js",
+      () =>
+        'import { createElement } from "react";\nimport { Markdown } from "../../components/Markdown";\n' +
+        'export default function Page() {\n  return createElement(Markdown, { source: "**A** page" });\n}\n'
+    );
+    expect(output).to.include(
+      'pages/js-page/+Page.js imports components/Markdown.tsx, which starts with "use server component", so it\'s a client component importing a server component: start pages/js-page/+Page.js with "use server component" too'
+    );
   });
 }
 

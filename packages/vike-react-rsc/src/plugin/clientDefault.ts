@@ -1,7 +1,7 @@
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
 import { Visitor, type ESTree, type Plugin } from "vite";
-import { getDirectives, getFile, getImports, isAppFile, isComponentFile, isPlusComponentFile, parse, readDirectives } from "./parse";
+import { getDirectives, getFile, getImports, getImportSources, isAppFile, isComponentFile, isPlusComponentFile, parse, readDirectives } from "./parse";
 
 /** Under `components: 'client'`, an unmarked .jsx or .tsx file is a client component, and `"use server component"` marks
  * a server component */
@@ -18,12 +18,22 @@ export function clientDefault(): Plugin {
       const directives = getDirectives(program);
       if (isComponentFile(id)) isMarked.set(`${this.environment.name}:${getFile(id)}`, directives.includes("use server component"));
       if (this.environment.name !== "rsc") {
-        if (!isPlusComponentFile(id) || !directives.includes("use server component")) return;
-        // The page renders from its Flight, which has what this component rendered in the rsc env
-        const stub = "Object.assign(() => null, { isServerComponent: true })";
-        const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
-        const name = path.basename(getFile(id)).split(".")[0]!.slice(1);
-        return { code: hasDefaultExport ? `export default ${stub};` : `export const ${name} = ${stub};`, map: null };
+        if (isPlusComponentFile(id) && directives.includes("use server component")) {
+          // The page renders from its Flight, which has what this component rendered in the rsc env
+          const stub = "Object.assign(() => null, { isServerComponent: true })";
+          const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
+          const name = path.basename(getFile(id)).split(".")[0]!.slice(1);
+          return { code: hasDefaultExport ? `export default ${stub};` : `export const ${name} = ${stub};`, map: null };
+        }
+        if (directives.includes("use server") || directives.includes("use server component")) return;
+        // A client component's imports load in the browser, where a server component can't render
+        for (const source of getImportSources(program)) {
+          const resolved = await this.resolve(source, id);
+          if (!resolved || !isComponentFile(resolved.id) || !(await readDirectives(resolved.id)).includes("use server component")) continue;
+          const importer = path.relative(this.environment.config.root, getFile(id));
+          this.error(`${importer} imports ${path.relative(this.environment.config.root, getFile(resolved.id))}, which starts with "use server component", so it's a client component importing a server component: start ${importer} with "use server component" too`);
+        }
+        return;
       }
       if (directives.includes("use client")) return;
       // On the first line, so the source map stays valid

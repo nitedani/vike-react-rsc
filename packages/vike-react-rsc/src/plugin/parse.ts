@@ -33,6 +33,18 @@ export function getImports(program: ESTree.Program): Map<string, string> {
   return imports;
 }
 
+/** What the module imports or re-exports from, except types */
+export function getImportSources(program: ESTree.Program): string[] {
+  return program.body.flatMap((statement) =>
+    (statement.type === "ImportDeclaration" || statement.type === "ExportNamedDeclaration" || statement.type === "ExportAllDeclaration") &&
+    statement.source &&
+    !("importKind" in statement && statement.importKind === "type") &&
+    !("exportKind" in statement && statement.exportKind === "type")
+      ? [String(statement.source.value)]
+      : []
+  );
+}
+
 /** A JavaScript or TypeScript module of the app, not of a package */
 export function isAppFile(id: string): boolean {
   const file = getFile(id);
