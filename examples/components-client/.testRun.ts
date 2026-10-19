@@ -2,7 +2,7 @@ export { testRun };
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRevert, expectLog, fetch, sleep } from "@brillout/test-e2e";
+import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRevert, expectLog, fetch, fetchHtml, sleep } from "@brillout/test-e2e";
 
 // The message of the build errors testServerFunctionComponents() causes, which the dev server also logs
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
@@ -25,6 +25,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
 
   testClientComponents();
   testServerComponents();
+  testLoading();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
   if (isDev) testClientFunctionCalls();
@@ -57,6 +58,15 @@ function testServerComponents() {
     await page.goto(getServerUrl() + "/strict");
     await waitForHydration("#layout-counter");
     expect(await page.textContent("#rendered-on")).to.equal('Rendered on the server, marked after "use strict"');
+  });
+}
+
+function testLoading() {
+  test("components: 'client': +Loading.tsx streams before the server page it waits for", async () => {
+    const html = await fetchHtml("/loading");
+    const fallback = html.indexOf('<p id="loading">');
+    expect(fallback, "fallback missing from response").to.not.equal(-1);
+    expect(html.indexOf('<p id="loaded">')).to.be.greaterThan(fallback);
   });
 }
 

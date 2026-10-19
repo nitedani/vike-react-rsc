@@ -1,9 +1,7 @@
 import path from "node:path";
 import { Visitor, type ESTree, type Plugin } from "vite";
 import { isClientDefault } from "./clientDefault";
-import { getDirectives, getFile, getImports, isAppFile, parse, readDirectives } from "./parse";
-
-const plusComponentFile = /\/\+(Page|Layout|Wrapper)(\.[^/]*)?\.[cm]?[jt]sx?$/;
+import { getDirectives, getFile, getImports, isAppFile, isPlusComponentFile, parse, readDirectives } from "./parse";
 
 /** `"use server"` makes every export a server function that any browser can call, e.g. past the page's guard(): a
  * component marked so by mistake fails the build */
@@ -16,7 +14,7 @@ export function noServerFunctionComponents(): Plugin {
       const program = await parse(code, id);
       const file = getFile(id);
       const root = this.environment.config.root;
-      if (plusComponentFile.test(file) && getDirectives(program).includes("use server")) {
+      if (isPlusComponentFile(id) && getDirectives(program).includes("use server")) {
         this.error(serverFunctionError(path.relative(root, file)));
       }
       const imports = getImports(program);
