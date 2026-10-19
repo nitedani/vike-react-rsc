@@ -355,6 +355,8 @@ function testServerComponentHmr() {
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
     editFile("./pages/server/+Page.tsx", (source) => source.replace("<h1>A server page</h1>", "<h1>An edited server page</h1>"));
     await page.waitForSelector("text=An edited server page");
+    // Vite's file watcher drops a change to a file that comes within 50 ms of the last one
+    await sleep(100);
     editFileRevert();
     await page.waitForSelector("h1:text-is('A server page')");
     expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
