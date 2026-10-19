@@ -33,6 +33,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   if (isDev) testServerFunctionComponents();
   if (isDev) testClientFunctionCalls();
   if (isDev) testMarkerHmr();
+  if (isDev) testServerComponentHmr();
   if (isDev) testServerComponentImports();
 }
 
@@ -238,6 +239,24 @@ function testMarkerHmr() {
     await waitForHydration("#layout-counter");
     editFileRevert();
     await page.waitForSelector("text=Rendered by a client component");
+  });
+}
+
+function testServerComponentHmr() {
+  test("Dev: editing a server Page updates it without a reload, so the Layout keeps its state", async () => {
+    await page.goto(getServerUrl() + "/server");
+    await waitForHydration("#layout-counter");
+    await page.click("#layout-counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
+    });
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    editFile("./pages/server/+Page.tsx", (source) => source.replace("<h1>A server page</h1>", "<h1>An edited server page</h1>"));
+    await page.waitForSelector("text=An edited server page");
+    editFileRevert();
+    await page.waitForSelector("h1:text-is('A server page')");
+    expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
+    expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
   });
 }
 

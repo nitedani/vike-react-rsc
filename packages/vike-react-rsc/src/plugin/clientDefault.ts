@@ -37,11 +37,15 @@ export function clientDefault(): Plugin {
     },
     async hotUpdate({ file, read }) {
       const key = `${this.environment.name}:${file}`;
-      if (!isMarked.has(key) || getDirectives(await parse(await read(), file)).includes("use server component") === isMarked.get(key)) return;
-      // The env loads the file as another kind of module, e.g. a stub instead of a client component: it starts over
-      isMarked.delete(key);
-      this.environment.hot.send({ type: "full-reload", triggeredBy: file });
-      return [];
+      if (!isMarked.has(key)) return;
+      if (getDirectives(await parse(await read(), file)).includes("use server component") !== isMarked.get(key)) {
+        // The env loads the file as another kind of module, e.g. a stub instead of a client component: it starts over
+        isMarked.delete(key);
+        this.environment.hot.send({ type: "full-reload", triggeredBy: file });
+        return [];
+      }
+      // Outside the rsc env, the edit leaves a server component's stub as it was: the rsc env's update refetches the Flight
+      if (isMarked.get(key) && this.environment.name !== "rsc") return [];
     },
   };
 }
