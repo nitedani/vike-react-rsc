@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
-import type { ImportString } from "vike/types";
+import type { ImportString, PageContextClient } from "vike/types";
 import type { ActionCall } from "./ssr/action";
 import type { Cookies } from "./ssr/cookies";
 
@@ -13,6 +13,7 @@ export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknown
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */
 export type RscRuntime = typeof import("./rsc/runtime");
 
+type BeforeRenderClientHook = (pageContext: PageContextClient) => void;
 type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
 type HeadValue = ReactNode | (() => ReactNode);
 type LoadingValue = {
@@ -25,8 +26,8 @@ type LoadingValue = {
 declare global {
   namespace Vike {
     interface PageContext {
-      /** The page's Flight: inlined in the HTML, or streamed in the pageContext a navigation fetches */
-      rscPayload: ReadableStream<Uint8Array>;
+      /** The page's Flight: inlined in the HTML, or streamed in the pageContext a navigation fetches. None for a page that renders as in vike-react. */
+      rscPayload?: ReadableStream<Uint8Array>;
       /** On the server, while it answers a server action */
       rscAction?: ActionCall;
     }
@@ -41,9 +42,9 @@ declare global {
       Page?: (() => ReactNode | Promise<ReactNode>) | ImportString;
       /** Tags for the page's `<head>`: an element, or a component, which can call `usePageContext()`. @see https://vike.dev/Head */
       Head?: HeadValue | ImportString;
-      /** A server component around the page, e.g. its navigation and footer. With several, the one closest to the page is innermost. @see https://vike.dev/Layout */
+      /** A component around the page, e.g. its navigation and footer. With several, the one closest to the page is innermost. @see https://vike.dev/Layout */
       Layout?: WrapperComponent | ImportString;
-      /** A server component around the page and all its layouts. @see https://vike.dev/Wrapper */
+      /** A component around the page and all its layouts. @see https://vike.dev/Wrapper */
       Wrapper?: WrapperComponent | ImportString;
       /** What shows while something loads. @see https://vike.dev/Loading */
       Loading?: LoadingValue | ImportString;
@@ -55,6 +56,22 @@ declare global {
       };
       /** Whether a .jsx or .tsx file without a directive is a server component (`'server'`, React's default) or a client component (`'client'`, as in vike-react), where `"use server component"` at its top marks a server component. Set once, in the root `+config.js`. Default: `'server'`. */
       components?: "client" | "server";
+      /**
+       * If `true`, the page is rendered twice: on the server-side (to HTML) and on the client-side (hydration).
+       *
+       * If `false`, the page is rendered only once in the browser. For a page without server components, under `components: 'client'`.
+       *
+       * @default true
+       *
+       * https://vike.dev/ssr
+       */
+      ssr?: boolean;
+      /**
+       * Client-side hook called before the page is rendered.
+       *
+       * https://vike.dev/onBeforeRenderClient
+       */
+      onBeforeRenderClient?: BeforeRenderClientHook | ImportString;
       /** Internal: the rsc env's runtime */
       rscRuntime?: RscRuntime | ImportString;
     }
@@ -65,6 +82,7 @@ declare global {
       Layout?: WrapperComponent[];
       Wrapper?: WrapperComponent[];
       Loading?: LoadingValue;
+      onBeforeRenderClient?: Function[];
       rscRuntime: RscRuntime;
     }
   }

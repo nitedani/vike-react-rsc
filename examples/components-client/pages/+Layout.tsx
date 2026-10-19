@@ -7,7 +7,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <>
       <nav>
-        <a href="/">Home</a> <a href="/server">Server</a> <a href="/strict">Strict</a>
+        <a href="/">Home</a> <a href="/server">Server</a> <a href="/admin">Admin</a>
       </nav>
       <button id="layout-counter" onClick={() => setClicks(clicks + 1)}>
         Layout {clicks}

@@ -1,7 +1,8 @@
 import { decodeAction, decodeFormState, decodeReply, loadServerAction, renderToReadableStream } from "@vitejs/plugin-rsc/rsc";
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
+import { getPageElement } from "../integration/getPageElement";
 import type { ActionOutcome, ActionPayload, PagePayload } from "../types";
 import { runInScope } from "./scope";
 
@@ -87,9 +88,6 @@ function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Paylo
 // The Page, inside its Layouts, inside its Wrappers. With Loading.layout, each of them shows it while what it wraps
 // suspends.
 function getPage(pageContext: PageContext): ReactNode {
-  const { Page, Layout = [], Wrapper = [], Loading } = pageContext.config;
-  if (!Page) throw new Error(`[vike-react-rsc] The page ${pageContext.pageId} has no Page: add a +Page file`);
-  const suspend = (node: ReactNode) =>
-    Loading?.layout ? <Suspense fallback={<Loading.layout />}>{node}</Suspense> : node;
-  return [...Layout, ...Wrapper].reduce<ReactNode>((children, Outer) => suspend(<Outer>{children}</Outer>), suspend(<Page />));
+  if (!pageContext.config.Page) throw new Error(`[vike-react-rsc] The page ${pageContext.pageId} has no Page: add a +Page file`);
+  return getPageElement(pageContext);
 }

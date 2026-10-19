@@ -1,7 +1,7 @@
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
 import { Visitor, type ESTree, type Plugin } from "vite";
-import { getDirectives, getFile, getImports, isAppFile, isComponentFile, parse, readDirectives } from "./parse";
+import { getDirectives, getFile, getImports, isAppFile, isComponentFile, isPlusComponentFile, parse, readDirectives } from "./parse";
 
 /** Under `components: 'client'`, an unmarked .jsx or .tsx file is a client component, and `"use server component"` marks
  * a server component */
@@ -11,9 +11,17 @@ export function clientDefault(): Plugin {
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
     async transform(code, id) {
-      if (this.environment.name !== "rsc" || !isAppFile(id) || !isClientDefault()) return;
+      if (!isAppFile(id) || !isClientDefault()) return;
       const program = await parse(code, id);
       const directives = getDirectives(program);
+      if (this.environment.name !== "rsc") {
+        if (!isPlusComponentFile(id) || !directives.includes("use server component")) return;
+        // The page renders from its Flight, which has what this component rendered in the rsc env
+        const stub = "Object.assign(() => null, { isServerComponent: true })";
+        const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
+        const name = path.basename(getFile(id)).split(".")[0]!.slice(1);
+        return { code: hasDefaultExport ? `export default ${stub};` : `export const ${name} = ${stub};`, map: null };
+      }
       if (directives.includes("use client")) return;
       // On the first line, so the source map stays valid
       if (isComponentFile(id) && directives.length === 0) return { code: `"use client";${code}`, map: null };

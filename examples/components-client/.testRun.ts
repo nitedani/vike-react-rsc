@@ -26,6 +26,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testClientComponents();
   testServerComponents();
   testLoading();
+  testVikeReactRendering();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
   if (isDev) testClientFunctionCalls();
@@ -58,6 +59,39 @@ function testServerComponents() {
     await page.goto(getServerUrl() + "/strict");
     await waitForHydration("#layout-counter");
     expect(await page.textContent("#rendered-on")).to.equal('Rendered on the server, marked after "use strict"');
+  });
+}
+
+function testVikeReactRendering() {
+  test("components: 'client': a page without server components renders as in vike-react, without a Flight", async () => {
+    expect(await fetchHtml("/")).to.not.include("rscPayload");
+    expect(await fetchHtml("/server")).to.include("rscPayload");
+  });
+
+  test("components: 'client': the root Layout keeps its state between client and server pages, and on Back", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#layout-counter");
+    await page.click("#layout-counter");
+    const layoutCounter = async () => expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
+    await autoRetry(layoutCounter);
+    await page.click('a[href="/server"]');
+    await page.waitForSelector("text=Rendered on the server");
+    await layoutCounter();
+    await page.click('a[href="/admin"]');
+    await page.waitForSelector("text=A server layout, rendered on the server");
+    await layoutCounter();
+    await page.click('a[href="/"]');
+    await page.waitForSelector("text=A client page");
+    await layoutCounter();
+    await page.goBack();
+    await page.waitForSelector("text=A server layout, rendered on the server");
+    await layoutCounter();
+  });
+
+  test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
+    expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
+    await page.goto(getServerUrl() + "/spa");
+    await page.waitForSelector("text=Rendered in the browser, after onBeforeRenderClient() for /spa");
   });
 }
 

@@ -6,8 +6,10 @@ import { renderToReadableStream } from "react-dom/server.edge";
 import { renderToStream } from "react-streaming/server.web";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
+import { getPageElement } from "../integration/getPageElement";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
+import { rendersFlight } from "../rendersFlight";
 import type { PagePayload } from "../types";
 
 // The CSS and JS of the client components a page's HTML renders, for their links
@@ -37,19 +39,17 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
 };
 
 async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) {
-  // The page renders to Flight once: one copy becomes the HTML, Vike inlines the other for hydration
-  const [forHtml, forBrowser] = pageContext.rscPayload.tee();
-  pageContext.rscPayload = forBrowser;
-  // tee() keeps the render going while either copy is read, so the HTML's copy stops once the HTML is sent, or the
-  // client left. The decoder holds its stream's lock, hence a pipe that can be cut.
   const htmlSent = new AbortController();
-  const { root, formState } = await createFromReadableStream<PagePayload>(
-    forHtml.pipeThrough(new TransformStream(), { signal: htmlSent.signal })
-  );
+  const { root, formState } = rendersFlight(pageContext)
+    ? await decodeFlight(pageContext, htmlSent.signal)
+    : // Without a Page, e.g. under `ssr: false`, the browser renders the page
+      { root: pageContext.config.Page ? getPageElement(pageContext) : null };
   const page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
   const nonce = pageContext.cspNonce ?? undefined;
   let html;
-  if (pageContext.isPrerendering) {
+  if (root === null) {
+    html = "";
+  } else if (pageContext.isPrerendering) {
     html = await renderWhole(page, nonce);
   } else {
     html = await renderToStream(page, { userAgent: pageContext.headers?.["user-agent"], streamOptions: { nonce, formState } });
@@ -73,6 +73,15 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
 </html>`,
     pageContext: { enableEagerStreaming: true },
   };
+}
+
+function decodeFlight(pageContext: PageContextServer, signal: AbortSignal): Promise<PagePayload> {
+  // The page renders to Flight once: one copy becomes the HTML, Vike inlines the other for hydration
+  const [forHtml, forBrowser] = pageContext.rscPayload!.tee();
+  pageContext.rscPayload = forBrowser;
+  // tee() keeps the render going while either copy is read, so the HTML's copy stops once the HTML is sent, or the
+  // client left. The decoder holds its stream's lock, hence a pipe that can be cut.
+  return createFromReadableStream<PagePayload>(forHtml.pipeThrough(new TransformStream(), { signal }));
 }
 
 // A pre-rendered page has to be complete, so it waits for every Suspense boundary. React's prerender() would, but takes
