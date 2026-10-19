@@ -380,7 +380,7 @@ function testClientComponentHmr() {
     await page.waitForSelector("h1:text-is('A client page')");
     expect(await page.textContent("#layout-counter")).to.equal("Edited layout 1");
     editFileRevert();
-    await page.waitForSelector("text=Layout 1");
+    await page.waitForSelector("#layout-counter:text-is('Layout 1')");
     expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
   });
 }
