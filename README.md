@@ -7,6 +7,10 @@ React RSC integration for [Vike](https://vike.dev).
 - **Server components**
   - Progressive rendering
   - Progressive hydration
+- **Progressive adoption**: with `components: 'client'` in your root `+config.js`, a `vike-react` app renders as it does with `vike-react`. Then move a file to the server by starting it with `"use server component"`.
+  - A file runs where the file that imports it runs. A `+Page`, `+Layout`, `+Wrapper` or `+Loading`'s `layout` runs where `components` says (default: `'server'`).
+  - A component that calls a hook such as `useState()` starts with `"use client"` when a server component imports it.
+  - `vike-react`'s `useData()`, `useHydrated()`, `usePageContext()` and `<ClientOnly>` are at `vike-react-rsc/useData`, `/useHydrated`, `/usePageContext` and `/ClientOnly`.
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
   - An action runs before `guard()` and `data()` of its request, so they see what it changed: `pageContext.cookies.get()` returns a cookie the action set.
