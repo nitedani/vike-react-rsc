@@ -15,7 +15,10 @@ function getPageElement(pageContext: PageContext): React.JSX.Element | null {
   // Wrapping
   const addSuspense = (el: React.JSX.Element | null) => {
     // Around each layer of every page or of none, the same in every env, so the Layouts keep their state between pages
-    if (LoadingBoundary) return <LoadingBoundary fallback={Loading?.layout && <Loading.layout />}>{page}</LoadingBoundary>
+    if (LoadingBoundary) {
+      const Boundary = asLazy(LoadingBoundary)
+      return <Boundary fallback={Loading?.layout && <Loading.layout />}>{page}</Boundary>
+    }
     if (!Loading?.layout) return el
     return <Suspense fallback={<Loading.layout />}>{page}</Suspense>
   }
@@ -26,9 +29,18 @@ function getPageElement(pageContext: PageContext): React.JSX.Element | null {
     // Outer wrapping
     ...(pageContext.config.Wrapper || []),
   ].forEach((Wrap) => {
-    page = <Wrap>{page}</Wrap>
+    const Layer = asLazy(Wrap)
+    page = <Layer>{page}</Layer>
     page = addSuspense(page)
   })
 
   return page
+}
+
+// React keeps a layer whose type changes from plain to lazy, as a Flight's client components are, but not from lazy to plain
+// TODO: remove once https://github.com/facebook/react/pull/REACT_PR is released
+function asLazy<Props>(Component: React.ComponentType<Props>): React.ComponentType<Props> {
+  if (import.meta.env.SSR) return Component
+  const loaded = { then: (resolve: (module: { default: typeof Component }) => void) => resolve({ default: Component }) }
+  return React.lazy(() => loaded as unknown as Promise<{ default: typeof Component }>) as React.ComponentType<Props>
 }
