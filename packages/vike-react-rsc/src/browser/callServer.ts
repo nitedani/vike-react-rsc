@@ -48,13 +48,13 @@ async function readAnswer(response: Response, pageContext: PageContextClient): P
   // E.g. a 404 page instead of the answer, Vike's HTML error page, or a static host
   const isFlight = response.headers.get("content-type")?.split(";")[0] === FLIGHT_CONTENT_TYPE.split(";")[0];
   if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
-  const { returnValue, root, passedToClient } = await createFromFetch<ActionPayload>(Promise.resolve(response));
+  const payload = await createFromFetch<ActionPayload>(Promise.resolve(response));
   // The page changed since the call: this answer's page is out of date
-  if (root && getCurrentPageContext() === pageContext) {
-    const passed = parsePassedToClient(passedToClient!);
-    startTransition(() => showRoot(root, passed));
+  if ("root" in payload && getCurrentPageContext() === pageContext) {
+    const passed = parsePassedToClient(payload.passedToClient);
+    startTransition(() => showRoot(payload.root, passed));
   }
-  return returnValue;
+  return payload.returnValue;
 }
 
 // Never settles: the caller doesn't resume, the document goes away
