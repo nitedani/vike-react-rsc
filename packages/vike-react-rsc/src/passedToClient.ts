@@ -3,6 +3,7 @@
 // serializer what each of them yields.
 import { parse } from "@brillout/json-serializer/parse";
 import { stringify } from "@brillout/json-serializer/stringify";
+import type { PageContextServer } from "vike/types";
 import type { PassedToClient } from "./types";
 
 // Stands for a promise or stream, followed by its index among the values Flight carries. The serializer escapes a user
@@ -11,7 +12,33 @@ const STREAMED_MARKER = "!vike-react-rsc:";
 
 type Streamed<T> = PromiseLike<T> | AsyncIterable<T>;
 
-export function serializePassedToClient(passed: Record<string, unknown>): PassedToClient {
+// The browser's pageContext values that data() and the hooks compute again after the action: data, and the app's
+// passToClient, picked as Vike picks them ('user.id' for a nested value, '\\.' for a dot in a name)
+export function getPassedToClient(pageContext: PageContextServer): PassedToClient {
+  const passed: Record<string, unknown> = {};
+  const props = (pageContext.config.passToClient ?? [])
+    .flat()
+    // Vike's Config type also takes { prop, once }, which its resolved type leaves out
+    .map((prop: string | { prop: string }) => (typeof prop === "string" ? prop : prop.prop))
+    .filter((prop) => prop !== "rscPayload");
+  for (const prop of ["data", ...props]) {
+    const keys = prop.split(/(?<!\\)\./).map((key) => key.replace(/\\\./g, "."));
+    // A value the server no longer has is gone in the browser too
+    if (!(keys[0]! in passed)) passed[keys[0]!] = undefined;
+    const last = keys.at(-1)!;
+    const parent = keys.slice(0, -1).reduce<unknown>((obj, key) => (isObject(obj) ? obj[key] : undefined), pageContext);
+    const value = isObject(parent) ? parent[last] : undefined;
+    // Like Vike, a key the server has is passed even when its value is undefined. Vike's pageContext also answers a key
+    // it doesn't have from globalContext, e.g. one onCreateGlobalContext() sets.
+    if (!isObject(parent) || (!(last in parent) && value === undefined)) continue;
+    let to = passed;
+    for (const key of keys.slice(0, -1)) to = (to[key] ??= {}) as Record<string, unknown>;
+    to[last] = value;
+  }
+  return serializePassedToClient(passed);
+}
+
+function serializePassedToClient(passed: Record<string, unknown>): PassedToClient {
   try {
     return serialize(passed);
   } catch {
@@ -76,6 +103,7 @@ function mapStreamed(value: Streamed<any>, map: (value: any) => unknown): unknow
   })();
 }
 
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 // A promise, a ReadableStream or an async iterable, as Vike streams them
 const isStreamed = (value: unknown): value is Streamed<unknown> =>
   typeof value === "object" &&

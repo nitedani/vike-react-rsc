@@ -1,9 +1,9 @@
 // Vike loads +middleware at startup, before Vite optimizes React, so neither this module nor its imports may import React
 import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
-import { serializePassedToClient } from "../passedToClient";
+import { getPassedToClient } from "../passedToClient";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
-import type { ActionOutcome, PassedToClient } from "../types";
+import type { ActionOutcome } from "../types";
 import { getRsc } from "./bridge";
 
 /** One action request. The rsc env runs it with `id` and `body`; without `id`, `body` is a form submitted before
@@ -96,34 +96,6 @@ export class ActionCall {
     });
   }
 }
-
-// The browser's pageContext values that data() and the hooks compute again after the action: data, and the app's
-// passToClient, picked as Vike picks them ('user.id' for a nested value, '\\.' for a dot in a name)
-function getPassedToClient(pageContext: PageContextServer): PassedToClient {
-  const passed: Record<string, unknown> = {};
-  const props = (pageContext.config.passToClient ?? [])
-    .flat()
-    // Vike's Config type also takes { prop, once }, which its resolved type leaves out
-    .map((prop: string | { prop: string }) => (typeof prop === "string" ? prop : prop.prop))
-    .filter((prop) => prop !== "rscPayload");
-  for (const prop of ["data", ...props]) {
-    const keys = prop.split(/(?<!\\)\./).map((key) => key.replace(/\\\./g, "."));
-    // A value the server no longer has is gone in the browser too
-    if (!(keys[0]! in passed)) passed[keys[0]!] = undefined;
-    const last = keys.at(-1)!;
-    const parent = keys.slice(0, -1).reduce<unknown>((obj, key) => (isObject(obj) ? obj[key] : undefined), pageContext);
-    const value = isObject(parent) ? parent[last] : undefined;
-    // Like Vike, a key the server has is passed even when its value is undefined. Vike's pageContext also answers a key
-    // it doesn't have from globalContext, e.g. one onCreateGlobalContext() sets.
-    if (!isObject(parent) || (!(last in parent) && value === undefined)) continue;
-    let to = passed;
-    for (const key of keys.slice(0, -1)) to = (to[key] ??= {}) as Record<string, unknown>;
-    to[last] = value;
-  }
-  return serializePassedToClient(passed);
-}
-
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 
 function answerRedirect(response: Response, headers: Headers, location: string): Response {
   void response.body?.cancel();
