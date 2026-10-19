@@ -1,5 +1,6 @@
 export { testRun };
 import { execFile } from "node:child_process";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRevert, expectLog, fetch, fetchHtml, sleep } from "@brillout/test-e2e";
@@ -329,6 +330,30 @@ function testMarkerHmr() {
     await waitForHydration("#layout-counter");
     editFileRevert();
     await page.waitForSelector("text=Rendered by a client component");
+  });
+
+  test("Dev: deleting a + file or a +config file shows no error", async () => {
+    // The dev server has loaded /hmr's +Page.tsx
+    await page.goto(getServerUrl() + "/hmr");
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#layout-counter");
+    for (const file of ["pages/hmr/+Page.tsx", "pages/spa/+config.ts"]) {
+      const filePath = fileURLToPath(new URL(file, import.meta.url));
+      const source = readFileSync(filePath, "utf8");
+      unlinkSync(filePath);
+      try {
+        await autoRetry(async () => {
+          expectLog(`removed /${file}`);
+        });
+        await sleep(1000);
+        expect(await page.$("vite-error-overlay")).to.equal(null);
+      } finally {
+        writeFileSync(filePath, source);
+      }
+      await autoRetry(async () => {
+        expectLog(`created /${file}`);
+      });
+    }
   });
 }
 

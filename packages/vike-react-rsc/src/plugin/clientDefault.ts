@@ -61,7 +61,8 @@ export function clientDefault(): Plugin {
         this.error(getServerComponentInBrowserError(chain, this.environment.config.root));
       }
     },
-    async hotUpdate({ file, read }) {
+    async hotUpdate({ type, file, read }) {
+      if (type === "delete") return;
       // Vike reloads an edited +config file without restarting Vite, so configResolved() doesn't check it again. Logged: an
       // error thrown here would skip the hotUpdate() of the plugins after this one, Vike's included
       if (checksConfigFiles && this.environment.name === "client" && path.basename(file).startsWith("+config.")) {
