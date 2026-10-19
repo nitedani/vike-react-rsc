@@ -1,10 +1,6 @@
-import type * as React from "react";
-import { createContext, useContext, type ReactElement, type ReactNode } from "react";
+import { useContext, type ReactElement, type ReactNode } from "react";
 import type { PageContext, PageContextServer } from "vike/types";
-import { getShared } from "./shared";
-
-// Every client component renders inside it: the browser's Root, and PageContextProvider in the HTML render and Head
-export const Context: React.Context<PageContext> = getShared("pageContext", () => createContext<PageContext>(undefined!));
+import { Context } from "./context";
 
 export function PageContextProvider({ pageContext, children }: { pageContext: PageContext; children: ReactNode }): ReactElement {
   return <Context value={pageContext}>{children}</Context>;

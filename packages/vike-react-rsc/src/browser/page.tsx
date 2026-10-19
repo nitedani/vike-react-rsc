@@ -1,6 +1,6 @@
 import { startTransition, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { PageContextClient } from "vike/types";
-import { Context } from "../pageContext";
+import { Context } from "../context";
 
 type Shown = { pageContext: PageContextClient; root: ReactNode };
 
