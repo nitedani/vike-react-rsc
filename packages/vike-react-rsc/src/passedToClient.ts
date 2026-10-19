@@ -46,17 +46,7 @@ function serialize(value: unknown): PassedToClient {
     },
   });
   // Only once the serializer succeeded: a stream can be read only once
-  return { serialized, streamed: streamed.map(serializeStreamed) };
-}
-
-function serializeStreamed(value: Streamed<unknown>): unknown {
-  if (value instanceof ReadableStream) {
-    return value.pipeThrough(new TransformStream({ transform: (chunk, controller) => controller.enqueue(serialize(chunk)) }));
-  }
-  if ("then" in value) return Promise.resolve(value).then(serialize);
-  return (async function* () {
-    for await (const chunk of value) yield serialize(chunk);
-  })();
+  return { serialized, streamed: streamed.map((value) => mapStreamed(value, serialize)) };
 }
 
 function deserialize({ serialized, streamed }: PassedToClient): unknown {
@@ -65,24 +55,24 @@ function deserialize({ serialized, streamed }: PassedToClient): unknown {
     reviver: (_path, value) => {
       if (!value.startsWith(STREAMED_MARKER)) return undefined;
       const id = Number(value.slice(STREAMED_MARKER.length));
-      return { replacement: (revived[id] ??= deserializeStreamed(streamed[id] as Streamed<PassedToClient>)) };
+      return { replacement: (revived[id] ??= mapStreamed(streamed[id] as Streamed<PassedToClient>, deserialize)) };
     },
   });
 }
 
-// The promise or stream that Flight carried, yielding what the server serialized
-function deserializeStreamed(value: Streamed<PassedToClient>): unknown {
+// The same kind of promise or stream, yielding map() of what `value` yields
+function mapStreamed(value: Streamed<any>, map: (value: any) => unknown): unknown {
   if (value instanceof ReadableStream) {
-    return value.pipeThrough(new TransformStream({ transform: (chunk, controller) => controller.enqueue(deserialize(chunk)) }));
+    return value.pipeThrough(new TransformStream({ transform: (chunk, controller) => controller.enqueue(map(chunk)) }));
   }
   if ("then" in value) {
-    const promise = Promise.resolve(value).then(deserialize);
+    const promise = Promise.resolve(value).then(map);
     // As Vike's: no unhandled rejection when nobody awaits it
     promise.catch(() => {});
     return promise;
   }
   return (async function* () {
-    for await (const chunk of value) yield deserialize(chunk);
+    for await (const chunk of value) yield map(chunk);
   })();
 }
 
