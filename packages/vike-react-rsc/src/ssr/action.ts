@@ -1,7 +1,8 @@
 // Vike loads +middleware at startup, before Vite optimizes React, so neither this module nor its imports may import React
+import { stringify } from "@brillout/json-serializer/stringify";
 import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
-import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, STREAMED_MARKER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import type { ActionOutcome, PassedToClient } from "../types";
 import { getRsc } from "./bridge";
 
@@ -44,7 +45,7 @@ export class ActionCall {
     // No outcome: the action threw. After render() to a page, the answer is that page, as for a form; Vike's error
     // page (is404 set) is left out, as callServer() rejects on its status without reading it
     const { returnValue, rerender } = this.outcome ?? { returnValue: undefined, rerender: pageContext.is404 === null };
-    return runtime.actionPayload(rscPageContext, { returnValue, rerender }, rerender ? getPassedToClient(pageContext) : []);
+    return runtime.actionPayload(rscPageContext, { returnValue, rerender }, rerender ? getPassedToClient(pageContext) : undefined);
   }
 
   /** The answer to the action, from the response of the page Vike rendered */
@@ -115,10 +116,21 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
     for (const key of keys.slice(0, -1)) to = (to[key] ??= {}) as Record<string, unknown>;
     to[keys.at(-1)!] = value;
   }
-  return Object.entries(passed);
+  const streamed: unknown[] = [];
+  const serialized = stringify(passed, {
+    forbidReactElements: true,
+    // Read by the browser's parse(), never put in HTML
+    htmlScriptSafe: false,
+    // Flight carries what the serializer can't, e.g. a promise data() returns for the browser to await
+    replacer: (_key, value) => (isStreamed(value) ? { replacement: STREAMED_MARKER + (streamed.push(value) - 1) } : undefined),
+  });
+  return { serialized, streamed };
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
+// A promise, a ReadableStream or an async iterable, as Vike streams them
+const isStreamed = (value: unknown): boolean =>
+  isObject(value) && (typeof value.then === "function" || Symbol.asyncIterator in value);
 
 function answerRedirect(response: Response, headers: Headers, location: string): Response {
   void response.body?.cancel();

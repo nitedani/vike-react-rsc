@@ -1,9 +1,10 @@
+import { parse } from "@brillout/json-serializer/parse";
 import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
 import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
-import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
-import type { ActionPayload } from "../types";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, STREAMED_MARKER, UNKNOWN_ACTION_HEADER } from "../protocol";
+import type { ActionPayload, PassedToClient } from "../types";
 import { getCurrentPageContext, showRoot } from "./page";
 import { isRscLoad, markRscOutputsStale } from "./rsc";
 
@@ -48,15 +49,19 @@ async function readAnswer(response: Response, pageContext: PageContextClient): P
   const isFlight = response.headers.get("content-type")?.split(";")[0] === FLIGHT_CONTENT_TYPE.split(";")[0];
   if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
   const { returnValue, root, passedToClient } = await createFromFetch<ActionPayload>(Promise.resolve(response));
-  if (!root) return returnValue;
-  // Flight's thenable: its then() returns nothing, so catch() doesn't chain
-  const passed = await Promise.resolve(passedToClient).catch((error: unknown): undefined => {
-    // E.g. a class instance in data(), which Vike's serializer passes and Flight doesn't
-    console.error("[vike-react-rsc] rerender() couldn't send the new pageContext values, so client components keep the old ones:", error);
-  });
   // The page changed since the call: this answer's page is out of date
-  if (getCurrentPageContext() === pageContext) startTransition(() => showRoot(root, passed));
+  if (root && getCurrentPageContext() === pageContext) {
+    const passed = parsePassedToClient(passedToClient!);
+    startTransition(() => showRoot(root, passed));
+  }
   return returnValue;
+}
+
+function parsePassedToClient({ serialized, streamed }: PassedToClient): Record<string, unknown> {
+  return parse(serialized, {
+    reviver: (_path, value) =>
+      value.startsWith(STREAMED_MARKER) ? { replacement: streamed[Number(value.slice(STREAMED_MARKER.length))] } : undefined,
+  }) as Record<string, unknown>;
 }
 
 // Never settles: the caller doesn't resume, the document goes away

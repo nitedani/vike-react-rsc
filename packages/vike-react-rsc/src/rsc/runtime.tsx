@@ -18,11 +18,10 @@ export function pagePayload(pageContext: PageContext): ReadableStream<Uint8Array
 export function actionPayload(
   pageContext: PageContext,
   { returnValue, rerender }: ActionOutcome,
-  passedToClient: PassedToClient = []
+  passedToClient?: PassedToClient
 ): ReadableStream<Uint8Array> {
   return renderOnRead<ActionPayload>(pageContext, () =>
-    // A promise is a Flight row of its own, so a value Flight can't carry fails only it
-    rerender ? { returnValue, root: getPage(pageContext), passedToClient: Promise.resolve(passedToClient) } : { returnValue }
+    rerender ? { returnValue, root: getPage(pageContext), passedToClient } : { returnValue }
   );
 }
 
@@ -67,7 +66,7 @@ function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Paylo
         signal: stopped.signal,
         onError: (error: unknown) => {
           // Not the abort, nor what failed because of it
-          if (!stopped.signal.aborted) console.error("[vike-react-rsc] A server component failed:", error);
+          if (!stopped.signal.aborted) console.error("[vike-react-rsc] A server component, or a value sent to the browser, failed:", error);
         },
       })
     );
