@@ -109,6 +109,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testClientCss();
   if (isDev) testClientCssLinkRemoved();
   testMisuse();
+  testUnserializableData(isStatic);
   // A static host has no server: nothing renders per request, and server actions can't run.
   if (!isStatic) {
     testPageLoading();
@@ -134,7 +135,6 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscCacheInvalidation();
     testRscCacheInvalidationOnRejection();
     testRscCacheKey();
-    testUnserializableData();
   } else {
     testStaticHostAction();
   }
@@ -1071,8 +1071,12 @@ function testRscCacheKey() {
   });
 }
 
-function testUnserializableData() {
+function testUnserializableData(isStatic: boolean) {
   test("A page whose data holds a function updates on navigation and after rerender()", async () => {
+    // Pre-rendered too, without a query
+    expect(await fetchHtml("/unserializable")).to.include('href="/unserializable?page=2"');
+    // A static host has no server: only the pre-rendered page exists
+    if (isStatic) return;
     await page.goto(getServerUrl() + "/unserializable?page=1");
     await waitForHydration("Render again");
     for (const next of ["2", "3"]) {
