@@ -112,6 +112,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   if (isDev) testClientCssLinkRemoved();
   testMisuse();
   testServerLoading();
+  testSsrFalse(isStatic);
   // A static host has no server: nothing renders per request, and server actions can't run.
   if (!isStatic) {
     testPageLoading();
@@ -851,6 +852,31 @@ function testServerLoading() {
       performance.getEntriesByType("resource").map((entry) => entry.name).filter((url) => /\.[cm]?[jt]sx?$/.test(new URL(url).pathname))
     );
     for (const url of scripts) expect(await (await fetch(url)).text(), url).to.not.include("read on the server");
+  });
+}
+
+function testSsrFalse(isStatic: boolean) {
+  test("ssr: false: the first load's HTML has no page, and the browser renders it from its Flight", async () => {
+    // Pre-rendered too: the HTML with an empty root, and the Flight
+    expect(await fetchHtml("/spa")).to.include('<div id="root"></div>');
+    await page.goto(getServerUrl() + "/spa");
+    // SpaControls reads window while it renders
+    await page.waitForSelector("#spa-rerender");
+    expect(await page.textContent("#spa-rendered-on")).to.equal("Rendered on the server");
+    // A static host has no server to run the action
+    if (!isStatic) {
+      const renders = Number(await page.textContent("#spa-renders"));
+      await page.click("#spa-rerender");
+      await autoRetry(async () => {
+        expect(Number(await page.textContent("#spa-renders"))).to.be.greaterThan(renders);
+      });
+    }
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<a id="spa" href="/spa">Go</a>'));
+    await page.click("#spa");
+    await page.waitForSelector("#spa-rerender");
+    expect(await page.textContent("#spa-rendered-on")).to.equal("Rendered on the server");
   });
 }
 

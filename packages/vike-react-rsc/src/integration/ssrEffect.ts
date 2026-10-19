@@ -5,7 +5,7 @@ import type { ConfigEffect } from 'vike/types'
 function ssrEffect({ configDefinedAt, configValue }: Parameters<ConfigEffect>[0]): ReturnType<ConfigEffect> {
   if (typeof configValue !== 'boolean') throw new Error(`${configDefinedAt} should be a boolean`)
   const env = {
-    // The rsc env renders the page's server components, and rerender()'s page
+    // ssr decides only the HTML: the rsc env keeps these, for server components and rerender()
     rsc: true,
     // Always load on the client-side.
     client: true,

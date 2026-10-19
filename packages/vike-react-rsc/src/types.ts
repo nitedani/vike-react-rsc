@@ -59,7 +59,8 @@ declare global {
       /**
        * If `true`, the page is rendered twice: on the server-side (to HTML) and on the client-side (hydration).
        *
-       * If `false`, the page is rendered only once in the browser. For a page without server components, under `components: 'client'`.
+       * If `false`, the first load's HTML has no page and the browser renders it, under either `components` value. Server
+       * components still render on the server.
        *
        * @default true
        *

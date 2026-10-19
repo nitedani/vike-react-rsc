@@ -9,7 +9,6 @@ import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRev
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
-const SSR_FALSE_ERROR = 'starts with "use server component", so it renders on the server';
 
 function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   const isDev = cmd === "pnpm run dev";
@@ -27,11 +26,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
           logText.includes("createContext is not a function") ||
           logText.includes("Class extends value undefined") ||
           logText.includes("HTTP response ← /helper 500") ||
-          logText.includes("No error page found"))) ||
-      // testComponentsConfig(): a page's error in the browser, then Vike's that the app has no error page to show for it,
-      // which Vite forwards to stderr
-      ((logSource === "Browser Error" || logSource === "stderr") &&
-        (logText.includes(SSR_FALSE_ERROR) || logText.includes("No error page defined"))),
+          logText.includes("No error page found"))),
   });
 
   testClientComponents();
@@ -147,6 +142,25 @@ function testVikeReactRendering() {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");
     await page.waitForSelector("text=Rendered in the browser, after onBeforeRenderClient() for /spa");
+  });
+
+  test("components: 'client': ssr: false on a page with a server component: the browser renders it from its Flight", async () => {
+    expect(await fetchHtml("/spa-server")).to.include('<div id="root"></div>');
+    await page.goto(getServerUrl() + "/spa-server");
+    // SpaControls reads window while it renders
+    await page.waitForSelector("#spa-rerender");
+    expect(await page.textContent("#spa-rendered-on")).to.equal("Rendered on the server");
+    const renders = Number(await page.textContent("#spa-renders"));
+    await page.click("#spa-rerender");
+    await autoRetry(async () => {
+      expect(Number(await page.textContent("#spa-renders"))).to.be.greaterThan(renders);
+    });
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<a id="spa-server" href="/spa-server">Go</a>'));
+    await page.click("#spa-server");
+    await page.waitForSelector("#spa-rerender");
+    expect(await page.textContent("#spa-rendered-on")).to.equal("Rendered on the server");
   });
 }
 
@@ -429,28 +443,10 @@ function testComponentsConfig() {
     expect(output).to.include("Set components once, in the root +config.js: pages set it to");
   });
 
-  test("Dev: ssr: false on a page with a server component throws in the browser, naming both", async () => {
-    editFile("./pages/spa/+Page.tsx", (source) => `"use server component";\n${source}`);
-    try {
-      await page.goto(getServerUrl() + "/spa");
-      await autoRetry(async () => {
-        expectLog(
-          `pages/spa/+Page.tsx ${SSR_FALSE_ERROR}, but the page /pages/spa sets ssr to false, so it renders only in the browser: remove "use server component" or ssr: false`,
-          { filter: ({ logSource }) => logSource === "Browser Error" }
-        );
-      });
-    } finally {
-      await page.goto("about:blank");
-      editFileRevert();
-    }
-  });
-
-  test("Build: ssr: false under components: 'server' builds, with a warning", async () => {
+  test("Build: ssr: false under components: 'server' builds, without a warning", async () => {
     const { isSuccess, output } = await build("./pages/+config.ts", (source) => source.replace('components: "client"', 'components: "server"'));
     expect(isSuccess).to.equal(true);
-    expect(output).to.include(
-      "[vike-react-rsc][Warning] /pages/spa/+config.ts > export default { ssr } sets ssr to false, which applies only under components: 'client'"
-    );
+    expect(output).to.not.include("sets ssr to false");
   });
 }
 

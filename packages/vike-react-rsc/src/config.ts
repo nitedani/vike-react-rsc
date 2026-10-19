@@ -52,9 +52,9 @@ const vikeReactRsc: Config = {
   ],
 
   meta: {
-    // Before components, whose effect overrides it under components: 'server'. The browser checks it against server
-    // components.
-    ssr: { env: { config: true, client: true }, effect: ssrEffect },
+    // Before components, whose effect overrides Page, Layout and Wrapper's env under components: 'server'. The server
+    // render reads it to leave the page out of the HTML.
+    ssr: { env: { config: true, server: true, client: true }, effect: ssrEffect },
     // The plugin reads it too, and checks that all pages have the same value
     components: {
       env: { config: true, server: true },

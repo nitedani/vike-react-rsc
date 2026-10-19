@@ -12,11 +12,6 @@ export function clientDefault(): Plugin {
     name: "vike-react-rsc:client-default",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
-    configResolved() {
-      // Under 'server', every page renders from its Flight, which only the server renders
-      const ssrFalse = !isClientDefault() && Object.values(getVikeConfig().pages).find((page) => page.config.ssr === false);
-      if (ssrFalse) warnOnce(`${ssrFalse._source.ssr!.definedAt} sets ssr to false, which applies only under components: 'client'`);
-    },
     async transform(code, id) {
       if (!isPlusComponentFile(id)) return;
       const isRsc = this.environment.name === "rsc";
@@ -49,14 +44,6 @@ export function clientDefault(): Plugin {
       if (isMarked.get(key) && this.environment.name !== "rsc") return [];
     },
   };
-}
-
-// A build resolves the Vite config more than once
-const warned = new Set<string>();
-function warnOnce(message: string) {
-  if (warned.has(message)) return;
-  warned.add(message);
-  console.warn(`[vike-react-rsc][Warning] ${message}`);
 }
 
 export function isClientDefault(): boolean {

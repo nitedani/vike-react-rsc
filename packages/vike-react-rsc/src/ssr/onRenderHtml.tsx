@@ -40,10 +40,11 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
 
 async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) {
   const htmlSent = new AbortController();
-  const flight = pageContext.rscPayload && (await decodeFlight(pageContext, htmlSent.signal));
+  // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
+  const ssr = pageContext.config.ssr !== false;
+  const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
   const formState = flight?.formState;
-  // Without a Page, e.g. under `ssr: false`, the browser renders the page
-  const root = rendersFlight(pageContext) ? flight!.root : pageContext.config.Page ? getPageElement(pageContext) : null;
+  const root = !ssr ? null : rendersFlight(pageContext) ? flight!.root : pageContext.config.Page ? getPageElement(pageContext) : null;
   const page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
   const nonce = pageContext.cspNonce ?? undefined;
   let html;
