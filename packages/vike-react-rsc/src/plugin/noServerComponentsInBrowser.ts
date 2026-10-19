@@ -2,8 +2,8 @@ import path from "node:path";
 import type { Plugin } from "vite";
 import { getDirectives, getFile, isAppFile, isPlusComponentFile, parse } from "./parse";
 
-/** The browser importing a `"use server component"` file is an error, in dev and in the build, naming the importers and the + file
- * to mark. A + file with the directive is skipped: the browser gets at most a stub of it (see getServerComponentStub) */
+/** The browser importing a `"use server component"` file is an error, in dev and in the build, naming each + file that imports
+ * it and the files in between. A + file with the directive is skipped: the browser gets at most a stub of it (see getServerComponentStub) */
 export function noServerComponentsInBrowser(): Plugin {
   // The server component files the client build imports
   const serverComponentsInBrowser = new Set<string>();
@@ -20,14 +20,14 @@ export function noServerComponentsInBrowser(): Plugin {
         return;
       }
       const { moduleGraph } = this.environment;
-      const chain = getImportChain(id, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])][0]?.id ?? undefined);
-      this.error(getServerComponentInBrowserError(chain, this.environment.config.root));
+      const chains = getImportChains(id, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])].flatMap((importer) => importer.id ?? []));
+      this.error(getServerComponentInBrowserErrors(chains, this.environment.config.root));
     },
     buildEnd() {
       if (this.environment.name !== "client") return;
       for (const id of serverComponentsInBrowser) {
-        const chain = getImportChain(id, (id) => this.getModuleInfo(id)?.importers[0]);
-        this.error(getServerComponentInBrowserError(chain, this.environment.config.root));
+        const chains = getImportChains(id, (id) => [...(this.getModuleInfo(id)?.importers ?? [])]);
+        this.error(getServerComponentInBrowserErrors(chains, this.environment.config.root));
       }
     },
   };
@@ -37,14 +37,22 @@ async function isServerComponentFile(code: string, id: string): Promise<boolean>
   return code.includes("use server component") && getDirectives(await parse(code, id)).includes("use server component");
 }
 
-// `id`, then its first importer, and so on up to the first + file of a component, the way plugin-rsc reports server-only
-function getImportChain(id: string, getImporter: (id: string) => string | undefined): string[] {
-  const chain: string[] = [];
-  for (let next: string | undefined = id; next && isAppFile(next) && !chain.includes(next); next = getImporter(next)) {
-    chain.push(next);
-    if (isPlusComponentFile(next)) break;
-  }
-  return chain;
+// Each way from `id` up its importers to a + file of a component, or to a file the app's code doesn't import, the way
+// plugin-rsc reports server-only. Every page that imports it, not just the first: in dev, the one the browser opens.
+function getImportChains(id: string, getImporters: (id: string) => string[]): string[][] {
+  const chains: string[][] = [];
+  const walk = (chain: string[]) => {
+    const file = chain.at(-1)!;
+    const importers = isPlusComponentFile(file) ? [] : getImporters(file).filter((importer) => isAppFile(importer) && !chain.includes(importer));
+    if (importers.length === 0) chains.push(chain);
+    for (const importer of importers) walk([...chain, importer]);
+  };
+  walk([id]);
+  return chains;
+}
+
+function getServerComponentInBrowserErrors(chains: string[][], root: string): string {
+  return [...new Set(chains.map((chain) => getServerComponentInBrowserError(chain, root)))].join("\n");
 }
 
 // A server component renders only on the server. A component in the browser shows one through rsc(); a + file that needs

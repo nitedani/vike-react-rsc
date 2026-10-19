@@ -6,6 +6,8 @@ import { promisify } from "node:util";
 import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRevert, expectLog, fetch, fetchHtml, sleep } from "@brillout/test-e2e";
 
 // What the errors the tests below cause say
+// testServerComponentImports(): in dev, the error on the server, then the browser's for the page it can't load
+const SERVER_COMPONENT_IN_BROWSER_ERROR = 'starts with "use server component", but the browser loads it';
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
@@ -26,7 +28,12 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
           logText.includes("createContext is not a function") ||
           logText.includes("Class extends value undefined") ||
           logText.includes("HTTP response ← /helper 500") ||
-          logText.includes("No error page found"))),
+          logText.includes("No error page found"))) ||
+      logText.includes(SERVER_COMPONENT_IN_BROWSER_ERROR) ||
+      (logSource === "Browser Error" && logText.includes("status of 500")) ||
+      // Vite forwards these from the browser to stderr too
+      logText.includes("Failed to fetch dynamically imported module") ||
+      logText.includes("No error page defined"),
   });
 
   testClientComponents();
@@ -425,6 +432,32 @@ function testServerComponentImports() {
         'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
         'or, if pages/index/+Page.tsx needs nothing from the browser (no hooks, no event handlers), start it with "use server component"'
     );
+  });
+
+  test("Dev: two pages import a server component: the error names the page the browser opens", async () => {
+    // Rendered once mounted, so the HTML renders without it
+    const importMarkdown = () =>
+      'import { createElement, useEffect, useState } from "react";\nimport { Markdown } from "../../components/Markdown";\n' +
+      "export default function Page() {\n  const [isMounted, setIsMounted] = useState(false);\n  useEffect(() => setIsMounted(true), []);\n" +
+      '  return isMounted ? createElement(Markdown, { source: "**A** page" }) : "waiting";\n}\n';
+    editFile("./pages/js-page/+Page.js", importMarkdown);
+    editFile("./pages/spa/+Page.tsx", importMarkdown);
+    try {
+      for (const [url, file] of [
+        ["/js-page", "pages/js-page/+Page.js"],
+        ["/spa", "pages/spa/+Page.tsx"],
+      ]) {
+        await page.goto(getServerUrl() + url);
+        await autoRetry(async () => {
+          expectLog(`components/Markdown.tsx ${SERVER_COMPONENT_IN_BROWSER_ERROR}: ${file} imports it.`, {
+            filter: ({ logSource }) => logSource === "stderr",
+          });
+        });
+      }
+    } finally {
+      await page.goto("about:blank");
+      editFileRevert();
+    }
   });
 
   test("Build: a barrel or +data.ts importing from a server component file builds", async () => {
