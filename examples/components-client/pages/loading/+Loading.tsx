@@ -1,3 +1,4 @@
 export default {
-  layout: () => <p id="loading">Loading the page</p>,
+  // The build finds `layout` quoted too
+  "layout": () => <p id="loading">Loading the page</p>,
 };

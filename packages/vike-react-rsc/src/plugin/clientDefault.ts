@@ -145,7 +145,13 @@ function hasLayout(program: ESTree.Program): boolean {
   }
   while (loading?.type === "TSSatisfiesExpression" || loading?.type === "TSAsExpression") loading = loading.expression;
   if (loading?.type !== "ObjectExpression") return true;
-  return loading.properties.some((property) => property.type !== "Property" || (property.key.type === "Identifier" && property.key.name === "layout"));
+  return loading.properties.some((property) => property.type !== "Property" || [undefined, "layout"].includes(getKeyName(property)));
+}
+
+// `layout` for `layout:` and `"layout":`, undefined for a key computed at runtime
+function getKeyName({ key, computed }: { key: ESTree.PropertyKey; computed: boolean }): string | undefined {
+  if (key.type === "Literal") return String(key.value);
+  if (key.type === "Identifier" && !computed) return key.name;
 }
 
 async function isServerComponentFile(code: string, id: string): Promise<boolean> {
