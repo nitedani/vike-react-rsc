@@ -23,17 +23,24 @@ export function getPassedToClient(pageContext: PageContextServer): PassedToClien
     const keys = prop.split(/(?<!\\)\./).map((key) => key.replace(/\\\./g, "."));
     // A value the server no longer has is gone in the browser too
     if (!(keys[0]! in passed)) passed[keys[0]!] = undefined;
-    const last = keys.at(-1)!;
-    const parent = keys.slice(0, -1).reduce<unknown>((obj, key) => (isObject(obj) ? obj[key] : undefined), pageContext);
-    const value = isObject(parent) ? parent[last] : undefined;
-    // Like Vike, a key the server has is passed even when its value is undefined. Vike's pageContext also answers a key
-    // it doesn't have from globalContext, e.g. one onCreateGlobalContext() sets.
-    if (!isObject(parent) || (!(last in parent) && value === undefined)) continue;
-    let to = passed;
-    for (const key of keys.slice(0, -1)) to = (to[key] ??= {}) as Record<string, unknown>;
-    to[last] = value;
+    const found = getPropVal(pageContext, keys);
+    if (found) setPropVal(passed, keys, found.value);
   }
   return serializePassedToClient(passed);
+}
+
+// As Vike's, null when the server doesn't have the value; a key it has is passed even when its value is undefined.
+// Vike's pageContext also answers a key it doesn't have from globalContext, e.g. one onCreateGlobalContext() sets.
+function getPropVal(obj: unknown, keys: string[]): { value: unknown } | null {
+  const parent = keys.slice(0, -1).reduce<unknown>((obj, key) => (isObject(obj) ? obj[key] : undefined), obj);
+  const last = keys.at(-1)!;
+  if (!isObject(parent) || (!(last in parent) && parent[last] === undefined)) return null;
+  return { value: parent[last] };
+}
+
+function setPropVal(obj: Record<string, unknown>, keys: string[], value: unknown): void {
+  for (const key of keys.slice(0, -1)) obj = (obj[key] ??= {}) as Record<string, unknown>;
+  obj[keys.at(-1)!] = value;
 }
 
 function serializePassedToClient(passed: Record<string, unknown>): PassedToClient {
