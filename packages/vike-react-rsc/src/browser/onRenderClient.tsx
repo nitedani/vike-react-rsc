@@ -7,7 +7,7 @@ import { findServerComponent } from "../rendersFlight";
 import type { PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { callServer } from "./callServer";
-import { Root, setCurrentPageContext, show } from "./page";
+import { onUncaughtError, rendered, Root, setCurrentPageContext, setReactRoot, show } from "./page";
 import { markRscOutputsStale } from "./rsc";
 
 // Whether a page can render without a Flight, as in vike-react: under components: 'client', and always in dev
@@ -23,11 +23,18 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   const { root, formState } = await getPagePayload(pageContext);
   const page = { pageContext, root };
   show(page);
-  if (!pageContext.isHydration) return;
+  // As vike-react's: Vike ends the navigation once React shows the page, and renders the error page if React throws on
+  // it. Not on hydration, whose onHydrationEnd() may navigate before React commits.
+  if (!pageContext.isHydration) return rendered();
   const container = document.getElementById("root")!;
   // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
-  if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") hydrateRoot(container, <Root page={page} />, { formState });
-  else createRoot(container).render(<Root page={page} />);
+  if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") {
+    setReactRoot(hydrateRoot(container, <Root page={page} />, { formState, onUncaughtError }));
+  } else {
+    const reactRoot = createRoot(container, { onUncaughtError });
+    setReactRoot(reactRoot);
+    reactRoot.render(<Root page={page} />);
+  }
 };
 
 async function getPagePayload(pageContext: PageContextClient): Promise<PagePayload> {
