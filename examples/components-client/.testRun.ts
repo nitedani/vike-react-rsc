@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRevert, expectLog, fetch, fetchHtml, sleep } from "@brillout/test-e2e";
 
-// The message of the build errors testServerFunctionComponents() causes, which the dev server also logs
+// What the errors the tests below cause say
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_FUNCTION_CALL_ERROR = "which is a client component file, so it can't run on the server";
 
@@ -28,7 +28,6 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testLoading();
   testVikeReactRendering();
   testVikeReactImports();
-  // The preview server answers server actions too
   testFormBeforeHydration();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
