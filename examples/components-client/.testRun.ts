@@ -6,7 +6,6 @@ import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRev
 
 // What the errors the tests below cause say
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
-const CLIENT_FUNCTION_CALL_ERROR = "which is a client component file, so it can't run on the server";
 const CLIENT_HOOK_ERROR = "is for client components";
 const SSR_FALSE_ERROR = 'starts with "use server component", so it renders on the server';
 
@@ -18,10 +17,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
     // The preview command builds before it serves
     additionalTimeout: isDev ? 0 : 60000,
     tolerateError: ({ logSource, logText }) =>
-      // testClientFunctionCalls() and testClientHooks(), and the dev server also sees the edits the builds make
+      // testClientHooks(), and the dev server also sees the edits the builds make
       (logSource === "stderr" &&
-        (logText.includes(CLIENT_FUNCTION_CALL_ERROR) ||
-          logText.includes(CLIENT_HOOK_ERROR) ||
+        (logText.includes(CLIENT_HOOK_ERROR) ||
           logText.includes("HTTP response ← /helper 500") ||
           logText.includes("No error page found"))) ||
       // testComponentsConfig(): a page's error in the browser, then Vike's that the app has no error page to show for it,
@@ -39,7 +37,6 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
   if (isDev) testComponentsConfig();
-  if (isDev) testClientFunctionCalls();
   if (isDev) testClientHooks();
   if (isDev) testMarkerHmr();
   if (isDev) testServerComponentHmr();
@@ -73,7 +70,7 @@ function testServerComponents() {
   test('components: \'client\': "use server component" marks a server component, after "use strict" too', async () => {
     await page.goto(getServerUrl() + "/server");
     expect(await page.textContent("#rendered-on")).to.equal("Rendered on the server");
-    // The unmarked component it renders stays a client component
+    // The component it renders starts with "use client"
     await waitForHydration("#counter");
     await page.click("#counter");
     await autoRetry(async () => {
@@ -83,6 +80,10 @@ function testServerComponents() {
     await page.goto(getServerUrl() + "/strict");
     await waitForHydration("#layout-counter");
     expect(await page.textContent("#rendered-on")).to.equal('Rendered on the server, marked after "use strict"');
+  });
+
+  test("components: 'client': a server component calls a function from a component file, on the server", async () => {
+    expect(await fetchHtml("/helper")).to.include("A FUNCTION OF A COMPONENT FILE, CALLED ON THE SERVER!");
   });
 }
 
@@ -208,44 +209,6 @@ function testServerFunctionComponents() {
   });
 }
 
-function testClientFunctionCalls() {
-  // pages/helper/+Page.tsx with `imports` and `call`
-  const helperPage = (imports: string, call: string) =>
-    `"use server component";\n${imports}\nexport default function Page() {\n  return <>{${call}}</>;\n}\n`;
-  const fix = 'move it to a .js or .ts file, or start components/Badge.tsx with "use server component"';
-
-  test("Dev: a server component calling a function from a client component file gets an error naming the fix", async () => {
-    expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
-    editFile("./pages/helper/+Page.tsx", () => helperPage('import { shout } from "../../components/Badge";', 'shout("new")'));
-    try {
-      await autoRetry(async () => {
-        expect((await fetch(getServerUrl() + "/helper")).status).to.equal(500);
-      });
-      expectLog(`pages/helper/+Page.tsx calls shout() from components/Badge.tsx, ${CLIENT_FUNCTION_CALL_ERROR}: ${fix}`);
-    } finally {
-      // Reverted within milliseconds, Vite sends no update for the fix
-      await sleep(1000);
-      editFileRevert();
-    }
-    await autoRetry(async () => {
-      expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
-    });
-  });
-
-  test("Build: a server component calling a function from a client component file fails the build, naming the fix", async () => {
-    for (const [imports, call, called] of [
-      ['import Badge from "../../components/Badge";', 'Badge({ label: "new" })', "Badge()"],
-      ['import { shout } from "../../components/Badge";', 'shout("new")', "shout()"],
-      ['import * as badge from "../../components/Badge";', 'badge.shout("new")', "badge.shout()"],
-      ['import Badge, { shout } from "../../components/Badge";', '<Badge label={shout("new")} />', "shout()"],
-    ]) {
-      const output = await getBuildError("./pages/helper/+Page.tsx", () => helperPage(imports!, call!));
-      expect(output).to.include(`pages/helper/+Page.tsx calls ${called} from components/Badge.tsx`);
-      expect(output).to.include(fix);
-    }
-  });
-}
-
 function testClientHooks() {
   test("Dev: usePageContext() and useData() in a server component throw, naming what to call instead", async () => {
     for (const [hook, fix] of [
@@ -314,7 +277,7 @@ function testServerComponentImports() {
         'export default function Page() {\n  return createElement(Markdown, { source: "**A** page" });\n}\n'
     );
     expect(output).to.include(
-      'pages/js-page/+Page.js imports components/Markdown.tsx, which starts with "use server component", so it\'s a client component importing a server component: start pages/js-page/+Page.js with "use server component" too'
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/js-page/+Page.js imports it: start pages/js-page/+Page.js with "use server component"'
     );
   });
 

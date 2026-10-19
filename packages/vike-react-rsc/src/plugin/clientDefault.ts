@@ -1,24 +1,10 @@
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
-import { Visitor, type ESTree, type Plugin } from "vite";
-import {
-  getBindings,
-  getDirectives,
-  getExportNames,
-  getFile,
-  getImports,
-  isAppFile,
-  isComponentFile,
-  isPlusComponentFile,
-  parse,
-  readDirectives,
-  readProgram,
-} from "./parse";
+import type { ESTree, Plugin } from "vite";
+import { getDirectives, getFile, isAppFile, isPlusComponentFile, parse } from "./parse";
 
-type Resolve = (source: string, importer?: string) => Promise<string | undefined>;
-
-/** Under `components: 'client'`, an unmarked .jsx or .tsx file, +Page, +Layout or +Wrapper is a client component, and
- * `"use server component"` marks a server component */
+/** A file runs where the file that imports it runs, and a +Page, +Layout or +Wrapper where `components` says, unless
+ * `"use client"` at its top puts it in the browser or `"use server component"` on the server */
 export function clientDefault(): Plugin {
   // Whether the file had the marker when the env last transformed it, by env and file
   const isMarked = new Map<string, boolean>();
@@ -35,34 +21,25 @@ export function clientDefault(): Plugin {
     },
     async transform(code, id) {
       if (!isAppFile(id)) return;
-      if (this.environment.name === "client" && !isPlusComponentFile(id) && (await isServerComponentFile(code, id))) {
+      if (!isPlusComponentFile(id)) {
+        if (this.environment.name !== "client" || !(await isServerComponentFile(code, id))) return;
         // The build knows every importer once it has loaded all modules
         if (this.environment.mode !== "dev") return void serverComponentsInBrowser.add(id);
         const { moduleGraph } = this.environment;
         const chain = getImportChain(id, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])][0]?.id ?? undefined);
         this.error(getServerComponentInBrowserError(chain, this.environment.config.root));
       }
+      // Under 'server', plugin-rsc's own rule: a file without "use client" is a server component
       if (!isClientDefault()) return;
       const program = await parse(code, id);
       const directives = getDirectives(program);
-      if (isComponentFile(id)) isMarked.set(`${this.environment.name}:${getFile(id)}`, directives.includes("use server component"));
-      const root = this.environment.config.root;
-      const file = path.relative(root, getFile(id));
-      const resolve: Resolve = async (source, importer = id) => (await this.resolve(source, importer))?.id;
+      isMarked.set(`${this.environment.name}:${getFile(id)}`, directives.includes("use server component"));
       if (this.environment.name === "rsc") {
         // On the first line, so the source map stays valid
-        if (isComponentFile(id) && directives.length === 0) return { code: `"use client";${code}`, map: null };
-        if (directives.includes("use client")) return;
-        const error = await findClientFunctionCall(program, file, resolve, root);
-        if (error) this.error(error);
+        if (directives.length === 0) return { code: `"use client";${code}`, map: null };
         return;
       }
-      if (directives.includes("use server component")) return isPlusComponentFile(id) ? getServerComponentStub(program, id, file) : undefined;
-      if (directives.includes("use server")) return;
-      // Not a client component, e.g. a barrel or +data.ts
-      if (!isComponentFile(id) && !directives.includes("use client")) return;
-      const error = await findServerComponentImport(program, file, resolve, root);
-      if (error) this.error(error);
+      if (directives.includes("use server component")) return getServerComponentStub(program, id, path.relative(this.environment.config.root, getFile(id)));
     },
     buildEnd() {
       if (this.environment.name !== "client") return;
@@ -134,63 +111,4 @@ function getServerComponentInBrowserError(chain: string[], root: string): string
   const fix = isPlusComponentFile(chain.at(-1)!) ? `start ${importer} with "use server component"` : "import it only from server components";
   const typesOnly = `if ${path.relative(root, getFile(chain[1]!))} imports only its types, write \`import type\``;
   return `${file} starts with "use server component", but the browser loads it: ${importer} imports it${through}: ${fix}, or, ${typesOnly}`;
-}
-
-// In the rsc env, what a server module imports from a client component file is a client reference, which throws when
-// called
-async function findClientFunctionCall(program: ESTree.Program, file: string, resolve: Resolve, root: string) {
-  const imports = getImports(program);
-  for (const [name, call] of getCalls(program)) {
-    const source = imports.get(name);
-    const resolved = source && (await resolve(source));
-    if (!resolved || !isComponentFile(resolved) || (await readDirectives(resolved)).length > 0) continue;
-    const from = path.relative(root, getFile(resolved));
-    const fix = /^use[A-Z]/.test(call)
-      ? `a hook runs only in a client component`
-      : `move it to a .js or .ts file, or start ${from} with "use server component"`;
-    return `${file} calls ${call}() from ${from}, which is a client component file, so it can't run on the server: ${fix}`;
-  }
-}
-
-// A client component's imports load in the browser, where a server component can't render, so no binding it imports may
-// come from a server component file, directly or re-exported by modules that aren't components, e.g. a barrel
-async function findServerComponentImport(program: ESTree.Program, file: string, resolve: Resolve, root: string) {
-  for (const { source, imported } of getBindings(program)) {
-    const resolved = await resolve(source);
-    const files = resolved && (await findServerComponentFile(resolved, imported, resolve));
-    if (!files) continue;
-    const chain = files.map((id) => path.relative(root, getFile(id))).join(", which re-exports ");
-    return `${file} imports ${chain}, which starts with "use server component", so it's a client component importing a server component: start ${file} with "use server component" too`;
-  }
-}
-
-// The modules from `id` to the server component file that defines its export `name` ("*" for any)
-async function findServerComponentFile(id: string, name: string, resolve: Resolve, seen = new Set<string>()): Promise<string[] | undefined> {
-  if (!isAppFile(id) || seen.has(`${id}:${name}`)) return;
-  seen.add(`${id}:${name}`);
-  const program = await readProgram(id);
-  const directives = getDirectives(program);
-  if (directives.includes("use server component")) return name === "*" || getExportNames(program).includes(name) ? [id] : undefined;
-  // A component checks its own imports, and a "use server" module's exports are references in the browser
-  if (directives.length > 0 || isComponentFile(id)) return;
-  for (const { source, imported, exported } of getBindings(program)) {
-    if (!exported || (name !== "*" && exported !== "*" && exported !== name)) continue;
-    const resolved = await resolve(source, id);
-    const files = resolved && (await findServerComponentFile(resolved, exported === "*" ? name : imported, resolve, seen));
-    if (files) return [id, ...files];
-  }
-}
-
-// The functions the module calls, by the local name they're called through: `badge` for `badge()` and `ui` for `ui.badge()`
-function getCalls(program: ESTree.Program): Map<string, string> {
-  const calls = new Map<string, string>();
-  new Visitor({
-    CallExpression: ({ callee }) => {
-      if (callee.type === "Identifier") calls.set(callee.name, callee.name);
-      if (callee.type === "MemberExpression" && callee.object.type === "Identifier" && callee.property.type === "Identifier") {
-        calls.set(callee.object.name, `${callee.object.name}.${callee.property.name}`);
-      }
-    },
-  }).visit(program);
-  return calls;
 }

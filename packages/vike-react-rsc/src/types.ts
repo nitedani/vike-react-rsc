@@ -54,7 +54,7 @@ declare global {
         /** The most bytes a server action's request body may have; a bigger one gets a 413. Default: 1 048 576 (1 MB). */
         bodySizeLimit?: number;
       };
-      /** Whether a .jsx or .tsx file, +Page, +Layout or +Wrapper without a directive is a server component (`'server'`, React's default) or a client component (`'client'`, as in vike-react), where `"use server component"` at its top marks a server component. Set once, in the root `+config.js`. Default: `'server'`. */
+      /** Where a +Page, +Layout or +Wrapper without a directive runs: on the server (`'server'`, React's default) or in the browser (`'client'`, as in vike-react). Any other file runs where the file that imports it runs, and `"use client"` at the top of a file puts it in the browser, `"use server component"` on the server. Set once, in the root `+config.js`. Default: `'server'`. */
       components?: "client" | "server";
       /**
        * If `true`, the page is rendered twice: on the server-side (to HTML) and on the client-side (hydration).
