@@ -12,7 +12,6 @@ export default {
   htmlAttributes: { "data-html": "" },
   bodyAttributes: { "data-body": "", "data-quoted": '"><b>&amp;' },
   rootAttributes: { "data-root": "" },
-  headHtmlBegin: "<!-- headHtmlBegin -->",
   headHtmlEnd: "<!-- headHtmlEnd -->",
   bodyHtmlBegin: "<!-- bodyHtmlBegin -->",
   bodyHtmlEnd: "<!-- bodyHtmlEnd -->",

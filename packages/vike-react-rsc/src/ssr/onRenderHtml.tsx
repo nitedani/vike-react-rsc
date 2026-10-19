@@ -10,7 +10,7 @@ import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import { getHeadSetting } from "../integration/getHeadSetting";
 import type { HeadValue, PagePayload } from "../types";
-import { isCallable } from "../utils/isCallable";
+import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { getTagAttributesString, type TagAttributes } from "../utils/getTagAttributesString";
 
 // The CSS and JS of the client components a page's HTML renders, for their links
@@ -64,7 +64,7 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
 
   const headHtml = getHeadHtml(pageContext);
 
-  const { headHtmlBegin, headHtmlEnd, bodyHtmlBegin, bodyHtmlEnd } = getHtmlInjections(pageContext);
+  const { headHtmlBegin, headHtmlEnd, bodyHtmlBegin, bodyHtmlEnd } = await getHtmlInjections(pageContext);
 
   const { htmlAttributesString, bodyAttributesString, rootAttributesString } = getTagAttributes(pageContext);
 
@@ -176,18 +176,19 @@ function getViewportTag(viewport: Viewport | undefined): string {
 
 export type HtmlInjection = string | ((pageContext: PageContextServer) => string);
 
-function getHtmlInjections(pageContext: PageContextServer) {
+async function getHtmlInjections(pageContext: PageContextServer) {
   const { config } = pageContext;
-  const renderHooks = (hooks: HtmlInjection[] | undefined) => {
-    const values = (hooks ?? []).map((hook) => (isCallable(hook) ? hook(pageContext) : hook));
+  const renderHooks = async (hooks: HtmlInjection[] | undefined) => {
+    const values = await callCumulativeHooks(hooks, pageContext);
     return dangerouslySkipEscape(values.join(""));
   };
-  return {
-    headHtmlBegin: renderHooks(config.headHtmlBegin),
-    headHtmlEnd: renderHooks(config.headHtmlEnd),
-    bodyHtmlBegin: renderHooks(config.bodyHtmlBegin),
-    bodyHtmlEnd: renderHooks(config.bodyHtmlEnd),
-  };
+  const [headHtmlBegin, headHtmlEnd, bodyHtmlBegin, bodyHtmlEnd] = await Promise.all([
+    renderHooks(config.headHtmlBegin),
+    renderHooks(config.headHtmlEnd),
+    renderHooks(config.bodyHtmlBegin),
+    renderHooks(config.bodyHtmlEnd),
+  ]);
+  return { bodyHtmlBegin, bodyHtmlEnd, headHtmlBegin, headHtmlEnd };
 }
 
 function renderClientLinks({ css, js }: { css: Iterable<string>; js: Iterable<string> }) {
