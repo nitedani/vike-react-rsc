@@ -1,6 +1,4 @@
-// The pageContext values rerender() sends to the browser, serialized as Vike serializes them for a navigation. Flight
-// carries the promises and streams among them, e.g. a promise data() returns for the browser to await, and the
-// serializer what each of them yields.
+// The pageContext values rerender() sends to the browser, serialized as Vike serializes them for a navigation
 import { parse } from "@brillout/json-serializer/parse";
 import { stringify } from "@brillout/json-serializer/stringify";
 import type { PageContextServer } from "vike/types";
