@@ -51,7 +51,6 @@ const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
 
 // Logged on the server for /unserializable, whose data holds a function
 const UNSERIALIZABLE_LOG = "can't be serialized and, therefore, can't be passed to the client side";
-const UNSERIALIZABLE_RERENDER_LOG = "[vike-react-rsc] Client components get pageContext.data as undefined after rerender()";
 
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
@@ -85,7 +84,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testUnknownAction()
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
       // testUnserializableData()
-      (logSource === "stderr" && (logText.includes(UNSERIALIZABLE_LOG) || logText.includes(UNSERIALIZABLE_RERENDER_LOG))) ||
+      (logSource === "stderr" && logText.includes(UNSERIALIZABLE_LOG)) ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.

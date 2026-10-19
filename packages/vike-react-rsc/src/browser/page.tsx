@@ -26,8 +26,9 @@ export function show(next: Shown): void {
 
 /** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent */
 export function showRoot(root: ReactNode, passed: Record<string, unknown>): void {
-  // A new object, so usePageContext() renders again; copying Vike's keys onto it throws on one it couldn't serialize
-  show({ pageContext: Object.assign(Object.create(current), passed), root });
+  // Set on Vike's pageContext, which throws on reading a value it couldn't serialize; a new object, so usePageContext() renders again
+  Object.assign(current, passed);
+  show({ pageContext: Object.create(current), root });
 }
 
 /** Hydrates `page`, then shows what show() shows */

@@ -46,7 +46,6 @@
     }
   },
   "dependencies": {
-    "@brillout/json-serializer": "^0.5.27",
     "react-streaming": "^0.4.21"
   },
   "devDependencies": {

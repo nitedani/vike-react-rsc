@@ -1,8 +1,8 @@
 import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
+import { readPageContextJson } from "vike/__internal/client";
 import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
-import { parsePassedToClient } from "../passedToClient";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import type { ActionPayload } from "../types";
 import { getCurrentPageContext, showRoot } from "./page";
@@ -49,10 +49,10 @@ async function readAnswer(response: Response, pageContext: PageContextClient): P
   const isFlight = response.headers.get("content-type")?.split(";")[0] === FLIGHT_CONTENT_TYPE.split(";")[0];
   if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
   const payload = await createFromFetch<ActionPayload>(Promise.resolve(response));
-  // The page changed since the call: this answer's page is out of date
-  if ("root" in payload && getCurrentPageContext() === pageContext) {
-    const passed = parsePassedToClient(payload.passedToClient);
-    startTransition(() => showRoot(payload.root, passed));
+  if ("root" in payload) {
+    const passed = (await readPageContextJson(new Response(payload.passedToClient))) as Record<string, unknown>;
+    // The page changed since the call: this answer's page is out of date
+    if (getCurrentPageContext() === pageContext) startTransition(() => showRoot(payload.root, passed));
   }
   return payload.returnValue;
 }

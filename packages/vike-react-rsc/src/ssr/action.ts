@@ -1,7 +1,7 @@
 // Vike loads +middleware at startup, before Vite optimizes React, so neither this module nor its imports may import React
+import { getPageContextJson } from "vike/__internal";
 import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
-import { getPassedToClient } from "../passedToClient";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import type { ActionOutcome } from "../types";
 import { getRsc } from "./bridge";
@@ -45,7 +45,7 @@ export class ActionCall {
     // No outcome: the action threw. After render() to a page, the answer is that page, as for a form; Vike's error
     // page (is404 set) is left out, as callServer() rejects on its status without reading it
     const { returnValue, rerender } = this.outcome ?? { returnValue: undefined, rerender: pageContext.is404 === null };
-    return runtime.actionPayload(rscPageContext, returnValue, rerender ? getPassedToClient(pageContext) : undefined);
+    return runtime.actionPayload(rscPageContext, returnValue, rerender ? getPageContextJson(pageContext) : undefined);
   }
 
   /** The answer to the action, from the response of the page Vike rendered */
