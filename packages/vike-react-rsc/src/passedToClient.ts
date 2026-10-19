@@ -94,7 +94,7 @@ function deserialize({ serialized, streamed }: PassedToClient): unknown {
 }
 
 // The same kind of promise or stream, yielding map() of what `value` yields
-function mapStreamed(value: Streamed<any>, map: (value: any) => unknown): unknown {
+function mapStreamed<T>(value: Streamed<T>, map: (value: T) => unknown): unknown {
   if (value instanceof ReadableStream) {
     return value.pipeThrough(new TransformStream({ transform: (chunk, controller) => controller.enqueue(map(chunk)) }));
   }
