@@ -2,6 +2,7 @@ import { decodeAction, decodeFormState, decodeReply, loadServerAction, renderToR
 import type { ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
+import { LoadingLayout } from "../components/LoadingLayout";
 import { getPageElement } from "../integration/getPageElement";
 import type { ActionOutcome, ActionPayload, PagePayload } from "../types";
 import { runInScope } from "./scope";
@@ -93,6 +94,13 @@ function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Paylo
 // The Page, inside its Layouts, inside its Wrappers. With Loading.layout, each of them shows it while what it wraps
 // suspends.
 function getPage(pageContext: PageContext): ReactNode {
-  if (!pageContext.config.Page) throw new Error(`[vike-react-rsc] The page ${pageContext.pageId} has no Page: add a +Page file`);
-  return getPageElement(pageContext);
+  const { config } = pageContext;
+  if (!config.Page) throw new Error(`[vike-react-rsc] The page ${pageContext.pageId} has no Page: add a +Page file`);
+  if (!isClientReference(config.Loading)) return getPageElement(pageContext);
+  // A client +Loading is a client reference here, which has no `layout`. getPageElement() reads only the config.
+  return getPageElement(Object.create(pageContext, { config: { value: { ...config, Loading: { layout: LoadingLayout } } } }));
+}
+
+function isClientReference(value: unknown): boolean {
+  return typeof value === "function" && "$$typeof" in value && value.$$typeof === Symbol.for("react.client.reference");
 }

@@ -3,7 +3,7 @@ import { getVikeConfig } from "vike/plugin";
 import type { ESTree, Plugin } from "vite";
 import { getDirectives, getFile, isAppFile, isPlusComponentFile, parse } from "./parse";
 
-/** A file runs where the file that imports it runs, and a +Page, +Layout or +Wrapper where `components` says, unless
+/** A file runs where the file that imports it runs, and a +Page, +Layout, +Wrapper or +Loading where `components` says, unless
  * `"use client"` at its top puts it in the browser or `"use server component"` on the server */
 export function clientDefault(): Plugin {
   // Whether the file had the marker when the env last transformed it, by env and file
@@ -80,7 +80,7 @@ export function isClientDefault(): boolean {
   return values.has("client");
 }
 
-// Outside the rsc env, a server Page, Layout or Wrapper: the page renders from its Flight, which has what it rendered
+// Outside the rsc env, a server Page, Layout, Wrapper or Loading: the page renders from its Flight, which has what it rendered
 function getServerComponentStub(program: ESTree.Program, id: string, file: string) {
   const stub = `Object.assign(() => null, { isServerComponent: true, file: ${JSON.stringify(file)} })`;
   const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");

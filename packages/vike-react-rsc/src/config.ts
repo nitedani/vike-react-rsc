@@ -66,7 +66,7 @@ const vikeReactRsc: Config = {
     Page: { env: { rsc: true, server: true, client: true } },
     Layout: { env: { rsc: true, server: true, client: true }, cumulative: true },
     Wrapper: { env: { rsc: true, server: true, client: true }, cumulative: true },
-    // `layout` renders in the rsc env, `component` in the browser and in the HTML
+    // rsc() renders `component` in the browser and the HTML, and `layout` renders where the +Loading file runs
     Loading: { env: { rsc: true, server: true, client: true } },
     Head: { env: { server: true }, cumulative: true },
     onBeforeRenderClient: { env: { client: true }, cumulative: true },
