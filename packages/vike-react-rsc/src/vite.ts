@@ -1,6 +1,7 @@
 import rsc from "@vitejs/plugin-rsc";
 import type { Plugin } from "vite";
 import { clientDefault, isClientDefault } from "./plugin/clientDefault";
+import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
 
 export function vikeReactRscPlugins(): Plugin[] {
@@ -26,6 +27,7 @@ export function vikeReactRscPlugins(): Plugin[] {
       },
     },
     noServerFunctionComponents(),
+    noServerComponentsInBrowser(),
     clientDefault(),
     // Vike handles the requests and the client entry
     ...rsc({ serverHandler: false, customClientEntry: true }),
