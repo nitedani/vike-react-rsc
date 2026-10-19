@@ -14,6 +14,11 @@ export function clientDefault(): Plugin {
     name: "vike-react-rsc:client-default",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
+    configResolved() {
+      // Under 'server', every page renders from its Flight, which only the server renders
+      const ssrFalse = !isClientDefault() && Object.values(getVikeConfig().pages).find((page) => page.config.ssr === false);
+      if (ssrFalse) warnOnce(`${ssrFalse._source.ssr!.definedAt} sets ssr to false, which applies only under components: 'client'`);
+    },
     async transform(code, id) {
       if (!isAppFile(id) || !isClientDefault()) return;
       const program = await parse(code, id);
@@ -57,17 +62,19 @@ export function clientDefault(): Plugin {
   };
 }
 
+// A build resolves the Vite config more than once
+const warned = new Set<string>();
+function warnOnce(message: string) {
+  if (warned.has(message)) return;
+  warned.add(message);
+  console.warn(`[vike-react-rsc][Warning] ${message}`);
+}
+
 export function isClientDefault(): boolean {
-  const pages = Object.values(getVikeConfig().pages);
   // One module is one component in the rsc env, so all pages have the same default
-  const values = new Set(pages.map((page) => page.config.components));
+  const values = new Set(Object.values(getVikeConfig().pages).map((page) => page.config.components));
   if (values.size > 1) {
     throw new Error(`[vike-react-rsc] Set components once, in the root +config.js: pages set it to ${[...values].join(" and ")}`);
-  }
-  // Under 'server', every page renders from its Flight, which only the server renders
-  const ssrFalse = !values.has("client") && pages.find((page) => page.config.ssr === false);
-  if (ssrFalse) {
-    throw new Error(`[vike-react-rsc] ${ssrFalse._source.ssr!.definedAt} sets ssr to false, which applies only under components: 'client'`);
   }
   return values.has("client");
 }

@@ -321,24 +321,34 @@ function testComponentsConfig() {
     );
   });
 
-  test("Build: ssr: false under components: 'server' fails the build", async () => {
-    const output = await getBuildError("./pages/+config.ts", (source) => source.replace('components: "client"', 'components: "server"'));
-    expect(output).to.include("/pages/spa/+config.ts > export default { ssr } sets ssr to false, which applies only under components: 'client'");
+  test("Build: ssr: false under components: 'server' builds, with a warning", async () => {
+    const { isSuccess, output } = await build("./pages/+config.ts", (source) => source.replace('components: "client"', 'components: "server"'));
+    expect(isSuccess).to.equal(true);
+    expect(output).to.include(
+      "[vike-react-rsc][Warning] /pages/spa/+config.ts > export default { ssr } sets ssr to false, which applies only under components: 'client'"
+    );
   });
+}
+
+// The build once `edit` is applied to `file`
+async function build(file: string, edit: (source: string) => string): Promise<{ isSuccess: boolean; output: string }> {
+  editFile(file, edit);
+  try {
+    const { stdout, stderr } = await promisify(execFile)("pnpm", ["exec", "vike", "build"], { cwd: fileURLToPath(new URL(".", import.meta.url)) });
+    return { isSuccess: true, output: stdout + stderr };
+  } catch (error) {
+    const { stdout, stderr } = error as { stdout: string; stderr: string };
+    return { isSuccess: false, output: stdout + stderr };
+  } finally {
+    editFileRevert();
+  }
 }
 
 // The output of the build that fails once `edit` is applied to `file`
 async function getBuildError(file: string, edit: (source: string) => string): Promise<string> {
-  editFile(file, edit);
-  try {
-    await promisify(execFile)("pnpm", ["exec", "vike", "build"], { cwd: fileURLToPath(new URL(".", import.meta.url)) });
-  } catch (error) {
-    const { stdout, stderr } = error as { stdout: string; stderr: string };
-    return stdout + stderr;
-  } finally {
-    editFileRevert();
-  }
-  throw new Error("The build succeeded");
+  const { isSuccess, output } = await build(file, edit);
+  if (isSuccess) throw new Error("The build succeeded");
+  return output;
 }
 
 // Until React has attached the button's handlers, a click doesn't do what a user's would
