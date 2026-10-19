@@ -4,14 +4,12 @@ import { stringify } from "@brillout/json-serializer/stringify";
 import type { PageContextServer } from "vike/types";
 import type { PassedToClient } from "./types";
 
-// Stands for a promise or stream, followed by its index among the values Flight carries. The serializer escapes a user
-// string that starts with "!", so no string looks like it.
+// A promise or stream, by its index in `streamed`; the serializer escapes a user string starting with "!"
 const STREAMED_MARKER = "!vike-react-rsc:";
 
 type Streamed<T> = PromiseLike<T> | AsyncIterable<T>;
 
-// The browser's pageContext values that data() and the hooks compute again after the action: data, and the app's
-// passToClient, picked as Vike picks them ('user.id' for a nested value, '\\.' for a dot in a name)
+// data and the app's passToClient, picked as Vike picks them: 'user.id' for a nested value, '\\.' for a dot
 export function getPassedToClient(pageContext: PageContextServer): PassedToClient {
   const passed: Record<string, unknown> = {};
   const props = (pageContext.config.passToClient ?? [])
@@ -29,8 +27,7 @@ export function getPassedToClient(pageContext: PageContextServer): PassedToClien
   return serializePassedToClient(passed);
 }
 
-// As Vike's, null when the server doesn't have the value; a key it has is passed even when its value is undefined.
-// Vike's pageContext also answers a key it doesn't have from globalContext, e.g. one onCreateGlobalContext() sets.
+// Like Vike: a key the server has, even set to undefined, or one its pageContext answers from globalContext
 function getPropVal(obj: unknown, keys: string[]): { value: unknown } | null {
   const parent = keys.slice(0, -1).reduce<unknown>((obj, key) => (isObject(obj) ? obj[key] : undefined), obj);
   const last = keys.at(-1)!;
