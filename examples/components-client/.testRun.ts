@@ -10,7 +10,6 @@ const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes i
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
 const SSR_FALSE_ERROR = 'starts with "use server component", so it renders on the server';
-const CONFIG_IMPORT_ERROR = "by an import, but only a +Layout file runs where components says: export it from a +Layout file";
 
 function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   const isDev = cmd === "pnpm run dev";
@@ -28,7 +27,6 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
           logText.includes("createContext is not a function") ||
           logText.includes("Class extends value undefined") ||
           logText.includes("HTTP response ← /helper 500") ||
-          logText.includes(CONFIG_IMPORT_ERROR) ||
           logText.includes("No error page found"))) ||
       // testComponentsConfig(): a page's error in the browser, then Vike's that the app has no error page to show for it,
       // which Vite forwards to stderr
@@ -131,6 +129,18 @@ function testVikeReactRendering() {
     await page.goBack();
     await page.waitForSelector("text=A server layout, rendered on the server");
     await layoutCounter();
+  });
+
+  test('components: \'client\': a "use client" Layout that a +config file sets by an import renders on a client and a server page, and keeps its state between them', async () => {
+    await page.goto(getServerUrl() + "/imported-layout/client");
+    await waitForHydration("#imported-layout-counter");
+    await page.click("#imported-layout-counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#imported-layout-counter")).to.equal("Imported layout 1");
+    });
+    await page.click('a[href="/imported-layout/server"]');
+    await page.waitForSelector("text=A server page in an imported layout");
+    expect(await page.textContent("#imported-layout-counter")).to.equal("Imported layout 1");
   });
 
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
@@ -415,28 +425,6 @@ function testComponentsConfig() {
       source.replace("ssr: false,", 'ssr: false,\n  components: "server",')
     );
     expect(output).to.include("Set components once, in the root +config.js: pages set it to");
-  });
-
-  test("Build: a Layout that a +config file imports fails the build, saying to export it from a +Layout file, with a quoted key or an import: string too", async () => {
-    for (const property of ["Layout,", '"Layout": Layout,', 'Layout: "import:../../components/Badge:default",']) {
-      const output = await getBuildError("./pages/spa/+config.ts", (source) =>
-        `import Layout from "../../components/Badge";\n${source.replace("ssr: false,", `ssr: false,\n  ${property}`)}`
-      );
-      expect(output).to.include(`pages/spa/+config.ts sets Layout ${CONFIG_IMPORT_ERROR}`);
-    }
-  });
-
-  test("Dev: a Layout that a +config file imports, added while the dev server runs, logs the same error", async () => {
-    editFile("./pages/spa/+config.ts", (source) =>
-      `import Layout from "../../components/Badge";\n${source.replace("ssr: false,", "ssr: false,\n  Layout,")}`
-    );
-    try {
-      await autoRetry(async () => {
-        expectLog(`pages/spa/+config.ts sets Layout ${CONFIG_IMPORT_ERROR}`);
-      });
-    } finally {
-      editFileRevert();
-    }
   });
 
   test("Dev: ssr: false on a page with a server component throws in the browser, naming both", async () => {

@@ -2,26 +2,22 @@ import { readdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
-import { Visitor, type ESTree, type Plugin } from "vite";
-import { getDirectives, getFile, getImports, isAppFile, isPlusComponentFile, parse } from "./parse";
+import type { ESTree, Plugin } from "vite";
+import { getDirectives, getFile, isAppFile, isPlusComponentFile, parse } from "./parse";
 
 /** A file runs where the file that imports it runs, and a +Page, +Layout, +Wrapper or +Loading's `layout` where `components` says, unless
  * `"use client"` at its top puts it in the browser or `"use server component"` on the server */
 export function clientDefault(): Plugin {
   // Whether the file had the marker when the env last transformed it, by env and file
   const isMarked = new Map<string, boolean>();
-  // Under 'client', as configResolved() found it: in hotUpdate(), getVikeConfig() is still the config before the edit
-  let checksConfigFiles = false;
   return {
     name: "vike-react-rsc:client-default",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
-    async configResolved({ root }) {
+    configResolved() {
       // Under 'server', every page renders from its Flight, which only the server renders
       const ssrFalse = !isClientDefault() && Object.values(getVikeConfig().pages).find((page) => page.config.ssr === false);
       if (ssrFalse) warnOnce(`${ssrFalse._source.ssr!.definedAt} sets ssr to false, which applies only under components: 'client'`);
-      checksConfigFiles = isClientDefault();
-      if (checksConfigFiles) for (const file of getPlusFiles(root, "config")) await assertComponentsInPlusFiles(file, await readFile(file, "utf8"), root);
     },
     async transform(code, id) {
       if (!isPlusComponentFile(id)) return;
@@ -41,11 +37,6 @@ export function clientDefault(): Plugin {
     },
     async hotUpdate({ type, file, read }) {
       if (type === "delete") return;
-      // Vike reloads an edited +config file without restarting Vite, so configResolved() doesn't check it again. Logged: an
-      // error thrown here would skip the hotUpdate() of the plugins after this one, Vike's included
-      if (checksConfigFiles && this.environment.name === "client" && path.basename(file).startsWith("+config.")) {
-        await assertComponentsInPlusFiles(file, await read(), this.environment.config.root).catch((error: Error) => this.environment.logger.error(error.message));
-      }
       const key = `${this.environment.name}:${file}`;
       if (!isMarked.has(key)) return;
       if (getDirectives(await parse(await read(), file)).includes("use server component") !== isMarked.get(key)) {
@@ -66,23 +57,6 @@ function warnOnce(message: string) {
   if (warned.has(message)) return;
   warned.add(message);
   console.warn(`[vike-react-rsc][Warning] ${message}`);
-}
-
-// A component that a +config file imports has no + file of its own to say where it runs
-async function assertComponentsInPlusFiles(file: string, code: string, root: string) {
-  const program = await parse(code, file);
-  const imports = getImports(program);
-  new Visitor({
-    Property: ({ key, computed, value }) => {
-      const name = getKeyName({ key, computed });
-      if (!name || !/^(Page|Layout|Wrapper|Loading)$/.test(name)) return;
-      const isImport = value.type === "Identifier" ? imports.has(value.name) : value.type === "Literal" && String(value.value).startsWith("import:");
-      if (!isImport) return;
-      throw new Error(
-        `[vike-react-rsc] ${path.relative(root, file)} sets ${name} by an import, but only a +${name} file runs where components says: export it from a +${name} file`
-      );
-    },
-  }).visit(program);
 }
 
 function getPlusFiles(dir: string, name: string): string[] {
@@ -122,10 +96,4 @@ function exportValue(program: ESTree.Program, id: string, value: string): string
   const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
   const name = path.basename(getFile(id)).split(".")[0]!.slice(1);
   return hasDefaultExport ? `export default ${value};` : `export const ${name} = ${value};`;
-}
-
-// `Layout` for `Layout:` and `"Layout":`, undefined for a key computed at runtime
-function getKeyName({ key, computed }: { key: ESTree.PropertyKey; computed: boolean }): string | undefined {
-  if (key.type === "Literal") return String(key.value);
-  if (key.type === "Identifier" && !computed) return key.name;
 }
