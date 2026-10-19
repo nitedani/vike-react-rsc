@@ -10,6 +10,8 @@ import { test, expect, run, page, autoRetry, getServerUrl, editFile, editFileRev
 const SERVER_COMPONENT_IN_BROWSER_ERROR = 'starts with "use server component", but the browser loads it';
 // Thrown by /throws, then logged by React in the browser, which Vite forwards to stderr in dev
 const THROWS_ERROR = "A client component failed on demand";
+// Thrown by /hydration-error in the browser only, so its hydration fails
+const HYDRATION_ERROR = "A page failed to hydrate on demand";
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
@@ -36,7 +38,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
       // Vite forwards these from the browser to stderr too
       logText.includes("Failed to fetch dynamically imported module") ||
       logText.includes("No error page defined") ||
-      logText.includes(THROWS_ERROR),
+      logText.includes(THROWS_ERROR) ||
+      logText.includes(HYDRATION_ERROR),
   });
 
   testClientComponents();
@@ -163,6 +166,18 @@ function testVikeReactRendering() {
       expect(await page.textContent("#error-page")).to.equal("Something went wrong");
     });
     expect(new URL(page.url()).pathname).to.equal("/throws");
+  });
+
+  test("components: 'client': after a page's hydration throws, client navigation shows each next page, as vike-react does", async () => {
+    await page.goto(getServerUrl() + "/hydration-error");
+    await autoRetry(async () => {
+      expectLog(HYDRATION_ERROR, { filter: ({ logSource }) => logSource === "Browser Error" });
+    });
+    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<a id="admin" href="/admin">Go</a><a id="home" href="/">Go</a>'));
+    await page.click("#admin");
+    await page.waitForSelector("h1:text-is('A client page in a server layout')");
+    await page.click("#home");
+    await page.waitForSelector("h1:text-is('A client page')");
   });
 
   test("components: 'client': a form action that awaits navigate() shows the page it navigates to", async () => {
