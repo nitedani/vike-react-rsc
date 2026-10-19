@@ -31,6 +31,12 @@ export function clientDefault(): Plugin {
         const chain = getImportChain(id, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])][0]?.id ?? undefined);
         this.error(getServerComponentInBrowserError(chain, this.environment.config.root));
       }
+      if (this.environment.name === "rsc" && isAppFile(id) && path.basename(getFile(id)).startsWith("+Loading.")) {
+        const program = await parse(code, id);
+        const directives = getDirectives(program);
+        // Its object would be a client reference here, which has no `layout`
+        if (directives.includes("use client") || (isClientDefault() && directives.length === 0)) return getClientLoadingStub(program);
+      }
       // Under 'server', plugin-rsc's own rule: a file without "use client" is a server component
       if (!isClientDefault()) return;
       // MDX has no directives, and its plugin has compiled it to JavaScript
@@ -117,6 +123,14 @@ function getServerComponentStub(program: ESTree.Program, id: string, file: strin
   const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
   const name = path.basename(getFile(id)).split(".")[0]!.slice(1);
   return { code: hasDefaultExport ? `export default ${stub};` : `export const ${name} = ${stub};`, map: null };
+}
+
+// In the rsc env, a client +Loading: its layout renders through LoadingLayout, which reads it in the HTML and the browser
+function getClientLoadingStub(program: ESTree.Program) {
+  const loading = "{ layout: LoadingLayout }";
+  const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
+  const code = `import { LoadingLayout } from "vike-react-rsc/__internal/LoadingLayout";\n${hasDefaultExport ? `export default ${loading};` : `export const Loading = ${loading};`}`;
+  return { code, map: null };
 }
 
 async function isServerComponentFile(code: string, id: string): Promise<boolean> {
