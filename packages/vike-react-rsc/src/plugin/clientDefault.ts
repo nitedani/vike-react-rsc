@@ -1,7 +1,9 @@
+import { readdirSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
-import type { ESTree, Plugin } from "vite";
-import { getDirectives, getFile, isAppFile, isPlusComponentFile, parse } from "./parse";
+import { Visitor, type ESTree, type Plugin } from "vite";
+import { getDirectives, getFile, getImports, isAppFile, isPlusComponentFile, parse } from "./parse";
 
 /** A file runs where the file that imports it runs, and a +Page, +Layout, +Wrapper or +Loading where `components` says, unless
  * `"use client"` at its top puts it in the browser or `"use server component"` on the server */
@@ -14,10 +16,11 @@ export function clientDefault(): Plugin {
     name: "vike-react-rsc:client-default",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
-    configResolved() {
+    async configResolved({ root }) {
       // Under 'server', every page renders from its Flight, which only the server renders
       const ssrFalse = !isClientDefault() && Object.values(getVikeConfig().pages).find((page) => page.config.ssr === false);
       if (ssrFalse) warnOnce(`${ssrFalse._source.ssr!.definedAt} sets ssr to false, which applies only under components: 'client'`);
+      if (isClientDefault()) await assertComponentsInPlusFiles(root);
     },
     async transform(code, id) {
       if (!isPlusComponentFile(id)) {
@@ -70,6 +73,33 @@ function warnOnce(message: string) {
   if (warned.has(message)) return;
   warned.add(message);
   console.warn(`[vike-react-rsc][Warning] ${message}`);
+}
+
+// A component that a +config file imports has no + file of its own to say where it runs
+async function assertComponentsInPlusFiles(root: string) {
+  for (const file of getConfigFiles(root)) {
+    const program = await parse(await readFile(file, "utf8"), file);
+    const imports = getImports(program);
+    new Visitor({
+      Property: ({ key, value }) => {
+        if (key.type !== "Identifier" || !/^(Page|Layout|Wrapper|Loading)$/.test(key.name)) return;
+        const isImport = value.type === "Identifier" ? imports.has(value.name) : value.type === "Literal" && String(value.value).startsWith("import:");
+        if (!isImport) return;
+        throw new Error(
+          `[vike-react-rsc] ${path.relative(root, file)} sets ${key.name} by an import, but only a +${key.name} file runs where components says: export it from a +${key.name} file`
+        );
+      },
+    }).visit(program);
+  }
+}
+
+function getConfigFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.name.startsWith(".") || entry.name === "node_modules") return [];
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) return getConfigFiles(file);
+    return entry.name.startsWith("+config.") ? [file] : [];
+  });
 }
 
 export function isClientDefault(): boolean {
