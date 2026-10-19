@@ -11,6 +11,7 @@ export default defineConfig({
     "src/__internal/ssr.server.ts",
     "src/__internal/rsc.ts",
     "src/__internal/middleware.ts",
+    "src/__internal/onError.ts",
     "src/pageContext.tsx",
     "src/pageContext.rsc.ts",
     "src/hooks/usePageContext.tsx",

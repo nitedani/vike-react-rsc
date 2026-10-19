@@ -2,6 +2,7 @@ import { decodeAction, decodeFormState, decodeReply, loadServerAction, renderToR
 import type { ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
+import { getClientApiHint } from "../clientApiHint";
 import { LoadingLayout } from "../components/LoadingLayout";
 import { getPageElement } from "../integration/getPageElement";
 import type { ActionOutcome, ActionPayload, PagePayload } from "../types";
@@ -105,21 +106,4 @@ function getPage(pageContext: PageContext): ReactNode {
 
 function isClientReference(value: unknown): boolean {
   return typeof value === "function" && "$$typeof" in value && value.$$typeof === Symbol.for("react.client.reference");
-}
-
-// What a component can call while it renders, but React's server build lacks
-const clientApis = [
-  "startTransition", "useActionState", "useContext", "useDeferredValue", "useEffect", "useEffectEvent", "useImperativeHandle",
-  "useInsertionEffect", "useLayoutEffect", "useOptimistic", "useReducer", "useRef", "useState", "useSyncExternalStore", "useTransition",
-];
-
-// For React's TypeError when a server component calls one of them: the component, by the first frame named like one, so
-// never a hook's own file. A build's stack names its chunks, not the files.
-function getClientApiHint(error: unknown): string | undefined {
-  if (!(error instanceof TypeError)) return;
-  const api = /(\w+)\)? is not a function/.exec(error.message)?.[1];
-  if (!api || !clientApis.includes(api)) return;
-  const [, component, file] = /^\s*at ([A-Z][\w$]*) \((.+?):\d+:\d+\)$/m.exec(error.stack ?? "") ?? [];
-  const caller = import.meta.env.DEV && file ? file : (component ?? "A server component");
-  return `${caller} calls ${api}(), which runs only in the browser, but runs on the server: start ${caller === file ? "it" : "its file"} with "use client"`;
 }

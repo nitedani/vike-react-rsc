@@ -23,6 +23,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
         (logText.includes(CLIENT_HOOK_ERROR) ||
           logText.includes(CLIENT_API_ERROR) ||
           logText.includes("useState is not a function") ||
+          logText.includes("createContext is not a function") ||
+          logText.includes("Class extends value undefined") ||
           logText.includes("HTTP response ← /helper 500") ||
           logText.includes("No error page found"))) ||
       // testComponentsConfig(): a page's error in the browser, then Vike's that the app has no error page to show for it,
@@ -275,6 +277,28 @@ function testClientHooks() {
     await autoRetry(async () => {
       expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
     });
+  });
+
+  test('Dev: a server file calling createContext() or extending Component as it loads gets the same hint', async () => {
+    for (const [code, use] of [
+      ['import { createContext } from "react";\nconst Context = createContext(null);\nexport default function Page() {\n  return null;\n}\n', "calls createContext()"],
+      ['import { Component } from "react";\nexport default class Page extends Component {\n  render() {\n    return null;\n  }\n}\n', "extends Component or PureComponent"],
+    ]) {
+      editFile("./pages/helper/+Page.tsx", () => `"use server component";\n${code}`);
+      try {
+        await autoRetry(async () => {
+          expect((await fetch(getServerUrl() + "/helper")).status).to.equal(500);
+        });
+        expectLog(`pages/helper/+Page.tsx ${use}, ${CLIENT_API_ERROR}: start it with "use client"`);
+      } finally {
+        // Reverted within milliseconds, Vite sends no update for the fix
+        await sleep(1000);
+        editFileRevert();
+      }
+      await autoRetry(async () => {
+        expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
+      });
+    }
   });
 }
 
