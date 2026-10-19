@@ -165,6 +165,13 @@ function testVikeReactRendering() {
     expect(new URL(page.url()).pathname).to.equal("/throws");
   });
 
+  test("components: 'client': a form action that awaits navigate() shows the page it navigates to", async () => {
+    await page.goto(getServerUrl() + "/form");
+    await waitForHydration("#layout-counter");
+    await page.click('button:has-text("Go home from a form action")');
+    await page.waitForSelector("h1:text-is('A client page')");
+  });
+
   test("components: 'client': ssr: false on a page with a server component: the browser renders it from its Flight", async () => {
     expect(await fetchHtml("/spa-server")).to.include('<div id="root"></div>');
     await page.goto(getServerUrl() + "/spa-server");
