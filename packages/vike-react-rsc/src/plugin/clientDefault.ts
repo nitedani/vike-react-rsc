@@ -30,7 +30,12 @@ export function clientDefault(): Plugin {
         if (error) this.error(error);
         return;
       }
-      if (directives.includes("use server component")) return isPlusComponentFile(id) ? getServerComponentStub(program, id) : undefined;
+      if (directives.includes("use server component")) {
+        if (!isPlusComponentFile(id)) return;
+        const error = findSsrFalsePage(getFile(id), root);
+        if (error) this.error(error);
+        return getServerComponentStub(program, id);
+      }
       if (directives.includes("use server")) return;
       // Not a client component, e.g. a barrel or +data.ts
       if (!isComponentFile(id) && !isPlusComponentFile(id) && !directives.includes("use client")) return;
@@ -67,6 +72,18 @@ function getServerComponentStub(program: ESTree.Program, id: string) {
   const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
   const name = path.basename(getFile(id)).split(".")[0]!.slice(1);
   return { code: hasDefaultExport ? `export default ${stub};` : `export const ${name} = ${stub};`, map: null };
+}
+
+// A page with `ssr: false` renders only in the browser, where its server components can't render
+function findSsrFalsePage(file: string, root: string) {
+  for (const { pageId, configValueSources: sources } of getVikeConfig().dangerouslyUseInternals._pageConfigs) {
+    const ssr = sources.ssr?.[0];
+    if (!ssr?.valueIsLoaded || ssr.value !== false) continue;
+    // A page has one Page, and all its Layouts and Wrappers
+    const components = [sources.Page?.[0], ...(sources.Layout ?? []), ...(sources.Wrapper ?? [])];
+    if (!components.some((source) => source && "filePathAbsoluteFilesystem" in source.definedAt && source.definedAt.filePathAbsoluteFilesystem === file)) continue;
+    return `${path.relative(root, file)} starts with "use server component", so it renders on the server, but the page ${pageId} sets ssr to false, so it renders only in the browser: remove "use server component" or ssr: false`;
+  }
 }
 
 // In the rsc env, what a server module imports from a client component file is a client reference, which throws when

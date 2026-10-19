@@ -35,6 +35,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   if (isDev) testMarkerHmr();
   if (isDev) testServerComponentHmr();
   if (isDev) testServerComponentImports();
+  if (isDev) testSsrFalseServerComponents();
 }
 
 function testClientComponents() {
@@ -270,6 +271,15 @@ function testServerComponentImports() {
     );
     expect(output).to.include(
       'pages/js-page/+Page.js imports components/Markdown.tsx, which starts with "use server component", so it\'s a client component importing a server component: start pages/js-page/+Page.js with "use server component" too'
+    );
+  });
+}
+
+function testSsrFalseServerComponents() {
+  test("Build: ssr: false on a page with a server component fails the build, naming both", async () => {
+    const output = await getBuildError("./pages/spa/+Page.tsx", (source) => `"use server component";\n${source}`);
+    expect(output).to.include(
+      'pages/spa/+Page.tsx starts with "use server component", so it renders on the server, but the page /pages/spa sets ssr to false, so it renders only in the browser: remove "use server component" or ssr: false'
     );
   });
 }
