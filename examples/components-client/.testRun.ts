@@ -27,6 +27,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testServerComponents();
   testLoading();
   testVikeReactRendering();
+  // The preview server answers server actions too
+  testFormBeforeHydration();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
   if (isDev) testClientFunctionCalls();
@@ -93,6 +95,40 @@ function testVikeReactRendering() {
     await page.goto(getServerUrl() + "/spa");
     await page.waitForSelector("text=Rendered in the browser, after onBeforeRenderClient() for /spa");
   });
+}
+
+function testFormBeforeHydration() {
+  test("components: 'client': a form submitted before hydration keeps useActionState()'s state", async () => {
+    await withoutScripts(async (noJs) => {
+      await noJs.goto(getServerUrl() + "/form");
+      await noJs.click('button:has-text("Count a submit")');
+      await noJs.waitForSelector("#submits:has-text('Submitted 1 times')");
+      await noJs.click('button:has-text("Count a submit")');
+      await noJs.waitForSelector("#submits:has-text('Submitted 2 times')");
+    });
+
+    // form.submit() skips React's handler, as a submit before hydration does: the page hydrates with the state the
+    // server rendered, then counts on
+    await page.goto(getServerUrl() + "/form");
+    await waitForHydration("button");
+    await Promise.all([page.waitForNavigation(), page.evaluate(() => document.querySelector("form")!.submit())]);
+    await waitForHydration("button");
+    expect(await page.textContent("#submits")).to.equal("Submitted 1 times");
+    await page.click('button:has-text("Count a submit")');
+    await autoRetry(async () => {
+      expect(await page.textContent("#submits")).to.equal("Submitted 2 times");
+    });
+  });
+}
+
+async function withoutScripts(run: (noJs: typeof page) => Promise<void>) {
+  const context = await page.context().browser()!.newContext();
+  await context.route("**/*", (route) => (route.request().resourceType() === "script" ? route.abort() : route.continue()));
+  try {
+    await run(await context.newPage());
+  } finally {
+    await context.close();
+  }
 }
 
 function testLoading() {

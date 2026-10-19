@@ -40,10 +40,11 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
 
 async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) {
   const htmlSent = new AbortController();
+  const flight = pageContext.rscPayload && (await decodeFlight(pageContext, htmlSent.signal));
   const { root, formState } = rendersFlight(pageContext)
-    ? await decodeFlight(pageContext, htmlSent.signal)
+    ? flight!
     : // Without a Page, e.g. under `ssr: false`, the browser renders the page
-      { root: pageContext.config.Page ? getPageElement(pageContext) : null };
+      { root: pageContext.config.Page ? getPageElement(pageContext) : null, formState: flight?.formState };
   const page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
   const nonce = pageContext.cspNonce ?? undefined;
   let html;

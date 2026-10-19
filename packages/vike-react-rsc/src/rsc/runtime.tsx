@@ -16,6 +16,11 @@ export function pagePayload(pageContext: PageContext): ReadableStream<Uint8Array
   }));
 }
 
+/** The Flight of a page that renders without one: only what a form submitted before hydration returned */
+export function formStatePayload(pageContext: PageContext): ReadableStream<Uint8Array> {
+  return renderOnRead<PagePayload>(pageContext, () => ({ root: null, formState: formStates.get(pageContext) }));
+}
+
 export function actionPayload(
   pageContext: PageContext,
   { returnValue, rerender }: ActionOutcome

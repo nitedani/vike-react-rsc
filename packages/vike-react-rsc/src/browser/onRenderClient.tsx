@@ -27,9 +27,10 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   else createRoot(container).render(<Root page={page} />);
 };
 
-function getPagePayload(pageContext: PageContextClient): Promise<PagePayload> | PagePayload {
-  if (rendersFlight(pageContext)) return createFromReadableStream<PagePayload>(pageContext.rscPayload!);
-  return { root: getPageElement(pageContext) };
+async function getPagePayload(pageContext: PageContextClient): Promise<PagePayload> {
+  const flight = pageContext.rscPayload && (await createFromReadableStream<PagePayload>(pageContext.rscPayload));
+  if (rendersFlight(pageContext)) return flight!;
+  return { root: getPageElement(pageContext), formState: flight?.formState };
 }
 
 if (import.meta.hot) {
