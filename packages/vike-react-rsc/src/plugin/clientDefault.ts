@@ -5,8 +5,8 @@ import { getDirectives, getFile, getImports, getImportSources, isAppFile, isComp
 
 type Resolve = (source: string) => Promise<string | undefined>;
 
-/** Under `components: 'client'`, an unmarked .jsx or .tsx file is a client component, and `"use server component"` marks
- * a server component */
+/** Under `components: 'client'`, an unmarked .jsx or .tsx file, +Page, +Layout or +Wrapper is a client component, and
+ * `"use server component"` marks a server component */
 export function clientDefault(): Plugin {
   // Whether the file had the marker when the env last transformed it, by env and file
   const isMarked = new Map<string, boolean>();
@@ -38,7 +38,7 @@ export function clientDefault(): Plugin {
       if (directives.includes("use server component")) return isPlusComponentFile(id) ? getServerComponentStub(program, id, file) : undefined;
       if (directives.includes("use server")) return;
       // Not a client component, e.g. a barrel or +data.ts
-      if (!isComponentFile(id) && !isPlusComponentFile(id) && !directives.includes("use client")) return;
+      if (!isComponentFile(id) && !directives.includes("use client")) return;
       const error = await findServerComponentImport(program, file, resolve, root);
       if (error) this.error(error);
     },

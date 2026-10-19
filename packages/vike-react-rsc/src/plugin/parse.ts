@@ -51,10 +51,11 @@ export function isAppFile(id: string): boolean {
   return !id.startsWith("\0") && path.extname(file) in langs && !file.includes("/node_modules/");
 }
 
-/** A .jsx or .tsx file of the app, except a + file that isn't a component, e.g. +Loading.jsx */
+/** A .jsx or .tsx file of the app, and the + file of a Page, Layout or Wrapper in any language, but no other + file, e.g.
+ * +Loading.jsx */
 export function isComponentFile(id: string): boolean {
   const file = getFile(id);
-  return isAppFile(id) && /\.[jt]sx$/.test(file) && (!path.basename(file).startsWith("+") || isPlusComponentFile(id));
+  return isAppFile(id) && (path.basename(file).startsWith("+") ? isPlusComponentFile(id) : /\.[jt]sx$/.test(file));
 }
 
 /** The + file of a Page, Layout or Wrapper */

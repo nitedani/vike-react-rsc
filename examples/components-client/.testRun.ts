@@ -57,6 +57,16 @@ function testClientComponents() {
       expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
     });
   });
+
+  test("components: 'client': an unmarked +Page.js is a client component, in a server layout too, as in vike-react", async () => {
+    await page.goto(getServerUrl() + "/admin/js-page");
+    expect(await page.textContent("#admin-layout")).to.equal("A server layout, rendered on the server");
+    await waitForHydration("#js-counter");
+    await page.click("#js-counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#js-counter")).to.equal("JS counter 1");
+    });
+  });
 }
 
 function testServerComponents() {
