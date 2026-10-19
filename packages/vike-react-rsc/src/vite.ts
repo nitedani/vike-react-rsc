@@ -1,5 +1,6 @@
 import rsc from "@vitejs/plugin-rsc";
 import type { Plugin } from "vite";
+import { clientDefault } from "./plugin/clientDefault";
 
 export function vikeReactRscPlugins(): Plugin[] {
   return [
@@ -17,6 +18,7 @@ export function vikeReactRscPlugins(): Plugin[] {
         },
       }),
     },
+    clientDefault(),
     // Vike handles the requests and the client entry
     ...rsc({ serverHandler: false, customClientEntry: true }),
   ];

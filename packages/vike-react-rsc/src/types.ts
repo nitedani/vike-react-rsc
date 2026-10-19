@@ -53,6 +53,8 @@ declare global {
         /** The most bytes a server action's request body may have; a bigger one gets a 413. Default: 1 048 576 (1 MB). */
         bodySizeLimit?: number;
       };
+      /** Whether a .jsx or .tsx file without a directive is a server component (`'server'`, React's default) or a client component (`'client'`, as in vike-react), where `"use server component"` at its top marks a server component. Set once, in the root `+config.js`. Default: `'server'`. */
+      components?: "client" | "server";
       /** Internal: the rsc env's runtime */
       rscRuntime?: RscRuntime | ImportString;
     }

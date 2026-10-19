@@ -19,8 +19,11 @@ const vikeReactRsc: Config = {
   // The browser has no Page to load: its onRenderClient decodes the Flight
   clientHooks: true,
   hydrationCanBeAborted: true,
+  components: "server",
 
   meta: {
+    // The plugin reads it, and checks that all pages have the same value
+    components: { env: { config: true } },
     Page: { env: { rsc: true } },
     Layout: { env: { rsc: true }, cumulative: true },
     Wrapper: { env: { rsc: true }, cumulative: true },
