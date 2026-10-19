@@ -47,13 +47,20 @@ function getImportChain(id: string, getImporter: (id: string) => string | undefi
   return chain;
 }
 
-// A server component renders only on the server: the browser loading its file means its importers have to move there
+// A server component renders only on the server. A component in the browser shows one through rsc(); a + file that needs
+// nothing from the browser can render it as a server component instead.
 function getServerComponentInBrowserError(chain: string[], root: string): string {
   const [file, ...importers] = chain.map((id) => path.relative(root, getFile(id)));
   const importer = importers.pop();
   if (!importer) return `${file} starts with "use server component", but the browser loads it`;
   const through = importers.length > 0 ? ` through ${importers.reverse().join(", ")}` : "";
-  const fix = isPlusComponentFile(chain.at(-1)!) ? `start ${importer} with "use server component"` : "import it only from server components";
+  const toServer = isPlusComponentFile(chain.at(-1)!)
+    ? `if ${importer} needs nothing from the browser (no hooks, no event handlers), start it with "use server component"`
+    : "import it only from server components";
   const typesOnly = `if ${path.relative(root, getFile(chain[1]!))} imports only its types, write \`import type\``;
-  return `${file} starts with "use server component", but the browser loads it: ${importer} imports it${through}: ${fix}, or, ${typesOnly}`;
+  return (
+    `${file} starts with "use server component", but the browser loads it: ${importer} imports it${through}. ` +
+    `To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ` +
+    `or, ${toServer}; or, ${typesOnly}`
+  );
 }

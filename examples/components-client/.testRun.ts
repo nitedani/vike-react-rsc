@@ -402,7 +402,7 @@ function testClientComponentHmr() {
 }
 
 function testServerComponentImports() {
-  test("Build: a client component importing a server component fails the build, saying to mark the importer", async () => {
+  test("Build: a client component importing a server component fails the build, saying to show it through rsc() or mark the importer", async () => {
     const output = await getBuildError(
       "./pages/js-page/+Page.js",
       () =>
@@ -410,7 +410,9 @@ function testServerComponentImports() {
         'export default function Page() {\n  return createElement(Markdown, { source: "**A** page" });\n}\n'
     );
     expect(output).to.include(
-      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/js-page/+Page.js imports it: start pages/js-page/+Page.js with "use server component"'
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/js-page/+Page.js imports it. ' +
+        'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
+        'or, if pages/js-page/+Page.js needs nothing from the browser (no hooks, no event handlers), start it with "use server component"'
     );
   });
 
@@ -419,7 +421,9 @@ function testServerComponentImports() {
     await page.goto("about:blank");
     const output = await getBuildError("./pages/index/+Page.tsx", (source) => source.replace("../../components/Counter", "../../components"));
     expect(output).to.include(
-      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/index/+Page.tsx imports it through components/index.ts: start pages/index/+Page.tsx with "use server component"'
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/index/+Page.tsx imports it through components/index.ts. ' +
+        'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
+        'or, if pages/index/+Page.tsx needs nothing from the browser (no hooks, no event handlers), start it with "use server component"'
     );
   });
 
