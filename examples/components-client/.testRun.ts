@@ -105,7 +105,7 @@ function testVikeReactRendering() {
     await page.waitForSelector("text=A server layout, rendered on the server");
     await layoutCounter();
     await page.click('a[href="/"]');
-    await page.waitForSelector("text=A client page");
+    await page.waitForSelector("h1:text-is('A client page')");
     await layoutCounter();
     await page.goBack();
     await page.waitForSelector("text=A server layout, rendered on the server");
