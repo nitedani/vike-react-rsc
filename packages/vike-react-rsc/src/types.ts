@@ -81,10 +81,7 @@ declare global {
       Head?: HeadValue[];
       Layout?: WrapperComponent[];
       Wrapper?: WrapperComponent[];
-      Loading?: LoadingValue & {
-        /** Internal: in the rsc env, a client +Loading, whose layout only the HTML and the browser know */
-        boundary?: ComponentType<{ children: ReactNode }>;
-      };
+      Loading?: LoadingValue;
       onBeforeRenderClient?: Function[];
       rscRuntime: RscRuntime;
     }

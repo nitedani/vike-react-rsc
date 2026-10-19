@@ -25,6 +25,8 @@ export default defineConfig({
     "src/components/LoadingBoundary.tsx",
   ],
   format: ["esm"],
+  // The plugin resolves it in the app's build
+  deps: { neverBundle: ["virtual:vike-react-rsc/LoadingBoundary"] },
   // The exports map resolves to dist/*.js, so output extensions must stay .js.
   fixedExtension: false,
   dts: {

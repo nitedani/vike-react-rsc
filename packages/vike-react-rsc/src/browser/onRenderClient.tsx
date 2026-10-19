@@ -2,7 +2,6 @@ import { createFromReadableStream, setServerCallback } from "@vitejs/plugin-rsc/
 import { createRoot, hydrateRoot } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
-import { LoadingBoundary } from "../components/LoadingBoundary";
 import { getPageElement } from "../integration/getPageElement";
 import { findServerComponent } from "../rendersFlight";
 import type { PagePayload } from "../types";
@@ -40,7 +39,7 @@ async function getPagePayload(pageContext: PageContextClient): Promise<PagePaylo
   if (!__VIKE_REACT_RSC_CLIENT_DEFAULT__ || !pageContext.config.Page) throw cannotRenderInBrowser(pageContext, "components: 'server' makes it a server component");
   const serverComponent = findServerComponent(pageContext);
   if (serverComponent) throw cannotRenderInBrowser(pageContext, `${serverComponent.file} starts with "use server component"`);
-  return { root: getPageElement(pageContext, LoadingBoundary), formState: flight?.formState };
+  return { root: getPageElement(pageContext), formState: flight?.formState };
 }
 
 function cannotRenderInBrowser(pageContext: PageContextClient, cause: string): Error {

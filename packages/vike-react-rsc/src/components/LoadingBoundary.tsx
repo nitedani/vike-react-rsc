@@ -2,8 +2,10 @@
 import { Suspense, type ReactNode } from "react";
 import { usePageContext } from "../pageContext";
 
-/** In the HTML and the browser, where a client +Loading is loaded: the Suspense boundary of its layout, if it has one */
-export function LoadingBoundary({ children }: { children: ReactNode }): ReactNode {
+/** The Suspense boundary of the page's Loading.layout, if it has one: `fallback`, else the layout of a client +Loading,
+ * which a Flight has only a reference to, read where the file is loaded */
+export function LoadingBoundary({ children, fallback }: { children: ReactNode; fallback?: ReactNode }): ReactNode {
   const Layout = usePageContext().config.Loading?.layout;
-  return Layout ? <Suspense fallback={<Layout />}>{children}</Suspense> : children;
+  const shown = fallback ?? (Layout && <Layout />);
+  return shown ? <Suspense fallback={shown}>{children}</Suspense> : children;
 }

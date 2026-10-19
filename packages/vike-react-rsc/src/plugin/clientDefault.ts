@@ -21,16 +21,10 @@ export function clientDefault(): Plugin {
       const ssrFalse = !isClientDefault() && Object.values(getVikeConfig().pages).find((page) => page.config.ssr === false);
       if (ssrFalse) warnOnce(`${ssrFalse._source.ssr!.definedAt} sets ssr to false, which applies only under components: 'client'`);
       checksConfigFiles = isClientDefault();
-      if (checksConfigFiles) for (const file of getConfigFiles(root)) await assertComponentsInPlusFiles(file, await readFile(file, "utf8"), root);
+      if (checksConfigFiles) for (const file of getPlusFiles(root, "config")) await assertComponentsInPlusFiles(file, await readFile(file, "utf8"), root);
     },
     async transform(code, id) {
       if (!isPlusComponentFile(id)) return;
-      if (this.environment.name === "rsc" && isAppFile(id) && path.basename(getFile(id)).startsWith("+Loading.")) {
-        const program = await parse(code, id);
-        const directives = getDirectives(program);
-        // Its object would be a client reference here, which has no `layout`
-        if (directives.includes("use client") || (isClientDefault() && directives.length === 0)) return getClientLoadingStub(program, id);
-      }
       // Under 'server', plugin-rsc's own rule: a file without "use client" is a server component
       if (!isClientDefault()) return;
       // MDX has no directives, and its plugin has compiled it to JavaScript
@@ -91,12 +85,12 @@ async function assertComponentsInPlusFiles(file: string, code: string, root: str
   }).visit(program);
 }
 
-function getConfigFiles(dir: string): string[] {
+function getPlusFiles(dir: string, name: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     if (entry.name.startsWith(".") || entry.name === "node_modules") return [];
     const file = path.join(dir, entry.name);
-    if (entry.isDirectory()) return getConfigFiles(file);
-    return entry.name.startsWith("+config.") ? [file] : [];
+    if (entry.isDirectory()) return getPlusFiles(file, name);
+    return entry.name.startsWith(`+${name}.`) ? [file] : [];
   });
 }
 
@@ -109,14 +103,18 @@ export function isClientDefault(): boolean {
   return values.has("client");
 }
 
+/** Whether every page wraps each layer in LoadingBoundary: under 'client', or when a +Loading starts with "use client" */
+export async function usesLoadingBoundary(root: string): Promise<boolean> {
+  if (isClientDefault()) return true;
+  for (const file of getPlusFiles(root, "Loading")) {
+    if (getDirectives(await parse(await readFile(file, "utf8"), file)).includes("use client")) return true;
+  }
+  return false;
+}
+
 // Outside the rsc env, a server Page, Layout, Wrapper or Loading: the page renders from its Flight, which has what it rendered
 function getServerComponentStub(program: ESTree.Program, id: string, file: string) {
   return { code: exportValue(program, id, `Object.assign(() => null, { isServerComponent: true, file: ${JSON.stringify(file)} })`), map: null };
-}
-
-// In the rsc env, a client +Loading: LoadingBoundary renders its layout, if it has one, where the file is loaded
-function getClientLoadingStub(program: ESTree.Program, id: string) {
-  return { code: `import { LoadingBoundary } from "vike-react-rsc/__internal/LoadingBoundary";\n${exportValue(program, id, "{ boundary: LoadingBoundary }")}`, map: null };
 }
 
 // `value`, exported as the + file exports its own: `export default`, or e.g. `export const Page` from a +Page file

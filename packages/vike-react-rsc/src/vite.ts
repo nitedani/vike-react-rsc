@@ -1,8 +1,11 @@
 import rsc from "@vitejs/plugin-rsc";
 import type { Plugin } from "vite";
-import { clientDefault, isClientDefault } from "./plugin/clientDefault";
+import { clientDefault, isClientDefault, usesLoadingBoundary } from "./plugin/clientDefault";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
+
+// getPageElement() imports it: LoadingBoundary in an app that needs it, so an app without a client +Loading doesn't ship it
+const LOADING_BOUNDARY = "virtual:vike-react-rsc/LoadingBoundary";
 
 export function vikeReactRscPlugins(): Plugin[] {
   return [
@@ -24,6 +27,17 @@ export function vikeReactRscPlugins(): Plugin[] {
       // The client build leaves out what renders a page without a Flight, unless components is 'client'
       configEnvironment: (name, _config, { command }) => {
         if (name === "client") return { define: { __VIKE_REACT_RSC_CLIENT_DEFAULT__: String(command === "serve" || isClientDefault()) } };
+      },
+    },
+    {
+      name: "vike-react-rsc:loading-boundary",
+      resolveId: (id) => (id === LOADING_BOUNDARY ? `\0${LOADING_BOUNDARY}` : undefined),
+      // The same answer in every env. In dev always: the page looks the same, and adding a client +Loading needs no restart.
+      async load(id) {
+        if (id !== `\0${LOADING_BOUNDARY}`) return;
+        const { command, root } = this.environment.config;
+        if (command === "build" && !(await usesLoadingBoundary(root))) return "export const LoadingBoundary = undefined;";
+        return `export { LoadingBoundary } from "vike-react-rsc/__internal/LoadingBoundary";`;
       },
     },
     noServerFunctionComponents(),

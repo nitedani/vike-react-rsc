@@ -106,12 +106,15 @@ function testVikeReactRendering() {
     expect(await fetchHtml("/server")).to.include("rscPayload");
   });
 
-  test("components: 'client': the root Layout keeps its state between client and server pages, and on Back", async () => {
+  test("components: 'client': the root Layout keeps its state between client and server pages, with and without a +Loading, and on Back", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration("#layout-counter");
     await page.click("#layout-counter");
     const layoutCounter = async () => expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
     await autoRetry(layoutCounter);
+    await page.click('a[href="/loading-component"]');
+    await page.waitForSelector("text=A server page that waits for its data");
+    await layoutCounter();
     await page.click('a[href="/server"]');
     await page.waitForSelector("text=Rendered on the server");
     await layoutCounter();
