@@ -56,9 +56,11 @@ const vikeReactRsc: Config = {
     // The plugin reads it too, and checks that all pages have the same value
     components: {
       env: { config: true, server: true, client: true },
-      // Under 'client', a page without server components renders as in vike-react, so its + files load everywhere
-      effect: ({ configValue }) =>
-        configValue === "server" ? { meta: { Page: { env: { rsc: true } }, Layout: { env: { rsc: true } }, Wrapper: { env: { rsc: true } } } } : undefined,
+      effect: ({ configDefinedAt, configValue }) => {
+        if (configValue !== "client" && configValue !== "server") throw new Error(`${configDefinedAt} should be "client" or "server"`);
+        // Under 'client', a page without server components renders as in vike-react, so its + files load everywhere
+        if (configValue === "server") return { meta: { Page: { env: { rsc: true } }, Layout: { env: { rsc: true } }, Wrapper: { env: { rsc: true } } } };
+      },
     },
     Page: { env: { rsc: true, server: true, client: true } },
     Layout: { env: { rsc: true, server: true, client: true }, cumulative: true },
