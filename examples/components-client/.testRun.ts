@@ -353,7 +353,7 @@ function testServerComponentHmr() {
 }
 
 function testClientComponentHmr() {
-  test("Dev: after an edit of the client Layout, client navigation shows the next page, without a reload", async () => {
+  test("Dev: after an edit of the client Layout, client navigation shows each page and the Layout keeps its state, back on a page loaded before the edit too, without a reload", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration("#layout-counter");
     await page.click("#layout-counter");
@@ -365,6 +365,10 @@ function testClientComponentHmr() {
     await page.waitForSelector("text=Edited layout 1");
     await page.click('a[href="/server"]');
     await page.waitForSelector("text=Rendered on the server");
+    expect(await page.textContent("#layout-counter")).to.equal("Edited layout 1");
+    await page.click('a[href="/"]');
+    await page.waitForSelector("h1:text-is('A client page')");
+    expect(await page.textContent("#layout-counter")).to.equal("Edited layout 1");
     editFileRevert();
     await page.waitForSelector("text=Layout 1");
     expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);

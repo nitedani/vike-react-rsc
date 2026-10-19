@@ -39,9 +39,15 @@ function getPageElement(pageContext: PageContext): React.JSX.Element | null {
 
 // React keeps a layer whose type changes from plain to lazy, as a Flight's client components are, but not from lazy to plain
 // TODO: remove once https://github.com/react/react/issues/37899 is fixed and released
+// One lazy per component: Fast Refresh keeps a layer's state only for the same type, e.g. from a page loaded before an edit
+const lazyTypes = new WeakMap<React.ComponentType<any>, React.ComponentType<any>>()
 function asLazy<Props>(Component: React.ComponentType<Props>): React.ComponentType<Props> {
   // A lazy that resolves to a lazy is React's error #306, so a user's React.lazy component keeps its own type
   if (import.meta.env.SSR || (Component as { $$typeof?: symbol }).$$typeof === Symbol.for('react.lazy')) return Component
-  const loaded = { then: (resolve: (module: { default: typeof Component }) => void) => resolve({ default: Component }) }
-  return React.lazy(() => loaded as unknown as Promise<{ default: typeof Component }>) as React.ComponentType<Props>
+  let lazy = lazyTypes.get(Component)
+  if (!lazy) {
+    const loaded = { then: (resolve: (module: { default: typeof Component }) => void) => resolve({ default: Component }) }
+    lazyTypes.set(Component, (lazy = React.lazy(() => loaded as unknown as Promise<{ default: typeof Component }>)))
+  }
+  return lazy as React.ComponentType<Props>
 }
