@@ -2,7 +2,7 @@ import { decodeAction, decodeFormState, decodeReply, loadServerAction, renderToR
 import { Suspense, type ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
-import type { ActionOutcome, ActionPayload, PagePayload } from "../types";
+import type { ActionOutcome, ActionPayload, PagePayload, PassedToClient } from "../types";
 import { runInScope } from "./scope";
 
 // Per page render, after a form submitted before hydration
@@ -17,10 +17,12 @@ export function pagePayload(pageContext: PageContext): ReadableStream<Uint8Array
 
 export function actionPayload(
   pageContext: PageContext,
-  { returnValue, rerender }: ActionOutcome
+  { returnValue, rerender }: ActionOutcome,
+  passedToClient: PassedToClient = []
 ): ReadableStream<Uint8Array> {
   return renderOnRead<ActionPayload>(pageContext, () =>
-    rerender ? { returnValue, root: getPage(pageContext) } : { returnValue }
+    // A promise is a Flight row of its own, so a value Flight can't carry fails only it
+    rerender ? { returnValue, root: getPage(pageContext), passedToClient: Promise.resolve(passedToClient) } : { returnValue }
   );
 }
 

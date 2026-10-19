@@ -6,8 +6,10 @@ import type { Cookies } from "./ssr/cookies";
 
 /** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */
 export type PagePayload = { root: ReactNode; formState?: ReactFormState };
-/** A server action's Flight decodes to it; `root` is the page, after rerender() */
-export type ActionPayload = { returnValue: unknown; root?: ReactNode };
+/** A server action's Flight decodes to it; `root` is the page, after rerender(), with the browser's new pageContext values */
+export type ActionPayload = { returnValue: unknown; root?: ReactNode; passedToClient?: Promise<PassedToClient> };
+/** pageContext values the browser gets, as [key, value] pairs: Flight drops an object's undefined values, not an array's */
+export type PassedToClient = [string, unknown][];
 export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
 
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */

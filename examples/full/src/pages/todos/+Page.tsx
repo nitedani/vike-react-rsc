@@ -1,5 +1,6 @@
 import { getPageContext } from "vike-react-rsc/pageContext";
 import { getTodos } from "../../actions/addTodo";
+import TodoCountClient from "../../components/Todo/TodoCountClient";
 import { Todos } from "../../components/Todo/Todos";
 import { sharedStyles } from "../../styles/shared";
 
@@ -44,6 +45,7 @@ export async function Page() {
         <p id="todo-count" css={sharedStyles.paragraph}>
           <code>+data</code> counted {todoCount} tasks
         </p>
+        <TodoCountClient />
       </section>
 
       {/* Info Section */}

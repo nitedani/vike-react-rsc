@@ -47,9 +47,15 @@ async function readAnswer(response: Response, pageContext: PageContextClient): P
   // E.g. a 404 page instead of the answer, Vike's HTML error page, or a static host
   const isFlight = response.headers.get("content-type")?.split(";")[0] === FLIGHT_CONTENT_TYPE.split(";")[0];
   if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
-  const { returnValue, root } = await createFromFetch<ActionPayload>(Promise.resolve(response));
+  const { returnValue, root, passedToClient } = await createFromFetch<ActionPayload>(Promise.resolve(response));
+  if (!root) return returnValue;
+  // Flight's thenable: its then() returns nothing, so catch() doesn't chain
+  const passed = await Promise.resolve(passedToClient).catch((error: unknown): undefined => {
+    // E.g. a class instance in data(), which Vike's serializer passes and Flight doesn't
+    console.error("[vike-react-rsc] rerender() couldn't send the new pageContext values, so client components keep the old ones:", error);
+  });
   // The page changed since the call: this answer's page is out of date
-  if (root && getCurrentPageContext() === pageContext) startTransition(() => showRoot(root));
+  if (getCurrentPageContext() === pageContext) startTransition(() => showRoot(root, passed));
   return returnValue;
 }
 

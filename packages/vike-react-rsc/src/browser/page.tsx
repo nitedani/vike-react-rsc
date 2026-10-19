@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
+import type { PassedToClient } from "../types";
 
 type Shown = { pageContext: PageContextClient; root: ReactNode };
 
@@ -24,9 +25,12 @@ export function show(next: Shown): void {
   startTransition(() => setRootState?.(next));
 }
 
-/** Shows a new tree for the page shown, e.g. the one an action's rerender() sent */
-export function showRoot(root: ReactNode): void {
-  show({ pageContext: shown.pageContext, root });
+/** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent */
+export function showRoot(root: ReactNode, passed?: PassedToClient): void {
+  // A new object, so usePageContext() renders again. Its prototype is Vike's pageContext, which also answers keys it
+  // doesn't own, e.g. globalContext.
+  const pageContext = passed ? Object.assign(Object.create(current), current, Object.fromEntries(passed)) : shown.pageContext;
+  show({ pageContext, root });
 }
 
 /** Hydrates `page`, then shows what show() shows */

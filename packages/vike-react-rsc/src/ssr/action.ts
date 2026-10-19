@@ -2,7 +2,7 @@
 import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
-import type { ActionOutcome } from "../types";
+import type { ActionOutcome, PassedToClient } from "../types";
 import { getRsc } from "./bridge";
 
 /** One action request. The rsc env runs it with `id` and `body`; without `id`, `body` is a form submitted before
@@ -44,7 +44,7 @@ export class ActionCall {
     // No outcome: the action threw. After render() to a page, the answer is that page, as for a form; Vike's error
     // page (is404 set) is left out, as callServer() rejects on its status without reading it
     const { returnValue, rerender } = this.outcome ?? { returnValue: undefined, rerender: pageContext.is404 === null };
-    return runtime.actionPayload(rscPageContext, { returnValue, rerender });
+    return runtime.actionPayload(rscPageContext, { returnValue, rerender }, rerender ? getPassedToClient(pageContext) : []);
   }
 
   /** The answer to the action, from the response of the page Vike rendered */
@@ -95,6 +95,30 @@ export class ActionCall {
     });
   }
 }
+
+// The browser's pageContext values that data() and the hooks compute again after the action: data, and the app's
+// passToClient, picked as Vike picks them ('user.id' for a nested value, '\\.' for a dot in a name)
+function getPassedToClient(pageContext: PageContextServer): PassedToClient {
+  const passed: Record<string, unknown> = {};
+  const props = (pageContext.config.passToClient ?? [])
+    .flat()
+    // Vike's Config type also takes { prop, once }, which its resolved type leaves out
+    .map((prop: string | { prop: string }) => (typeof prop === "string" ? prop : prop.prop))
+    .filter((prop) => prop !== "rscPayload");
+  for (const prop of ["data", ...props]) {
+    const keys = prop.split(/(?<!\\)\./).map((key) => key.replace(/\\\./g, "."));
+    // A value the server no longer has is gone in the browser too
+    if (!(keys[0]! in passed)) passed[keys[0]!] = undefined;
+    const value = keys.reduce<unknown>((obj, key) => (isObject(obj) ? obj[key] : undefined), pageContext);
+    if (value === undefined) continue;
+    let to = passed;
+    for (const key of keys.slice(0, -1)) to = (to[key] ??= {}) as Record<string, unknown>;
+    to[keys.at(-1)!] = value;
+  }
+  return Object.entries(passed);
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 
 function answerRedirect(response: Response, headers: Headers, location: string): Response {
   void response.body?.cancel();

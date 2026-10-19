@@ -333,9 +333,10 @@ function testTodoForm() {
   test("Todo form functionality", async () => {
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
-    const readTodoCount = async () =>
-      Number((await page.textContent("#todo-count"))?.match(/\d+/)?.[0]);
+    const readTodoCount = async (selector = "#todo-count") =>
+      Number((await page.textContent(selector))?.match(/\d+/)?.[0]);
     const countBefore = await readTodoCount();
+    expect(await readTodoCount("#todo-count-client")).to.equal(countBefore);
     const requests: string[] = [];
     const onRequest = (request: { method(): string; url(): string; resourceType(): string }) => {
       if (["document", "fetch", "xhr"].includes(request.resourceType())) {
@@ -351,6 +352,8 @@ function testTodoForm() {
     });
     // One request: the action, then +data and the page, which see the new task
     expect(await readTodoCount()).to.equal(countBefore + 1);
+    // Client components get the new pageContext too
+    expect(await readTodoCount("#todo-count-client")).to.equal(countBefore + 1);
     expect(requests).to.deep.equal(["POST /todos"]);
     page.off("request", onRequest);
   });
