@@ -3,6 +3,8 @@ import { getVikeConfig } from "vike/plugin";
 import { Visitor, type ESTree, type Plugin } from "vite";
 import { getDirectives, getFile, getImports, getImportSources, isAppFile, isComponentFile, isPlusComponentFile, parse, readDirectives } from "./parse";
 
+type Resolve = (source: string) => Promise<string | undefined>;
+
 /** Under `components: 'client'`, an unmarked .jsx or .tsx file is a client component, and `"use server component"` marks
  * a server component */
 export function clientDefault(): Plugin {
@@ -17,41 +19,21 @@ export function clientDefault(): Plugin {
       const program = await parse(code, id);
       const directives = getDirectives(program);
       if (isComponentFile(id)) isMarked.set(`${this.environment.name}:${getFile(id)}`, directives.includes("use server component"));
-      if (this.environment.name !== "rsc") {
-        if (isPlusComponentFile(id) && directives.includes("use server component")) {
-          // The page renders from its Flight, which has what this component rendered in the rsc env
-          const stub = "Object.assign(() => null, { isServerComponent: true })";
-          const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
-          const name = path.basename(getFile(id)).split(".")[0]!.slice(1);
-          return { code: hasDefaultExport ? `export default ${stub};` : `export const ${name} = ${stub};`, map: null };
-        }
-        if (directives.includes("use server") || directives.includes("use server component")) return;
-        // A client component's imports load in the browser, where a server component can't render
-        for (const source of getImportSources(program)) {
-          const resolved = await this.resolve(source, id);
-          if (!resolved || !isComponentFile(resolved.id) || !(await readDirectives(resolved.id)).includes("use server component")) continue;
-          const importer = path.relative(this.environment.config.root, getFile(id));
-          this.error(`${importer} imports ${path.relative(this.environment.config.root, getFile(resolved.id))}, which starts with "use server component", so it's a client component importing a server component: start ${importer} with "use server component" too`);
-        }
+      const root = this.environment.config.root;
+      const file = path.relative(root, getFile(id));
+      const resolve: Resolve = async (source) => (await this.resolve(source, id))?.id;
+      if (this.environment.name === "rsc") {
+        // On the first line, so the source map stays valid
+        if (isComponentFile(id) && directives.length === 0) return { code: `"use client";${code}`, map: null };
+        if (directives.includes("use client")) return;
+        const error = await findClientFunctionCall(program, file, resolve, root);
+        if (error) this.error(error);
         return;
       }
-      if (directives.includes("use client")) return;
-      // On the first line, so the source map stays valid
-      if (isComponentFile(id) && directives.length === 0) return { code: `"use client";${code}`, map: null };
-
-      // Server code: what it imports from a client component file is a client reference, which throws when called
-      const root = this.environment.config.root;
-      const imports = getImports(program);
-      for (const [name, call] of getCalls(program)) {
-        const source = imports.get(name);
-        const resolved = source && (await this.resolve(source, id));
-        if (!resolved || !isComponentFile(resolved.id) || (await readDirectives(resolved.id)).length > 0) continue;
-        const from = path.relative(root, getFile(resolved.id));
-        const fix = /^use[A-Z]/.test(call)
-          ? `a hook runs only in a client component`
-          : `move it to a .js or .ts file, or start ${from} with "use server component"`;
-        this.error(`${path.relative(root, getFile(id))} calls ${call}() from ${from}, which is a client component file, so it can't run on the server: ${fix}`);
-      }
+      if (directives.includes("use server component")) return isPlusComponentFile(id) ? getServerComponentStub(program, id) : undefined;
+      if (directives.includes("use server")) return;
+      const error = await findServerComponentImport(program, file, resolve, root);
+      if (error) this.error(error);
     },
     async hotUpdate({ file, read, server }) {
       const key = `${this.environment.name}:${file}`;
@@ -73,6 +55,39 @@ export function isClientDefault(): boolean {
     throw new Error(`[vike-react-rsc] Set components once, in the root +config.js: pages set it to ${[...values].join(" and ")}`);
   }
   return values.has("client");
+}
+
+// Outside the rsc env, a server Page, Layout or Wrapper: the page renders from its Flight, which has what it rendered
+function getServerComponentStub(program: ESTree.Program, id: string) {
+  const stub = "Object.assign(() => null, { isServerComponent: true })";
+  const hasDefaultExport = program.body.some((statement) => statement.type === "ExportDefaultDeclaration");
+  const name = path.basename(getFile(id)).split(".")[0]!.slice(1);
+  return { code: hasDefaultExport ? `export default ${stub};` : `export const ${name} = ${stub};`, map: null };
+}
+
+// In the rsc env, what a server module imports from a client component file is a client reference, which throws when
+// called
+async function findClientFunctionCall(program: ESTree.Program, file: string, resolve: Resolve, root: string) {
+  const imports = getImports(program);
+  for (const [name, call] of getCalls(program)) {
+    const source = imports.get(name);
+    const resolved = source && (await resolve(source));
+    if (!resolved || !isComponentFile(resolved) || (await readDirectives(resolved)).length > 0) continue;
+    const from = path.relative(root, getFile(resolved));
+    const fix = /^use[A-Z]/.test(call)
+      ? `a hook runs only in a client component`
+      : `move it to a .js or .ts file, or start ${from} with "use server component"`;
+    return `${file} calls ${call}() from ${from}, which is a client component file, so it can't run on the server: ${fix}`;
+  }
+}
+
+// A client component's imports load in the browser, where a server component can't render
+async function findServerComponentImport(program: ESTree.Program, file: string, resolve: Resolve, root: string) {
+  for (const source of getImportSources(program)) {
+    const resolved = await resolve(source);
+    if (!resolved || !isComponentFile(resolved) || !(await readDirectives(resolved)).includes("use server component")) continue;
+    return `${file} imports ${path.relative(root, getFile(resolved))}, which starts with "use server component", so it's a client component importing a server component: start ${file} with "use server component" too`;
+  }
 }
 
 // The functions the module calls, by the local name they're called through: `badge` for `badge()` and `ui` for `ui.badge()`
