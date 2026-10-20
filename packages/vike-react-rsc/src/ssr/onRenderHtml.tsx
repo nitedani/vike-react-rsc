@@ -45,61 +45,7 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
 };
 
 async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) {
-  const htmlSent = new AbortController();
-  // Before any HTML hook: server components render as after a client navigation, which runs none
-  forkPageContext(pageContext);
-  // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
-  await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
-  const { renderToStreamOptions } = resolveReactOptions(pageContext);
-  // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
-  const ssr = pageContext.config.ssr !== false;
-  const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
-  const formState = flight?.formState;
-  const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
-  const page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
-  const nonce = pageContext.cspNonce ?? undefined;
-  // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this hook returns, then the
-  // HTML has started and only the stream can tell the browser
-  let boundaryAbort: unknown;
-  const onAbort = (error: unknown, abort: Abort) => {
-    if (deps.injectToStream) deps.injectToStream(renderAbortMeta(abort));
-    else boundaryAbort ??= error;
-  };
-  try {
-    if (root === null) {
-      // Under ssr: false, neither is set
-    } else if (pageContext.isPrerendering) {
-      pageContext.pageHtmlString = await renderWhole(page, { ...renderToStreamOptions?.streamOptions, nonce }, onAbort);
-    } else {
-      const stream = await renderToStream(page, {
-        userAgent: pageContext.headers?.["user-agent"],
-        // Else react-streaming streams, except to bots
-        disable: isStreamDisabled(pageContext) || undefined,
-        ...renderToStreamOptions,
-        streamOptions: { ...renderToStreamOptions?.streamOptions, nonce, formState },
-        onBoundaryError: (error) => {
-          const abort = getAbort(error);
-          if (abort) onAbort(error, abort);
-          else renderToStreamOptions?.onBoundaryError?.(error);
-        },
-      });
-      // A crawler gets the page whole, so Vike can still answer a boundary's abort, which react-streaming reports late
-      if (stream.disabled) await stream.streamEnd;
-      void stream.streamEnd.then(() => htmlSent.abort());
-      deps.injectToStream = stream.injectToStream;
-      pageContext.pageHtmlStream = stream;
-    }
-    // Inside a Suspense boundary, but reported before this hook returns, e.g. a crawler's
-    if (boundaryAbort) throw boundaryAbort;
-  } catch (error) {
-    const abort = getAbort(error);
-    if (!abort) throw error;
-    htmlSent.abort();
-    void pageContext.rscPayload?.cancel();
-    throw toVikeAbort(abort);
-  }
-  // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
-  await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
+  await renderPageToHtml(pageContext, deps);
   // As onAfterRenderHtml() left them
   if (pageContext.pageHtmlString !== undefined && pageContext.pageHtmlStream !== undefined) {
     throw new Error(
@@ -134,6 +80,65 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
 </html>`,
     pageContext: { enableEagerStreaming: true },
   };
+}
+
+// As vike-react's: sets pageContext.pageHtmlString or pageHtmlStream, between the HTML hooks
+async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps): Promise<void> {
+  const htmlSent = new AbortController();
+  // Before any HTML hook: server components render as after a client navigation, which runs none
+  forkPageContext(pageContext);
+  // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
+  await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
+  const { renderToStreamOptions } = resolveReactOptions(pageContext);
+  // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
+  const ssr = pageContext.config.ssr !== false;
+  const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
+  const formState = flight?.formState;
+  const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
+  // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this hook returns, then the
+  // HTML has started and only the stream can tell the browser
+  let boundaryAbort: unknown;
+  const onAbort = (error: unknown, abort: Abort) => {
+    if (deps.injectToStream) deps.injectToStream(renderAbortMeta(abort));
+    else boundaryAbort ??= error;
+  };
+  try {
+    if (root !== null) {
+      const page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
+      const nonce = pageContext.cspNonce ?? undefined;
+      if (pageContext.isPrerendering) {
+        pageContext.pageHtmlString = await renderWhole(page, { ...renderToStreamOptions?.streamOptions, nonce }, onAbort);
+      } else {
+        const stream = await renderToStream(page, {
+          userAgent: pageContext.headers?.["user-agent"],
+          // Else react-streaming streams, except to bots
+          disable: isStreamDisabled(pageContext) || undefined,
+          ...renderToStreamOptions,
+          streamOptions: { ...renderToStreamOptions?.streamOptions, nonce, formState },
+          onBoundaryError: (error) => {
+            const abort = getAbort(error);
+            if (abort) onAbort(error, abort);
+            else renderToStreamOptions?.onBoundaryError?.(error);
+          },
+        });
+        // A crawler gets the page whole, so Vike can still answer a boundary's abort, which react-streaming reports late
+        if (stream.disabled) await stream.streamEnd;
+        void stream.streamEnd.then(() => htmlSent.abort());
+        deps.injectToStream = stream.injectToStream;
+        pageContext.pageHtmlStream = stream;
+      }
+    }
+    // Inside a Suspense boundary, but reported before this hook returns, e.g. a crawler's
+    if (boundaryAbort) throw boundaryAbort;
+  } catch (error) {
+    const abort = getAbort(error);
+    if (!abort) throw error;
+    htmlSent.abort();
+    void pageContext.rscPayload?.cancel();
+    throw toVikeAbort(abort);
+  }
+  // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
+  await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
 }
 
 // vike-react's resolveStreamSetting(), with +stream.require always true: server components render only to a stream
