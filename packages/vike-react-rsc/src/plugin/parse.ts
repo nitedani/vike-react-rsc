@@ -32,11 +32,6 @@ export function isAppFile(id: string): boolean {
   return !id.startsWith("\0") && path.extname(file) in langs && !file.includes("/node_modules/");
 }
 
-/** The + file of a Page, Layout, Wrapper or Loading, MDX included */
-export function isPlusComponentFile(id: string): boolean {
-  return /\/\+(Page|Layout|Wrapper|Loading)(\.[^/]*)?\.(mdx?|[cm]?[jt]sx?)$/.test(getFile(id));
-}
-
 export function getFile(id: string): string {
   return id.split("?")[0]!;
 }

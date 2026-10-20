@@ -167,8 +167,8 @@ function testVikeReactRendering() {
     expect(await page.textContent("#imported-layout-counter")).to.equal("Imported layout 1");
   });
 
-  test("components: 'client': a Layout without a directive that a +config file sets by an import renders on a client page, with ssr: false too, as in vike-react", async () => {
-    for (const pathname of ["/vike-react-layout", "/vike-react-layout/spa"]) {
+  test("components: 'client': a Layout without a directive that a +config file sets by an import is a client component, on a client page, a server page and with ssr: false", async () => {
+    for (const pathname of ["/vike-react-layout", "/vike-react-layout/server", "/vike-react-layout/spa"]) {
       await page.goto(getServerUrl() + pathname);
       await waitForHydration("#vike-react-layout-counter");
       await page.click("#vike-react-layout-counter");
@@ -176,6 +176,16 @@ function testVikeReactRendering() {
         expect(await page.textContent("#vike-react-layout-counter")).to.equal("vike-react layout 1");
       });
     }
+  });
+
+  test('components: \'client\': a "use server component" Layout that a +config file sets by a named import renders on the server, around a client page', async () => {
+    await page.goto(getServerUrl() + "/imported-server-layout");
+    expect(await page.textContent("#imported-server-layout")).to.equal("An imported server layout, rendered on the server");
+    await waitForHydration("#counter");
+    await page.click("#counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#counter")).to.equal("Counter 1");
+    });
   });
 
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
