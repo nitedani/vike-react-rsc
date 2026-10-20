@@ -1,4 +1,4 @@
-import { usePageContext } from "vike-react-rsc/pageContext";
+import { usePageContext } from "vike-react-rsc/usePageContext";
 
 // https://vike.dev/error-page
 export default function Page() {
