@@ -353,6 +353,21 @@ function testLoading() {
     }
   });
 
+  test("components: 'client': a Loading's layout that a value imports from a package with a react-server export runs where the file Vike resolves says, from the file its conditions give, on a client navigation too", async () => {
+    for (const [pathname, fallback] of [
+      ["/react-server-loading", '<p id="npm-loading">The default file of a loading layout...</p>'],
+      ["/react-server-loading-marked", '<p id="npm-server-loading">The react-server file of a server loading layout</p>'],
+    ]) {
+      const html = await fetchHtml(pathname);
+      expect(html, `fallback missing from ${pathname}`).to.include(fallback);
+      expect(html.indexOf('<p id="loaded">')).to.be.greaterThan(html.indexOf(fallback));
+    }
+    await page.goto(getServerUrl() + "/react-server-loading");
+    await waitForHydration("#layout-counter");
+    await clickLink("/react-server-loading-marked");
+    await page.waitForSelector("#pathname:text-is('/react-server-loading-marked') ~ main #loaded");
+  });
+
   test("components: 'client': a +Loading without layout adds no Suspense boundary, as in vike-react", async () => {
     const html = await fetchHtml("/loading-component");
     expect(html).to.include('<p id="loaded">');

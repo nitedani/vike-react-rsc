@@ -11,6 +11,14 @@
     "./ServerLayout": {
       "react-server": "./ServerLayout.server.js",
       "default": "./ServerLayout.js"
+    },
+    "./Loading": {
+      "react-server": "./Loading.server.js",
+      "default": "./Loading.js"
+    },
+    "./ServerLoading": {
+      "react-server": "./ServerLoading.server.js",
+      "default": "./ServerLoading.js"
     }
   },
   "peerDependencies": {

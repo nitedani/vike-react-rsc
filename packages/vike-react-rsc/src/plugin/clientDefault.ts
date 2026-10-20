@@ -1,5 +1,6 @@
 import { transformModuleExportEffect } from "@vitejs/plugin-rsc/transforms";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
 import type { ESTree, Plugin } from "vite";
@@ -68,7 +69,7 @@ export function isClientDefault(): boolean {
 }
 
 /** Finds each Page, Layout, Wrapper or Loading that Vike loads from a file, by its + file or by an import of a +config file
- * or an extension's config, as the env resolves the imports Vike leaves to Vite */
+ * or an extension's config, as the env resolves an import that Node can't */
 export async function getComponentConfigs(context: ResolveContext): Promise<(id: string) => ComponentConfig[] | undefined> {
   const { byFile } = await resolveComponentConfigs(context);
   return (id) => byFile.get(getFile(id));
@@ -84,29 +85,19 @@ function resolveComponentConfigs(context: ResolveContext): Promise<ComponentConf
 }
 
 async function readComponentConfigs(pageConfigs: PageConfigs, context: ResolveContext): Promise<ComponentConfigs> {
-  const imports: { file: string | undefined; importPath?: string; importer?: string; config: ComponentConfig }[] = [];
+  const imports: (Omit<ComponentImport, "exportName"> & { config: ComponentConfig })[] = [];
   const clientFiles = new Map<string, string>();
   for (const { configValueSources } of pageConfigs) {
     for (const configName of ["Page", "Layout", "Wrapper", "Loading"]) {
       for (const source of configValueSources[configName] ?? []) {
-        const { definedAt } = source;
-        if (!("filePathAbsoluteFilesystem" in definedAt)) continue;
-        if (source.valueLoadedViaImport) {
-          // null for a path alias that Node doesn't know, e.g. one only Vite defines
-          const { filePathAbsoluteFilesystem: file, importPathAbsolute: importPath } = definedAt;
-          const config = { configName, exportName: definedAt.fileExportName };
-          imports.push({ file: file ?? undefined, importPath: importPath ?? undefined, config });
-          // A package's file, which Vike resolves without the react-server condition: its directive says where the component
+        for (const { file, importPath, importer, exportName } of getComponentImports(source)) {
+          const config = { configName, exportName };
+          imports.push({ file, importPath, importer, config });
+          // A package's file, which Node resolves without the react-server condition: its directive says where the component
           // runs, and the package's conditions which file the rsc env loads for it
           if (!importPath || !file || context.environment.name !== "rsc") continue;
-          const importer = source.plusFile?.filePath.filePathAbsoluteFilesystem ?? undefined;
           if (await isServerComponentFile(file)) imports.push({ file: undefined, importPath, importer, config: { ...config, isReactServerFile: true } });
           else clientFiles.set(importPath, file);
-        } else if (source.valueIsLoaded) {
-          // An import in the value, e.g. Loading: { layout }, which Vike imports as it is written
-          for (const { importPath, exportName } of getPointerImports(source.value)) {
-            imports.push({ file: undefined, importPath, importer: definedAt.filePathAbsoluteFilesystem ?? undefined, config: { configName, exportName } });
-          }
         }
       }
     }
@@ -125,6 +116,32 @@ async function readComponentConfigs(pageConfigs: PageConfigs, context: ResolveCo
   return { byFile, clientFiles };
 }
 
+/** Each import Vike loads a component from: the value's own, which Vike resolves with Node, or each import string in the value,
+ * e.g. Loading: { layout }, resolved the same way. `file` is undefined for a path alias that Node doesn't know, e.g. one only
+ * Vite defines, and `importPath` for an import of the app's own file */
+function getComponentImports(source: ConfigValueSource): ComponentImport[] {
+  const { definedAt } = source;
+  if (!("filePathAbsoluteFilesystem" in definedAt)) return [];
+  if (source.valueLoadedViaImport) {
+    const { filePathAbsoluteFilesystem: file, importPathAbsolute: importPath, fileExportName: exportName } = definedAt;
+    return [{ file: file ?? undefined, importPath: importPath ?? undefined, importer: source.plusFile?.filePath.filePathAbsoluteFilesystem ?? undefined, exportName }];
+  }
+  if (!source.valueIsLoaded) return [];
+  const importer = definedAt.filePathAbsoluteFilesystem ?? undefined;
+  return getPointerImports(source.value).map(({ importPath, exportName }) =>
+    // Vike makes a +config file's relative import absolute
+    path.isAbsolute(importPath) ? { file: importPath, importer, exportName } : { file: importer && resolveWithNode(importPath, importer), importPath, importer, exportName }
+  );
+}
+
+function resolveWithNode(importPath: string, importer: string): string | undefined {
+  try {
+    return createRequire(importer).resolve(importPath);
+  } catch {
+    return undefined;
+  }
+}
+
 async function isServerComponentFile(file: string): Promise<boolean> {
   const code = await readFile(file, "utf8");
   return code.includes("use server component") && getDirectives(await parse(code, file)).includes("use server component");
@@ -141,6 +158,8 @@ function getPointerImports(value: unknown): { importPath: string; exportName: st
 }
 
 type PageConfigs = ReturnType<typeof getVikeConfig>["dangerouslyUseInternals"]["_pageConfigs"];
+type ConfigValueSource = PageConfigs[number]["configValueSources"][string][number];
+type ComponentImport = { file?: string; importPath?: string; importer?: string; exportName?: string };
 type ResolveContext = { environment: { name: string }; resolve: (source: string, importer?: string) => Promise<{ id: string } | null> };
 type ComponentConfig = {
   configName: string;
