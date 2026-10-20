@@ -61,14 +61,13 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
     if (deps.injectToStream) deps.injectToStream(renderAbortMeta(abort));
     else boundaryAbort ??= error;
   };
-  let html;
   try {
     if (root === null) {
-      html = "";
+      // Under ssr: false, neither is set
     } else if (pageContext.isPrerendering) {
-      html = await renderWhole(page, nonce, onAbort);
+      pageContext.pageHtmlString = await renderWhole(page, nonce, onAbort);
     } else {
-      html = await renderToStream(page, {
+      const stream = await renderToStream(page, {
         userAgent: pageContext.headers?.["user-agent"],
         streamOptions: { nonce, formState },
         onBoundaryError: (error) => {
@@ -77,9 +76,10 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
         },
       });
       // A crawler gets the page whole, so Vike can still answer a boundary's abort, which react-streaming reports late
-      if (html.disabled) await html.streamEnd;
-      void html.streamEnd.then(() => htmlSent.abort());
-      deps.injectToStream = html.injectToStream;
+      if (stream.disabled) await stream.streamEnd;
+      void stream.streamEnd.then(() => htmlSent.abort());
+      deps.injectToStream = stream.injectToStream;
+      pageContext.pageHtmlStream = stream;
     }
     // Inside a Suspense boundary, but reported before this hook returns, e.g. a crawler's
     if (boundaryAbort) throw boundaryAbort;
@@ -90,6 +90,15 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
     void pageContext.rscPayload?.cancel();
     throw toVikeAbort(abort);
   }
+  // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
+  await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
+  // As onAfterRenderHtml() left them
+  if (pageContext.pageHtmlString !== undefined && pageContext.pageHtmlStream !== undefined) {
+    throw new Error(
+      "[vike-react-rsc] +onAfterRenderHtml left both pageContext.pageHtmlString and pageContext.pageHtmlStream set: set only one of them, and the other to undefined"
+    );
+  }
+  const html = pageContext.pageHtmlString ? dangerouslySkipEscape(pageContext.pageHtmlString) : (pageContext.pageHtmlStream ?? "");
   // Once the shell has rendered, React has loaded every client component in it
   const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
 
@@ -138,7 +147,7 @@ async function renderWhole(page: ReactNode, nonce: string | undefined, onAbort: 
   };
   const stream = await renderToReadableStream(page, { nonce, onError });
   await stream.allReady;
-  return dangerouslySkipEscape(await new Response(stream).text());
+  return new Response(stream).text();
 }
 
 // Once the HTML has started: search engines skip the page, and a redirect works without JavaScript

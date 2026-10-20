@@ -259,6 +259,11 @@ function testVikeReactRendering() {
     expect(await fetchHtml("/render-html")).to.include('<p id="store">A store +onBeforeRenderHtml created</p>');
   });
 
+  test("components: 'client': +onAfterRenderHtml runs once the page rendered to HTML, a server page too, as in vike-react", async () => {
+    const response = await fetch(getServerUrl() + "/render-html");
+    expect(response.headers.get("x-store-rendered-by")).to.equal("Page");
+  });
+
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");

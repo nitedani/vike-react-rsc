@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
+import type { renderToStream } from "react-streaming/server.web";
 import type { ImportString, PageContext, PageContextClient, PageContextServer } from "vike/types";
 import type { ActionCall } from "./ssr/action";
 import type { Cookies } from "./ssr/cookies";
@@ -17,6 +18,7 @@ export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknown
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */
 export type RscRuntime = typeof import("./rsc/runtime");
 
+type PageHtmlStream = Awaited<ReturnType<typeof renderToStream>>;
 type RenderHtmlHook = (pageContext: PageContextServer) => void;
 type RenderClientHook = (pageContext: PageContextClient) => void;
 type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
@@ -40,6 +42,10 @@ declare global {
     interface PageContextServer {
       /** The request's cookies: `get()`, `getAll()` and `has()`, and `set()` and `delete()`, which add a `Set-Cookie` header to the response. Not yet in your own `+onCreatePageContext`, which runs before vike-react-rsc's. */
       cookies: Cookies;
+      /** The +Page.jsx component rendered to the HTML string, when pre-rendering. +onAfterRenderHtml can replace it. */
+      pageHtmlString?: string;
+      /** The +Page.jsx component rendered to an HTML stream. +onAfterRenderHtml can replace it. */
+      pageHtmlStream?: PageHtmlStream;
     }
 
     interface Config {
@@ -206,6 +212,12 @@ declare global {
        */
       onBeforeRenderHtml?: RenderHtmlHook | ImportString;
       /**
+       * Hook called right after rendering the page's root React component to HTML.
+       *
+       * https://vike.dev/onAfterRenderHtml
+       */
+      onAfterRenderHtml?: RenderHtmlHook | ImportString;
+      /**
        * Client-side hook called before the page is rendered.
        *
        * https://vike.dev/onBeforeRenderClient
@@ -235,6 +247,7 @@ declare global {
       Wrapper?: WrapperComponent[];
       Loading?: LoadingValue;
       onBeforeRenderHtml?: Function[];
+      onAfterRenderHtml?: Function[];
       onBeforeRenderClient?: Function[];
       onAfterRenderClient?: Function[];
       rscRuntime: RscRuntime;
