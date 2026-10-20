@@ -4,6 +4,7 @@ import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
 import { getClientApiHint } from "../clientApiHint";
 import { getPageElement } from "../integration/getPageElement";
+import { getServerComponentImport } from "../rendersFlight";
 import type { ActionOutcome, ActionPayload, PagePayload } from "../types";
 import { runInScope } from "./scope";
 
@@ -73,7 +74,7 @@ function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Paylo
         onError: (error: unknown) => {
           // Not the abort, nor what failed because of it
           if (stopped.signal.aborted) return;
-          const hint = getClientApiHint(error);
+          const hint = getClientApiHint(error, undefined, getServerComponentImport(pageContext));
           console.error(`[vike-react-rsc] A server component failed${hint ? `: ${hint}` : ""}:`, error);
         },
       })

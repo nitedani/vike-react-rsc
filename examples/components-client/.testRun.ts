@@ -461,6 +461,14 @@ function testClientHooks() {
     );
   });
 
+  test("Dev: a page that a server component import moves to the server and that calls useState() gets React's error, naming its file, the import and the fix", async () => {
+    await expectHelperPageError(
+      'import { useState } from "react";\nimport { Markdown } from "../../components/Markdown";\nexport default function Page() {\n  useState(0);\n  return <Markdown source="A page" />;\n}\n',
+      `pages/helper/+Page.tsx calls useState(), ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports the server component components/Markdown.tsx: ` +
+        'move the code that calls useState() into a "use client" component, or remove "use server component" from components/Markdown.tsx: TypeError'
+    );
+  });
+
   test('Dev: a server file calling createContext() or extending Component as it loads gets the same hint', async () => {
     for (const [code, use] of [
       ['import { createContext } from "react";\nconst Context = createContext(null);\nexport default function Page() {\n  return null;\n}\n', "calls createContext()"],

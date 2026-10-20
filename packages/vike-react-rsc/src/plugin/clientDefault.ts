@@ -66,14 +66,16 @@ export function clientDefault(): Plugin {
       const program = await parse(code, id);
       const directives = getDirectives(program);
       const key = `${this.environment.name}:${getFile(id)}`;
-      const { isServerComponent, read } = await decideIsServerComponent(getFile(id), directives, components, getAppModule(this.environment));
+      const { isServerComponent, serverComponentImport, read } = await decideIsServerComponent(getFile(id), directives, components, getAppModule(this.environment));
       isMarked.set(key, isServerComponent);
       readFiles.set(key, read);
       // On the first line, so the source map stays valid
       if (isRsc && directives.length === 0 && !isServerComponent) return { code: `"use client";${code}`, map: null };
       if (!isServerComponent) return;
-      const file = path.relative(this.environment.config.root, getFile(id));
-      return isRsc ? tagServerComponent(code, program, components, file) : getServerComponentStub(components, file);
+      const { root } = this.environment.config;
+      const file = path.relative(root, getFile(id));
+      const flags = getServerComponentFlags(file, serverComponentImport?.map((imported) => path.relative(root, imported)));
+      return isRsc ? tagServerComponent(code, program, components, file, flags) : getServerComponentStub(components, flags);
     },
     async hotUpdate({ type, file }) {
       const { environment } = this;
@@ -111,12 +113,17 @@ export function clientDefault(): Plugin {
   };
 }
 
-// Where the env runs a Page, Layout, Wrapper or Loading, and the files it read to decide it
-async function decideIsServerComponent(file: string, directives: Directive[], components: ComponentConfig[], getAppModule: GetAppModule): Promise<{ isServerComponent: boolean; read: Set<string> }> {
+// Where the env runs a Page, Layout, Wrapper or Loading, the server component import that decides it if any, and the files read
+async function decideIsServerComponent(
+  file: string,
+  directives: Directive[],
+  components: ComponentConfig[],
+  getAppModule: GetAppModule
+): Promise<{ isServerComponent: boolean; serverComponentImport?: string[]; read: Set<string> }> {
   if (isServerComponentFor(directives, components)) return { isServerComponent: true, read: new Set([file]) };
   if (directives.length > 0 || !isClientDefault() || !isAppFile(file)) return { isServerComponent: false, read: new Set([file]) };
   const { serverComponentImport, read } = await findServerComponentImport(file, getAppModule);
-  return { isServerComponent: serverComponentImport !== undefined, read };
+  return { isServerComponent: serverComponentImport !== undefined, serverComponentImport, read };
 }
 
 /** The first "use server component" file that `file` imports, through files without a directive, as the files from `file` to
@@ -288,18 +295,18 @@ const componentConfigs = new WeakMap<object, Map<string, Promise<ComponentConfig
 
 // Outside the rsc env, a server Page, Layout, Wrapper or Loading: the page renders from its Flight, which has what it
 // rendered. Each export Vike reads, a + file's default one, whatever the file exports itself
-function getServerComponentStub(components: ComponentConfig[], file: string) {
+function getServerComponentStub(components: ComponentConfig[], flags: string) {
   const exports = [...new Set(components.map(({ exportName = "default" }) => `stub as ${exportName}`))].join(", ");
-  return { code: `const stub = Object.assign(() => null, ${getServerComponentFlags(file)});\nexport { ${exports} };`, map: null };
+  return { code: `const stub = Object.assign(() => null, ${flags});\nexport { ${exports} };`, map: null };
 }
 
 // In the rsc env, a server Page, Layout, Wrapper or Loading carries the stub's flags, so every env finds it the same way
-function tagServerComponent(code: string, program: ESTree.Program, components: ComponentConfig[], file: string) {
+function tagServerComponent(code: string, program: ESTree.Program, components: ComponentConfig[], file: string, flags: string) {
   // The exports Vike reads: each import's, or a + file's default one or the one named after the config
   const exportNames = [...new Set(components.flatMap(({ configName, exportName }) => (exportName ? [exportName] : [configName, "default"])))];
   const configNames = [...new Set(components.map(({ configName }) => configName))].join(" or ");
   const { output, references } = transformModuleExportEffect(code, program, {
-    generate: ({ binding }) => `Object.assign(${binding}, ${getServerComponentFlags(file)})`,
+    generate: ({ binding }) => `Object.assign(${binding}, ${flags})`,
     filter: (name) => exportNames.includes(name),
     exportAll: "preserve",
   });
@@ -318,6 +325,7 @@ function tagServerComponent(code: string, program: ESTree.Program, components: C
   return { code: output.toString(), map: output.generateMap({ hires: "boundary" }) };
 }
 
-function getServerComponentFlags(file: string) {
-  return `{ isServerComponent: true, file: ${JSON.stringify(file)} }`;
+// With, for a file that is one because it imports a server component, the files from it to that server component
+function getServerComponentFlags(file: string, serverComponentImport: string[] | undefined) {
+  return JSON.stringify({ isServerComponent: true, file, serverComponentImport });
 }
