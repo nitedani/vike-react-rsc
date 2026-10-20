@@ -512,6 +512,23 @@ function testServerComponentHmr() {
     expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
     expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
   });
+
+  test("Dev: editing the react-server file of a package's server Layout updates it without a reload, so the page keeps its state", async () => {
+    await page.goto(getServerUrl() + "/react-server-layout-marked/client");
+    await waitForHydration("#counter");
+    await page.click("#counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#counter")).to.equal("Counter 1");
+    });
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    editFile("./react-server-layout/ServerLayout.server.js", (source) => source.replace("The react-server file", "The edited react-server file"));
+    await page.waitForSelector("text=The edited react-server file of a server layout");
+    await sleep(100);
+    editFileRevert();
+    await page.waitForSelector("#npm-server-layout:text-is('The react-server file of a server layout')");
+    expect(await page.textContent("#counter")).to.equal("Counter 1");
+    expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
+  });
 }
 
 function testClientComponentHmr() {

@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
 import type { ESTree, Plugin } from "vite";
-import { getDirectives, getFile, parse } from "./parse";
+import { getDirectives, getFile, parse, type Directive } from "./parse";
 
 /** A file runs where the file that imports it runs, and a Page, Layout, Wrapper or Loading's `layout` where `components` says, unless
  * `"use client"` at its top puts it in the browser or `"use server component"` on the server */
@@ -35,7 +35,7 @@ export function clientDefault(): Plugin {
       if (/\.mdx?$/.test(getFile(id))) return isRsc ? { code: `"use client";${code}`, map: null } : undefined;
       const program = await parse(code, id);
       const directives = getDirectives(program);
-      const isServerComponent = directives.includes("use server component") || components.some((c) => c.isReactServerFile);
+      const isServerComponent = isServerComponentFor(directives, components);
       isMarked.set(`${this.environment.name}:${getFile(id)}`, isServerComponent);
       // On the first line, so the source map stays valid
       if (isRsc && directives.length === 0 && !isServerComponent) return { code: `"use client";${code}`, map: null };
@@ -47,7 +47,9 @@ export function clientDefault(): Plugin {
       if (type === "delete") return;
       const key = `${this.environment.name}:${file}`;
       if (!isMarked.has(key)) return;
-      if (getDirectives(await parse(await read(), file)).includes("use server component") !== isMarked.get(key)) {
+      const { environment } = this;
+      const components = await getComponentConfigs({ environment, resolve: (source, importer) => environment.pluginContainer.resolveId(source, importer) });
+      if (isServerComponentFor(getDirectives(await parse(await read(), file)), components(file) ?? []) !== isMarked.get(key)) {
         // The env loads the file as another kind of module, e.g. a stub instead of a client component: it starts over
         isMarked.delete(key);
         this.environment.hot.send({ type: "full-reload", triggeredBy: file });
@@ -57,6 +59,11 @@ export function clientDefault(): Plugin {
       if (isMarked.get(key) && this.environment.name !== "rsc") return [];
     },
   };
+}
+
+// By its directive, or as the file the rsc env loads for a package's server component
+function isServerComponentFor(directives: Directive[], components: ComponentConfig[]): boolean {
+  return directives.includes("use server component") || components.some((c) => c.isReactServerFile);
 }
 
 export function isClientDefault(): boolean {
