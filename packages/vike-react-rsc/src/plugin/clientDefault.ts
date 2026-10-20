@@ -65,11 +65,19 @@ function getServerComponentStub(file: string) {
 // In the rsc env, a server Page, Layout, Wrapper or Loading carries the stub's flags, so every env finds it the same way
 function tagServerComponent(code: string, program: ESTree.Program, id: string, file: string) {
   const configName = path.basename(getFile(id)).slice(1).split(".")[0];
+  // Which names it re-exports shows only in the other module
+  const exportAll = program.body.find((node) => node.type === "ExportAllDeclaration");
+  if (exportAll) {
+    const source = JSON.stringify(exportAll.source.value);
+    throw new Error(
+      `[vike-react-rsc] ${file} starts with "use server component", but export * from ${source} doesn't name its ${configName}: ` +
+        `write export { ${configName} } from ${source} or export { default } from ${source}`
+    );
+  }
   const { output } = transformModuleExportEffect(code, program, {
     generate: ({ binding }) => `Object.assign(${binding}, ${getServerComponentFlags(file)})`,
     // The exports Vike reads: the default one, or the one named after the config
     filter: (name) => name === "default" || name === configName,
-    exportAll: "preserve",
   });
   return { code: output.toString(), map: output.generateMap({ hires: "boundary" }) };
 }

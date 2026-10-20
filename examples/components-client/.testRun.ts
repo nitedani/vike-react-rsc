@@ -15,6 +15,7 @@ const HYDRATION_ERROR = "A page failed to hydrate on demand";
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
+const EXPORT_ALL_ERROR = "doesn't name its Page";
 
 function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   const isDev = cmd === "pnpm run dev";
@@ -28,6 +29,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
       (logSource === "stderr" &&
         (logText.includes(CLIENT_HOOK_ERROR) ||
           logText.includes(CLIENT_API_ERROR) ||
+          logText.includes(EXPORT_ALL_ERROR) ||
           logText.includes("useState is not a function") ||
           logText.includes("createContext is not a function") ||
           logText.includes("Class extends value undefined") ||
@@ -477,6 +479,16 @@ function testServerComponentImports() {
       'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/index/+Page.tsx imports it through components/index.ts. ' +
         'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
         'or, if pages/index/+Page.tsx needs nothing from the browser (no hooks, no event handlers), start it with "use server component"'
+    );
+  });
+
+  test("Build: a server + file re-exporting with export * fails the build, saying to name the export", async () => {
+    // The dev server sees the edit too, and renders nothing with it while no page is open
+    await page.goto("about:blank");
+    const output = await getBuildError("./pages/server/+Page.tsx", () => '"use server component";\nexport * from "../../components/Markdown";\n');
+    expect(output).to.include(
+      `pages/server/+Page.tsx starts with "use server component", but export * from "../../components/Markdown" ${EXPORT_ALL_ERROR}: ` +
+        'write export { Page } from "../../components/Markdown" or export { default } from "../../components/Markdown"'
     );
   });
 
