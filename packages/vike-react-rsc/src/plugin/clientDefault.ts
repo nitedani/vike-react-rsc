@@ -1,4 +1,5 @@
 import { transformModuleExportEffect } from "@vitejs/plugin-rsc/transforms";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
 import type { ESTree, Plugin } from "vite";
@@ -13,6 +14,15 @@ export function clientDefault(): Plugin {
     name: "vike-react-rsc:client-default",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
+    resolveId: {
+      // Before plugin-rsc's, which resolves the import with the react-server condition
+      order: "pre",
+      async handler(source, importer) {
+        if (this.environment.name !== "rsc" || !importer?.startsWith("\0virtual:vike:page-entry:") || !isClientDefault()) return;
+        // A client component from a package: the rsc env makes its client reference from the file the browser loads
+        return (await resolveComponentConfigs(this)).clientFiles.get(source);
+      },
+    },
     async transform(code, id) {
       const components = (await getComponentConfigs(this))(id);
       if (!components) return;
@@ -24,10 +34,10 @@ export function clientDefault(): Plugin {
       if (/\.mdx?$/.test(getFile(id))) return isRsc ? { code: `"use client";${code}`, map: null } : undefined;
       const program = await parse(code, id);
       const directives = getDirectives(program);
-      const isServerComponent = directives.includes("use server component");
+      const isServerComponent = directives.includes("use server component") || components.some((c) => c.isReactServerFile);
       isMarked.set(`${this.environment.name}:${getFile(id)}`, isServerComponent);
       // On the first line, so the source map stays valid
-      if (isRsc && directives.length === 0) return { code: `"use client";${code}`, map: null };
+      if (isRsc && directives.length === 0 && !isServerComponent) return { code: `"use client";${code}`, map: null };
       if (!isServerComponent) return;
       const file = path.relative(this.environment.config.root, getFile(id));
       return isRsc ? tagServerComponent(code, program, components, file) : getServerComponentStub(components, file);
@@ -60,17 +70,22 @@ export function isClientDefault(): boolean {
 /** Finds each Page, Layout, Wrapper or Loading that Vike loads from a file, by its + file or by an import of a +config file
  * or an extension's config, as the env resolves the imports Vike leaves to Vite */
 export async function getComponentConfigs(context: ResolveContext): Promise<(id: string) => ComponentConfig[] | undefined> {
+  const { byFile } = await resolveComponentConfigs(context);
+  return (id) => byFile.get(getFile(id));
+}
+
+function resolveComponentConfigs(context: ResolveContext): Promise<ComponentConfigs> {
   const { _pageConfigs } = getVikeConfig().dangerouslyUseInternals;
   let byEnv = componentConfigs.get(_pageConfigs);
   if (!byEnv) componentConfigs.set(_pageConfigs, (byEnv = new Map()));
-  let byFile = byEnv.get(context.environment.name);
-  if (!byFile) byEnv.set(context.environment.name, (byFile = resolveComponentConfigs(_pageConfigs, context)));
-  const resolved = await byFile;
-  return (id) => resolved.get(getFile(id));
+  let resolved = byEnv.get(context.environment.name);
+  if (!resolved) byEnv.set(context.environment.name, (resolved = readComponentConfigs(_pageConfigs, context)));
+  return resolved;
 }
 
-async function resolveComponentConfigs(pageConfigs: PageConfigs, context: ResolveContext) {
+async function readComponentConfigs(pageConfigs: PageConfigs, context: ResolveContext): Promise<ComponentConfigs> {
   const imports: { file: string | undefined; importPath?: string; importer?: string; config: ComponentConfig }[] = [];
+  const clientFiles = new Map<string, string>();
   for (const { configValueSources } of pageConfigs) {
     for (const configName of ["Page", "Layout", "Wrapper", "Loading"]) {
       for (const source of configValueSources[configName] ?? []) {
@@ -79,7 +94,14 @@ async function resolveComponentConfigs(pageConfigs: PageConfigs, context: Resolv
         if (source.valueLoadedViaImport) {
           // null for a path alias that Node doesn't know, e.g. one only Vite defines
           const { filePathAbsoluteFilesystem: file, importPathAbsolute: importPath } = definedAt;
-          imports.push({ file: file ?? undefined, importPath: importPath ?? undefined, config: { configName, exportName: definedAt.fileExportName } });
+          const config = { configName, exportName: definedAt.fileExportName };
+          imports.push({ file: file ?? undefined, importPath: importPath ?? undefined, config });
+          // A package's file, which Vike resolves without the react-server condition: its directive says where the component
+          // runs, and the package's conditions which file the rsc env loads for it
+          if (!importPath || !file || context.environment.name !== "rsc") continue;
+          const importer = source.plusFile?.filePath.filePathAbsoluteFilesystem ?? undefined;
+          if (await isServerComponentFile(file)) imports.push({ file: undefined, importPath, importer, config: { ...config, isReactServerFile: true } });
+          else clientFiles.set(importPath, file);
         } else if (source.valueIsLoaded) {
           // An import in the value, e.g. Loading: { layout }, which Vike imports as it is written
           for (const { importPath, exportName } of getPointerImports(source.value)) {
@@ -95,10 +117,17 @@ async function resolveComponentConfigs(pageConfigs: PageConfigs, context: Resolv
   imports.forEach(({ config }, i) => {
     if (!files[i]) return;
     const configs = byFile.get(getFile(files[i])) ?? [];
-    if (!configs.some((c) => c.configName === config.configName && c.exportName === config.exportName)) configs.push(config);
+    if (!configs.some((c) => c.configName === config.configName && c.exportName === config.exportName && c.isReactServerFile === config.isReactServerFile)) {
+      configs.push(config);
+    }
     byFile.set(getFile(files[i]), configs);
   });
-  return byFile;
+  return { byFile, clientFiles };
+}
+
+async function isServerComponentFile(file: string): Promise<boolean> {
+  const code = await readFile(file, "utf8");
+  return code.includes("use server component") && getDirectives(await parse(code, file)).includes("use server component");
 }
 
 // The import strings in a value: an extension's, or the one Vike makes of a +config file's import, e.g. "import:/app/Spinner.tsx:Spinner"
@@ -117,9 +146,16 @@ type ComponentConfig = {
   configName: string;
   /** The export of the import that Vike reads; none for a + file */
   exportName: string | undefined;
+  /** The file the rsc env loads for a server component whose package's react-server condition points to another file */
+  isReactServerFile?: true;
+};
+type ComponentConfigs = {
+  byFile: Map<string, ComponentConfig[]>;
+  /** For an import of a client component from a package, the file Vike resolved, which the browser loads too */
+  clientFiles: Map<string, string>;
 };
 // By Vike's page configs, which it replaces when a config changes, then by env
-const componentConfigs = new WeakMap<object, Map<string, Promise<Map<string, ComponentConfig[]>>>>();
+const componentConfigs = new WeakMap<object, Map<string, Promise<ComponentConfigs>>>();
 
 // Outside the rsc env, a server Page, Layout, Wrapper or Loading: the page renders from its Flight, which has what it
 // rendered. Each export Vike reads, a + file's default one, whatever the file exports itself

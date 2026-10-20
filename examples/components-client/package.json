@@ -20,7 +20,8 @@
     "typescript": "^7.0.2",
     "vike": "0.4.268",
     "vike-react-rsc": "^1.0.0",
-    "vite": "^8.2.0"
+    "vite": "^8.2.0",
+    "react-server-layout": "link:./react-server-layout"
   },
   "devDependencies": {
     "@mdx-js/rollup": "^3"

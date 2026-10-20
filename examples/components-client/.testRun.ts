@@ -169,12 +169,13 @@ function testVikeReactRendering() {
     expect(await page.textContent("#imported-layout-counter")).to.equal("Imported layout 1");
   });
 
-  test("components: 'client': a Layout without a directive that a +config file sets by an import is a client component, on a client page, a server page and with ssr: false, through a path alias only Vite knows too", async () => {
+  test("components: 'client': a Layout without a directive that a +config file sets by an import is a client component, on a client page, a server page and with ssr: false, through a path alias only Vite knows or from a package with a react-server export too", async () => {
     for (const [pathname, counter, clicked] of [
       ["/vike-react-layout", "#vike-react-layout-counter", "vike-react layout 1"],
       ["/vike-react-layout/server", "#vike-react-layout-counter", "vike-react layout 1"],
       ["/vike-react-layout/spa", "#vike-react-layout-counter", "vike-react layout 1"],
       ["/aliased-layout", "#aliased-layout-counter", "Aliased layout 1"],
+      ["/react-server-layout", "#npm-layout-counter", "npm layout 1"],
     ]) {
       await page.goto(getServerUrl() + pathname);
       await waitForHydration(counter);
@@ -211,6 +212,18 @@ function testVikeReactRendering() {
     await clickLink("/after-render");
     await autoRetry(async () => {
       expect(await page.evaluate(() => (window as { afterRenders?: unknown[] }).afterRenders)).to.deep.equal([{ ...shown, isHydration: true }, shown]);
+    });
+  });
+
+  test('components: \'client\': a "use server component" Layout from a package renders its react-server file on the server, around a server page and a client page', async () => {
+    for (const pathname of ["/react-server-layout-marked/server", "/react-server-layout-marked/client"]) {
+      await page.goto(getServerUrl() + pathname);
+      expect(await page.textContent("#npm-server-layout")).to.equal("The react-server file of a server layout");
+    }
+    await waitForHydration("#counter");
+    await page.click("#counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#counter")).to.equal("Counter 1");
     });
   });
 

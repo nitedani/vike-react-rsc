@@ -1,0 +1,19 @@
+{
+  "name": "react-server-layout",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./Layout": {
+      "react-server": "./Layout.server.js",
+      "default": "./Layout.js"
+    },
+    "./ServerLayout": {
+      "react-server": "./ServerLayout.server.js",
+      "default": "./ServerLayout.js"
+    }
+  },
+  "peerDependencies": {
+    "react": "*"
+  }
+}
