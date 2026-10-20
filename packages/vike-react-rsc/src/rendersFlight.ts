@@ -6,8 +6,8 @@ export function rendersFlight(pageContext: PageContext): boolean {
   return pageContext.config.components !== "client" || findServerComponent(pageContext) !== undefined;
 }
 
-/** Under `components: 'client'`, the page's first Page, Layout, Wrapper or Loading that is a server component: the plugin's
- * stub outside the rsc env */
+/** Under `components: 'client'`, the page's first Page, Layout, Wrapper or Loading that is a server component: in the rsc env
+ * the plugin flags it, outside it the plugin's stub replaces it */
 export function findServerComponent(pageContext: PageContext): { file: string } | undefined {
   const { Page, Layout = [], Wrapper = [], Loading } = pageContext.config;
   return [Page, ...Layout, ...Wrapper, Loading].find((component) => component && "isServerComponent" in component) as { file: string } | undefined;

@@ -93,14 +93,6 @@ function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Paylo
   );
 }
 
-/** Whether the page's Page, Layouts, Wrappers or Loading include a server component: here, any that isn't a client reference */
-export function hasServerComponent(pageContext: PageContext): boolean {
-  const { Page, Layout = [], Wrapper = [], Loading } = pageContext.config;
-  return [Page, ...Layout, ...Wrapper, Loading].some(
-    (component) => component != null && (component as { $$typeof?: symbol }).$$typeof !== Symbol.for("react.client.reference")
-  );
-}
-
 // The Page, inside its Layouts, inside its Wrappers. With Loading.layout, each of them shows it while what it wraps
 // suspends.
 function getPage(pageContext: PageContext): ReactNode {

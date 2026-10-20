@@ -1,6 +1,7 @@
+import { transformModuleExportEffect } from "@vitejs/plugin-rsc/transforms";
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
-import type { Plugin } from "vite";
+import type { ESTree, Plugin } from "vite";
 import { getDirectives, getFile, isAppFile, isPlusComponentFile, parse } from "./parse";
 
 /** A file runs where the file that imports it runs, and a +Page, +Layout, +Wrapper or +Loading's `layout` where `components` says, unless
@@ -22,13 +23,13 @@ export function clientDefault(): Plugin {
       if (!isAppFile(id)) return isRsc ? { code: `"use client";${code}`, map: null } : undefined;
       const program = await parse(code, id);
       const directives = getDirectives(program);
-      isMarked.set(`${this.environment.name}:${getFile(id)}`, directives.includes("use server component"));
-      if (isRsc) {
-        // On the first line, so the source map stays valid
-        if (directives.length === 0) return { code: `"use client";${code}`, map: null };
-        return;
-      }
-      if (directives.includes("use server component")) return getServerComponentStub(path.relative(this.environment.config.root, getFile(id)));
+      const isServerComponent = directives.includes("use server component");
+      isMarked.set(`${this.environment.name}:${getFile(id)}`, isServerComponent);
+      // On the first line, so the source map stays valid
+      if (isRsc && directives.length === 0) return { code: `"use client";${code}`, map: null };
+      if (!isServerComponent) return;
+      const file = path.relative(this.environment.config.root, getFile(id));
+      return isRsc ? tagServerComponent(code, program, id, file) : getServerComponentStub(file);
     },
     async hotUpdate({ type, file, read }) {
       if (type === "delete") return;
@@ -58,5 +59,21 @@ export function isClientDefault(): boolean {
 // Outside the rsc env, a server Page, Layout, Wrapper or Loading: the page renders from its Flight, which has what it
 // rendered. A default export, which Vike reads from any + file, whatever the file exports itself
 function getServerComponentStub(file: string) {
-  return { code: `export default Object.assign(() => null, { isServerComponent: true, file: ${JSON.stringify(file)} });`, map: null };
+  return { code: `export default Object.assign(() => null, ${getServerComponentFlags(file)});`, map: null };
+}
+
+// In the rsc env, a server Page, Layout, Wrapper or Loading carries the stub's flags, so every env finds it the same way
+function tagServerComponent(code: string, program: ESTree.Program, id: string, file: string) {
+  const configName = path.basename(getFile(id)).slice(1).split(".")[0];
+  const { output } = transformModuleExportEffect(code, program, {
+    generate: ({ binding }) => `Object.assign(${binding}, ${getServerComponentFlags(file)})`,
+    // The exports Vike reads: the default one, or the one named after the config
+    filter: (name) => name === "default" || name === configName,
+    exportAll: "preserve",
+  });
+  return { code: output.toString(), map: output.generateMap({ hires: "boundary" }) };
+}
+
+function getServerComponentFlags(file: string) {
+  return `{ isServerComponent: true, file: ${JSON.stringify(file)} }`;
 }
