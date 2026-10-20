@@ -255,13 +255,35 @@ function testVikeReactRendering() {
     await clickCounter("#counter", "Counter 1");
   });
 
-  test("components: 'client': +onBeforeRenderHtml runs before the page renders to HTML, a server page too, as in vike-react", async () => {
-    expect(await fetchHtml("/render-html")).to.include('<p id="store">A store +onBeforeRenderHtml created</p>');
+  test("components: 'client': +onBeforeRenderHtml runs before +Head renders to HTML, as in vike-react", async () => {
+    expect(await fetchHtml("/render-html")).to.include('<meta name="store-greeting" content="A store +onBeforeRenderHtml created"/>');
   });
 
-  test("components: 'client': +onAfterRenderHtml runs once the page rendered to HTML, a server page too, as in vike-react", async () => {
+  test("components: 'client': on a full load, server components get the pageContext a client navigation gives them: nothing the HTML hooks do reaches them, and their writes stay theirs", async () => {
+    const store = "A store a server component created";
+    for (const [pathname, expected] of [
+      ["/render-html", { "#server-store": store, "#same-store": "true", "#locale": "Locale en", "#components": "Components undefined", "#has-user": "false", "#deferred-store": store, "#deferred-write": "Written by a server component", "#deferred-getter": "Written by a server component" }],
+      ["/render-html/spa", { "#spa-store": store }],
+    ] as const) {
+      const expectServerComponents = async () => {
+        for (const [selector, text] of Object.entries(expected)) {
+          await page.waitForSelector(selector, { state: "attached" });
+          expect(await page.textContent(selector), `${pathname} ${selector}`).to.equal(text);
+        }
+      };
+      await page.goto(getServerUrl() + pathname);
+      await expectServerComponents();
+      await waitForHydration("#layout-counter");
+      await clickLink("/");
+      await page.waitForSelector("h1:text-is('A client page')");
+      await clickLink(pathname);
+      await expectServerComponents();
+    }
+  });
+
+  test("components: 'client': +onAfterRenderHtml runs once the page rendered to HTML, with pageContext.pageHtmlStream, as in vike-react", async () => {
     const response = await fetch(getServerUrl() + "/render-html");
-    expect(response.headers.get("x-store-rendered-by")).to.equal("Page");
+    expect(response.headers.get("x-page-html")).to.equal("stream");
   });
 
   test("components: 'client': stream: false sends the HTML at once, every Suspense boundary resolved, with streamIsRequired too, as in vike-react", async () => {

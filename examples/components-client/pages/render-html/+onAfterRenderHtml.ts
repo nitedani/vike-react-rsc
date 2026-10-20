@@ -1,6 +1,7 @@
 import type { PageContextServer } from "vike/types";
 
-// E.g. a store's state once the page rendered, as vike-react-redux dehydrates it
-export function onAfterRenderHtml(pageContext: PageContextServer) {
-  pageContext.headersResponse.set("x-store-rendered-by", pageContext.store!.renderedBy.join());
+// E.g. a tool that transforms the page's HTML, and awaits something first
+export async function onAfterRenderHtml(pageContext: PageContextServer) {
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  pageContext.headersResponse.set("x-page-html", pageContext.pageHtmlStream ? "stream" : "none");
 }

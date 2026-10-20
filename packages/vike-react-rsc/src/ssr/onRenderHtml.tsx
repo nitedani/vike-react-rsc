@@ -7,6 +7,7 @@ import { renderToStream } from "react-streaming/server.web";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { getAbort, toVikeAbort, type Abort } from "../abort";
+import { forkPageContext } from "../forkPageContext";
 import { getHeadSetting } from "../integration/getHeadSetting";
 import { getPageElement } from "../integration/getPageElement";
 import { resolveReactOptions } from "../integration/resolveReactOptions";
@@ -45,8 +46,9 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
 
 async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) {
   const htmlSent = new AbortController();
+  // Before any HTML hook: server components render as after a client navigation, which runs none
+  forkPageContext(pageContext);
   // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
-  // Before the Flight's first read, which starts its render, so server components see what the hooks set too
   await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
   const { renderToStreamOptions } = resolveReactOptions(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one

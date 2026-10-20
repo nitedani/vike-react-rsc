@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { PageContext, PageContextServer } from "vike/types";
 import { notInServerAction } from "../errors";
+import { getForkedPageContext } from "../forkPageContext";
 import { getShared } from "../shared";
 import type { ActionOutcome } from "../types";
 
@@ -23,8 +24,7 @@ export function getPageContext(): PageContextServer {
   if (!scope) {
     throw new Error("[vike-react-rsc] getPageContext() needs a server component render or a server action, and neither runs here");
   }
-  // The rsc env's view of the server's pageContext
-  return scope.pageContext as PageContextServer;
+  return getForkedPageContext(scope.pageContext) as PageContextServer;
 }
 
 /** Whether server components render here, e.g. a page's, outside a server action */
