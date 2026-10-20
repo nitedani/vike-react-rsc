@@ -169,13 +169,14 @@ function testVikeReactRendering() {
     expect(await page.textContent("#imported-layout-counter")).to.equal("Imported layout 1");
   });
 
-  test("components: 'client': a Layout without a directive that a +config file sets by an import is a client component, on a client page, a server page and with ssr: false, through a path alias only Vite knows or from a package with a react-server export too", async () => {
+  test("components: 'client': a Layout without a directive that a +config file sets by an import is a client component, on a client page, a server page and with ssr: false, through a path alias only Vite knows or from a package with a react-server export or an import and a require file too", async () => {
     for (const [pathname, counter, clicked] of [
       ["/vike-react-layout", "#vike-react-layout-counter", "vike-react layout 1"],
       ["/vike-react-layout/server", "#vike-react-layout-counter", "vike-react layout 1"],
       ["/vike-react-layout/spa", "#vike-react-layout-counter", "vike-react layout 1"],
       ["/aliased-layout", "#aliased-layout-counter", "Aliased layout 1"],
       ["/react-server-layout", "#npm-layout-counter", "npm layout 1"],
+      ["/dual-layout", "#npm-dual-layout-counter", "npm dual layout 1"],
     ]) {
       await page.goto(getServerUrl() + pathname);
       await waitForHydration(counter);
@@ -353,10 +354,11 @@ function testLoading() {
     }
   });
 
-  test("components: 'client': a Loading's layout that a value imports from a package with a react-server export runs where the file Vike resolves says, from the file its conditions give, on a client navigation too", async () => {
+  test("components: 'client': a Loading's layout that a value imports from a package with a react-server export runs where the browser's file says, from the file its conditions give, on a client navigation too, and from a package with an import and a require file, the import one", async () => {
     for (const [pathname, fallback] of [
       ["/react-server-loading", '<p id="npm-loading">The default file of a loading layout...</p>'],
       ["/react-server-loading-marked", '<p id="npm-server-loading">The react-server file of a server loading layout</p>'],
+      ["/dual-loading", '<button id="npm-dual-layout-counter">npm dual layout 0</button>'],
     ]) {
       const html = await fetchHtml(pathname);
       expect(html, `fallback missing from ${pathname}`).to.include(fallback);

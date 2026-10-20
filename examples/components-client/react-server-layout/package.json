@@ -19,6 +19,10 @@
     "./ServerLoading": {
       "react-server": "./ServerLoading.server.js",
       "default": "./ServerLoading.js"
+    },
+    "./DualLayout": {
+      "import": "./DualLayout.mjs",
+      "require": "./DualLayout.cjs"
     }
   },
   "peerDependencies": {

@@ -1,9 +1,8 @@
 import { transformModuleExportEffect } from "@vitejs/plugin-rsc/transforms";
 import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
-import type { ESTree, Plugin } from "vite";
+import { createIdResolver, type Environment, type ESTree, type Plugin } from "vite";
 import { getDirectives, getFile, parse, type Directive } from "./parse";
 
 /** A file runs where the file that imports it runs, and a Page, Layout, Wrapper or Loading's `layout` where `components` says, unless
@@ -15,6 +14,9 @@ export function clientDefault(): Plugin {
     name: "vike-react-rsc:client-default",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
+    configureServer: (server) => setBrowserEnvironment(server.environments.client!),
+    // Before plugin-rsc's, which builds the envs
+    buildApp: { order: "pre", handler: async (builder) => setBrowserEnvironment(builder.environments.client!) },
     resolveId: {
       // Before plugin-rsc's, which resolves the import with the react-server condition
       order: "pre",
@@ -76,7 +78,7 @@ export function isClientDefault(): boolean {
 }
 
 /** Finds each Page, Layout, Wrapper or Loading that Vike loads from a file, by its + file or by an import of a +config file
- * or an extension's config, as the env resolves an import that Node can't */
+ * or an extension's config, as the browser resolves the import, or the env when the browser can't */
 export async function getComponentConfigs(context: ResolveContext): Promise<(id: string) => ComponentConfig[] | undefined> {
   const { byFile } = await resolveComponentConfigs(context);
   return (id) => byFile.get(getFile(id));
@@ -92,17 +94,18 @@ function resolveComponentConfigs(context: ResolveContext): Promise<ComponentConf
 }
 
 async function readComponentConfigs(pageConfigs: PageConfigs, context: ResolveContext): Promise<ComponentConfigs> {
-  const imports: (Omit<ComponentImport, "exportName"> & { config: ComponentConfig })[] = [];
+  const imports: { file?: string; importPath?: string; importer?: string; config: ComponentConfig }[] = [];
   const clientFiles = new Map<string, string>();
   for (const { configValueSources } of pageConfigs) {
     for (const configName of ["Page", "Layout", "Wrapper", "Loading"]) {
       for (const source of configValueSources[configName] ?? []) {
-        for (const { file, importPath, importer, exportName } of getComponentImports(source)) {
+        for (const { appFile, importPath, importer, exportName } of getComponentImports(source)) {
           const config = { configName, exportName };
+          const file = appFile ?? (importPath && (await resolveForBrowser(importPath, importer)));
           imports.push({ file, importPath, importer, config });
-          // A package's file, which Node resolves without the react-server condition: its directive says where the component
-          // runs, and the package's conditions which file the rsc env loads for it
-          if (!importPath || !file || context.environment.name !== "rsc") continue;
+          // An import that the rsc env resolves to another file, by the package's conditions: the directive of the browser's
+          // file says where the component runs, and the conditions which file the rsc env loads for a server one
+          if (!importPath || !file || context.environment.name !== "rsc" || (await context.resolve(importPath, importer))?.id === file) continue;
           if (await isServerComponentFile(file)) imports.push({ file: undefined, importPath, importer, config: { ...config, isReactServerFile: true } });
           else clientFiles.set(importPath, file);
         }
@@ -123,30 +126,32 @@ async function readComponentConfigs(pageConfigs: PageConfigs, context: ResolveCo
   return { byFile, clientFiles };
 }
 
-/** Each import Vike loads a component from: the value's own, which Vike resolves with Node, or each import string in the value,
- * e.g. Loading: { layout }, resolved the same way. `file` is undefined for a path alias that Node doesn't know, e.g. one only
- * Vite defines, and `importPath` for an import of the app's own file */
+/** Each import Vike loads a component from: the value's own, or each import string in the value, e.g. Loading: { layout }.
+ * Either the app's own file, or an import of a package or through a path alias */
 function getComponentImports(source: ConfigValueSource): ComponentImport[] {
   const { definedAt } = source;
   if (!("filePathAbsoluteFilesystem" in definedAt)) return [];
   if (source.valueLoadedViaImport) {
     const { filePathAbsoluteFilesystem: file, importPathAbsolute: importPath, fileExportName: exportName } = definedAt;
-    return [{ file: file ?? undefined, importPath: importPath ?? undefined, importer: source.plusFile?.filePath.filePathAbsoluteFilesystem ?? undefined, exportName }];
+    const importer = source.plusFile?.filePath.filePathAbsoluteFilesystem ?? undefined;
+    return [importPath ? { importPath, importer, exportName } : { appFile: file ?? undefined, exportName }];
   }
   if (!source.valueIsLoaded) return [];
   const importer = definedAt.filePathAbsoluteFilesystem ?? undefined;
   return getPointerImports(source.value).map(({ importPath, exportName }) =>
     // Vike makes a +config file's relative import absolute
-    path.isAbsolute(importPath) ? { file: importPath, importer, exportName } : { file: importer && resolveWithNode(importPath, importer), importPath, importer, exportName }
+    path.isAbsolute(importPath) ? { appFile: importPath, exportName } : { importPath, importer, exportName }
   );
 }
 
-function resolveWithNode(importPath: string, importer: string): string | undefined {
-  try {
-    return createRequire(importer).resolve(importPath);
-  } catch {
-    return undefined;
-  }
+// The file the browser loads for an import, as the client env resolves it, with the browser's conditions
+let resolveForBrowser: (importPath: string, importer: string | undefined) => Promise<string | undefined> = () => {
+  throw new Error("[vike-react-rsc] The client env isn't known yet");
+};
+
+function setBrowserEnvironment(environment: Environment) {
+  const resolve = createIdResolver(environment.getTopLevelConfig());
+  resolveForBrowser = (importPath, importer) => resolve(environment, importPath, importer);
 }
 
 async function isServerComponentFile(file: string): Promise<boolean> {
@@ -166,7 +171,7 @@ function getPointerImports(value: unknown): { importPath: string; exportName: st
 
 type PageConfigs = ReturnType<typeof getVikeConfig>["dangerouslyUseInternals"]["_pageConfigs"];
 type ConfigValueSource = PageConfigs[number]["configValueSources"][string][number];
-type ComponentImport = { file?: string; importPath?: string; importer?: string; exportName?: string };
+type ComponentImport = { appFile?: string; importPath?: string; importer?: string; exportName?: string };
 type ResolveContext = { environment: { name: string }; resolve: (source: string, importer?: string) => Promise<{ id: string } | null> };
 type ComponentConfig = {
   configName: string;
@@ -177,7 +182,7 @@ type ComponentConfig = {
 };
 type ComponentConfigs = {
   byFile: Map<string, ComponentConfig[]>;
-  /** For an import of a client component from a package, the file Vike resolved, which the browser loads too */
+  /** For an import of a client component from a package, the file the browser loads */
   clientFiles: Map<string, string>;
 };
 // By Vike's page configs, which it replaces when a config changes, then by env
