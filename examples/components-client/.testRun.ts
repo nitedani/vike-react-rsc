@@ -85,7 +85,7 @@ function testClientComponents() {
 }
 
 function testServerComponents() {
-  test('components: \'client\': "use server component" marks a server component, after "use strict" too', async () => {
+  test('components: \'client\': "use server component" marks a server component, after "use strict" too, and in a + file exporting it as Page', async () => {
     await page.goto(getServerUrl() + "/server");
     expect(await page.textContent("#rendered-on")).to.equal("Rendered on the server");
     // The component it renders starts with "use client"
@@ -98,6 +98,10 @@ function testServerComponents() {
     await page.goto(getServerUrl() + "/strict");
     await waitForHydration("#layout-counter");
     expect(await page.textContent("#rendered-on")).to.equal('Rendered on the server, marked after "use strict"');
+
+    await page.goto(getServerUrl() + "/named-export");
+    await waitForHydration("#layout-counter");
+    expect(await page.textContent("#rendered-on")).to.equal("Rendered on the server, exported as Page");
   });
 
   test("components: 'client': a server component calls a function from a component file, on the server", async () => {
