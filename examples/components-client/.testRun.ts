@@ -255,6 +255,10 @@ function testVikeReactRendering() {
     await clickCounter("#counter", "Counter 1");
   });
 
+  test("components: 'client': +onBeforeRenderHtml runs before the page renders to HTML, a server page too, as in vike-react", async () => {
+    expect(await fetchHtml("/render-html")).to.include('<p id="store">A store +onBeforeRenderHtml created</p>');
+  });
+
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");

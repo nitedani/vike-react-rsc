@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
-import type { ImportString, PageContext, PageContextClient } from "vike/types";
+import type { ImportString, PageContext, PageContextClient, PageContextServer } from "vike/types";
 import type { ActionCall } from "./ssr/action";
 import type { Cookies } from "./ssr/cookies";
 import type { HtmlInjection, Viewport } from "./ssr/onRenderHtml";
@@ -17,6 +17,7 @@ export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknown
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */
 export type RscRuntime = typeof import("./rsc/runtime");
 
+type RenderHtmlHook = (pageContext: PageContextServer) => void;
 type RenderClientHook = (pageContext: PageContextClient) => void;
 type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
 export type HeadValue = ReactNode | (() => ReactNode);
@@ -199,6 +200,12 @@ declare global {
        */
       ssr?: boolean;
       /**
+       * Hook called right before rendering the page's root React component to HTML.
+       *
+       * https://vike.dev/onBeforeRenderHtml
+       */
+      onBeforeRenderHtml?: RenderHtmlHook | ImportString;
+      /**
        * Client-side hook called before the page is rendered.
        *
        * https://vike.dev/onBeforeRenderClient
@@ -227,6 +234,7 @@ declare global {
       Layout?: WrapperComponent[];
       Wrapper?: WrapperComponent[];
       Loading?: LoadingValue;
+      onBeforeRenderHtml?: Function[];
       onBeforeRenderClient?: Function[];
       onAfterRenderClient?: Function[];
       rscRuntime: RscRuntime;

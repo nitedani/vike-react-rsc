@@ -71,6 +71,7 @@ const vikeReactRsc: Config = {
     // rsc() renders `component` in the browser and the HTML, and `layout` renders where the +Loading file runs
     Loading: { env: { rsc: true, server: true, client: true } },
     Head: { env: { server: true }, cumulative: true },
+    onBeforeRenderHtml: { env: { server: true }, cumulative: true },
     onBeforeRenderClient: { env: { client: true }, cumulative: true },
     onAfterRenderClient: { env: { client: true }, cumulative: true },
     // vike-react's head settings; title, description and lang also apply on client navigation

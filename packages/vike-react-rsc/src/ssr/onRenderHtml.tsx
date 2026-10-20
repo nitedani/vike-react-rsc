@@ -44,6 +44,9 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
 
 async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) {
   const htmlSent = new AbortController();
+  // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
+  // Before the Flight's first read, which starts its render, so server components see what the hooks set too
+  await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
   const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
