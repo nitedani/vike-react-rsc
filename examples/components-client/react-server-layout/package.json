@@ -23,6 +23,14 @@
     "./DualLayout": {
       "import": "./DualLayout.mjs",
       "require": "./DualLayout.cjs"
+    },
+    "./BrowserLayout": {
+      "browser": "./BrowserLayout.browser.js",
+      "default": "./BrowserLayout.js"
+    },
+    "./BrowserServerLayout": {
+      "browser": "./BrowserServerLayout.browser.js",
+      "default": "./BrowserServerLayout.js"
     }
   },
   "peerDependencies": {

@@ -5,6 +5,9 @@ import { getVikeConfig } from "vike/plugin";
 import { createIdResolver, type Environment, type ESTree, type Plugin } from "vite";
 import { getDirectives, getFile, parse, type Directive } from "./parse";
 
+// A client component's import, which plugin-rsc's client reference imports in each env
+const CLIENT_IMPORT = "virtual:vike-react-rsc/client-import:";
+
 /** A file runs where the file that imports it runs, and a Page, Layout, Wrapper or Loading's `layout` where `components` says, unless
  * `"use client"` at its top puts it in the browser or `"use server component"` on the server */
 export function clientDefault(): Plugin {
@@ -21,10 +24,19 @@ export function clientDefault(): Plugin {
       // Before plugin-rsc's, which resolves the import with the react-server condition
       order: "pre",
       async handler(source, importer) {
+        if (source.startsWith(`\0${CLIENT_IMPORT}`)) return source;
         if (this.environment.name !== "rsc" || !importer?.startsWith("\0virtual:vike:page-entry:") || !isClientDefault()) return;
-        // A client component from a package: the rsc env makes its client reference from the file the browser loads
-        return (await resolveComponentConfigs(this)).clientFiles.get(source);
+        // A client component that the rsc env resolves to another file than the browser: its client reference is the import
+        if ((await resolveComponentConfigs(this)).clientImports.has(source)) return `\0${CLIENT_IMPORT}${source}`;
       },
+    },
+    // Each env loads the file its own conditions give: the browser its file, the HTML render Node's
+    async load(id) {
+      if (!id.startsWith(`\0${CLIENT_IMPORT}`)) return;
+      const importPath = id.slice(CLIENT_IMPORT.length + 1);
+      const { importer, exportNames } = (await resolveComponentConfigs(this)).packageImports.get(importPath)!;
+      const file = this.environment.name === "client" ? await resolveForBrowser(importPath, importer) : (await this.resolve(importPath, importer))?.id;
+      return `"use client";\nexport { ${exportNames.join(", ")} } from ${JSON.stringify(file ?? importPath)};\n`;
     },
     async transform(code, id) {
       const components = (await getComponentConfigs(this))(id);
@@ -63,9 +75,9 @@ export function clientDefault(): Plugin {
   };
 }
 
-// By its directive, or as the file the rsc env loads for a package's server component
+// By its directive, or as the file the env loads for a package's server component
 function isServerComponentFor(directives: Directive[], components: ComponentConfig[]): boolean {
-  return directives.includes("use server component") || components.some((c) => c.isReactServerFile);
+  return directives.includes("use server component") || components.some((c) => c.isServerComponentImport);
 }
 
 export function isClientDefault(): boolean {
@@ -94,36 +106,42 @@ function resolveComponentConfigs(context: ResolveContext): Promise<ComponentConf
 }
 
 async function readComponentConfigs(pageConfigs: PageConfigs, context: ResolveContext): Promise<ComponentConfigs> {
-  const imports: { file?: string; importPath?: string; importer?: string; config: ComponentConfig }[] = [];
-  const clientFiles = new Map<string, string>();
+  const imports: { file: string | undefined; config: ComponentConfig }[] = [];
+  const clientImports = new Set<string>();
+  const packageImports = new Map<string, { importer: string | undefined; exportNames: string[] }>();
   for (const { configValueSources } of pageConfigs) {
     for (const configName of ["Page", "Layout", "Wrapper", "Loading"]) {
       for (const source of configValueSources[configName] ?? []) {
         for (const { appFile, importPath, importer, exportName } of getComponentImports(source)) {
           const config = { configName, exportName };
-          const file = appFile ?? (importPath && (await resolveForBrowser(importPath, importer)));
-          imports.push({ file, importPath, importer, config });
-          // An import that the rsc env resolves to another file, by the package's conditions: the directive of the browser's
-          // file says where the component runs, and the conditions which file the rsc env loads for a server one
-          if (!importPath || !file || context.environment.name !== "rsc" || (await context.resolve(importPath, importer))?.id === file) continue;
-          if (await isServerComponentFile(file)) imports.push({ file: undefined, importPath, importer, config: { ...config, isReactServerFile: true } });
-          else clientFiles.set(importPath, file);
+          if (!importPath) {
+            imports.push({ file: appFile, config });
+            continue;
+          }
+          const packageImport = packageImports.get(importPath) ?? { importer, exportNames: [] };
+          packageImports.set(importPath, { importer: packageImport.importer, exportNames: [...new Set([...packageImport.exportNames, exportName ?? "default"])] });
+          const file = (await context.resolve(importPath, importer))?.id;
+          const browserFile = await resolveForBrowser(importPath, importer);
+          // An import that the env resolves to another file than the browser, by the package's conditions or to the dep Vite
+          // pre-bundled in dev: the directive of the browser's file says where the component runs
+          if (!browserFile || !file || file === browserFile) imports.push({ file, config });
+          else if (await isServerComponentFile(browserFile)) imports.push({ file, config: { ...config, isServerComponentImport: true } });
+          else if (context.environment.name === "rsc") clientImports.add(importPath);
         }
       }
     }
   }
-  const files = await Promise.all(imports.map(async ({ file, importPath, importer }) => file ?? (importPath && (await context.resolve(importPath, importer))?.id)));
   // A file can serve several, e.g. two named exports as the Layouts of two pages
   const byFile = new Map<string, ComponentConfig[]>();
-  imports.forEach(({ config }, i) => {
-    if (!files[i]) return;
-    const configs = byFile.get(getFile(files[i])) ?? [];
-    if (!configs.some((c) => c.configName === config.configName && c.exportName === config.exportName && c.isReactServerFile === config.isReactServerFile)) {
+  for (const { file, config } of imports) {
+    if (!file) continue;
+    const configs = byFile.get(getFile(file)) ?? [];
+    if (!configs.some((c) => c.configName === config.configName && c.exportName === config.exportName && c.isServerComponentImport === config.isServerComponentImport)) {
       configs.push(config);
     }
-    byFile.set(getFile(files[i]), configs);
-  });
-  return { byFile, clientFiles };
+    byFile.set(getFile(file), configs);
+  }
+  return { byFile, clientImports, packageImports };
 }
 
 /** Each import Vike loads a component from: the value's own, or each import string in the value, e.g. Loading: { layout }.
@@ -177,13 +195,15 @@ type ComponentConfig = {
   configName: string;
   /** The export of the import that Vike reads; none for a + file */
   exportName: string | undefined;
-  /** The file the rsc env loads for a server component whose package's react-server condition points to another file */
-  isReactServerFile?: true;
+  /** The file the env loads for a server component, where the browser's file is another */
+  isServerComponentImport?: true;
 };
 type ComponentConfigs = {
   byFile: Map<string, ComponentConfig[]>;
-  /** For an import of a client component from a package, the file the browser loads */
-  clientFiles: Map<string, string>;
+  /** The imports of client components that the rsc env resolves to another file than the browser */
+  clientImports: Set<string>;
+  /** Each import of a package or through a path alias: the first file that imports it, and the exports Vike reads */
+  packageImports: Map<string, { importer: string | undefined; exportNames: string[] }>;
 };
 // By Vike's page configs, which it replaces when a config changes, then by env
 const componentConfigs = new WeakMap<object, Map<string, Promise<ComponentConfigs>>>();

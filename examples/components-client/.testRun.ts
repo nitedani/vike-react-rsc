@@ -228,6 +228,27 @@ function testVikeReactRendering() {
     });
   });
 
+  test("components: 'client': a Layout from a package whose browser file reads window as it loads renders its Node file in the HTML and its browser file in the browser, around a server page", async () => {
+    await page.goto(getServerUrl() + "/browser-layout");
+    await page.waitForSelector("h1:text-is('A server page in an npm layout with a browser file')");
+    await waitForHydration("#npm-browser-layout-counter");
+    await page.click("#npm-browser-layout-counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#npm-browser-layout-counter")).to.equal("npm browser layout 1");
+    });
+    expect(await page.evaluate(() => (window as { npmBrowserLayoutFile?: string }).npmBrowserLayoutFile)).to.equal("BrowserLayout.browser.js");
+  });
+
+  test('components: \'client\': a "use server component" Layout from a package with a browser file renders its default file on the server, which imports server-only', async () => {
+    await page.goto(getServerUrl() + "/browser-server-layout");
+    expect(await page.textContent("#npm-browser-server-layout")).to.equal("The default file of a server layout with a browser file");
+    await waitForHydration("#counter");
+    await page.click("#counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#counter")).to.equal("Counter 1");
+    });
+  });
+
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");
