@@ -19,6 +19,7 @@ export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknown
 export type RscRuntime = typeof import("./rsc/runtime");
 
 type PageHtmlStream = Awaited<ReturnType<typeof renderToStream>>;
+type StreamSetting = boolean | "node" | "web" | { type?: "node" | "web"; require?: boolean; enable?: boolean | null };
 type RenderHtmlHook = (pageContext: PageContextServer) => void;
 type RenderClientHook = (pageContext: PageContextClient) => void;
 type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
@@ -206,6 +207,14 @@ declare global {
        */
       ssr?: boolean;
       /**
+       * Settings for HTML Streaming. Server components render only to a stream, so the first load's HTML streams unless
+       * this turns it off, as in vike-react with `stream.require`. `false` sends the HTML at once, every Suspense boundary
+       * resolved. The stream is a Web Stream, whatever `type` says.
+       *
+       * https://vike.dev/stream
+       */
+      stream?: StreamSetting;
+      /**
        * Hook called right before rendering the page's root React component to HTML.
        *
        * https://vike.dev/onBeforeRenderHtml
@@ -246,6 +255,7 @@ declare global {
       Layout?: WrapperComponent[];
       Wrapper?: WrapperComponent[];
       Loading?: LoadingValue;
+      stream?: StreamSetting[];
       onBeforeRenderHtml?: Function[];
       onAfterRenderHtml?: Function[];
       onBeforeRenderClient?: Function[];

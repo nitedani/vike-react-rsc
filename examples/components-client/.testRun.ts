@@ -264,6 +264,12 @@ function testVikeReactRendering() {
     expect(response.headers.get("x-store-rendered-by")).to.equal("Page");
   });
 
+  test("components: 'client': stream: false sends the HTML at once, every Suspense boundary resolved, as in vike-react", async () => {
+    const html = await fetchHtml("/stream-off");
+    expect(html).to.include('<p id="delayed">Rendered after a delay</p>');
+    expect(html).to.not.include("<p>Waiting for the delay</p>");
+  });
+
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");

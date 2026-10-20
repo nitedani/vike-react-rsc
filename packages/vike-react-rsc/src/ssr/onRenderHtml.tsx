@@ -69,6 +69,8 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
     } else {
       const stream = await renderToStream(page, {
         userAgent: pageContext.headers?.["user-agent"],
+        // Else react-streaming streams, except to bots
+        disable: isStreamDisabled(pageContext) || undefined,
         streamOptions: { nonce, formState },
         onBoundaryError: (error) => {
           const abort = getAbort(error);
@@ -126,6 +128,20 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
 </html>`,
     pageContext: { enableEagerStreaming: true },
   };
+}
+
+// vike-react's resolveStreamSetting(), with +stream.require always true: server components render only to a stream
+function isStreamDisabled(pageContext: PageContextServer): boolean {
+  let enable = true;
+  pageContext.config.stream
+    ?.slice()
+    .reverse()
+    .forEach((setting) => {
+      if (typeof setting === "boolean") enable = setting;
+      else if (typeof setting === "string") enable = true;
+      else if (setting && setting.enable !== null) enable = setting.enable ?? true;
+    });
+  return !enable;
 }
 
 function decodeFlight(pageContext: PageContextServer, signal: AbortSignal): Promise<PagePayload> {
