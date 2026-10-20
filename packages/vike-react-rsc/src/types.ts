@@ -214,6 +214,8 @@ declare global {
        * https://vike.dev/stream
        */
       stream?: StreamSetting;
+      /** @deprecated Set +stream.require instead */
+      streamIsRequired?: boolean;
       /**
        * Hook called right before rendering the page's root React component to HTML.
        *

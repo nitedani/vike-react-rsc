@@ -72,6 +72,7 @@ const vikeReactRsc: Config = {
     Loading: { env: { rsc: true, server: true, client: true } },
     Head: { env: { server: true }, cumulative: true },
     stream: { env: { server: true }, cumulative: true },
+    streamIsRequired: { env: { server: true } },
     onBeforeRenderHtml: { env: { server: true }, cumulative: true },
     onAfterRenderHtml: { env: { server: true }, cumulative: true },
     onBeforeRenderClient: { env: { client: true }, cumulative: true },

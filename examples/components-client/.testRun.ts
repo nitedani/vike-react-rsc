@@ -264,7 +264,7 @@ function testVikeReactRendering() {
     expect(response.headers.get("x-store-rendered-by")).to.equal("Page");
   });
 
-  test("components: 'client': stream: false sends the HTML at once, every Suspense boundary resolved, as in vike-react", async () => {
+  test("components: 'client': stream: false sends the HTML at once, every Suspense boundary resolved, with streamIsRequired too, as in vike-react", async () => {
     const html = await fetchHtml("/stream-off");
     expect(html).to.include('<p id="delayed">Rendered after a delay</p>');
     expect(html).to.not.include("<p>Waiting for the delay</p>");
