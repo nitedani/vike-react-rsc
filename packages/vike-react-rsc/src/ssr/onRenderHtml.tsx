@@ -1,7 +1,7 @@
 import { createFromReadableStream, setOnClientReference } from "@vitejs/plugin-rsc/ssr";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup, type RenderToReadableStreamOptions } from "react-dom/server";
 import { renderToReadableStream } from "react-dom/server.edge";
 import { renderToStream } from "react-streaming/server.web";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
@@ -9,6 +9,7 @@ import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { getAbort, toVikeAbort, type Abort } from "../abort";
 import { getHeadSetting } from "../integration/getHeadSetting";
 import { getPageElement } from "../integration/getPageElement";
+import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import { getRedirectUrl } from "../redirect";
@@ -47,6 +48,7 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
   // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
   // Before the Flight's first read, which starts its render, so server components see what the hooks set too
   await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
+  const { renderToStreamOptions } = resolveReactOptions(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
   const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
@@ -65,16 +67,18 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
     if (root === null) {
       // Under ssr: false, neither is set
     } else if (pageContext.isPrerendering) {
-      pageContext.pageHtmlString = await renderWhole(page, nonce, onAbort);
+      pageContext.pageHtmlString = await renderWhole(page, { ...renderToStreamOptions?.streamOptions, nonce }, onAbort);
     } else {
       const stream = await renderToStream(page, {
         userAgent: pageContext.headers?.["user-agent"],
         // Else react-streaming streams, except to bots
         disable: isStreamDisabled(pageContext) || undefined,
-        streamOptions: { nonce, formState },
+        ...renderToStreamOptions,
+        streamOptions: { ...renderToStreamOptions?.streamOptions, nonce, formState },
         onBoundaryError: (error) => {
           const abort = getAbort(error);
           if (abort) onAbort(error, abort);
+          else renderToStreamOptions?.onBoundaryError?.(error);
         },
       });
       // A crawler gets the page whole, so Vike can still answer a boundary's abort, which react-streaming reports late
@@ -155,13 +159,14 @@ function decodeFlight(pageContext: PageContextServer, signal: AbortSignal): Prom
 
 // A pre-rendered page has to be complete, so it waits for every Suspense boundary. React's prerender() would, but takes
 // no CSP nonce. react-streaming would, but Vike's pre-rendering loads its own copy, which takes over ours.
-async function renderWhole(page: ReactNode, nonce: string | undefined, onAbort: (error: unknown, abort: Abort) => void) {
-  const onError = (error: unknown) => {
+async function renderWhole(page: ReactNode, options: RenderToReadableStreamOptions, onAbort: (error: unknown, abort: Abort) => void) {
+  const onError: RenderToReadableStreamOptions["onError"] = (error, errorInfo) => {
     const abort = getAbort(error);
     if (abort) onAbort(error, abort);
+    else if (options.onError) options.onError(error, errorInfo);
     else console.error(error);
   };
-  const stream = await renderToReadableStream(page, { nonce, onError });
+  const stream = await renderToReadableStream(page, { ...options, onError });
   await stream.allReady;
   return new Response(stream).text();
 }

@@ -35,7 +35,7 @@ export class AbortBoundary extends Component<Props, State> {
 }
 
 // AbortBoundary catches only the redirects it follows; a boundary of the app's may swallow one, so it's reported
-export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInfo) => {
+export const onCaughtError: NonNullable<HydrationOptions["onCaughtError"]> = (error, errorInfo) => {
   if (errorInfo.errorBoundary instanceof AbortBoundary) return;
   const abort = getAbort(error);
   if (abort && "redirect" in abort) {

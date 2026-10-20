@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
-import type { ReactFormState } from "react-dom/client";
-import type { renderToStream } from "react-streaming/server.web";
+import type { HydrationOptions, ReactFormState, RootOptions } from "react-dom/client";
+import type { renderToStream, RenderToStreamOptions } from "react-streaming/server.web";
 import type { ImportString, PageContext, PageContextClient, PageContextServer } from "vike/types";
 import type { ActionCall } from "./ssr/action";
 import type { Cookies } from "./ssr/cookies";
@@ -14,6 +14,31 @@ export type ActionPayload = { returnValue: unknown } & ({} | { root: ReactNode; 
 /** pageContext values for the browser, serialized as Vike serializes them for a navigation, and the key of every passToClient value */
 export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[] };
 export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
+
+export type ReactOptions = {
+  /**
+   * Options passed to React's `hydrateRoot()`.
+   *
+   * https://react.dev/reference/react-dom/client/hydrateRoot
+   * https://vike.dev/react-setting
+   */
+  hydrateRootOptions?: HydrationOptions;
+  /**
+   * Options passed to React's `createRoot()`.
+   *
+   * https://react.dev/reference/react-dom/client/createRoot
+   * https://vike.dev/react-setting
+   */
+  createRootOptions?: RootOptions;
+  /**
+   * Options passed to `react-streaming`'s `renderToStream()`, which renders the first load's HTML: server components
+   * render only to a stream, so there are no `renderToStringOptions`. When pre-rendering, only `streamOptions` apply.
+   *
+   * https://github.com/brillout/react-streaming#options
+   * https://vike.dev/react-setting
+   */
+  renderToStreamOptions?: RenderToStreamOptions;
+};
 
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */
 export type RscRuntime = typeof import("./rsc/runtime");
@@ -240,6 +265,12 @@ declare global {
        * https://vike.dev/onAfterRenderClient
        */
       onAfterRenderClient?: RenderClientHook | ImportString;
+      /**
+       * Options passed to React functions such as `createRoot()` or `hydrateRoot()`.
+       *
+       * https://vike.dev/react-setting
+       */
+      react?: ReactOptions | ((pageContext: PageContext) => ReactOptions) | ImportString;
       /** Internal: the rsc env's runtime */
       rscRuntime?: RscRuntime | ImportString;
     }
@@ -262,6 +293,7 @@ declare global {
       onAfterRenderHtml?: Function[];
       onBeforeRenderClient?: Function[];
       onAfterRenderClient?: Function[];
+      react?: (ReactOptions | ((pageContext: PageContext) => ReactOptions))[];
       rscRuntime: RscRuntime;
     }
   }

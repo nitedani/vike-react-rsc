@@ -270,6 +270,14 @@ function testVikeReactRendering() {
     expect(html).to.not.include("<p>Waiting for the delay</p>");
   });
 
+  test("components: 'client': +react sets the options of the HTML's render and of hydrateRoot(), as in vike-react", async () => {
+    const id = /<p id="use-id">([^<]*)<\/p>/.exec(await fetchHtml("/react-options"))?.[1];
+    expect(id).to.include("vrr-");
+    await page.goto(getServerUrl() + "/react-options");
+    await waitForHydration("#use-id");
+    expect(await page.textContent("#use-id")).to.equal(id);
+  });
+
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");

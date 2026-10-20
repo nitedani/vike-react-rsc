@@ -1,9 +1,10 @@
 import { createFromReadableStream, setServerCallback } from "@vitejs/plugin-rsc/browser";
-import { createRoot, hydrateRoot } from "react-dom/client";
+import { createRoot, hydrateRoot, type RootOptions } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import { getHeadSetting } from "../integration/getHeadSetting";
 import { getPageElement } from "../integration/getPageElement";
+import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { findServerComponent } from "../rendersFlight";
 import type { PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
@@ -38,11 +39,13 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
     return;
   }
   const container = document.getElementById("root")!;
+  const { hydrateRootOptions, createRootOptions } = resolveReactOptions(pageContext);
   // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
   if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") {
-    setReactRoot(hydrateRoot(container, <Root page={page} />, { formState, onCaughtError, onUncaughtError }));
+    const options = { ...hydrateRootOptions, ...withOurErrorCallbacks(hydrateRootOptions), formState };
+    setReactRoot(hydrateRoot(container, <Root page={page} />, options));
   } else {
-    const reactRoot = createRoot(container, { onCaughtError, onUncaughtError });
+    const reactRoot = createRoot(container, { ...createRootOptions, ...withOurErrorCallbacks(createRootOptions) });
     setReactRoot(reactRoot);
     reactRoot.render(<Root page={page} />);
   }
@@ -51,6 +54,20 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   // TODO: await it, as vike-react does, once https://github.com/vikejs/vike/pull/3641 is released
   void rendered().then(() => callCumulativeHooks(pageContext.config.onAfterRenderClient, pageContext), () => {});
 };
+
+// Ours, then the user's, as in vike-react
+function withOurErrorCallbacks(options: RootOptions | undefined): Pick<RootOptions, "onCaughtError" | "onUncaughtError"> {
+  return {
+    onCaughtError: (error, errorInfo) => {
+      onCaughtError(error, errorInfo);
+      options?.onCaughtError?.(error, errorInfo);
+    },
+    onUncaughtError: (error, errorInfo) => {
+      onUncaughtError(error, errorInfo);
+      options?.onUncaughtError?.(error, errorInfo);
+    },
+  };
+}
 
 async function getPagePayload(pageContext: PageContextClient): Promise<PagePayload> {
   const flight = pageContext.rscPayload && (await createFromReadableStream<PagePayload>(pageContext.rscPayload));
