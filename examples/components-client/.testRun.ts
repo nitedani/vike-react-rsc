@@ -490,6 +490,8 @@ function testMarkerHmr() {
       await autoRetry(async () => {
         expectLog(`created /${file}`);
       });
+      // Vike logs it as its config reload starts, and a file deleted during that reload fails it
+      await sleep(1000);
     }
   });
 }
