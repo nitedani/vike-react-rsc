@@ -65,20 +65,24 @@ function getServerComponentStub(file: string) {
 // In the rsc env, a server Page, Layout, Wrapper or Loading carries the stub's flags, so every env finds it the same way
 function tagServerComponent(code: string, program: ESTree.Program, id: string, file: string) {
   const configName = path.basename(getFile(id)).slice(1).split(".")[0];
-  // Which names it re-exports shows only in the other module
-  const exportAll = program.body.find((node) => node.type === "ExportAllDeclaration");
-  if (exportAll) {
-    const source = JSON.stringify(exportAll.source.value);
-    throw new Error(
-      `[vike-react-rsc] ${file} starts with "use server component", but export * from ${source} doesn't name its ${configName}: ` +
-        `write export { ${configName} } from ${source} or export { default } from ${source}`
-    );
-  }
-  const { output } = transformModuleExportEffect(code, program, {
+  const { output, references } = transformModuleExportEffect(code, program, {
     generate: ({ binding }) => `Object.assign(${binding}, ${getServerComponentFlags(file)})`,
     // The exports Vike reads: the default one, or the one named after the config
     filter: (name) => name === "default" || name === configName,
+    exportAll: "preserve",
   });
+  // Without such an export, the component comes from an export *, whose names show only in the other module
+  const exportAll =
+    references.length === 0 &&
+    program.body.filter((node) => node.type === "ExportAllDeclaration").find((node) => node.exportKind !== "type");
+  if (exportAll) {
+    const source = JSON.stringify(exportAll.source.value);
+    const statement = code.slice(exportAll.start, exportAll.source.end);
+    throw new Error(
+      `[vike-react-rsc] ${file} starts with "use server component", but ${statement} doesn't name its ${configName}: ` +
+        `write export { ${configName} } from ${source} or export { default } from ${source}`
+    );
+  }
   return { code: output.toString(), map: output.generateMap({ hires: "boundary" }) };
 }
 
