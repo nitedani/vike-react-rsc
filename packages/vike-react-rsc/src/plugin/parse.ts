@@ -26,6 +26,21 @@ export function getImports(program: ESTree.Program): Map<string, string> {
   return imports;
 }
 
+/** Each module the module imports or re-exports statically, for more than its types */
+export function getImportSources(program: ESTree.Program): string[] {
+  const sources: string[] = [];
+  for (const statement of program.body) {
+    if (statement.type === "ImportDeclaration") {
+      const isTypeOnly = statement.importKind === "type" || (statement.specifiers.length > 0 && statement.specifiers.every((s) => s.type === "ImportSpecifier" && s.importKind === "type"));
+      if (!isTypeOnly) sources.push(String(statement.source.value));
+    }
+    if ((statement.type === "ExportNamedDeclaration" || statement.type === "ExportAllDeclaration") && statement.source && statement.exportKind !== "type") {
+      sources.push(String(statement.source.value));
+    }
+  }
+  return sources;
+}
+
 /** A JavaScript or TypeScript module of the app, not of a package */
 export function isAppFile(id: string): boolean {
   const file = getFile(id);

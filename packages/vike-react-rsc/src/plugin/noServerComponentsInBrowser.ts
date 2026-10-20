@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Plugin } from "vite";
 import { getComponentConfigs } from "./clientDefault";
@@ -23,14 +24,14 @@ export function noServerComponentsInBrowser(): Plugin {
       }
       const { moduleGraph } = this.environment;
       const chains = getImportChains(id, getComponentConfig, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])].flatMap((importer) => importer.id ?? []));
-      this.error(getServerComponentInBrowserErrors(chains, getComponentConfig, this.environment.config.root));
+      this.error(await getServerComponentInBrowserErrors(chains, getComponentConfig, this.environment.config.root));
     },
     async buildEnd() {
       if (this.environment.name !== "client") return;
       const getComponentConfig = await getComponentConfigs(this);
       for (const id of serverComponentsInBrowser) {
         const chains = getImportChains(id, getComponentConfig, (id) => [...(this.getModuleInfo(id)?.importers ?? [])]);
-        this.error(getServerComponentInBrowserErrors(chains, getComponentConfig, this.environment.config.root));
+        this.error(await getServerComponentInBrowserErrors(chains, getComponentConfig, this.environment.config.root));
       }
     },
   };
@@ -56,24 +57,38 @@ function getImportChains(id: string, getComponentConfig: GetComponentConfig, get
   return chains;
 }
 
-function getServerComponentInBrowserErrors(chains: string[][], getComponentConfig: GetComponentConfig, root: string): string {
-  return [...new Set(chains.map((chain) => getServerComponentInBrowserError(chain, getComponentConfig, root)))].join("\n");
+async function getServerComponentInBrowserErrors(chains: string[][], getComponentConfig: GetComponentConfig, root: string): Promise<string> {
+  const errors = await Promise.all(chains.map((chain) => getServerComponentInBrowserError(chain, getComponentConfig, root)));
+  return [...new Set(errors)].join("\n");
 }
 
-// A server component renders only on the server. A component in the browser shows one through rsc(); a Page, Layout, Wrapper or Loading that needs
-// nothing from the browser can render it as a server component instead.
-function getServerComponentInBrowserError(chain: string[], getComponentConfig: GetComponentConfig, root: string): string {
+// A server component renders only on the server, and so does a file without a directive that imports one. A component in the
+// browser shows one through rsc(); a file that says "use client" can't import one.
+async function getServerComponentInBrowserError(chain: string[], getComponentConfig: GetComponentConfig, root: string): Promise<string> {
   const [file, ...importers] = chain.map((id) => path.relative(root, getFile(id)));
-  const importer = importers.pop();
-  if (!importer) return `${file} starts with "use server component", but the browser loads it`;
-  const through = importers.length > 0 ? ` through ${importers.reverse().join(", ")}` : "";
-  const toServer = getComponentConfig(chain.at(-1)!)
-    ? `if ${importer} needs nothing from the browser (no hooks, no event handlers), start it with "use server component"`
-    : "import it only from server components";
+  if (importers.length === 0) return `${file} starts with "use server component", but the browser loads it`;
+  // The file that puts the chain in the browser, or else the file at its top
+  const clientIndex = (await Promise.all(chain.slice(1).map(isClientComponentFile))).indexOf(true);
+  const index = clientIndex === -1 ? importers.length - 1 : clientIndex;
+  const importer = importers[index]!;
+  const through = index > 0 ? ` through ${importers.slice(0, index).reverse().join(", ")}` : "";
+  const imports = clientIndex === -1 ? "imports" : 'starts with "use client" and imports';
+  const toServer =
+    clientIndex !== -1
+      ? `remove "use client" from ${importer}, so it runs on the server, and move its hooks and event handlers into their own "use client" component`
+      : getComponentConfig(chain.at(-1)!)
+        ? `if ${importer} needs nothing from the browser (no hooks, no event handlers), start it with "use server component"`
+        : "import it only from server components";
   const typesOnly = `if ${path.relative(root, getFile(chain[1]!))} imports only its types, write \`import type\``;
   return (
-    `${file} starts with "use server component", but the browser loads it: ${importer} imports it${through}. ` +
+    `${file} starts with "use server component", but the browser loads it: ${importer} ${imports} it${through}. ` +
     `To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ` +
     `or, ${toServer}; or, ${typesOnly}`
   );
+}
+
+async function isClientComponentFile(id: string): Promise<boolean> {
+  const file = getFile(id);
+  const code = await readFile(file, "utf8").catch(() => "");
+  return code.includes("use client") && getDirectives(await parse(code, file)).includes("use client");
 }

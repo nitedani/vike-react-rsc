@@ -120,6 +120,17 @@ function testServerComponents() {
     expect(await page.textContent("#rendered-on")).to.equal("Rendered on the server, next to an export type *");
   });
 
+  test("components: 'client': a file without a directive that imports a server component, through another such file, is a server component, and the client component it renders hydrates", async () => {
+    await page.goto(getServerUrl() + "/ancestor");
+    await waitForHydration("#counter");
+    expect(await page.textContent("#rendered-on")).to.equal("Rendered on the server");
+    expect(await page.innerHTML("#markdown")).to.equal("Rendered by a <b>server component</b>, through a file without a directive");
+    await page.click("#counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#counter")).to.equal("Counter 1");
+    });
+  });
+
   test("components: 'client': a server component calls a function from a component file, on the server", async () => {
     expect(await fetchHtml("/helper")).to.include("A FUNCTION OF A COMPONENT FILE, CALLED ON THE SERVER!");
   });
@@ -492,6 +503,20 @@ function testMarkerHmr() {
     await page.waitForSelector("text=Rendered by a client component");
   });
 
+  test('Dev: adding or removing "use server component" in a file that a page imports moves the page to the server and back', async () => {
+    await page.goto(getServerUrl() + "/hmr");
+    await waitForHydration("#layout-counter");
+    expect(await fetchHtml("/hmr")).to.not.include("rscPayload");
+    editFile("./components/Leaf.tsx", (source) => `"use server component";\n${source.replace("A leaf without a directive", "A server leaf")}`);
+    await page.waitForSelector("text=A server leaf");
+    expect(await fetchHtml("/hmr")).to.include("rscPayload");
+    // Reverted while the page still loads, the page would hydrate with the reverted module
+    await waitForHydration("#layout-counter");
+    editFileRevert();
+    await page.waitForSelector("text=A leaf without a directive");
+    expect(await fetchHtml("/hmr")).to.not.include("rscPayload");
+  });
+
   test("Dev: deleting a + file or a +config file shows no error", async () => {
     // The dev server has loaded /hmr's +Page.tsx
     await page.goto(getServerUrl() + "/hmr");
@@ -580,28 +605,28 @@ function testClientComponentHmr() {
 }
 
 function testServerComponentImports() {
-  test("Build: a client component importing a server component fails the build, saying to show it through rsc() or mark the importer", async () => {
+  test('Build: a "use client" file importing a server component fails the build, saying to show it through rsc() or remove "use client"', async () => {
     const output = await getBuildError(
       "./pages/js-page/+Page.js",
       () =>
-        'import { createElement } from "react";\nimport { Markdown } from "../../components/Markdown";\n' +
+        '"use client";\nimport { createElement } from "react";\nimport { Markdown } from "../../components/Markdown";\n' +
         'export default function Page() {\n  return createElement(Markdown, { source: "**A** page" });\n}\n'
     );
     expect(output).to.include(
-      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/js-page/+Page.js imports it. ' +
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/js-page/+Page.js starts with "use client" and imports it. ' +
         'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
-        'or, if pages/js-page/+Page.js needs nothing from the browser (no hooks, no event handlers), start it with "use server component"'
+        'or, remove "use client" from pages/js-page/+Page.js, so it runs on the server, and move its hooks and event handlers into their own "use client" component'
     );
   });
 
-  test("Build: a client component importing a barrel that re-exports a server component fails the build, naming the barrel", async () => {
+  test('Build: a "use client" file importing a barrel that re-exports a server component fails the build, naming the barrel', async () => {
     // The dev server sees the edit too, and renders nothing with it while no page is open
     await page.goto("about:blank");
-    const output = await getBuildError("./pages/index/+Page.tsx", (source) => source.replace("../../components/Counter", "../../components"));
+    const output = await getBuildError("./pages/index/+Page.tsx", (source) => `"use client";\n${source.replace("../../components/Counter", "../../components")}`);
     expect(output).to.include(
-      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/index/+Page.tsx imports it through components/index.ts. ' +
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/index/+Page.tsx starts with "use client" and imports it through components/index.ts. ' +
         'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
-        'or, if pages/index/+Page.tsx needs nothing from the browser (no hooks, no event handlers), start it with "use server component"'
+        'or, remove "use client" from pages/index/+Page.tsx, so it runs on the server, and move its hooks and event handlers into their own "use client" component'
     );
   });
 
@@ -615,10 +640,10 @@ function testServerComponentImports() {
     );
   });
 
-  test("Dev: two pages import a server component: the error names the page the browser opens", async () => {
+  test('Dev: two "use client" pages import a server component: the error names the page the browser opens', async () => {
     // Rendered once mounted, so the HTML renders without it
     const importMarkdown = () =>
-      'import { createElement, useEffect, useState } from "react";\nimport { Markdown } from "../../components/Markdown";\n' +
+      '"use client";\nimport { createElement, useEffect, useState } from "react";\nimport { Markdown } from "../../components/Markdown";\n' +
       "export default function Page() {\n  const [isMounted, setIsMounted] = useState(false);\n  useEffect(() => setIsMounted(true), []);\n" +
       '  return isMounted ? createElement(Markdown, { source: "**A** page" }) : "waiting";\n}\n';
     editFile("./pages/js-page/+Page.js", importMarkdown);
@@ -630,7 +655,7 @@ function testServerComponentImports() {
       ]) {
         await page.goto(getServerUrl() + url);
         await autoRetry(async () => {
-          expectLog(`components/Markdown.tsx ${SERVER_COMPONENT_IN_BROWSER_ERROR}: ${file} imports it.`, {
+          expectLog(`components/Markdown.tsx ${SERVER_COMPONENT_IN_BROWSER_ERROR}: ${file} starts with "use client" and imports it.`, {
             filter: ({ logSource }) => logSource === "stderr",
           });
         });
