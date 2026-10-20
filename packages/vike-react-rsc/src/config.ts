@@ -58,7 +58,7 @@ const vikeReactRsc: Config = {
     // The plugin reads it too, and checks that all pages have the same value. The rsc env, to tell whether a page renders
     // from its Flight.
     components: {
-      env: { config: true, server: true, rsc: true },
+      env: { config: true, rsc: true },
       effect: ({ configDefinedAt, configValue }) => {
         if (configValue !== "client" && configValue !== "server") throw new Error(`${configDefinedAt} should be "client" or "server"`);
         // Under 'client', a page without server components renders as in vike-react, so its + files load everywhere

@@ -9,7 +9,6 @@ import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { getPageElement } from "../integration/getPageElement";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
-import { rendersFlight } from "../rendersFlight";
 import type { PagePayload } from "../types";
 
 // The CSS and JS of the client components a page's HTML renders, for their links
@@ -44,7 +43,7 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
   const ssr = pageContext.config.ssr !== false;
   const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
   const formState = flight?.formState;
-  const root = !ssr ? null : rendersFlight(pageContext) ? flight!.root : pageContext.config.Page ? getPageElement(pageContext) : null;
+  const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
   const page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
   const nonce = pageContext.cspNonce ?? undefined;
   let html;
