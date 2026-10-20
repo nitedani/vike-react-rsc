@@ -40,6 +40,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
       logText.includes("Failed to fetch dynamically imported module") ||
       logText.includes(THROWS_ERROR) ||
       logText.includes(HYDRATION_ERROR) ||
+      // Vike takes the alias of /aliased-layout for an npm package to pre-bundle
+      logText.includes("Cannot optimize dependency: @app/components/AliasedLayout") ||
       // The export * of /export-all also re-exports a function
       logText.includes("/pages/export-all/+Page.tsx unexpected export { shout }"),
   });
@@ -167,13 +169,18 @@ function testVikeReactRendering() {
     expect(await page.textContent("#imported-layout-counter")).to.equal("Imported layout 1");
   });
 
-  test("components: 'client': a Layout without a directive that a +config file sets by an import is a client component, on a client page, a server page and with ssr: false", async () => {
-    for (const pathname of ["/vike-react-layout", "/vike-react-layout/server", "/vike-react-layout/spa"]) {
+  test("components: 'client': a Layout without a directive that a +config file sets by an import is a client component, on a client page, a server page and with ssr: false, through a path alias only Vite knows too", async () => {
+    for (const [pathname, counter, clicked] of [
+      ["/vike-react-layout", "#vike-react-layout-counter", "vike-react layout 1"],
+      ["/vike-react-layout/server", "#vike-react-layout-counter", "vike-react layout 1"],
+      ["/vike-react-layout/spa", "#vike-react-layout-counter", "vike-react layout 1"],
+      ["/aliased-layout", "#aliased-layout-counter", "Aliased layout 1"],
+    ]) {
       await page.goto(getServerUrl() + pathname);
-      await waitForHydration("#vike-react-layout-counter");
-      await page.click("#vike-react-layout-counter");
+      await waitForHydration(counter);
+      await page.click(counter);
       await autoRetry(async () => {
-        expect(await page.textContent("#vike-react-layout-counter")).to.equal("vike-react layout 1");
+        expect(await page.textContent(counter)).to.equal(clicked);
       });
     }
   });
@@ -316,11 +323,16 @@ async function withoutScripts(run: (noJs: typeof page) => Promise<void>) {
 }
 
 function testLoading() {
-  test("components: 'client': +Loading.tsx streams before the server page it waits for", async () => {
-    const html = await fetchHtml("/loading");
-    const fallback = html.indexOf('<p id="loading">');
-    expect(fallback, "fallback missing from response").to.not.equal(-1);
-    expect(html.indexOf('<p id="loaded">')).to.be.greaterThan(fallback);
+  test("components: 'client': +Loading.tsx, or a Loading whose layout a +config file imports, streams before the server page it waits for", async () => {
+    for (const [pathname, id] of [
+      ["/loading", "loading"],
+      ["/loading-config", "config-loading"],
+    ]) {
+      const html = await fetchHtml(pathname);
+      const fallback = html.indexOf(`<p id="${id}">`);
+      expect(fallback, `fallback missing from ${pathname}`).to.not.equal(-1);
+      expect(html.indexOf('<p id="loaded">')).to.be.greaterThan(fallback);
+    }
   });
 
   test("components: 'client': a +Loading without layout adds no Suspense boundary, as in vike-react", async () => {

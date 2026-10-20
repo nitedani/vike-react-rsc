@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Visitor, type ESTree, type Plugin } from "vite";
-import { getComponentConfig, isClientDefault } from "./clientDefault";
+import { getComponentConfigs, isClientDefault } from "./clientDefault";
 import { getDirectives, getFile, getImports, isAppFile, parse, type Directive } from "./parse";
 
 type Module = { code: string; directives: Directive[]; imports: Map<string, string>; renderedNames: Set<string> };
@@ -26,7 +26,7 @@ export function noServerFunctionComponents(): Plugin {
       const file = getFile(id);
       const { directives, imports, renderedNames } = await getModule(file, code);
       const root = this.environment.config.root;
-      if (getComponentConfig(id) && directives.includes("use server")) {
+      if ((await getComponentConfigs(this))(id) && directives.includes("use server")) {
         this.error(serverFunctionError(path.relative(root, file)));
       }
       for (const name of renderedNames) {
