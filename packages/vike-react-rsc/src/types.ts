@@ -13,7 +13,7 @@ export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknown
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */
 export type RscRuntime = typeof import("./rsc/runtime");
 
-type BeforeRenderClientHook = (pageContext: PageContextClient) => void;
+type RenderClientHook = (pageContext: PageContextClient) => void;
 type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
 type HeadValue = ReactNode | (() => ReactNode);
 type LoadingValue = {
@@ -72,7 +72,13 @@ declare global {
        *
        * https://vike.dev/onBeforeRenderClient
        */
-      onBeforeRenderClient?: BeforeRenderClientHook | ImportString;
+      onBeforeRenderClient?: RenderClientHook | ImportString;
+      /**
+       * Client-side hook called after the page is rendered.
+       *
+       * https://vike.dev/onAfterRenderClient
+       */
+      onAfterRenderClient?: RenderClientHook | ImportString;
       /** Internal: the rsc env's runtime */
       rscRuntime?: RscRuntime | ImportString;
     }
@@ -84,6 +90,7 @@ declare global {
       Wrapper?: WrapperComponent[];
       Loading?: LoadingValue;
       onBeforeRenderClient?: Function[];
+      onAfterRenderClient?: Function[];
       rscRuntime: RscRuntime;
     }
   }

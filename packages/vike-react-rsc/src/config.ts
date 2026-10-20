@@ -72,6 +72,7 @@ const vikeReactRsc: Config = {
     Loading: { env: { rsc: true, server: true, client: true } },
     Head: { env: { server: true }, cumulative: true },
     onBeforeRenderClient: { env: { client: true }, cumulative: true },
+    onAfterRenderClient: { env: { client: true }, cumulative: true },
     // rsc() reads it in the browser, the action middleware on the server; unrelated to the rsc env
     rsc: { env: { client: true, server: true }, global: true },
     rscRuntime: { env: { rsc: true } },

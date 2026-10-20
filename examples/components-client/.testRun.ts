@@ -188,6 +188,20 @@ function testVikeReactRendering() {
     });
   });
 
+  test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, as in vike-react", async () => {
+    const shown = { isHydration: false, shown: "A page with +onAfterRenderClient" };
+    await page.goto(getServerUrl() + "/after-render");
+    await autoRetry(async () => {
+      expect(await page.evaluate(() => (window as { afterRenders?: unknown[] }).afterRenders)).to.deep.equal([{ ...shown, isHydration: true }]);
+    });
+    await clickLink("/");
+    await page.waitForSelector("h1:text-is('A client page')");
+    await clickLink("/after-render");
+    await autoRetry(async () => {
+      expect(await page.evaluate(() => (window as { afterRenders?: unknown[] }).afterRenders)).to.deep.equal([{ ...shown, isHydration: true }, shown]);
+    });
+  });
+
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");
