@@ -169,8 +169,7 @@ function testVikeReactRendering() {
   test("components: 'client': a client navigation to a page that throws shows the error page, as vike-react does", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration("#counter");
-    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<a id="throws" href="/throws">Go</a>'));
-    await page.click("#throws");
+    await clickLink("/throws");
     await autoRetry(async () => {
       expect(await page.textContent("#error-page")).to.equal("Something went wrong");
     });
@@ -182,10 +181,9 @@ function testVikeReactRendering() {
     await autoRetry(async () => {
       expectLog(HYDRATION_ERROR, { filter: ({ logSource }) => logSource === "Browser Error" });
     });
-    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<a id="admin" href="/admin">Go</a><a id="home" href="/">Go</a>'));
-    await page.click("#admin");
+    await clickLink("/admin");
     await page.waitForSelector("h1:text-is('A client page in a server layout')");
-    await page.click("#home");
+    await clickLink("/");
     await page.waitForSelector("h1:text-is('A client page')");
   });
 
@@ -209,8 +207,7 @@ function testVikeReactRendering() {
     });
     await page.goto(getServerUrl() + "/");
     await waitForHydration("#counter");
-    await page.evaluate(() => document.body.insertAdjacentHTML("beforeend", '<a id="spa-server" href="/spa-server">Go</a>'));
-    await page.click("#spa-server");
+    await clickLink("/spa-server");
     await page.waitForSelector("#spa-rerender");
     expect(await page.textContent("#spa-rendered-on")).to.equal("Rendered on the server");
   });
@@ -565,4 +562,10 @@ async function waitForHydration(selector: string) {
     },
     { timeout: 5000 }
   );
+}
+
+// The page may have no link to `pathname`: one is added, then clicked as a user would, so Vike's router navigates
+async function clickLink(pathname: string) {
+  await page.evaluate((pathname) => document.body.insertAdjacentHTML("beforeend", `<a data-test-link href="${pathname}">Go</a>`), pathname);
+  await page.click(`a[data-test-link][href="${pathname}"]`);
 }
