@@ -31,13 +31,11 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
           logText.includes("useState is not a function") ||
           logText.includes("createContext is not a function") ||
           logText.includes("Class extends value undefined") ||
-          logText.includes("HTTP response ← /helper 500") ||
-          logText.includes("No error page found"))) ||
+          logText.includes("HTTP response ← /helper 500"))) ||
       logText.includes(SERVER_COMPONENT_IN_BROWSER_ERROR) ||
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // Vite forwards these from the browser to stderr too
       logText.includes("Failed to fetch dynamically imported module") ||
-      logText.includes("No error page defined") ||
       logText.includes(THROWS_ERROR) ||
       logText.includes(HYDRATION_ERROR),
   });
