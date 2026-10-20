@@ -14,8 +14,8 @@ export function clientDefault(): Plugin {
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
     async transform(code, id) {
-      const component = (await getComponentConfigs(this))(id);
-      if (!component) return;
+      const components = (await getComponentConfigs(this))(id);
+      if (!components) return;
       const isRsc = this.environment.name === "rsc";
       // Under 'server', plugin-rsc's own rule: a file without "use client" is a server component. Of these, only a
       // Loading also loads outside the rsc env, so a server one gets the stub there, as under 'client'
@@ -30,7 +30,7 @@ export function clientDefault(): Plugin {
       if (isRsc && directives.length === 0) return { code: `"use client";${code}`, map: null };
       if (!isServerComponent) return;
       const file = path.relative(this.environment.config.root, getFile(id));
-      return isRsc ? tagServerComponent(code, program, component, file) : getServerComponentStub(component, file);
+      return isRsc ? tagServerComponent(code, program, components, file) : getServerComponentStub(components, file);
     },
     async hotUpdate({ type, file, read }) {
       if (type === "delete") return;
@@ -57,9 +57,9 @@ export function isClientDefault(): boolean {
   return values.has("client");
 }
 
-/** Finds the Page, Layout, Wrapper or Loading that Vike loads from a file, by its + file or by an import of a +config file
+/** Finds each Page, Layout, Wrapper or Loading that Vike loads from a file, by its + file or by an import of a +config file
  * or an extension's config, as the env resolves the imports Vike leaves to Vite */
-export async function getComponentConfigs(context: ResolveContext): Promise<(id: string) => ComponentConfig | undefined> {
+export async function getComponentConfigs(context: ResolveContext): Promise<(id: string) => ComponentConfig[] | undefined> {
   const { _pageConfigs } = getVikeConfig().dangerouslyUseInternals;
   let byEnv = componentConfigs.get(_pageConfigs);
   if (!byEnv) componentConfigs.set(_pageConfigs, (byEnv = new Map()));
@@ -90,7 +90,15 @@ async function resolveComponentConfigs(pageConfigs: PageConfigs, context: Resolv
     }
   }
   const files = await Promise.all(imports.map(async ({ file, importPath, importer }) => file ?? (importPath && (await context.resolve(importPath, importer))?.id)));
-  return new Map(imports.flatMap(({ config }, i) => (files[i] ? [[getFile(files[i]), config] as const] : [])));
+  // A file can serve several, e.g. two named exports as the Layouts of two pages
+  const byFile = new Map<string, ComponentConfig[]>();
+  imports.forEach(({ config }, i) => {
+    if (!files[i]) return;
+    const configs = byFile.get(getFile(files[i])) ?? [];
+    if (!configs.some((c) => c.configName === config.configName && c.exportName === config.exportName)) configs.push(config);
+    byFile.set(getFile(files[i]), configs);
+  });
+  return byFile;
 }
 
 // The import strings in a value: an extension's, or the one Vike makes of a +config file's import, e.g. "import:/app/Spinner.tsx:Spinner"
@@ -111,18 +119,20 @@ type ComponentConfig = {
   exportName: string | undefined;
 };
 // By Vike's page configs, which it replaces when a config changes, then by env
-const componentConfigs = new WeakMap<object, Map<string, Promise<Map<string, ComponentConfig>>>>();
+const componentConfigs = new WeakMap<object, Map<string, Promise<Map<string, ComponentConfig[]>>>>();
 
 // Outside the rsc env, a server Page, Layout, Wrapper or Loading: the page renders from its Flight, which has what it
-// rendered. The export Vike reads, a + file's default one, whatever the file exports itself
-function getServerComponentStub({ exportName = "default" }: ComponentConfig, file: string) {
-  return { code: `const stub = Object.assign(() => null, ${getServerComponentFlags(file)});\nexport { stub as ${exportName} };`, map: null };
+// rendered. Each export Vike reads, a + file's default one, whatever the file exports itself
+function getServerComponentStub(components: ComponentConfig[], file: string) {
+  const exports = [...new Set(components.map(({ exportName = "default" }) => `stub as ${exportName}`))].join(", ");
+  return { code: `const stub = Object.assign(() => null, ${getServerComponentFlags(file)});\nexport { ${exports} };`, map: null };
 }
 
 // In the rsc env, a server Page, Layout, Wrapper or Loading carries the stub's flags, so every env finds it the same way
-function tagServerComponent(code: string, program: ESTree.Program, { configName, exportName }: ComponentConfig, file: string) {
-  // The exports Vike reads: the import's, or a + file's default one or the one named after the config
-  const exportNames = exportName ? [exportName] : [configName, "default"];
+function tagServerComponent(code: string, program: ESTree.Program, components: ComponentConfig[], file: string) {
+  // The exports Vike reads: each import's, or a + file's default one or the one named after the config
+  const exportNames = [...new Set(components.flatMap(({ configName, exportName }) => (exportName ? [exportName] : [configName, "default"])))];
+  const configNames = [...new Set(components.map(({ configName }) => configName))].join(" or ");
   const { output, references } = transformModuleExportEffect(code, program, {
     generate: ({ binding }) => `Object.assign(${binding}, ${getServerComponentFlags(file)})`,
     filter: (name) => exportNames.includes(name),
@@ -136,7 +146,7 @@ function tagServerComponent(code: string, program: ESTree.Program, { configName,
     const source = JSON.stringify(exportAll.source.value);
     const statement = code.slice(exportAll.start, exportAll.source.end);
     throw new Error(
-      `[vike-react-rsc] ${file} starts with "use server component", but ${statement} doesn't name its ${configName}: ` +
+      `[vike-react-rsc] ${file} starts with "use server component", but ${statement} doesn't name its ${configNames}: ` +
         `write ${exportNames.map((name) => `export { ${name} } from ${source}`).join(" or ")}`
     );
   }

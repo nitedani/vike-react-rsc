@@ -185,14 +185,19 @@ function testVikeReactRendering() {
     }
   });
 
-  test('components: \'client\': a "use server component" Layout that a +config file sets by a named import renders on the server, around a client page', async () => {
-    await page.goto(getServerUrl() + "/imported-server-layout");
-    expect(await page.textContent("#imported-server-layout")).to.equal("An imported server layout, rendered on the server");
-    await waitForHydration("#counter");
-    await page.click("#counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#counter")).to.equal("Counter 1");
-    });
+  test('components: \'client\': a "use server component" Layout that a +config file sets by a named import renders on the server, around a client page, also where the default export of its file is the Wrapper', async () => {
+    for (const pathname of ["/imported-server-layout", "/imported-server-layout/wrapper"]) {
+      await page.goto(getServerUrl() + pathname);
+      expect(await page.textContent("#imported-server-layout")).to.equal("An imported server layout, rendered on the server");
+      if (pathname.endsWith("/wrapper")) {
+        expect(await page.textContent("#imported-server-wrapper")).to.equal("An imported server wrapper, rendered on the server");
+      }
+      await waitForHydration("#counter");
+      await page.click("#counter");
+      await autoRetry(async () => {
+        expect(await page.textContent("#counter")).to.equal("Counter 1");
+      });
+    }
   });
 
   test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, as in vike-react", async () => {
