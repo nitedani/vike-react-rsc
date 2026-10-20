@@ -93,7 +93,6 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
   const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
-  const formState = flight?.formState;
   const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
   // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this hook returns, then the
   // HTML has started and only the stream can tell the browser
@@ -114,7 +113,7 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
           // Else react-streaming streams, except to bots
           disable: isStreamDisabled(pageContext) || undefined,
           ...renderToStreamOptions,
-          streamOptions: { ...renderToStreamOptions?.streamOptions, nonce, formState },
+          streamOptions: { ...renderToStreamOptions?.streamOptions, nonce, formState: flight?.formState },
           onBoundaryError: (error) => {
             const abort = getAbort(error);
             if (abort) onAbort(error, abort);
