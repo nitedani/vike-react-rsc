@@ -39,7 +39,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
       // Vite forwards these from the browser to stderr too
       logText.includes("Failed to fetch dynamically imported module") ||
       logText.includes(THROWS_ERROR) ||
-      logText.includes(HYDRATION_ERROR),
+      logText.includes(HYDRATION_ERROR) ||
+      // The export * of /export-all also re-exports a function
+      logText.includes("/pages/export-all/+Page.tsx unexpected export { shout }"),
   });
 
   testClientComponents();
@@ -104,6 +106,16 @@ function testServerComponents() {
     await page.goto(getServerUrl() + "/named-export");
     await waitForHydration("#layout-counter");
     expect(await page.textContent("#rendered-on")).to.equal("Rendered on the server, exported as Page");
+  });
+
+  test("components: 'client': a server + file that exports its component and also has an export * or export type * renders on the server", async () => {
+    await page.goto(getServerUrl() + "/export-all");
+    await waitForHydration("#layout-counter");
+    expect(await page.textContent("#rendered-on")).to.equal("Rendered on the server, next to an export *");
+
+    await page.goto(getServerUrl() + "/export-type-all");
+    await waitForHydration("#layout-counter");
+    expect(await page.textContent("#rendered-on")).to.equal("Rendered on the server, next to an export type *");
   });
 
   test("components: 'client': a server component calls a function from a component file, on the server", async () => {
