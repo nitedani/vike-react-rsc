@@ -42,7 +42,9 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
     setReactRoot(reactRoot);
     reactRoot.render(<Root page={page} />);
   }
-  // Once React shows the page, without holding the navigation; onUncaughtError() logs an error React throws instead
+  // Once React hydrates, which onRenderClient() doesn't wait for: so after +onHydrationEnd, and a hook's error is an unhandled
+  // rejection, not the error page. onUncaughtError() logs an error React throws instead.
+  // TODO: await it, as vike-react does, once https://github.com/vikejs/vike/pull/3641 is released
   void rendered().then(() => callCumulativeHooks(pageContext.config.onAfterRenderClient, pageContext), () => {});
 };
 
