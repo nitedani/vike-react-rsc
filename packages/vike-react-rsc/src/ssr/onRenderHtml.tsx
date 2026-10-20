@@ -84,7 +84,6 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
 
 // As vike-react's: sets pageContext.pageHtmlString or pageHtmlStream, between the HTML hooks
 async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps): Promise<void> {
-  const htmlSent = new AbortController();
   // Before any HTML hook: server components render as after a client navigation, which runs none
   forkPageContext(pageContext);
   // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
@@ -92,6 +91,7 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   const { renderToStreamOptions } = resolveReactOptions(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
+  const htmlSent = new AbortController();
   const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
   const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
   // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this hook returns, then the
