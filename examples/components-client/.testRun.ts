@@ -151,6 +151,17 @@ function testVikeReactRendering() {
     expect(await page.textContent("#imported-layout-counter")).to.equal("Imported layout 1");
   });
 
+  test("components: 'client': a Layout without a directive that a +config file sets by an import renders on a client page, with ssr: false too, as in vike-react", async () => {
+    for (const pathname of ["/vike-react-layout", "/vike-react-layout/spa"]) {
+      await page.goto(getServerUrl() + pathname);
+      await waitForHydration("#vike-react-layout-counter");
+      await page.click("#vike-react-layout-counter");
+      await autoRetry(async () => {
+        expect(await page.textContent("#vike-react-layout-counter")).to.equal("vike-react layout 1");
+      });
+    }
+  });
+
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");
