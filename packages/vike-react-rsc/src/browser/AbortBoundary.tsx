@@ -44,8 +44,7 @@ export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInf
 function Redirect({ url }: { url: string }) {
   const pageContext = usePageContext();
   useEffect(() => {
-    // Thrown in what Vike navigated to, or what an rsc() load rendered: as with an HTTP redirect, the page's URL doesn't
-    // stay in history
+    // Replaces the page in history, as an HTTP redirect does, unless a server action's rerender() sent what threw it
     return unlessHtmlRedirects(() => void followRedirect(url, wasAnswered(pageContext)));
   }, [url]);
   return null;
