@@ -2,7 +2,7 @@ import { Component, useEffect, type ReactNode } from "react";
 import type { HydrationOptions } from "react-dom/client";
 import { getAbort } from "../abort";
 import { usePageContext } from "../pageContext";
-import { followRedirect, wasAnswered } from "./callServer";
+import { followRedirect, wasRerendered } from "./callServer";
 import { dropRscOutputs } from "./rsc";
 
 type Props = { children: ReactNode };
@@ -49,7 +49,7 @@ function Redirect({ url }: { url: string }) {
       // An rsc() output that throws redirect(), loaded or still loading, would throw it again after Back
       dropRscOutputs();
       // Replaces the page in history, as an HTTP redirect does, unless a server action's rerender() sent what threw it
-      void followRedirect(url, wasAnswered(pageContext));
+      void followRedirect(url, wasRerendered(pageContext));
     });
   }, [url]);
   return null;

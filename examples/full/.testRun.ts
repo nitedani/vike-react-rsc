@@ -654,12 +654,14 @@ function testServerComponentAbort() {
     }
   });
 
-  test("Server component: throw redirect() in what an rsc() load renders, or in its server function, doesn't stay in history, and coming back loads it again", async () => {
+  test("Server component: throw redirect() in what an rsc() load renders, or in its server function, doesn't stay in history after a server action without rerender(), and coming back loads it again", async () => {
     // The first panel's redirect comes from AbortBoundary, then from callServer()
     for (const button of ["Load a server component whose child redirects", "Load a server component that redirects, then ones whose child redirects"]) {
       await page.goto(getServerUrl() + "/todos");
       await waitForHydration("Add Task");
       await navigateToActions();
+      await page.click('button:has-text("Count a submit")');
+      await page.waitForSelector("[data-submits]:has-text('Submitted 1 times')");
       const loadPanels = () => page.click(`button:has-text("${button}")`);
       await expectRedirectedHome(loadPanels);
       // The 1000 ms child answers before Back, the 3000 ms one is still loading at the next click

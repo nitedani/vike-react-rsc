@@ -8,8 +8,8 @@ import type { ActionPayload } from "../types";
 import { getCurrentPageContext, showRoot } from "./page";
 import { dropRscOutputs, isRscLoad, markRscOutputsStale } from "./rsc";
 
-// The pages a server action answered
-const answeredPages = new WeakSet<PageContext>();
+// The pages a server action's answer sent a new tree for: after rerender(), or the page of a throw render()
+const rerenderedPages = new WeakSet<PageContext>();
 
 /** React calls it for every server function the browser calls, rsc()'s included */
 export async function callServer(id: string, args: unknown[]): Promise<unknown> {
@@ -52,15 +52,15 @@ async function readAnswer(response: Response, pageContext: PageContextClient, is
   const isFlight = response.headers.get("content-type")?.split(";")[0] === FLIGHT_CONTENT_TYPE.split(";")[0];
   if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
   const { returnValue, root } = await createFromFetch<ActionPayload>(Promise.resolve(response));
-  if (isAction) answeredPages.add(pageContext);
+  if (isAction && root) rerenderedPages.add(pageContext);
   // The page changed since the call: this answer's page is out of date
   if (root && getCurrentPageContext() === pageContext) startTransition(() => showRoot(root));
   return returnValue;
 }
 
 /** A redirect thrown in what a server action's rerender() sent keeps the page in history, as the action's own redirect does */
-export function wasAnswered(pageContext: PageContext): boolean {
-  return answeredPages.has(pageContext);
+export function wasRerendered(pageContext: PageContext): boolean {
+  return rerenderedPages.has(pageContext);
 }
 
 // Never settles: the caller doesn't resume, the document goes away
