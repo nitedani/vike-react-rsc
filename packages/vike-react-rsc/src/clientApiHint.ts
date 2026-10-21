@@ -17,7 +17,7 @@ export function getClientApiHint(error: unknown, page?: string, serverComponentI
   const stack = error.stack ?? "";
   const [, component, componentFile] = /^\s*at ([A-Z][\w$]*) \((.+?):\d+:\d+\)$/m.exec(stack) ?? [];
   // A file that fails as it loads is the first frame
-  const file = componentFile ?? (page ? /^\s*at (?:eval \()?(.+?):\d+:\d+\)?$/m.exec(stack)?.[1] : undefined);
+  const file = (componentFile ?? (page ? /^\s*at (?:eval \()?(.+?):\d+:\d+\)?$/m.exec(stack)?.[1] : undefined))?.split("?")[0];
   const caller = import.meta.env.DEV && file ? file : (component ?? (page ? `A file of ${page}` : "A server component"));
   const use = api === "Component" ? "extends Component or PureComponent" : `calls ${api}()`;
   const runsOnServer = `${caller} ${use}, which runs only in the browser, but runs on the server`;
@@ -28,6 +28,11 @@ export function getClientApiHint(error: unknown, page?: string, serverComponentI
     return index === -1 ? [] : [{ files: files.slice(index), takesOnlyOtherExports }];
   })[0];
   if (!serverComponentImport) {
+    // A package's file isn't the app's to change
+    if (file?.includes("/node_modules/")) {
+      const name = /.*\/node_modules\/((?:@[^/]+\/)?[^/.][^/]*)\//.exec(file)?.[1] ?? "its package";
+      return `${runsOnServer}: import ${component ?? "its components"} from a "use client" file of the app that re-exports ${component ? "it" : "them"} from ${name}`;
+    }
     // A build's stack doesn't name the failing file, which could be one of those
     const orMove = !import.meta.env.DEV && serverComponentImports.length > 0 ? `, or, if its file imports a server component, move the code that ${use} into a "use client" component` : "";
     return `${runsOnServer}: start ${caller === file ? "it" : "its file"} with "use client"${orMove}`;
