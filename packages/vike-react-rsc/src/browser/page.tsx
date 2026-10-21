@@ -1,10 +1,13 @@
 import { useDeferredValue, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { Root as ReactRoot } from "react-dom/client";
+import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
+import { AbortBoundary } from "./AbortBoundary";
 
-type Shown = { pageContext: PageContextClient; root: ReactNode };
+// `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()
+type Shown = { pageContext: PageContextClient; root: ReactNode; fromAction?: boolean };
 
 // One for every copy of this file: after an edit, Vite can load the next page's entry with a new copy
 const shared = getShared(
@@ -47,9 +50,17 @@ function settle(error?: unknown): void {
   else rendering?.reject(error);
 }
 
-/** Shows a new tree for the page shown, e.g. the one an action's rerender() sent */
-export function showRoot(root: ReactNode): void {
-  show({ pageContext: shared.shown!.pageContext, root });
+/** Ends the navigation waiting until React shows its page, e.g. a page that leaves for a redirect's target instead */
+export function endNavigation(): void {
+  settle();
+}
+
+/** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent and none of the passToClient `keys` it didn't */
+export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys: string[], fromAction: boolean): void {
+  // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
+  const pageContext = createPageContextFromServer_experimentalRSC(shared.current!, passed);
+  for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
+  show({ pageContext, root, fromAction });
 }
 
 export function setReactRoot(reactRoot: ReactRoot): void {
@@ -81,5 +92,10 @@ export function Root({ page }: { page: Shown }): ReactElement {
   useEffect(() => {
     if (state === shared.shown) settle();
   }, [state]);
-  return <PageContextProvider pageContext={state.pageContext}>{state.root}</PageContextProvider>;
+  // Called, not rendered: React's dev performance track reads every key of a component's old props, and Vike's pageContext throws on a key it couldn't serialize
+  // TODO: remove once the react peer dependency requires a React release that includes https://github.com/react/react/pull/36867
+  return PageContextProvider({
+    pageContext: state.pageContext,
+    children: <AbortBoundary keepsPage={!!state.fromAction}>{state.root}</AbortBoundary>,
+  });
 }

@@ -2,10 +2,11 @@ import { decodeAction, decodeFormState, decodeReply, loadServerAction, renderToR
 import type { ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
+import { getAbortDigest } from "../abort";
 import { getClientApiHint } from "../clientApiHint";
 import { getPageElement } from "../integration/getPageElement";
 import { getServerComponentImports } from "../rendersFlight";
-import type { ActionOutcome, ActionPayload, PagePayload } from "../types";
+import type { ActionOutcome, ActionPayload, PagePayload, PassedToClient } from "../types";
 import { runInScope } from "./scope";
 
 // Per page render, after a form submitted before hydration
@@ -23,12 +24,9 @@ export function formStatePayload(pageContext: PageContext): ReadableStream<Uint8
   return renderOnRead<PagePayload>(pageContext, () => ({ root: null, formState: formStates.get(pageContext) }));
 }
 
-export function actionPayload(
-  pageContext: PageContext,
-  { returnValue, rerender }: ActionOutcome
-): ReadableStream<Uint8Array> {
+export function actionPayload(pageContext: PageContext, returnValue: unknown, passedToClient?: PassedToClient): ReadableStream<Uint8Array> {
   return renderOnRead<ActionPayload>(pageContext, () =>
-    rerender ? { returnValue, root: getPage(pageContext) } : { returnValue }
+    passedToClient ? { returnValue, root: getPage(pageContext), passedToClient } : { returnValue }
   );
 }
 
@@ -72,10 +70,13 @@ function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Paylo
       renderToReadableStream(getPayload(), {
         signal: stopped.signal,
         onError: (error: unknown) => {
+          // A `throw redirect()` or `throw render()`: the HTML render, or the browser, acts on it
+          const abortDigest = getAbortDigest(error);
+          if (abortDigest) return abortDigest;
           // Not the abort, nor what failed because of it
           if (stopped.signal.aborted) return;
           const hint = getClientApiHint(error, undefined, getServerComponentImports(pageContext));
-          console.error(`[vike-react-rsc] A server component failed${hint ? `: ${hint}` : ""}:`, error);
+          console.error(`[vike-react-rsc] A server component, or a value sent to the browser, failed${hint ? `: ${hint}` : ""}:`, error);
         },
       })
     );

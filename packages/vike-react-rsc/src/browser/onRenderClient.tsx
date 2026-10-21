@@ -6,6 +6,7 @@ import { getPageElement } from "../integration/getPageElement";
 import { findServerComponent } from "../rendersFlight";
 import type { PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
+import { onCaughtError } from "./AbortBoundary";
 import { callServer } from "./callServer";
 import { onUncaughtError, rendered, Root, setCurrentPageContext, setReactRoot, show } from "./page";
 import { markRscOutputsStale } from "./rsc";
@@ -36,9 +37,9 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   const container = document.getElementById("root")!;
   // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
   if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") {
-    setReactRoot(hydrateRoot(container, <Root page={page} />, { formState, onUncaughtError }));
+    setReactRoot(hydrateRoot(container, <Root page={page} />, { formState, onCaughtError, onUncaughtError }));
   } else {
-    const reactRoot = createRoot(container, { onUncaughtError });
+    const reactRoot = createRoot(container, { onCaughtError, onUncaughtError });
     setReactRoot(reactRoot);
     reactRoot.render(<Root page={page} />);
   }

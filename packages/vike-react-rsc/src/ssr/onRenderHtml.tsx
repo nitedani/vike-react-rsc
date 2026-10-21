@@ -6,9 +6,11 @@ import { renderToReadableStream } from "react-dom/server.edge";
 import { renderToStream } from "react-streaming/server.web";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
+import { getAbort, toVikeAbort, type Abort } from "../abort";
 import { getPageElement } from "../integration/getPageElement";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
+import { getRedirectUrl } from "../redirect";
 import type { PagePayload } from "../types";
 
 // The CSS and JS of the client components a page's HTML renders, for their links
@@ -46,15 +48,41 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
   const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
   const page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
   const nonce = pageContext.cspNonce ?? undefined;
+  // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this hook returns, then the
+  // HTML has started and only the stream can tell the browser
+  let boundaryAbort: unknown;
+  const onAbort = (error: unknown, abort: Abort) => {
+    if (deps.injectToStream) deps.injectToStream(renderAbortMeta(abort));
+    else boundaryAbort ??= error;
+  };
   let html;
-  if (root === null) {
-    html = "";
-  } else if (pageContext.isPrerendering) {
-    html = await renderWhole(page, nonce);
-  } else {
-    html = await renderToStream(page, { userAgent: pageContext.headers?.["user-agent"], streamOptions: { nonce, formState } });
-    void html.streamEnd.then(() => htmlSent.abort());
-    deps.injectToStream = html.injectToStream;
+  try {
+    if (root === null) {
+      html = "";
+    } else if (pageContext.isPrerendering) {
+      html = await renderWhole(page, nonce, onAbort);
+    } else {
+      html = await renderToStream(page, {
+        userAgent: pageContext.headers?.["user-agent"],
+        streamOptions: { nonce, formState },
+        onBoundaryError: (error) => {
+          const abort = getAbort(error);
+          if (abort) onAbort(error, abort);
+        },
+      });
+      // A crawler gets the page whole, so Vike can still answer a boundary's abort, which react-streaming reports late
+      if (html.disabled) await html.streamEnd;
+      void html.streamEnd.then(() => htmlSent.abort());
+      deps.injectToStream = html.injectToStream;
+    }
+    // Inside a Suspense boundary, but reported before this hook returns, e.g. a crawler's
+    if (boundaryAbort) throw boundaryAbort;
+  } catch (error) {
+    const abort = getAbort(error);
+    if (!abort) throw error;
+    htmlSent.abort();
+    void pageContext.rscPayload?.cancel();
+    throw toVikeAbort(abort);
   }
   // Once the shell has rendered, React has loaded every client component in it
   const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
@@ -86,10 +114,28 @@ function decodeFlight(pageContext: PageContextServer, signal: AbortSignal): Prom
 
 // A pre-rendered page has to be complete, so it waits for every Suspense boundary. React's prerender() would, but takes
 // no CSP nonce. react-streaming would, but Vike's pre-rendering loads its own copy, which takes over ours.
-async function renderWhole(page: ReactNode, nonce: string | undefined) {
-  const stream = await renderToReadableStream(page, { nonce });
+async function renderWhole(page: ReactNode, nonce: string | undefined, onAbort: (error: unknown, abort: Abort) => void) {
+  const onError = (error: unknown) => {
+    const abort = getAbort(error);
+    if (abort) onAbort(error, abort);
+    else console.error(error);
+  };
+  const stream = await renderToReadableStream(page, { nonce, onError });
   await stream.allReady;
   return dangerouslySkipEscape(await new Response(stream).text());
+}
+
+// Once the HTML has started: search engines skip the page, and a redirect works without JavaScript
+function renderAbortMeta(abort: Abort) {
+  return renderToStaticMarkup(
+    <>
+      <meta name="robots" content="noindex" />
+      {/* A path keeps the page's own scheme, so any http(s) base tells the same */}
+      {"redirect" in abort && getRedirectUrl(abort.redirect.url, "http://localhost") && (
+        <meta httpEquiv="refresh" content={`0;url=${abort.redirect.url}`} data-vike-react-rsc-redirect="" />
+      )}
+    </>
+  );
 }
 
 function renderHead(pageContext: PageContextServer) {

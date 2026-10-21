@@ -57,6 +57,13 @@ const ERROR_PAGE_IN_BROWSER_ERROR = "has to render in the browser, e.g. the erro
 // Thrown by /throws on the server, then logged there, and by React in the browser: in production as its error #441
 const THROWS_ERROR = "A server component failed on demand";
 
+// Logged on the server for /unserializable, whose data holds a function
+const UNSERIALIZABLE_LOG = "can't be serialized and, therefore, can't be passed to the client side";
+
+// Thrown in the browser by testServerComponentAbort()
+const getRefusedRedirectError = (next: string) =>
+  `[vike-react-rsc] The server redirected to ${next}, which isn't an http(s) URL`;
+
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
   // Pre-rendered, and served like a static host would
@@ -94,6 +101,15 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testServerComponentThrows()
       logText.includes(THROWS_ERROR) ||
       (logSource === "Browser Error" && logText.includes("react.dev/errors/441")) ||
+      // testUnserializableData()
+      (logSource === "stderr" && logText.includes(UNSERIALIZABLE_LOG)) ||
+      // testServerComponentAbort(): the redirect an app's error boundary caught, as React logs it in dev and in production
+      ((logSource === "Browser Error" || (isDev && logSource === "stderr" && logText.includes("[vite][console.error]"))) &&
+        logText.includes("Error: AbortRender")) ||
+      (logSource === "Browser Error" && logText.includes("Minified React error #441")) ||
+      // testServerComponentAbort(), with React's warning for it. In dev, Vite also forwards both to the server's stderr.
+      logText.includes("[vike-react-rsc] The server redirected to") ||
+      logText.includes("An error occurred in the <Redirect> component") ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
@@ -119,6 +135,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testMisuse();
   testServerLoading();
   testSsrFalse(isStatic);
+  testUnserializableData(isStatic);
   // A static host has no server: nothing renders per request, and server actions can't run.
   if (!isStatic) {
     testPageLoading();
@@ -127,6 +144,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testCounter();
     testTodoForm();
     testSession();
+    testGonePassToClientValue();
     testActionOnce();
     testActionValueSurvivesDataError();
     testActionPageFailure();
@@ -140,6 +158,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscPropsChange();
     testRscLoadError();
     testRscLoadRedirect();
+    testServerComponentAbort();
     testRscCache();
     testRscCacheInvalidation();
     testRscCacheInvalidationOnRejection();
@@ -358,9 +377,11 @@ function testTodoForm() {
   test("Todo form functionality", async () => {
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
-    const readTodoCount = async () =>
-      Number((await page.textContent("#todo-count"))?.match(/\d+/)?.[0]);
+    const readTodoCount = async (selector = "#todo-count") =>
+      Number((await page.textContent(selector))?.match(/\d+/)?.[0]);
     const countBefore = await readTodoCount();
+    expect(await readTodoCount("#todo-count-client")).to.equal(countBefore);
+    expect(await readTodoCount("#todo-count-streamed")).to.equal(countBefore);
     const requests: string[] = [];
     const onRequest = (request: { method(): string; url(): string; resourceType(): string }) => {
       if (["document", "fetch", "xhr"].includes(request.resourceType())) {
@@ -376,6 +397,10 @@ function testTodoForm() {
     });
     // One request: the action, then +data and the page, which see the new task
     expect(await readTodoCount()).to.equal(countBefore + 1);
+    // Client components get the new pageContext too
+    expect(await readTodoCount("#todo-count-client")).to.equal(countBefore + 1);
+    expect(await page.textContent("#todo-count-client")).to.include("Task Manager");
+    expect(await readTodoCount("#todo-count-streamed")).to.equal(countBefore + 1);
     expect(requests).to.deep.equal(["POST /todos"]);
     page.off("request", onRequest);
   });
@@ -405,6 +430,10 @@ function testSession() {
     await page.goto(getServerUrl() + "/account");
     await waitForHydration("Log out");
     expect(await page.textContent("#account-mw")).to.equal("GET");
+    await showLoadCounts();
+    const loaded = await readLoadCounts();
+    await clickNewLink("/account");
+    await waitForHydration("Log out");
 
     // The action clears the cookie, then throws redirect("/"): a client navigation, not a document load
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
@@ -415,6 +444,16 @@ function testSession() {
     });
     expect(await session()).to.equal(undefined);
     expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
+    // An action's redirect keeps the page in history
+    await page.goBack();
+    await waitForHydration("Log in");
+    expect(new URL(page.url()).pathname).to.equal("/account");
+    // The redirect came from the action, not from an rsc() output, so the cached outputs show until they refresh
+    await page.goBack();
+    await waitForHydration("Show server counts");
+    await toggleLoadCounts();
+    expect(await page.locator("[data-loading-component]").count()).to.equal(0);
+    expect(await readLoadCounts()).to.deep.equal(loaded);
   });
 
   test("Server action: guard() of the same request throws redirect()", async () => {
@@ -495,18 +534,227 @@ function testRscLoadError() {
 }
 
 function testRscLoadRedirect() {
-  test("rsc(): a load that redirected isn't cached, so coming back loads the server component", async () => {
-    await page.goto(getServerUrl() + "/actions");
-    await waitForHydration("Slow save");
+  test("rsc(): a load that redirected doesn't stay in history and isn't cached, so coming back loads the server component", async () => {
+    await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
+    await navigateToActions();
     await page.click('button:has-text("Load a redirecting server component")');
     await page.waitForURL(getServerUrl() + "/");
     await page.waitForSelector('h1:has-text("Vike React Server Components")');
     await page.goBack();
-    await waitForHydration("Slow save");
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/todos");
+    });
+    await waitForHydration("Add Task");
+    await navigateToActions();
     await page.click('button:has-text("Load a redirecting server component")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-rsc-redirecting]")).to.equal("Loaded");
     });
+  });
+}
+
+function testServerComponentAbort() {
+  test("Server component: throw redirect() before the HTML starts is a 302", async () => {
+    const response = await fetch(getServerUrl() + "/abort/redirect", { redirect: "manual" });
+    expect([response.status, response.headers.get("location")]).to.deep.equal([302, "/"]);
+    // A crawler gets the whole page at once, so inside <Suspense> too
+    const crawled = await fetch(getServerUrl() + "/abort/redirect-streamed", {
+      redirect: "manual",
+      headers: { "user-agent": "Googlebot/2.1" },
+    });
+    expect([crawled.status, crawled.headers.get("location")]).to.deep.equal([302, "/"]);
+  });
+
+  test("Server component: throw render(404) before the HTML starts is the error page, with its status", async () => {
+    const response = await fetch(getServerUrl() + "/abort/not-found");
+    expect(response.status).to.equal(404);
+    expect(await response.text()).to.include("Page not found");
+  });
+
+  test("Server component: throw render(url, reason) before the HTML starts shows that page, with the reason", async () => {
+    const html = await fetchHtml("/abort/rewrite");
+    // Its Date arrives as a Date, as from guard()
+    expect(html).to.include('id="abort-reason">Rewritten by a server component, at 2026-10-19T00:00:00.000Z<');
+  });
+
+  test("Server component: throw redirect() inside <Suspense> loads the target once, with or without JavaScript", async () => {
+    const html = await fetchHtml("/abort/redirect-streamed");
+    expect(html).to.match(/<meta http-equiv="refresh" content="0;url=\/"/);
+    expect(html).to.include('<meta name="robots" content="noindex"/>');
+
+    const requests: string[] = [];
+    const onRequest = (request: { url(): string; resourceType(): string }) => {
+      if (["document", "fetch", "xhr"].includes(request.resourceType())) requests.push(new URL(request.url()).pathname);
+    };
+    page.on("request", onRequest);
+    const consoleErrors = trackConsoleErrors();
+    // The target answers late, so the page hydrates while the meta's navigation waits for it
+    const target = getServerUrl() + "/";
+    await page.route(target, async (route) => {
+      await sleep(2000);
+      await route.continue();
+    });
+    await page.goto(getServerUrl() + "/abort/redirect-streamed");
+    await page.waitForURL(target);
+    await waitForHydration();
+    await page.unroute(target);
+    page.off("request", onRequest);
+    expect(requests).to.deep.equal(["/abort/redirect-streamed", "/"]);
+    expect(consoleErrors.stop()).to.deep.equal([]);
+
+    await withoutScripts(async (noJs) => {
+      await noJs.goto(getServerUrl() + "/abort/redirect-streamed");
+      await noJs.waitForURL(getServerUrl() + "/");
+    });
+  });
+
+  // Neither the HTML's meta nor the browser follows it, and the browser reports it
+  const expectRedirectRefused = async (next: string) => {
+    const href = `/abort/redirect-to-next?next=${encodeURIComponent(next)}`;
+    const html = await fetchHtml(href);
+    expect(html).to.include('<meta name="robots" content="noindex"/>');
+    expect(html).to.not.include('http-equiv="refresh"');
+
+    await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
+    // React throws it while rendering, so it goes to the navigation, which logs it
+    const logged = page.waitForEvent("console", (message) => message.type() === "error" && message.text().includes(getRefusedRedirectError(next)));
+    await clickNewLink(href);
+    await logged;
+    expect(new URL(page.url()).pathname).to.equal("/abort/redirect-to-next");
+  };
+
+  test("Server component: throw redirect() to a javascript: URL runs nothing", async () => {
+    await expectRedirectRefused("javascript:void(window.__redirected=1)");
+    expect(await page.evaluate(() => "__redirected" in window)).to.equal(false);
+  });
+
+  test("Server component: throw redirect() to a URL that doesn't parse is refused, and the server doesn't throw", async () => {
+    await expectRedirectRefused("//[");
+  });
+
+  test("Server component: an error boundary of the app's that catches a throw redirect() logs it on a client navigation, not on a first load the HTML redirects", async () => {
+    await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
+    const logged = page.waitForEvent("console", (message) => message.type() === "error");
+    await clickNewLink("/abort/redirect-caught");
+    await logged;
+    expect(await page.textContent("[data-boundary-fallback]")).to.equal("Caught");
+    expect(new URL(page.url()).pathname).to.equal("/abort/redirect-caught");
+
+    // On a first load the HTML's meta still redirects, so there is nothing to report. The target answers late, so the page hydrates and the boundary catches the redirect first
+    const consoleErrors = trackConsoleErrors();
+    const target = getServerUrl() + "/";
+    await page.route(target, async (route) => {
+      await sleep(2000);
+      await route.continue();
+    });
+    await page.goto(getServerUrl() + "/abort/redirect-caught");
+    await page.waitForURL(target);
+    await page.unroute(target);
+    expect(consoleErrors.stop()).to.deep.equal([]);
+  });
+
+  // Each one leaves for the target with a client navigation, not a document load, keeps the page shown until the
+  // target renders, and logs no error
+  const expectRedirectedHome = async (leave: () => Promise<void>) => {
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    const consoleErrors = trackConsoleErrors();
+    const isTarget = (url: URL) => url.pathname === "/index.pageContext.json";
+    let isPageShownWhileTargetLoads: boolean | undefined;
+    await page.route(isTarget, async (route) => {
+      isPageShownWhileTargetLoads = await page.isVisible('header a:has-text("Vike RSC")');
+      await route.continue();
+    });
+    await leave();
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/");
+      expect(await page.textContent("h1")).to.include("Vike React Server Components");
+    });
+    await page.unroute(isTarget);
+    expect(isPageShownWhileTargetLoads).to.equal(true);
+    expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
+    expect(consoleErrors.stop()).to.deep.equal([]);
+  };
+
+  test("Server component: throw redirect() on a client navigation, which doesn't stay in history", async () => {
+    await page.goto(getServerUrl() + "/todos");
+    await waitForHydration("Add Task");
+    await expectRedirectedHome(() => clickNewLink("/abort/redirect"));
+    await page.goBack();
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/todos");
+    });
+    await waitForHydration("Add Task");
+  });
+
+  test("Server component: throw redirect() on an rsc() load the page starts on mount, which doesn't stay in history", async () => {
+    for (const href of ["/abort/redirect-on-load", "/abort/redirect-on-load?in=server-function"]) {
+      await page.goto(getServerUrl() + "/todos");
+      await waitForHydration("Add Task");
+      await expectRedirectedHome(() => clickNewLink(href));
+      await page.goBack();
+      await autoRetry(async () => {
+        expect(new URL(page.url()).pathname).to.equal("/todos");
+      });
+      await waitForHydration("Add Task");
+    }
+  });
+
+  test("Server component: throw redirect() in what an rsc() load renders, or in its server function, doesn't stay in history after a server action, with rerender() or without, and coming back loads it again", async () => {
+    const saveWithRerender = async () => {
+      await page.click('button:has-text("Slow save")');
+      await page.waitForSelector("[data-result]:has-text('Returned: saved')");
+    };
+    const countSubmit = async () => {
+      await page.click('button:has-text("Count a submit")');
+      await page.waitForSelector("[data-submits]:has-text('Submitted 1 times')");
+    };
+    // The first panel's redirect comes from AbortBoundary, then from callServer()
+    for (const [runAction, button] of [
+      // The panels load after the page the answer sent, so their redirect isn't the action's
+      [saveWithRerender, "Load a server component whose child redirects"],
+      [countSubmit, "Load a server component that redirects, then ones whose child redirects"],
+    ] as const) {
+      await page.goto(getServerUrl() + "/todos");
+      await waitForHydration("Add Task");
+      await navigateToActions();
+      await runAction();
+      const loadPanels = () => page.click(`button:has-text("${button}")`);
+      await expectRedirectedHome(loadPanels);
+      // The 1000 ms child answers before Back, the 3000 ms one is still loading at the next click
+      await sleep(1000);
+      // The children don't redirect anymore, but the outputs that redirected are still fresh
+      await page.goBack();
+      await autoRetry(async () => {
+        expect(new URL(page.url()).pathname).to.equal("/todos");
+      });
+      await waitForHydration("Add Task");
+      await navigateToActions();
+      await loadPanels();
+      await autoRetry(async () => {
+        expect(await page.locator("[data-rsc-redirecting-child]").allTextContents()).to.deep.equal(["Loaded", "Loaded", "Loaded"]);
+      });
+      expect(new URL(page.url()).pathname).to.equal("/actions");
+    }
+  });
+
+  test("Server component: throw redirect() in the page a server action's rerender() renders, and Back returns to it with the cached rsc() outputs", async () => {
+    await showLoadCounts();
+    const loaded = await readLoadCounts();
+    await navigateToActions();
+    await expectRedirectedHome(() => page.click('button:has-text("Save, then the page throws redirect()")'));
+    await page.goBack();
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/actions");
+    });
+    await waitForHydration("Slow save");
+    await page.goBack();
+    await waitForHydration("Show server counts");
+    await toggleLoadCounts();
+    expect(await page.locator("[data-loading-component]").count()).to.equal(0);
+    expect(await readLoadCounts()).to.deep.equal(loaded);
   });
 }
 
@@ -528,7 +776,7 @@ function testActionAbort() {
     await page.click('button:has-text("Redirect to a javascript: URL")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal(
-        "Rejected: [vike-react-rsc] The server action redirected to javascript:void(window.__redirected=1), which isn't an http(s) URL"
+        "Rejected: [vike-react-rsc] The server redirected to javascript:void(window.__redirected=1), which isn't an http(s) URL"
       );
     });
     expect(await page.evaluate(() => "__redirected" in window)).to.equal(false);
@@ -927,6 +1175,20 @@ function testClientDisconnect() {
   });
 }
 
+function testGonePassToClientValue() {
+  test("After rerender(), a passToClient value the server no longer sets is gone, as after a navigation", async () => {
+    await page.context().addCookies([{ name: "visitor", value: "alice", url: getServerUrl() }]);
+    await page.goto(getServerUrl() + "/client");
+    await waitForHydration("Render again");
+    expect(await page.textContent("[data-visitor]")).to.equal("alice");
+    await page.context().clearCookies({ name: "visitor" });
+    await page.click('button:has-text("Render again")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-visitor]")).to.equal("none");
+    });
+  });
+}
+
 function testActionOnce() {
   test("Server action: runs once when guard() throws render()", async () => {
     // Without a name, the guard of /account throws render("/login") after the action
@@ -1022,11 +1284,32 @@ async function showLoadCounts() {
 
 // No page links to /actions. Vike's client router handles any link, so the rsc() cache survives the navigation.
 async function navigateToActions() {
-  await page.evaluate(() =>
-    document.body.append(Object.assign(document.createElement("a"), { href: "/actions", textContent: "Actions" }))
-  );
-  await page.click('a[href="/actions"]');
+  await clickNewLink("/actions");
   await waitForHydration("Slow save");
+}
+
+// The console errors the page logs until stop() is called
+function trackConsoleErrors() {
+  const errors: string[] = [];
+  const onConsole = (message: { type(): string; text(): string }) => {
+    if (message.type() === "error") errors.push(message.text());
+  };
+  page.on("console", onConsole);
+  return {
+    stop: () => {
+      page.off("console", onConsole);
+      return errors;
+    },
+  };
+}
+
+// No page links there. Vike's client router handles any link, so this is a client navigation.
+async function clickNewLink(href: string) {
+  await page.evaluate(
+    (href) => document.body.append(Object.assign(document.createElement("a"), { href, textContent: href })),
+    href
+  );
+  await page.click(`a[href="${href}"]`);
 }
 
 function testRscCache() {
@@ -1156,6 +1439,31 @@ function testServerComponentThrows() {
   });
 }
 
+function testUnserializableData(isStatic: boolean) {
+  test("A page whose data holds a function updates on navigation and after rerender()", async () => {
+    // Pre-rendered too, without a query
+    expect(await fetchHtml("/unserializable")).to.include('href="/unserializable?page=2"');
+    // A static host has no server: only the pre-rendered page exists
+    if (isStatic) return;
+    await page.goto(getServerUrl() + "/unserializable?page=1");
+    await waitForHydration("Render again");
+    for (const next of ["2", "3"]) {
+      await page.click('a:has-text("Next page")');
+      await autoRetry(async () => {
+        expect(await page.textContent("[data-page]")).to.equal(next);
+      });
+    }
+    const readRender = async () => Number(await page.textContent("[data-render]"));
+    for (let i = 0; i < 2; i++) {
+      const before = await readRender();
+      await page.click('button:has-text("Render again")');
+      await autoRetry(async () => {
+        expect(await readRender()).to.be.greaterThan(before);
+      });
+    }
+  });
+}
+
 function testPendingPage() {
   test("A navigation that ends before React commits the hydration shows its page", async () => {
     // /hydration has no Loading.layout, so React commits its hydration only once its client component has loaded
@@ -1196,10 +1504,7 @@ function testNavigationKeepsPage() {
       }
       await route.fulfill({ response });
     });
-    await page.evaluate(() =>
-      document.body.append(Object.assign(document.createElement("a"), { href: "/client", textContent: "Client" }))
-    );
-    await page.click('a[href="/client"]');
+    await clickNewLink("/client");
     // /client's Page is a client component: its module is held
     await autoRetry(() => expect(isHeld).to.equal(true));
     await sleep(500);
