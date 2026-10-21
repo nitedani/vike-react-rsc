@@ -59,7 +59,11 @@ async function getPagePayload(pageContext: PageContextClient): Promise<PagePaylo
   // the error page after an error in the browser, whatever its components.
   if (!__VIKE_REACT_RSC_CLIENT_DEFAULT__ || !pageContext.config.Page) throw cannotRenderInBrowser(pageContext, "components: 'server' makes it a server component");
   const serverComponent = findServerComponent(pageContext);
-  if (serverComponent) throw cannotRenderInBrowser(pageContext, `${serverComponent.file} starts with "use server component"`);
+  if (serverComponent) {
+    const { file, serverComponentImport } = serverComponent;
+    const cause = serverComponentImport ? `${file} imports the server component ${serverComponentImport.at(-1)}` : `${file} starts with "use server component"`;
+    throw cannotRenderInBrowser(pageContext, cause);
+  }
   return { root: getPageElement(pageContext), formState: flight?.formState };
 }
 
