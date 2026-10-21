@@ -1,6 +1,7 @@
 import rsc from "@vitejs/plugin-rsc";
 import type { Plugin } from "vite";
-import { clientDefault, isClientDefault } from "./plugin/clientDefault";
+import { clientDefault } from "./plugin/clientDefault";
+import { isClientDefault } from "./plugin/componentConfigs";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
 

@@ -1,7 +1,8 @@
 import { readFile } from "node:fs/promises";
 import type { Environment, Plugin } from "vite";
-import { findPackageServerComponentImport, getComponentConfigs, importsServerComponent, type ResolveContext } from "./clientDefault";
+import { getComponentConfigs, type ResolveContext } from "./componentConfigs";
 import { getFile, getFileName, isAppFile, isModuleFile, startsWithDirective } from "./parse";
+import { findPackageServerComponentImport, importsServerComponent } from "./serverComponentImports";
 
 /** The browser importing a `"use server component"` file is an error, in dev and in the build, naming each Page, Layout, Wrapper or Loading that imports
  * it and the files in between. A Page, Layout, Wrapper or Loading with the directive is skipped: the browser gets at most a stub of it (see getServerComponentStub) */
