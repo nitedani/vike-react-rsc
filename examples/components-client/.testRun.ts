@@ -504,6 +504,8 @@ async function expectHelperPageError(source: string, log: string) {
   await autoRetry(async () => {
     expect((await fetch(getServerUrl() + "/helper")).status).to.equal(200);
   });
+  // Vite's file watcher drops a change to a file that comes within 50 ms of the last one, e.g. the next test's edit
+  await sleep(100);
 }
 
 function testMarkerHmr() {
@@ -570,7 +572,8 @@ function testServerComponentHmr() {
       expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
     });
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
-    editFile("./pages/server/+Page.tsx", (source) => source.replace("<h1>A server page</h1>", "<h1>An edited server page</h1>"));
+    // Saved as an editor that empties the file first does
+    await editFileEmptyingFirst("./pages/server/+Page.tsx", (source) => source.replace("<h1>A server page</h1>", "<h1>An edited server page</h1>"));
     await page.waitForSelector("text=An edited server page");
     // Vite's file watcher drops a change to a file that comes within 50 ms of the last one
     await sleep(100);
@@ -708,6 +711,14 @@ function testComponentsConfig() {
     expect(isSuccess).to.equal(true);
     expect(output).to.not.include("sets ssr to false");
   });
+}
+
+// `edit` applied to `file` as some editors save it: emptied, then written
+async function editFileEmptyingFirst(file: string, edit: (source: string) => string) {
+  const source = readFileSync(fileURLToPath(new URL(file, import.meta.url)), "utf8");
+  editFile(file, () => "");
+  await sleep(30);
+  editFile(file, () => edit(source));
 }
 
 // The build once `edit` is applied to `file`

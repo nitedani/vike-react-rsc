@@ -20,11 +20,12 @@ export function clientDefault(): Plugin {
   const appModules = new Map<string, Promise<AppModule>>();
   let config: ResolvedConfig;
   let resolveImport: ReturnType<typeof createIdResolver>;
-  // Each app file's directives and imports, as the env resolves them, without registering the packages for Vite to pre-bundle
-  const getAppModule = (environment: Environment) => (file: string) => {
+  // Each app file's directives and imports, as the env resolves them, without registering the packages for Vite to pre-bundle.
+  // `read` gives its code if it isn't read yet
+  const getAppModule = (environment: Environment) => (file: string, read: () => string | Promise<string> = () => readFile(file, "utf8")) => {
     const key = `${environment.name}:${file}`;
     let appModule = appModules.get(key);
-    if (!appModule) appModules.set(key, (appModule = readAppModule(file, config, (source) => resolveImport(environment, source, file))));
+    if (!appModule) appModules.set(key, (appModule = readAppModule(file, read, config, (source) => resolveImport(environment, source, file))));
     return appModule;
   };
   return {
@@ -79,7 +80,7 @@ export function clientDefault(): Plugin {
       const flags = getServerComponentFlags(file, serverComponentImport?.map((imported) => path.relative(root, imported)));
       return isRsc ? tagServerComponent(code, program, components, file, flags) : getServerComponentStub(components, flags);
     },
-    async hotUpdate({ type, file }) {
+    async hotUpdate({ type, file, read }) {
       const { environment } = this;
       // A new or deleted file can change what its importers import
       for (const key of appModules.keys()) {
@@ -95,8 +96,10 @@ export function clientDefault(): Plugin {
       const changed: string[] = [];
       for (const [key, files] of readFiles) {
         if (!key.startsWith(`${environment.name}:`) || !files.has(file)) continue;
+        // The file as the editor saved it, read once: read() waits for the content of a file that the editor empties first
+        getAppModule(environment)(file, read);
         const component = key.slice(environment.name.length + 1);
-        const directives = getDirectives(await parse(await readFile(component, "utf8"), component));
+        const { directives } = await getAppModule(environment)(component);
         if ((await decideIsServerComponent(component, directives, components(component) ?? [], getAppModule(environment))).isServerComponent !== isMarked.get(key)) changed.push(key);
       }
       if (changed.length > 0) {
@@ -153,8 +156,16 @@ async function findServerComponentImport(file: string, getAppModule: GetAppModul
 }
 
 // A file that doesn't parse has neither: its own transform reports why
-async function readAppModule(file: string, config: ResolvedConfig, resolve: (source: string) => Promise<string | undefined>): Promise<AppModule> {
-  const program = await readFile(file, "utf8").then((code) => parseCompiled(code, file, config)).catch(() => undefined);
+async function readAppModule(
+  file: string,
+  read: () => string | Promise<string>,
+  config: ResolvedConfig,
+  resolve: (source: string) => Promise<string | undefined>
+): Promise<AppModule> {
+  const program = await Promise.resolve()
+    .then(read)
+    .then((code) => parseCompiled(code, file, config))
+    .catch(() => undefined);
   if (!program) return { directives: [], imports: [] };
   const imports = await Promise.all(getImportSources(program).map(resolve));
   return { directives: getDirectives(program), imports: imports.flatMap((id) => (id && isAppFile(id) ? [getFile(id)] : [])) };
