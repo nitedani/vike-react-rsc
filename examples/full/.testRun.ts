@@ -402,6 +402,10 @@ function testSession() {
     });
     expect(await session()).to.equal(undefined);
     expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
+    // An action's redirect keeps the page in history
+    await page.goBack();
+    await waitForHydration("Log in");
+    expect(new URL(page.url()).pathname).to.equal("/account");
   });
 
   test("Server action: guard() of the same request throws redirect()", async () => {
@@ -482,19 +486,19 @@ function testRscLoadError() {
 }
 
 function testRscLoadRedirect() {
-  test("rsc(): a load that redirected after a click keeps the page in history and isn't cached, so coming back loads the server component", async () => {
+  test("rsc(): a load that redirected doesn't stay in history and isn't cached, so coming back loads the server component", async () => {
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
     await navigateToActions();
-    // A click with no pointer or key event before it, as a screen reader's: the redirect keeps the page in history
-    await page.locator('button:has-text("Load a redirecting server component")').evaluate((button: HTMLElement) => button.click());
+    await page.click('button:has-text("Load a redirecting server component")');
     await page.waitForURL(getServerUrl() + "/");
     await page.waitForSelector('h1:has-text("Vike React Server Components")');
     await page.goBack();
     await autoRetry(async () => {
-      expect(new URL(page.url()).pathname).to.equal("/actions");
+      expect(new URL(page.url()).pathname).to.equal("/todos");
     });
-    await waitForHydration("Slow save");
+    await waitForHydration("Add Task");
+    await navigateToActions();
     await page.click('button:has-text("Load a redirecting server component")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-rsc-redirecting]")).to.equal("Loaded");
@@ -628,18 +632,23 @@ function testServerComponentAbort() {
     }
   });
 
-  test("Server component: throw redirect() in what an rsc() load renders, or in its server function, and Back loads it again", async () => {
+  test("Server component: throw redirect() in what an rsc() load renders, or in its server function, doesn't stay in history, and coming back loads it again", async () => {
     // The first panel's redirect comes from AbortBoundary, then from callServer()
     for (const button of ["Load a server component whose child redirects", "Load a server component that redirects, then ones whose child redirects"]) {
-      await page.goto(getServerUrl() + "/actions");
-      await waitForHydration("Slow save");
+      await page.goto(getServerUrl() + "/todos");
+      await waitForHydration("Add Task");
+      await navigateToActions();
       const loadPanels = () => page.click(`button:has-text("${button}")`);
       await expectRedirectedHome(loadPanels);
       // The 1000 ms child answers before Back, the 3000 ms one is still loading at the next click
       await sleep(1000);
       // The children don't redirect anymore, but the outputs that redirected are still fresh
       await page.goBack();
-      await waitForHydration("Slow save");
+      await autoRetry(async () => {
+        expect(new URL(page.url()).pathname).to.equal("/todos");
+      });
+      await waitForHydration("Add Task");
+      await navigateToActions();
       await loadPanels();
       await autoRetry(async () => {
         expect(await page.locator("[data-rsc-redirecting-child]").allTextContents()).to.deep.equal(["Loaded", "Loaded", "Loaded"]);
