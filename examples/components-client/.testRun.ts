@@ -698,6 +698,16 @@ function testServerComponentImports() {
     );
   });
 
+  test('Build: a "use client" file importing a package\'s server component with import() fails the build, naming the file', async () => {
+    const output = await getBuildError(
+      "./pages/js-page/+Page.js",
+      () =>
+        '"use client";\nimport { createElement, lazy } from "react";\nconst ServerBadge = lazy(() => import("server-component-package/ServerBadge"));\n' +
+        'export default function Page() {\n  return createElement(ServerBadge, { label: "A badge" });\n}\n'
+    );
+    expect(output).to.include(packageServerComponentInBrowser);
+  });
+
   test('Dev: a "use client" file importing a package\'s server component, which the browser loads pre-bundled, gets the error', async () => {
     editFile("./pages/js-page/+Page.js", importPackageServerComponent);
     try {

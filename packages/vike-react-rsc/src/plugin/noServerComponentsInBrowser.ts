@@ -37,7 +37,10 @@ export function noServerComponentsInBrowser(): Plugin {
       if (this.environment.name !== "client") return;
       const getComponentConfig = await getComponentConfigs(this);
       for (const id of serverComponentsInBrowser) {
-        const chains = getImportChains(id, getComponentConfig, (id) => [...(this.getModuleInfo(id)?.importers ?? [])]);
+        const chains = getImportChains(id, getComponentConfig, (id) => {
+          const { importers = [], dynamicImporters = [] } = this.getModuleInfo(id) ?? {};
+          return [...importers, ...dynamicImporters];
+        });
         this.error(await getServerComponentInBrowserErrors(chains, getComponentConfig, this.environment.config.root));
       }
     },
