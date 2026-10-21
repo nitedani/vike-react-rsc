@@ -585,7 +585,7 @@ function testServerComponentAbort() {
     await expectRedirectRefused("//[");
   });
 
-  test("Server component: an error boundary of the app's that catches a throw redirect() logs it", async () => {
+  test("Server component: an error boundary of the app's that catches a throw redirect() logs it on a client navigation, not on a first load the HTML redirects", async () => {
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
     const logged = page.waitForEvent("console", (message) => message.type() === "error");
@@ -594,7 +594,7 @@ function testServerComponentAbort() {
     expect(await page.textContent("[data-boundary-fallback]")).to.equal("Caught");
     expect(new URL(page.url()).pathname).to.equal("/abort/redirect-caught");
 
-    // On a first load the HTML's meta still redirects, so there is nothing to report
+    // On a first load the HTML's meta still redirects, so there is nothing to report. The target answers late, so the page hydrates and the boundary catches the redirect first
     const consoleErrors = trackConsoleErrors();
     const target = getServerUrl() + "/";
     await page.route(target, async (route) => {
