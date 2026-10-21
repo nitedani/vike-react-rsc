@@ -692,18 +692,7 @@ function testServerComponentAbort() {
     }
   });
 
-  test("Server component: throw redirect() in the page a server action's rerender() renders, and Back returns to it", async () => {
-    await page.goto(getServerUrl() + "/todos");
-    await waitForHydration("Add Task");
-    await navigateToActions();
-    await expectRedirectedHome(() => page.click('button:has-text("Save, then the page throws redirect()")'));
-    await page.goBack();
-    await autoRetry(async () => {
-      expect(new URL(page.url()).pathname).to.equal("/actions");
-    });
-    await waitForHydration("Slow save");
-  });
-  test("Server component: throw redirect() in what a server action's rerender() sent keeps the cached rsc() outputs", async () => {
+  test("Server component: throw redirect() in the page a server action's rerender() renders, and Back returns to it with the cached rsc() outputs", async () => {
     await showLoadCounts();
     const loaded = await readLoadCounts();
     await navigateToActions();
