@@ -4,24 +4,26 @@ import { readPageContextJson } from "vike/__internal/client";
 import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
+import { getRedirectUrl } from "../redirect";
 import type { ActionPayload } from "../types";
 import { getCurrentPageContext, showRoot } from "./page";
-import { isRscLoad, markRscOutputsStale } from "./rsc";
+import { dropRscOutputs, isRscLoad, markRscOutputsStale } from "./rsc";
 
 /** React calls it for every server function the browser calls, rsc()'s included */
 export async function callServer(id: string, args: unknown[]): Promise<unknown> {
   // rsc() sets it only during its synchronous call, so it must be read before the first await
-  const changesData = !isRscLoad();
+  const isAction = !isRscLoad();
   const pageContext = getCurrentPageContext();
   const response = await postAction(pageContext.urlOriginal, id, args);
   // Even when the answer is an error, the action may have run
-  if (changesData) markRscOutputsStale();
+  if (isAction) markRscOutputsStale();
 
   // The page loads again with the new build's actions; the call rejects below when it already did for this id
   if (response.headers.has(UNKNOWN_ACTION_HEADER) && claimReload(id)) return leavePage(() => location.reload());
   const redirectTo = response.headers.get(REDIRECT_HEADER);
-  if (redirectTo) return followRedirect(redirectTo);
-  return readAnswer(response, pageContext);
+  // As in Next.js, an action's redirect keeps the page in history, and a server component's replaces it, as an HTTP redirect does
+  if (redirectTo) return followRedirect(redirectTo, isAction);
+  return readAnswer(response, pageContext, isAction);
 }
 
 async function postAction(url: string, id: string, args: unknown[]): Promise<Response> {
@@ -32,19 +34,18 @@ async function postAction(url: string, id: string, args: unknown[]): Promise<Res
   });
 }
 
-async function followRedirect(redirectTo: string): Promise<undefined> {
-  const url = new URL(redirectTo, location.href);
-  // An HTTP redirect never runs e.g. a javascript: URL, but location.href would
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error(`[vike-react-rsc] The server action redirected to ${redirectTo}, which isn't an http(s) URL`);
-  }
-  if (url.origin !== location.origin) return leavePage(() => (window.location.href = url.href));
+/** Follows a redirect the server sent: `keepsPage` keeps the page in history */
+export function followRedirect(redirectTo: string, keepsPage: boolean): Promise<void> {
+  // A redirect that replaces the page can come from an rsc() output, loaded or still loading, which would throw it again after Back
+  if (!keepsPage) dropRscOutputs();
+  const url = getRedirectUrl(redirectTo, location.href);
+  if (!url) throw new Error(`[vike-react-rsc] The server redirected to ${redirectTo}, which isn't an http(s) URL`);
+  if (url.origin !== location.origin) return leavePage(() => location[keepsPage ? "assign" : "replace"](url.href));
   // Settles after the navigation, so a form action's pending transition doesn't hold the new page back
-  await navigate(url.pathname + url.search + url.hash);
-  return undefined;
+  return navigate(url.pathname + url.search + url.hash, { overwriteLastHistoryEntry: !keepsPage });
 }
 
-async function readAnswer(response: Response, pageContext: PageContextClient): Promise<unknown> {
+async function readAnswer(response: Response, pageContext: PageContextClient, isAction: boolean): Promise<unknown> {
   // E.g. a 404 page instead of the answer, Vike's HTML error page, or a static host
   const isFlight = response.headers.get("content-type")?.split(";")[0] === FLIGHT_CONTENT_TYPE.split(";")[0];
   if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
@@ -53,7 +54,7 @@ async function readAnswer(response: Response, pageContext: PageContextClient): P
     const { json, keys } = payload.passedToClient;
     const passed = (await readPageContextJson(new Response(json))) as Record<string, unknown>;
     // The page changed since the call: this answer's page is out of date
-    if (getCurrentPageContext() === pageContext) startTransition(() => showRoot(payload.root, passed, keys));
+    if (getCurrentPageContext() === pageContext) startTransition(() => showRoot(payload.root, passed, keys, isAction));
   }
   return payload.returnValue;
 }

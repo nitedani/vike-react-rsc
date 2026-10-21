@@ -2,8 +2,10 @@ import { startTransition, useEffect, useState, type ReactElement, type ReactNode
 import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
+import { AbortBoundary } from "./AbortBoundary";
 
-type Shown = { pageContext: PageContextClient; root: ReactNode };
+// `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()
+type Shown = { pageContext: PageContextClient; root: ReactNode; fromAction?: boolean };
 
 // The page Vike renders last: actions call its URL, and their answers apply only while it stays current
 let current: PageContextClient;
@@ -26,11 +28,11 @@ export function show(next: Shown): void {
 }
 
 /** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent and none of the passToClient `keys` it didn't */
-export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys: string[]): void {
+export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys: string[], fromAction: boolean): void {
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
   const pageContext = createPageContextFromServer_experimentalRSC(current, passed);
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
-  show({ pageContext, root });
+  show({ pageContext, root, fromAction });
 }
 
 /** Hydrates `page`, then shows what show() shows */
@@ -43,5 +45,8 @@ export function Root({ page }: { page: Shown }): ReactElement {
   }, []);
   // Called, not rendered: React's dev performance track reads every key of a component's old props, and Vike's pageContext throws on a key it couldn't serialize
   // TODO: remove once the react peer dependency requires a React release that includes https://github.com/react/react/pull/36867
-  return PageContextProvider({ pageContext: state.pageContext, children: state.root });
+  return PageContextProvider({
+    pageContext: state.pageContext,
+    children: <AbortBoundary keepsPage={!!state.fromAction}>{state.root}</AbortBoundary>,
+  });
 }

@@ -2,15 +2,18 @@
 
 import { useActionState, useState } from "react";
 import { rsc } from "vike-react-rsc/client";
-import { countSubmit, FailingComponent, loginThenRender, RedirectOnceComponent, redirectToScript, requireLogin, saveThenFailData, saveThenGuard404, slowSave } from "../../actions/edgeCases";
+import { countSubmit, FailingComponent, loginThenRender, RedirectOnceComponent, redirectToScript, requireLogin, saveThenFailData, saveThenGuard404, saveThenRedirectPage, slowSave } from "../../actions/edgeCases";
+import { RedirectingChildComponent } from "../../actions/redirectingChild";
 
 const FailingComponentRsc = rsc(FailingComponent);
 const RedirectOnceComponentRsc = rsc(RedirectOnceComponent);
+const RedirectingChildComponentRsc = rsc(RedirectingChildComponent);
 
 export default function ActionsClient() {
   const [result, setResult] = useState("");
   const [showFailing, setShowFailing] = useState(false);
   const [showRedirecting, setShowRedirecting] = useState(false);
+  const [firstRedirect, setFirstRedirect] = useState<"child" | "server-function">();
   const [submits, countSubmitAction] = useActionState(countSubmit, 0);
   const call = (action: () => Promise<string>) => async () => {
     let message: string;
@@ -27,6 +30,7 @@ export default function ActionsClient() {
     <>
       <button onClick={call(saveThenFailData)}>Save, then data() throws</button>
       <button onClick={call(saveThenGuard404)}>Save, then guard() throws render(404)</button>
+      <button onClick={call(saveThenRedirectPage)}>Save, then the page throws redirect()</button>
       <button onClick={call(slowSave)}>Slow save</button>
       <button onClick={call(redirectToScript)}>Redirect to a javascript: URL</button>
       <button onClick={call(requireLogin)}>Require a login</button>
@@ -36,6 +40,16 @@ export default function ActionsClient() {
       {showFailing && <FailingComponentRsc fallback={<p data-rsc-fallback="">Not loaded</p>} />}
       <button onClick={() => setShowRedirecting(true)}>Load a redirecting server component</button>
       <p data-rsc-redirecting="">{showRedirecting && <RedirectOnceComponentRsc fallback="Not loaded" />}</p>
+      <button onClick={() => setFirstRedirect("child")}>Load a server component whose child redirects</button>
+      <button onClick={() => setFirstRedirect("server-function")}>Load a server component that redirects, then ones whose child redirects</button>
+      {firstRedirect && (
+        <>
+          <RedirectingChildComponentRsc first={firstRedirect} />
+          {/* Answer after the first one's redirect: one before Back, the other still loading when the page shows them again */}
+          <RedirectingChildComponentRsc first={firstRedirect} delay={1000} />
+          <RedirectingChildComponentRsc first={firstRedirect} delay={3000} />
+        </>
+      )}
       <form action={countSubmitAction}>
         <input type="file" name="attachment" />
         <button type="submit">Count a submit</button>
