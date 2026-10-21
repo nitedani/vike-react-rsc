@@ -478,6 +478,14 @@ function testClientHooks() {
     );
   });
 
+  test('Dev: a file that calls useState() on a page that a server component import moves to the server, but that imports none, gets React\'s error, naming its file and "use client"', async () => {
+    editFile("./components/Leaf.tsx", (source) => `import { useState } from "react";\n${source.replace("export function Leaf() {", "$&\n  useState(0);")}`);
+    await expectHelperPageError(
+      'import { Markdown } from "../../components/Markdown";\nimport { Leaf } from "../../components/Leaf";\nexport default function Page() {\n  return <><Markdown source="A page" /><Leaf /></>;\n}\n',
+      `components/Leaf.tsx calls useState(), ${CLIENT_API_ERROR}: start it with "use client": TypeError`
+    );
+  });
+
   test('Dev: a server file calling createContext() or extending Component as it loads gets the same hint', async () => {
     for (const [code, use] of [
       ['import { createContext } from "react";\nconst Context = createContext(null);\nexport default function Page() {\n  return null;\n}\n', "calls createContext()"],

@@ -13,10 +13,12 @@ export function findServerComponent(pageContext: PageContext): { file: string } 
   return [Page, ...Layout, ...Wrapper, Loading].find((component) => component && "isServerComponent" in component) as { file: string } | undefined;
 }
 
-/** The files from the page's first Page, Layout, Wrapper or Loading that is a server component because it imports one, to that
- * server component */
-export function getServerComponentImport(pageContext: PageContext): string[] | undefined {
+/** The files from each of the page's Page, Layouts, Wrappers or Loading that is a server component because it imports one, to
+ * that server component */
+export function getServerComponentImports(pageContext: PageContext): string[][] {
   const { Page, Layout = [], Wrapper = [], Loading } = pageContext.config;
-  const component = [Page, ...Layout, ...Wrapper, Loading].find((component) => component && "serverComponentImport" in component);
-  return (component as { serverComponentImport?: string[] } | undefined)?.serverComponentImport;
+  return [Page, ...Layout, ...Wrapper, Loading].flatMap((component) => {
+    const { serverComponentImport } = (component ?? {}) as { serverComponentImport?: string[] };
+    return serverComponentImport ? [serverComponentImport] : [];
+  });
 }
