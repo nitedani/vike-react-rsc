@@ -20,12 +20,15 @@ export function clientDefault(): Plugin {
   const appModules = new Map<string, Promise<AppModule>>();
   let config: ResolvedConfig;
   let resolveImport: ReturnType<typeof createIdResolver>;
-  // Each app file's directives and imports, as the env resolves them, without registering the packages for Vite to pre-bundle.
-  // `read` gives its code if it isn't read yet
-  const getAppModule = (environment: Environment) => (file: string, read: () => string | Promise<string> = () => readFile(file, "utf8")) => {
-    const key = `${environment.name}:${file}`;
+  // Each app file's directives and imports: as Vite resolves them, without registering the packages for Vite to pre-bundle,
+  // or else as the env's plugins do, e.g. vite-tsconfig-paths. `read` gives its code if it isn't read yet
+  const getAppModule = (context: WalkContext) => (file: string, read: () => string | Promise<string> = () => readFile(file, "utf8")) => {
+    const key = `${context.environment.name}:${file}`;
     let appModule = appModules.get(key);
-    if (!appModule) appModules.set(key, (appModule = readAppModule(file, read, config, (source) => resolveImport(environment, source, file))));
+    if (!appModule) {
+      const resolveFrom = async (source: string) => (await resolveImport(context.environment, source, file)) ?? (await context.resolve(source, file))?.id;
+      appModules.set(key, (appModule = readAppModule(file, read, config, resolveFrom)));
+    }
     return appModule;
   };
   return {
@@ -69,7 +72,7 @@ export function clientDefault(): Plugin {
       const program = await parse(code, id);
       const directives = getDirectives(program);
       const key = `${this.environment.name}:${getFile(id)}`;
-      const { isServerComponent, serverComponentImport, read } = await decideIsServerComponent(getFile(id), directives, components, getAppModule(this.environment));
+      const { isServerComponent, serverComponentImport, read } = await decideIsServerComponent(getFile(id), directives, components, getAppModule(this));
       isMarked.set(key, isServerComponent);
       readFiles.set(key, read);
       // On the first line, so the source map stays valid
@@ -91,16 +94,17 @@ export function clientDefault(): Plugin {
         readFiles.delete(`${environment.name}:${file}`);
         return;
       }
-      const components = await getComponentConfigs({ environment, resolve: (source, importer) => environment.pluginContainer.resolveId(source, importer) });
+      const context = { environment, resolve: (source: string, importer?: string) => environment.pluginContainer.resolveId(source, importer) };
+      const components = await getComponentConfigs(context);
       // Each Page, Layout, Wrapper or Loading that read the file to decide where it runs, the file itself included
       const changed: string[] = [];
       for (const [key, files] of readFiles) {
         if (!key.startsWith(`${environment.name}:`) || !files.has(file)) continue;
         // The file as the editor saved it, read once: read() waits for the content of a file that the editor empties first
-        getAppModule(environment)(file, read);
+        getAppModule(context)(file, read);
         const component = key.slice(environment.name.length + 1);
-        const { directives } = await getAppModule(environment)(component);
-        if ((await decideIsServerComponent(component, directives, components(component) ?? [], getAppModule(environment))).isServerComponent !== isMarked.get(key)) changed.push(key);
+        const { directives } = await getAppModule(context)(component);
+        if ((await decideIsServerComponent(component, directives, components(component) ?? [], getAppModule(context))).isServerComponent !== isMarked.get(key)) changed.push(key);
       }
       if (changed.length > 0) {
         // The env loads the file as another kind of module, e.g. a stub instead of a client component: it starts over
@@ -289,6 +293,7 @@ type ComponentImport = { appFile?: string; importPath?: string; importer?: strin
 type AppModule = { directives: Directive[]; imports: string[] };
 type GetAppModule = (file: string) => Promise<AppModule>;
 type ResolveContext = { environment: { name: string }; resolve: (source: string, importer?: string) => Promise<{ id: string } | null> };
+type WalkContext = ResolveContext & { environment: Environment };
 type ComponentConfig = {
   configName: string;
   /** The export of the import that Vike reads; none for a + file */

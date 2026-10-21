@@ -12,7 +12,9 @@
     "verbatimModuleSyntax": true,
     "strict": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    // Resolved in vite.config.ts by a plugin, as vite-tsconfig-paths does
+    "paths": { "@plugin/*": ["./*"] }
   },
   "include": ["pages", "components", "actions"],
   "exclude": ["node_modules", "dist", "pages/type-import"]

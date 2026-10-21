@@ -131,6 +131,12 @@ function testServerComponents() {
     });
   });
 
+  test("components: 'client': a file without a directive that imports a server component through an import only a plugin resolves is a server component", async () => {
+    const html = await fetchHtml("/plugin-import");
+    expect(html).to.include("rscPayload");
+    expect(html).to.include("Rendered by a <b>server component</b>, through an import only a plugin resolves");
+  });
+
   test("components: 'client': a file without a directive that imports only a type from a server component, without import type, stays a client component", async () => {
     await page.goto(getServerUrl() + "/type-import");
     await waitForHydration("#type-import-counter");
