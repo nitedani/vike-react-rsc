@@ -107,7 +107,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testUsePageContext();
   testWrapper();
   testHead();
-  testHeadSettings();
+  testHeadSettings(isStatic);
   // plugin-rsc has no client JS to preload in dev
   if (!isDev) testClientJsPreload();
   testClientCss();
@@ -770,7 +770,7 @@ function testHead() {
   });
 }
 
-function testHeadSettings() {
+function testHeadSettings(isStatic: boolean) {
   test("Head settings: the HTML has their tags and attributes, the defaults, and none for null", async () => {
     const html = await fetchHtml("/");
     const head = html.slice(0, html.indexOf("</head>"));
@@ -853,7 +853,7 @@ function testHeadSettings() {
     ]);
   });
 
-  test("Head settings: a setting that throws in the browser reaches Vike, and the previous page stays on screen", async () => {
+  test("Head settings: a setting that throws in the browser reaches Vike, and the previous page stays on screen with its actions", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
     // Vike logs the errors it catches
@@ -873,6 +873,12 @@ function testHeadSettings() {
     });
     expect(await page.textContent("h1")).to.equal("Vike React Server Components");
     expect(await page.title()).to.equal("Vike RSC demo");
+
+    // A static host can't run actions
+    if (isStatic) return;
+    const action = page.waitForRequest((request) => !!request.headers()["x-rsc-action"]);
+    await page.click('button:has-text("Increment")');
+    expect(new URL((await action).url()).pathname).to.equal("/");
   });
 }
 

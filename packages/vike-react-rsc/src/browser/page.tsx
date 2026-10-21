@@ -7,18 +7,13 @@ import { applyHeadSettings } from "../integration/applyHeadSettings";
 export type Head = Parameters<typeof applyHeadSettings>;
 type Shown = { pageContext: PageContextClient; root: ReactNode; head?: Head };
 
-// The page Vike renders last: actions call its URL, and their answers apply only while it stays current
-let current: PageContextClient;
 // What Root shows, and how to change it once Root has mounted
 let shown: Shown;
 let setRootState: ((shown: Shown) => void) | undefined;
 
-export function setCurrentPageContext(pageContext: PageContextClient): void {
-  current = pageContext;
-}
-
+/** The page shown: actions call its URL, and their answers apply only while it stays shown */
 export function getCurrentPageContext(): PageContextClient {
-  return current;
+  return shown.pageContext;
 }
 
 export function show(next: Shown): void {
