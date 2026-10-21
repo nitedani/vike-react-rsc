@@ -617,15 +617,24 @@ function testServerComponentAbort() {
     expect(consoleErrors.stop()).to.deep.equal([]);
   });
 
-  // Each one leaves for the target with a client navigation, not a document load, and logs no error
+  // Each one leaves for the target with a client navigation, not a document load, keeps the page shown until the
+  // target renders, and logs no error
   const expectRedirectedHome = async (leave: () => Promise<void>) => {
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
     const consoleErrors = trackConsoleErrors();
+    const isTarget = (url: URL) => url.pathname === "/index.pageContext.json";
+    let isPageShownWhileTargetLoads: boolean | undefined;
+    await page.route(isTarget, async (route) => {
+      isPageShownWhileTargetLoads = await page.isVisible('header a:has-text("Vike RSC")');
+      await route.continue();
+    });
     await leave();
     await autoRetry(async () => {
       expect(new URL(page.url()).pathname).to.equal("/");
       expect(await page.textContent("h1")).to.include("Vike React Server Components");
     });
+    await page.unroute(isTarget);
+    expect(isPageShownWhileTargetLoads).to.equal(true);
     expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
     expect(consoleErrors.stop()).to.deep.equal([]);
   };
