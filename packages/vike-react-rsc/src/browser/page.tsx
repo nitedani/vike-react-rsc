@@ -47,16 +47,13 @@ export function rendered(): Promise<void> {
   return new Promise((resolve, reject) => (shared.rendering = { resolve, reject }));
 }
 
-function settle(error?: unknown): void {
+/** Ends the navigation waiting until React shows its page, with the error React threw on it if any. Also when a page leaves
+ * for a redirect's target instead */
+export function endNavigation(error?: unknown): void {
   const { rendering } = shared;
   shared.rendering = undefined;
   if (error === undefined) rendering?.resolve();
   else rendering?.reject(error);
-}
-
-/** Ends the navigation waiting until React shows its page, e.g. a page that leaves for a redirect's target instead */
-export function endNavigation(): void {
-  settle();
 }
 
 /** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent and none of the passToClient `keys` it didn't */
@@ -78,7 +75,7 @@ export function onUncaughtError(error: unknown, errorInfo: { componentStack?: st
   if (error instanceof Error) Object.assign(error, { isAlreadyLogged: true });
   // React unmounted Root, or never mounted it when hydrating threw: the next page, e.g. the error page, mounts it again
   shared.setRootState = (shown) => shared.reactRoot!.render(<Root page={shown} />);
-  settle(error);
+  endNavigation(error);
 }
 
 /** Hydrates `page`, then shows what show() shows */
@@ -98,7 +95,7 @@ export function Root({ page }: { page: Shown }): ReactElement {
     if (state.headSettings) applyHeadSettings(...state.headSettings);
   }, [state.headSettings]);
   useEffect(() => {
-    if (state === shared.shown) settle();
+    if (state === shared.shown) endNavigation();
   }, [state]);
   // Called, not rendered: React's dev performance track reads every key of a component's old props, and Vike's pageContext throws on a key it couldn't serialize
   // TODO: remove once the react peer dependency requires a React release that includes https://github.com/react/react/pull/36867
