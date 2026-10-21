@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
-import type { Plugin } from "vite";
-import { findPackageServerComponentImport, getComponentConfigs } from "./clientDefault";
+import type { Environment, Plugin } from "vite";
+import { findPackageServerComponentImport, getComponentConfigs, importsServerComponent, type ResolveContext } from "./clientDefault";
 import { getDirectives, getFile, getFileName, isAppFile, isModuleFile, parse } from "./parse";
 
 /** The browser importing a `"use server component"` file is an error, in dev and in the build, naming each Page, Layout, Wrapper or Loading that imports
@@ -31,7 +31,7 @@ export function noServerComponentsInBrowser(): Plugin {
       const { moduleGraph } = environment;
       const chains = getImportChains(id, getComponentConfig, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])].flatMap((importer) => importer.id ?? []));
       const fromServerComponent = serverComponentImport.toReversed();
-      this.error(await getServerComponentInBrowserErrors(chains.map(([, ...importers]) => [...fromServerComponent, ...importers]), getComponentConfig, environment.config.root));
+      this.error(await getServerComponentInBrowserErrors(chains.map(([, ...importers]) => [...fromServerComponent, ...importers]), getComponentConfig, this));
     },
     async buildEnd() {
       if (this.environment.name !== "client") return;
@@ -41,13 +41,14 @@ export function noServerComponentsInBrowser(): Plugin {
           const { importers = [], dynamicImporters = [] } = this.getModuleInfo(id) ?? {};
           return [...importers, ...dynamicImporters];
         });
-        this.error(await getServerComponentInBrowserErrors(chains, getComponentConfig, this.environment.config.root));
+        this.error(await getServerComponentInBrowserErrors(chains, getComponentConfig, this));
       }
     },
   };
 }
 
 type GetComponentConfig = Awaited<ReturnType<typeof getComponentConfigs>>;
+type Context = ResolveContext & { environment: Environment };
 
 async function isServerComponentFile(code: string, id: string): Promise<boolean> {
   return code.includes("use server component") && getDirectives(await parse(code, id)).includes("use server component");
@@ -67,15 +68,15 @@ function getImportChains(id: string, getComponentConfig: GetComponentConfig, get
   return chains;
 }
 
-async function getServerComponentInBrowserErrors(chains: string[][], getComponentConfig: GetComponentConfig, root: string): Promise<string> {
-  const errors = await Promise.all(chains.map((chain) => getServerComponentInBrowserError(chain, getComponentConfig, root)));
+async function getServerComponentInBrowserErrors(chains: string[][], getComponentConfig: GetComponentConfig, context: Context): Promise<string> {
+  const errors = await Promise.all(chains.map((chain) => getServerComponentInBrowserError(chain, getComponentConfig, context)));
   return [...new Set(errors)].join("\n");
 }
 
 // A server component renders only on the server, and so does a file without a directive that imports one. A component in the
 // browser shows one through rsc(); a file that says "use client" can't import one.
-async function getServerComponentInBrowserError(chain: string[], getComponentConfig: GetComponentConfig, root: string): Promise<string> {
-  const [file, ...importers] = chain.map((id) => getFileName(id, root));
+async function getServerComponentInBrowserError(chain: string[], getComponentConfig: GetComponentConfig, context: Context): Promise<string> {
+  const [file, ...importers] = chain.map((id) => getFileName(id, context.environment.config.root));
   if (importers.length === 0) return `${file} starts with "use server component", but the browser loads it`;
   // The file that puts the chain in the browser, or else the file at its top
   const clientIndex = (await Promise.all(chain.slice(1).map(isClientComponentFile))).indexOf(true);
@@ -83,9 +84,14 @@ async function getServerComponentInBrowserError(chain: string[], getComponentCon
   const importer = importers[index]!;
   const through = index > 0 ? ` through ${importers.slice(0, index).reverse().join(", ")}` : "";
   const imports = clientIndex === -1 ? "imports" : 'starts with "use client" and imports';
+  // Without "use client", the file moves to the server only if it imports a server component, and an import() doesn't count
+  const toServerComponent =
+    clientIndex !== -1 && (await importsServerComponent(getFile(chain[index + 1]!), context))
+      ? `remove "use client" from ${importer}, so it runs on the server`
+      : `replace "use client" in ${importer} with "use server component"`;
   const toServer =
     clientIndex !== -1
-      ? `remove "use client" from ${importer}, so it runs on the server, and move its hooks and event handlers into their own "use client" component`
+      ? `${toServerComponent}, and move its hooks and event handlers into their own "use client" component`
       : getComponentConfig(chain.at(-1)!)
         ? `if ${importer} needs nothing from the browser (no hooks, no event handlers), start it with "use server component"`
         : "import it only from server components";

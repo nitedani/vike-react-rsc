@@ -168,6 +168,15 @@ export async function findPackageServerComponentImport(file: string, config: Res
   if (directives.length === 0) return (await findServerComponentImport(file, getModule)).serverComponentImport;
 }
 
+/** Whether a file imports a "use server component" file through files without a directive, whatever its own directive: under
+ * `'client'`, a Page, Layout, Wrapper or Loading without one that does is a server component */
+export async function importsServerComponent(file: string, context: ResolveContext & { environment: Environment }): Promise<boolean> {
+  const config = context.environment.getTopLevelConfig();
+  const getModule = (file: string) =>
+    readModule(file, () => readFile(file, "utf8"), config, async (source) => (await resolveForBrowser(source, file)) ?? (await context.resolve(source, file))?.id);
+  return (await findServerComponentImport(file, getModule)).serverComponentImport !== undefined;
+}
+
 // A file that doesn't parse has neither: its own transform reports why
 async function readModule(
   file: string,
@@ -345,7 +354,7 @@ type ConfigValueSource = PageConfigs[number]["configValueSources"][string][numbe
 type ComponentImport = { appFile?: string; importPath?: string; importer?: string; exportName?: string };
 type WalkedModule = { directives: Directive[]; imports: string[] };
 type GetModule = (file: string) => Promise<WalkedModule>;
-type ResolveContext = { environment: { name: string }; resolve: (source: string, importer?: string) => Promise<{ id: string } | null> };
+export type ResolveContext = { environment: { name: string }; resolve: (source: string, importer?: string) => Promise<{ id: string } | null> };
 type ComponentConfig = {
   configName: string;
   /** The export of the import that Vike reads; none for a + file */
