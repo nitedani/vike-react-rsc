@@ -182,7 +182,8 @@ async function readModule(
     .catch(() => undefined);
   if (!program) return { directives: [], imports: [] };
   const imports = await Promise.all(getImportSources(program).map(resolve));
-  return { directives: getDirectives(program), imports: imports.flatMap((id) => (id && isModuleFile(id) ? [getFile(id)] : [])) };
+  // An import with a query, e.g. ?raw, ?url or ?worker, gives something else than the module
+  return { directives: getDirectives(program), imports: imports.flatMap((id) => (id && isModuleFile(id) && !id.includes("?") ? [id] : [])) };
 }
 
 /** Whether a file can import a server component: a package's file only if a file of the package, or of a package it

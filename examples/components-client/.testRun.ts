@@ -156,6 +156,16 @@ function testServerComponents() {
     });
   });
 
+  test("components: 'client': a file without a directive that imports a server component's file with ?raw or ?url stays a client component", async () => {
+    await page.goto(getServerUrl() + "/raw-import");
+    expect(await page.textContent("#raw-import-source")).to.equal('"use server component";');
+    await waitForHydration("#raw-import-counter");
+    await page.click("#raw-import-counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#raw-import-counter")).to.equal("Clicked 1 times");
+    });
+  });
+
   test("components: 'client': a server component calls a function from a component file, on the server", async () => {
     expect(await fetchHtml("/helper")).to.include("A FUNCTION OF A COMPONENT FILE, CALLED ON THE SERVER!");
   });
