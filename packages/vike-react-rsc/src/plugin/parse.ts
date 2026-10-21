@@ -46,8 +46,12 @@ export function getImportSources(program: ESTree.Program): string[] {
 
 /** A JavaScript or TypeScript module of the app, not of a package */
 export function isAppFile(id: string): boolean {
-  const file = getFile(id);
-  return !id.startsWith("\0") && path.extname(file) in langs && !file.includes("/node_modules/");
+  return isModuleFile(id) && !getFile(id).includes("/node_modules/");
+}
+
+/** A JavaScript or TypeScript module, of the app or of a package */
+export function isModuleFile(id: string): boolean {
+  return !id.startsWith("\0") && path.extname(getFile(id)) in langs;
 }
 
 export function getFile(id: string): string {

@@ -131,6 +131,16 @@ function testServerComponents() {
     });
   });
 
+  test("components: 'client': a file without a directive that imports a package's server component is a server component", async () => {
+    const html = await fetchHtml("/package-import");
+    expect(html).to.include("rscPayload");
+    expect(html).to.include("A server component of a package, rendered on the server");
+    // The browser renders it from the Flight, not as an async client component
+    await page.goto(getServerUrl() + "/package-import");
+    await waitForHydration("#layout-counter");
+    expect(await page.textContent("#package-badge")).to.equal("A server component of a package, rendered on the server");
+  });
+
   test("components: 'client': a file without a directive that imports a server component through an import only a plugin resolves is a server component", async () => {
     const html = await fetchHtml("/plugin-import");
     expect(html).to.include("rscPayload");

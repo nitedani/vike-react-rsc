@@ -1,0 +1,15 @@
+{
+  "name": "server-component-package",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./ServerBadge": {
+      "types": "./ServerBadge.d.ts",
+      "default": "./ServerBadge.js"
+    }
+  },
+  "peerDependencies": {
+    "react": "*"
+  }
+}

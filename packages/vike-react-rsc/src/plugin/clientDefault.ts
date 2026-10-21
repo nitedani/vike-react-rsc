@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
 import { createIdResolver, type Environment, type ESTree, type Plugin, type ResolvedConfig } from "vite";
-import { getDirectives, getFile, getImportSources, isAppFile, parse, parseCompiled, type Directive } from "./parse";
+import { getDirectives, getFile, getImportSources, isAppFile, isModuleFile, parse, parseCompiled, type Directive } from "./parse";
 
 // A client component's import, which plugin-rsc's client reference imports in each env
 const CLIENT_IMPORT = "virtual:vike-react-rsc/client-import:";
@@ -16,20 +16,20 @@ export function clientDefault(): Plugin {
   const isMarked = new Map<string, boolean>();
   // The files the env read to decide it, by env and file
   const readFiles = new Map<string, Set<string>>();
-  // Each app file's directives and imports, by env and file
-  const appModules = new Map<string, Promise<AppModule>>();
+  // Each module's directives and imports, by env and file
+  const modules = new Map<string, Promise<WalkedModule>>();
   let config: ResolvedConfig;
-  let resolveImport: ReturnType<typeof createIdResolver>;
-  // Each app file's directives and imports: as Vite resolves them, without registering the packages for Vite to pre-bundle,
-  // or else as the env's plugins do, e.g. vite-tsconfig-paths. `read` gives its code if it isn't read yet
-  const getAppModule = (context: WalkContext) => (file: string, read: () => string | Promise<string> = () => readFile(file, "utf8")) => {
+  // A module's directives and imports, of the app or of a package. Its imports as the browser resolves them, so each env
+  // walks the files the browser would load, without registering the packages for Vite to pre-bundle; or else as the env's
+  // plugins do, e.g. vite-tsconfig-paths. `read` gives its code if it isn't read yet
+  const getModule = (context: ResolveContext) => (file: string, read: () => string | Promise<string> = () => readFile(file, "utf8")) => {
     const key = `${context.environment.name}:${file}`;
-    let appModule = appModules.get(key);
-    if (!appModule) {
-      const resolveFrom = async (source: string) => (await resolveImport(context.environment, source, file)) ?? (await context.resolve(source, file))?.id;
-      appModules.set(key, (appModule = readAppModule(file, read, config, resolveFrom)));
+    let walked = modules.get(key);
+    if (!walked) {
+      const resolveFrom = async (source: string) => (await resolveForBrowser(source, file)) ?? (await context.resolve(source, file))?.id;
+      modules.set(key, (walked = readModule(file, read, config, resolveFrom)));
     }
-    return appModule;
+    return walked;
   };
   return {
     name: "vike-react-rsc:client-default",
@@ -37,7 +37,6 @@ export function clientDefault(): Plugin {
     enforce: "pre",
     configResolved: (resolvedConfig) => {
       config = resolvedConfig;
-      resolveImport = createIdResolver(config);
     },
     configureServer: (server) => setBrowserEnvironment(server.environments.client!),
     // Before plugin-rsc's, which builds the envs
@@ -72,7 +71,7 @@ export function clientDefault(): Plugin {
       const program = await parse(code, id);
       const directives = getDirectives(program);
       const key = `${this.environment.name}:${getFile(id)}`;
-      const { isServerComponent, serverComponentImport, read } = await decideIsServerComponent(getFile(id), directives, components, getAppModule(this));
+      const { isServerComponent, serverComponentImport, read } = await decideIsServerComponent(getFile(id), directives, components, getModule(this));
       isMarked.set(key, isServerComponent);
       readFiles.set(key, read);
       // On the first line, so the source map stays valid
@@ -86,8 +85,8 @@ export function clientDefault(): Plugin {
     async hotUpdate({ type, file, read }) {
       const { environment } = this;
       // A new or deleted file can change what its importers import
-      for (const key of appModules.keys()) {
-        if (key === `${environment.name}:${file}` || (type !== "update" && key.startsWith(`${environment.name}:`))) appModules.delete(key);
+      for (const key of modules.keys()) {
+        if (key === `${environment.name}:${file}` || (type !== "update" && key.startsWith(`${environment.name}:`))) modules.delete(key);
       }
       if (type === "delete") {
         isMarked.delete(`${environment.name}:${file}`);
@@ -101,10 +100,10 @@ export function clientDefault(): Plugin {
       for (const [key, files] of readFiles) {
         if (!key.startsWith(`${environment.name}:`) || !files.has(file)) continue;
         // The file as the editor saved it, read once: read() waits for the content of a file that the editor empties first
-        getAppModule(context)(file, read);
+        getModule(context)(file, read);
         const component = key.slice(environment.name.length + 1);
-        const { directives } = await getAppModule(context)(component);
-        if ((await decideIsServerComponent(component, directives, components(component) ?? [], getAppModule(context))).isServerComponent !== isMarked.get(key)) changed.push(key);
+        const { directives } = await getModule(context)(component);
+        if ((await decideIsServerComponent(component, directives, components(component) ?? [], getModule(context))).isServerComponent !== isMarked.get(key)) changed.push(key);
       }
       if (changed.length > 0) {
         // The env loads the file as another kind of module, e.g. a stub instead of a client component: it starts over
@@ -127,26 +126,26 @@ async function decideIsServerComponent(
   file: string,
   directives: Directive[],
   components: ComponentConfig[],
-  getAppModule: GetAppModule
+  getModule: GetModule
 ): Promise<{ isServerComponent: boolean; serverComponentImport?: string[]; read: Set<string> }> {
   if (isServerComponentFor(directives, components)) return { isServerComponent: true, read: new Set([file]) };
   if (directives.length > 0 || !isClientDefault() || !isAppFile(file)) return { isServerComponent: false, read: new Set([file]) };
-  const { serverComponentImport, read } = await findServerComponentImport(file, getAppModule);
+  const { serverComponentImport, read } = await findServerComponentImport(file, getModule);
   return { isServerComponent: serverComponentImport !== undefined, serverComponentImport, read };
 }
 
 /** The first "use server component" file that `file` imports, through files without a directive, as the files from `file` to
  * it, and every file read to find it */
-async function findServerComponentImport(file: string, getAppModule: GetAppModule): Promise<{ serverComponentImport?: string[]; read: Set<string> }> {
+async function findServerComponentImport(file: string, getModule: GetModule): Promise<{ serverComponentImport?: string[]; read: Set<string> }> {
   const importers = new Map<string, string>();
   const read = new Set([file]);
   const queue = [file];
   for (const importer of queue) {
-    for (const imported of (await getAppModule(importer)).imports) {
+    for (const imported of (await getModule(importer)).imports) {
       if (read.has(imported)) continue;
       read.add(imported);
       importers.set(imported, importer);
-      const { directives } = await getAppModule(imported);
+      const { directives } = await getModule(imported);
       if (directives.includes("use server component")) {
         const chain = [imported];
         while (chain[0] !== file) chain.unshift(importers.get(chain[0]!)!);
@@ -160,19 +159,19 @@ async function findServerComponentImport(file: string, getAppModule: GetAppModul
 }
 
 // A file that doesn't parse has neither: its own transform reports why
-async function readAppModule(
+async function readModule(
   file: string,
   read: () => string | Promise<string>,
   config: ResolvedConfig,
   resolve: (source: string) => Promise<string | undefined>
-): Promise<AppModule> {
+): Promise<WalkedModule> {
   const program = await Promise.resolve()
     .then(read)
     .then((code) => parseCompiled(code, file, config))
     .catch(() => undefined);
   if (!program) return { directives: [], imports: [] };
   const imports = await Promise.all(getImportSources(program).map(resolve));
-  return { directives: getDirectives(program), imports: imports.flatMap((id) => (id && isAppFile(id) ? [getFile(id)] : [])) };
+  return { directives: getDirectives(program), imports: imports.flatMap((id) => (id && isModuleFile(id) ? [getFile(id)] : [])) };
 }
 
 // By its directive, or as the file the env loads for a package's server component
@@ -290,10 +289,9 @@ function getPointerImports(value: unknown): { importPath: string; exportName: st
 type PageConfigs = ReturnType<typeof getVikeConfig>["dangerouslyUseInternals"]["_pageConfigs"];
 type ConfigValueSource = PageConfigs[number]["configValueSources"][string][number];
 type ComponentImport = { appFile?: string; importPath?: string; importer?: string; exportName?: string };
-type AppModule = { directives: Directive[]; imports: string[] };
-type GetAppModule = (file: string) => Promise<AppModule>;
+type WalkedModule = { directives: Directive[]; imports: string[] };
+type GetModule = (file: string) => Promise<WalkedModule>;
 type ResolveContext = { environment: { name: string }; resolve: (source: string, importer?: string) => Promise<{ id: string } | null> };
-type WalkContext = ResolveContext & { environment: Environment };
 type ComponentConfig = {
   configName: string;
   /** The export of the import that Vike reads; none for a + file */

@@ -9,7 +9,7 @@ React RSC integration for [Vike](https://vike.dev).
   - Progressive hydration
 - **Progressive adoption**: with `components: 'client'` in your root `+config.js`, the components of a `vike-react` app run as they do with `vike-react`. Then move a file to the server by starting it with `"use server component"`.
   - A file runs where the file that imports it runs. A `Page`, `Layout`, `Wrapper` or `Loading`'s `layout`, as a `+` file or imported by a `+config` file, runs where `components` says (default: `'server'`).
-  - A file without a directive that imports a `"use server component"` file, directly or through other such files, is a server component too, up to the `Page`, `Layout`, `Wrapper` or `Loading` that imports it. A `"use client"` file can't import one.
+  - A file without a directive that imports a `"use server component"` file, of the app or of a package, directly or through other such files, is a server component too, up to the `Page`, `Layout`, `Wrapper` or `Loading` that imports it. A `"use client"` file can't import one.
   - [`ssr: false`](https://vike.dev/ssr) leaves the page out of the first load's HTML, under either `components` value: the browser renders it, and its server components still run on the server.
   - `vike-react`'s head settings, such as `title`, come with [#21](https://github.com/nitedani/vike-react-rsc/pull/21).
   - A component that calls a hook such as `useState()` starts with `"use client"` when a server component imports it. A file that imports a server component can't, so its hooks move into their own `"use client"` component.
