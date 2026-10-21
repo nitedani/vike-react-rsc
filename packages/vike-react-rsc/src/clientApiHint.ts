@@ -33,9 +33,10 @@ export function getClientApiHint(error: unknown, page?: string, serverComponentI
       const name = /.*\/node_modules\/((?:@[^/]+\/)?[^/.][^/]*)\//.exec(file)?.[1] ?? "its package";
       return `${runsOnServer}: re-export what you use from ${name} in a "use client" file of the app and import it from there`;
     }
-    // A build's stack doesn't name the failing file, which could be one of those
+    // A build's stack doesn't name the failing file, which could be a package's, or one of those
+    const orReexport = import.meta.env.DEV ? "" : `, or, if it comes from a package, re-export what you use from that package in a "use client" file of the app`;
     const orMove = !import.meta.env.DEV && serverComponentImports.length > 0 ? `, or, if its file imports a server component, move the code that ${use} into a "use client" component` : "";
-    return `${runsOnServer}: start ${caller === file ? "it" : "its file"} with "use client"${orMove}`;
+    return `${runsOnServer}: start ${caller === file ? "it" : "its file"} with "use client"${orReexport}${orMove}`;
   }
   // A "use client" file can't import a server component
   const [importer, ...imported] = serverComponentImport;
