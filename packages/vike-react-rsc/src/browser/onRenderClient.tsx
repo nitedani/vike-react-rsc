@@ -1,23 +1,34 @@
 import { createFromReadableStream, setServerCallback } from "@vitejs/plugin-rsc/browser";
 import { hydrateRoot } from "react-dom/client";
 import { navigate } from "vike/client/router";
-import type { OnRenderClientAsync } from "vike/types";
+import type { OnRenderClientAsync, PageContextClient } from "vike/types";
+import { getHeadSetting } from "../integration/getHeadSetting";
 import type { PagePayload } from "../types";
 import { onCaughtError } from "./AbortBoundary";
 import { callServer } from "./callServer";
-import { Root, setCurrentPageContext, show } from "./page";
+import { Root, setCurrentPageContext, show, type HeadSettings } from "./page";
 import { markRscOutputsStale } from "./rsc";
 
 setServerCallback(callServer);
 
 export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
-  setCurrentPageContext(pageContext);
   const { root, formState } = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
-  const page = { pageContext, root };
+  // Evaluated before the page shows, so a setting that throws reaches Vike; the HTML has the hydrated page's
+  const headSettings = pageContext.isHydration ? undefined : getHeadSettings(pageContext);
+  const page = { pageContext, root, headSettings };
+  setCurrentPageContext(pageContext);
   show(page);
   if (!pageContext.isHydration) return;
   hydrateRoot(document.getElementById("root")!, <Root page={page} />, { formState, onCaughtError });
 };
+
+function getHeadSettings(pageContext: PageContextClient): HeadSettings {
+  return [
+    getHeadSetting<string | null>("title", pageContext),
+    getHeadSetting<string | null>("lang", pageContext),
+    getHeadSetting<string | null>("description", pageContext),
+  ];
+}
 
 if (import.meta.hot) {
   // plugin-rsc's signal that a server component changed

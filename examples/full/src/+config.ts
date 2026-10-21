@@ -5,6 +5,15 @@ export default {
   extends: [vikeReactRsc],
   server: true,
   rsc: { staleTime: 10000 },
+  title: "Vike RSC demo",
+  description: "A demo of Vike with React Server Components",
+  favicon: "/vike.svg",
+  // Every page's HTML has them, see testHeadSettings()
+  htmlAttributes: { "data-html": "" },
+  bodyAttributes: { "data-body": "", "data-quoted": '"><b>&amp;' },
+  rootAttributes: { "data-root": "" },
+  headHtmlEnd: "<!-- headHtmlEnd -->",
+  bodyHtmlBegin: "<!-- bodyHtmlBegin -->",
   // Set by +onCreateGlobalContext and +onCreatePageContext
   passToClient: ["appName", "visitor"],
   meta: {

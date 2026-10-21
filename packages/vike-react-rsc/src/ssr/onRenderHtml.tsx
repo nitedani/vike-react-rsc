@@ -7,10 +7,13 @@ import { renderToStream } from "react-streaming/server.web";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { getAbort, toVikeAbort, type Abort } from "../abort";
+import { getHeadSetting } from "../integration/getHeadSetting";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import { getRedirectUrl } from "../redirect";
-import type { PagePayload } from "../types";
+import type { HeadValue, PagePayload } from "../types";
+import { callCumulativeHooks } from "../utils/callCumulativeHooks";
+import { getTagAttributesString, type TagAttributes } from "../utils/getTagAttributesString";
 
 // The CSS and JS of the client components a page's HTML renders, for their links
 const clientDeps = new AsyncLocalStorage<ClientDeps>();
@@ -87,16 +90,26 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
   // Once the shell has rendered, React has loaded every client component in it
   const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
 
+  const headHtml = getHeadHtml(pageContext);
+
+  const { headHtmlBegin, headHtmlEnd, bodyHtmlBegin, bodyHtmlEnd } = await getHtmlInjections(pageContext);
+
+  const { htmlAttributesString, bodyAttributesString, rootAttributesString } = getTagAttributes(pageContext);
+
   return {
     documentHtml: escapeInject`<!DOCTYPE html>
-<html>
+<html${dangerouslySkipEscape(htmlAttributesString)}>
   <head>
     <meta charset="UTF-8" />
-    ${renderHead(pageContext)}
+    ${headHtmlBegin}
+    ${headHtml}
     ${clientLinks}
+    ${headHtmlEnd}
   </head>
-  <body>
-    <div id="root">${html}</div>
+  <body${dangerouslySkipEscape(bodyAttributesString)}>
+    ${bodyHtmlBegin}
+    <div${dangerouslySkipEscape(rootAttributesString)}>${html}</div>
+    ${bodyHtmlEnd}
   </body>
 </html>`,
     pageContext: { enableEagerStreaming: true },
@@ -129,13 +142,98 @@ function renderAbortMeta(abort: Abort) {
   );
 }
 
-function renderHead(pageContext: PageContextServer) {
-  const tags = (pageContext.config.Head ?? []).map((Head) =>
-    renderToStaticMarkup(
-      <PageContextProvider pageContext={pageContext}>{typeof Head === "function" ? <Head /> : Head}</PageContextProvider>
-    )
+function getHeadHtml(pageContext: PageContextServer) {
+  const favicon = getHeadSetting<string | null>("favicon", pageContext);
+  const title = getHeadSetting<string | null>("title", pageContext);
+  const description = getHeadSetting<string | null>("description", pageContext);
+  const image = getHeadSetting<string | null>("image", pageContext);
+
+  const faviconTag = !favicon ? "" : escapeInject`<link rel="icon" href="${favicon}" />`;
+  const titleTags = !title ? "" : escapeInject`<title>${title}</title><meta property="og:title" content="${title}" />`;
+  const descriptionTags = !description
+    ? ""
+    : escapeInject`<meta name="description" content="${description}" /><meta property="og:description" content="${description}" />`;
+  const imageTags = !image
+    ? ""
+    : escapeInject`<meta property="og:image" content="${image}"><meta name="twitter:card" content="summary_large_image">`;
+  const viewportTag = dangerouslySkipEscape(getViewportTag(getHeadSetting<Viewport>("viewport", pageContext)));
+
+  const headElementsHtml = dangerouslySkipEscape(
+    [
+      // Added by +Head
+      ...(pageContext.config.Head ?? []),
+    ]
+      .filter((Head) => Head !== null && Head !== undefined)
+      .map((Head) => getHeadElementHtml(Head, pageContext))
+      .join("\n")
   );
-  return dangerouslySkipEscape(tags.join(""));
+
+  const headHtml = escapeInject`
+    ${titleTags}
+    ${viewportTag}
+    ${headElementsHtml}
+    ${faviconTag}
+    ${descriptionTags}
+    ${imageTags}
+  `;
+  return headHtml;
+}
+function getHeadElementHtml(Head: NonNullable<HeadValue>, pageContext: PageContextServer): string {
+  return renderToStaticMarkup(
+    <PageContextProvider pageContext={pageContext}>{typeof Head === "function" ? <Head /> : Head}</PageContextProvider>
+  );
+}
+
+function getTagAttributes(pageContext: PageContextServer) {
+  let lang = getHeadSetting<string | null>("lang", pageContext);
+  // Don't set `lang` to its default value if it's `null` (so that users can set it to `null` in order to remove the default value)
+  if (lang === undefined) lang = "en";
+
+  const bodyAttributes = mergeTagAttributesList(getHeadSetting<TagAttributes[]>("bodyAttributes", pageContext));
+  const htmlAttributes = mergeTagAttributesList(getHeadSetting<TagAttributes[]>("htmlAttributes", pageContext));
+  const rootAttributes = mergeTagAttributesList(getHeadSetting<TagAttributes[]>("rootAttributes", pageContext));
+
+  const bodyAttributesString = getTagAttributesString(bodyAttributes);
+  const htmlAttributesString = getTagAttributesString({ ...htmlAttributes, lang: lang ?? htmlAttributes.lang });
+  // The root element's `id` is used by onRenderClient(): it's the user's responsibility not to override it.
+  const rootAttributesString = getTagAttributesString({ id: "root", ...rootAttributes });
+
+  return { htmlAttributesString, bodyAttributesString, rootAttributesString };
+}
+function mergeTagAttributesList(tagAttributesList: TagAttributes[] = []) {
+  const tagAttributes: TagAttributes = {};
+  tagAttributesList.forEach((tagAttrs) => Object.assign(tagAttributes, tagAttrs));
+  return tagAttributes;
+}
+
+export type Viewport = "responsive" | number | null;
+function getViewportTag(viewport: Viewport | undefined): string {
+  if (viewport === "responsive" || viewport === undefined) {
+    // `user-scalable=no` isn't recommended anymore:
+    //   - https://stackoverflow.com/questions/22354435/to-user-scalable-no-or-not-to-user-scalable-no/22544312#comment120949420_22544312
+    return '<meta name="viewport" content="width=device-width,initial-scale=1">';
+  }
+  if (typeof viewport === "number") {
+    return `<meta name="viewport" content="width=${viewport}">`;
+  }
+  return "";
+}
+
+export type HtmlInjection = string | ((pageContext: PageContextServer) => string);
+
+async function getHtmlInjections(pageContext: PageContextServer) {
+  const { config } = pageContext;
+  const renderHooks = async (hooks: HtmlInjection[] | undefined) => {
+    const values = await callCumulativeHooks(hooks, pageContext);
+    return dangerouslySkipEscape(values.join(""));
+  };
+  const [headHtmlBegin, headHtmlEnd, bodyHtmlBegin, bodyHtmlEnd] = await Promise.all([
+    renderHooks(config.headHtmlBegin),
+    renderHooks(config.headHtmlEnd),
+    renderHooks(config.bodyHtmlBegin),
+    renderHooks(config.bodyHtmlEnd),
+  ]);
+  return { bodyHtmlBegin, bodyHtmlEnd, headHtmlBegin, headHtmlEnd };
 }
 
 function renderClientLinks({ css, js }: { css: Iterable<string>; js: Iterable<string> }) {
