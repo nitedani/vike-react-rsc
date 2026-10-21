@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useState, type ReactElement, type ReactNode } from "react";
+import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
 
@@ -26,10 +27,10 @@ export function show(next: Shown): void {
 
 /** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent and none of the passToClient `keys` it didn't */
 export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys: string[]): void {
-  for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(current, key);
-  // Set on Vike's pageContext, which throws on reading a value it couldn't serialize; a new object, so usePageContext() renders again
-  Object.assign(current, passed);
-  show({ pageContext: Object.create(current), root });
+  // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
+  const pageContext = createPageContextFromServer_experimentalRSC(current, passed);
+  for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
+  show({ pageContext, root });
 }
 
 /** Hydrates `page`, then shows what show() shows */
