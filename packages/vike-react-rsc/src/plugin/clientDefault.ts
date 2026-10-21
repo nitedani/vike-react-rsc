@@ -4,8 +4,7 @@ import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
 import { createIdResolver, type Environment, type ESTree, type Plugin, type ResolvedConfig } from "vite";
 import packageJson from "../../package.json";
-import type { ServerComponentImport } from "../clientApiHint";
-import { getBindings, getDirectives, getFile, getFileName, getImportSources, isAppFile, isModuleFile, parse, parseCompiled, type Binding, type Directive } from "./parse";
+import { getDirectives, getFile, getFileName, getImportSources, isAppFile, isModuleFile, parse, parseCompiled, type Directive } from "./parse";
 
 // A client component's import, which plugin-rsc's client reference imports in each env
 const CLIENT_IMPORT = "virtual:vike-react-rsc/client-import:";
@@ -81,13 +80,7 @@ export function clientDefault(): Plugin {
       if (!isServerComponent) return;
       const { root } = this.environment.config;
       const file = path.relative(root, getFile(id));
-      const flags = getServerComponentFlags(
-        file,
-        serverComponentImport && {
-          files: serverComponentImport.map((imported) => getFileName(imported, root)),
-          takesOnlyOtherExports: await takesOnlyOtherExports(serverComponentImport, config),
-        }
-      );
+      const flags = getServerComponentFlags(file, serverComponentImport?.map((imported) => getFileName(imported, root)));
       return isRsc ? tagServerComponent(code, program, components, file, flags) : getServerComponentStub(components, flags);
     },
     async hotUpdate({ type, file, read }) {
@@ -173,35 +166,6 @@ export async function findPackageServerComponentImport(file: string, config: Res
   const { directives } = await getModule(file);
   if (directives.includes("use server component")) return [file];
   if (directives.length === 0) return (await findServerComponentImport(file, getModule)).serverComponentImport;
-}
-
-/** Whether the app's file in `files`, the files from it to a package's server component, takes from the package only exports
- * that don't lead there, e.g. a client component that the package's index re-exports next to the server component */
-export async function takesOnlyOtherExports(files: string[], config: ResolvedConfig): Promise<boolean> {
-  const start = files.findIndex((file) => !isAppFile(file)) - 1;
-  if (start < 0) return false;
-  const read = async (i: number) => getBindings(await parseCompiled(await readFile(getFile(files[i]!), "utf8"), files[i]!, config));
-  // The names of the exports that the file before `files[i]` takes from it, of these bindings
-  const takenFrom = async (i: number, bindings: Binding[]) => {
-    const names: string[] = [];
-    for (const { source, name } of bindings) if ((await resolveForBrowser(source, getFile(files[i - 1]!))) === getFile(files[i]!)) names.push(name);
-    return names;
-  };
-  let names = await takenFrom(start + 1, (await read(start)).imports);
-  for (let i = start + 1; names.length > 0; i++) {
-    const { exports, exportAll } = await read(i);
-    const bindings: Binding[] = [];
-    for (const name of names.includes("*") ? exports.keys() : names) {
-      const binding = exports.get(name);
-      // The file's own export runs on the server with it, and so does any export of the server component's file
-      if (exports.has(name) && (!binding || i === files.length - 1)) return false;
-      if (binding) bindings.push(binding);
-      else if (name !== "default") bindings.push(...exportAll.map((source) => ({ source, name })));
-    }
-    if (names.includes("*")) bindings.push(...exportAll.map((source) => ({ source, name: "*" })));
-    names = i === files.length - 1 ? [] : await takenFrom(i + 1, bindings);
-  }
-  return true;
 }
 
 // A file that doesn't parse has neither: its own transform reports why
@@ -438,6 +402,6 @@ function tagServerComponent(code: string, program: ESTree.Program, components: C
 }
 
 // With, for a file that is one because it imports a server component, the files from it to that server component
-function getServerComponentFlags(file: string, serverComponentImport: ServerComponentImport | undefined) {
+function getServerComponentFlags(file: string, serverComponentImport: string[] | undefined) {
   return JSON.stringify({ isServerComponent: true, file, serverComponentImport });
 }

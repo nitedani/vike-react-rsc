@@ -1,5 +1,4 @@
 import type { PageContext } from "vike/types";
-import type { ServerComponentImport } from "./clientApiHint";
 
 /** Whether the page renders from its Flight: every page under `components: 'server'`, and under `components: 'client'` a
  * page whose Page, Layouts, Wrappers or Loading include a server component. Any other page renders as in vike-react. */
@@ -16,10 +15,10 @@ export function findServerComponent(pageContext: PageContext): { file: string } 
 
 /** The files from each of the page's Page, Layouts, Wrappers or Loading that is a server component because it imports one, to
  * that server component */
-export function getServerComponentImports(pageContext: PageContext): ServerComponentImport[] {
+export function getServerComponentImports(pageContext: PageContext): string[][] {
   const { Page, Layout = [], Wrapper = [], Loading } = pageContext.config;
   return [Page, ...Layout, ...Wrapper, Loading].flatMap((component) => {
-    const { serverComponentImport } = (component ?? {}) as { serverComponentImport?: ServerComponentImport };
+    const { serverComponentImport } = (component ?? {}) as { serverComponentImport?: string[] };
     return serverComponentImport ? [serverComponentImport] : [];
   });
 }
