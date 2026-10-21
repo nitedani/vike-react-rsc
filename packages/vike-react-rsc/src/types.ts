@@ -2,9 +2,9 @@ import type { ComponentType, ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { ImportString, PageContext } from "vike/types";
 import type { ActionCall } from "./ssr/action";
-import type { HtmlInjection, Viewport } from "./ssr/onRenderHtml";
 import type { Cookies } from "./ssr/cookies";
-import type { TagAttributes } from "./utils/getTagAttributesString.js";
+import type { HtmlInjection, Viewport } from "./ssr/onRenderHtml";
+import type { TagAttributes } from "./utils/getTagAttributesString";
 
 /** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */
 export type PagePayload = { root: ReactNode; formState?: ReactFormState };

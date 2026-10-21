@@ -1,7 +1,7 @@
 import { startTransition, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { PageContextClient } from "vike/types";
-import { PageContextProvider } from "../pageContext";
 import { applyHeadSettings } from "../integration/applyHeadSettings";
+import { PageContextProvider } from "../pageContext";
 import { AbortBoundary } from "./AbortBoundary";
 
 // A navigation's title, lang and description, applied once React has committed its page

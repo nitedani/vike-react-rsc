@@ -7,9 +7,9 @@ import { renderToStream } from "react-streaming/server.web";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { getAbort, toVikeAbort, type Abort } from "../abort";
+import { getHeadSetting } from "../integration/getHeadSetting";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
-import { getHeadSetting } from "../integration/getHeadSetting";
 import { getRedirectUrl } from "../redirect";
 import type { HeadValue, PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
@@ -179,7 +179,6 @@ function getHeadHtml(pageContext: PageContextServer) {
   return headHtml;
 }
 function getHeadElementHtml(Head: NonNullable<HeadValue>, pageContext: PageContextServer): string {
-  // vike-react-rsc's PageContextProvider, which the RSC build shares between environments
   return renderToStaticMarkup(
     <PageContextProvider pageContext={pageContext}>{typeof Head === "function" ? <Head /> : Head}</PageContextProvider>
   );

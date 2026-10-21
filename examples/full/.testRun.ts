@@ -1091,20 +1091,9 @@ function testHeadSettings(isStatic: boolean) {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
     // Vike logs the errors it catches
-    await page.evaluate(() => {
-      const errors: string[] = [];
-      Object.assign(window, { loggedErrors: errors });
-      const { error } = console;
-      console.error = (...args) => {
-        errors.push(String(args[0]));
-        error(...args);
-      };
-    });
+    const logged = page.waitForEvent("console", (message) => message.type() === "error" && message.text().includes(HEAD_SETTING_ERROR));
     await clickNewLink("/head-settings-throw");
-    await autoRetry(async () => {
-      const errors = await page.evaluate(() => (window as { loggedErrors?: string[] }).loggedErrors);
-      expect(errors!.some((message) => message.includes(HEAD_SETTING_ERROR))).to.equal(true);
-    });
+    await logged;
     expect(await page.textContent("h1")).to.equal("Vike React Server Components");
     expect(await page.title()).to.equal("Vike RSC demo");
 
