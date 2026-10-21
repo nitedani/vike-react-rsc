@@ -81,11 +81,7 @@ function testClientComponents() {
     ]) {
       await page.goto(getServerUrl() + pathname);
       expect(await page.textContent("#admin-layout")).to.equal("A server layout, rendered on the server");
-      await waitForHydration(counter);
-      await page.click(counter);
-      await autoRetry(async () => {
-        expect(await page.textContent(counter)).to.equal(clicked);
-      });
+      await clickCounter(counter, clicked);
     }
   });
 }
@@ -95,11 +91,7 @@ function testServerComponents() {
     await page.goto(getServerUrl() + "/server");
     expect(await page.textContent("#rendered-on")).to.equal("Rendered on the server");
     // The component it renders starts with "use client"
-    await waitForHydration("#counter");
-    await page.click("#counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#counter")).to.equal("Counter 1");
-    });
+    await clickCounter("#counter", "Counter 1");
 
     await page.goto(getServerUrl() + "/strict");
     await waitForHydration("#layout-counter");
@@ -149,21 +141,13 @@ function testServerComponents() {
 
   test("components: 'client': a file without a directive that imports only a type from a server component, without import type, stays a client component", async () => {
     await page.goto(getServerUrl() + "/type-import");
-    await waitForHydration("#type-import-counter");
-    await page.click("#type-import-counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#type-import-counter")).to.equal("Clicked 1 times");
-    });
+    await clickCounter("#type-import-counter", "Clicked 1 times");
   });
 
   test("components: 'client': a file without a directive that imports a server component's file with ?raw or ?url stays a client component", async () => {
     await page.goto(getServerUrl() + "/raw-import");
     expect(await page.textContent("#raw-import-source")).to.equal('"use server component";');
-    await waitForHydration("#raw-import-counter");
-    await page.click("#raw-import-counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#raw-import-counter")).to.equal("Clicked 1 times");
-    });
+    await clickCounter("#raw-import-counter", "Clicked 1 times");
   });
 
   test("components: 'client': a server component calls a function from a component file, on the server", async () => {
@@ -205,11 +189,7 @@ function testVikeReactRendering() {
 
   test('components: \'client\': a "use client" Layout that a +config file sets by an import renders on a client and a server page, and keeps its state between them', async () => {
     await page.goto(getServerUrl() + "/imported-layout/client");
-    await waitForHydration("#imported-layout-counter");
-    await page.click("#imported-layout-counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#imported-layout-counter")).to.equal("Imported layout 1");
-    });
+    await clickCounter("#imported-layout-counter", "Imported layout 1");
     await page.click('a[href="/imported-layout/server"]');
     await page.waitForSelector("text=A server page in an imported layout");
     expect(await page.textContent("#imported-layout-counter")).to.equal("Imported layout 1");
@@ -225,11 +205,7 @@ function testVikeReactRendering() {
       ["/dual-layout", "#npm-dual-layout-counter", "npm dual layout 1"],
     ]) {
       await page.goto(getServerUrl() + pathname);
-      await waitForHydration(counter);
-      await page.click(counter);
-      await autoRetry(async () => {
-        expect(await page.textContent(counter)).to.equal(clicked);
-      });
+      await clickCounter(counter, clicked);
     }
   });
 
@@ -240,11 +216,7 @@ function testVikeReactRendering() {
       if (pathname.endsWith("/wrapper")) {
         expect(await page.textContent("#imported-server-wrapper")).to.equal("An imported server wrapper, rendered on the server");
       }
-      await waitForHydration("#counter");
-      await page.click("#counter");
-      await autoRetry(async () => {
-        expect(await page.textContent("#counter")).to.equal("Counter 1");
-      });
+      await clickCounter("#counter", "Counter 1");
     }
   });
 
@@ -267,32 +239,20 @@ function testVikeReactRendering() {
       await page.goto(getServerUrl() + pathname);
       expect(await page.textContent("#npm-server-layout")).to.equal("The react-server file of a server layout");
     }
-    await waitForHydration("#counter");
-    await page.click("#counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#counter")).to.equal("Counter 1");
-    });
+    await clickCounter("#counter", "Counter 1");
   });
 
   test("components: 'client': a Layout from a package whose browser file reads window as it loads renders its Node file in the HTML and its browser file in the browser, around a server page", async () => {
     await page.goto(getServerUrl() + "/browser-layout");
     await page.waitForSelector("h1:text-is('A server page in an npm layout with a browser file')");
-    await waitForHydration("#npm-browser-layout-counter");
-    await page.click("#npm-browser-layout-counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#npm-browser-layout-counter")).to.equal("npm browser layout 1");
-    });
+    await clickCounter("#npm-browser-layout-counter", "npm browser layout 1");
     expect(await page.evaluate(() => (window as { npmBrowserLayoutFile?: string }).npmBrowserLayoutFile)).to.equal("BrowserLayout.browser.js");
   });
 
   test('components: \'client\': a "use server component" Layout from a package with a browser file renders its default file on the server, which imports server-only', async () => {
     await page.goto(getServerUrl() + "/browser-server-layout");
     expect(await page.textContent("#npm-browser-server-layout")).to.equal("The default file of a server layout with a browser file");
-    await waitForHydration("#counter");
-    await page.click("#counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#counter")).to.equal("Counter 1");
-    });
+    await clickCounter("#counter", "Counter 1");
   });
 
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
@@ -600,11 +560,7 @@ function testMarkerHmr() {
 function testServerComponentHmr() {
   test("Dev: editing a server Page updates it without a reload, so the Layout keeps its state", async () => {
     await page.goto(getServerUrl() + "/server");
-    await waitForHydration("#layout-counter");
-    await page.click("#layout-counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
-    });
+    await clickCounter("#layout-counter", "Layout 1");
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
     // Saved as an editor that empties the file first does
     await editFileEmptyingFirst("./pages/server/+Page.tsx", (source) => source.replace("<h1>A server page</h1>", "<h1>An edited server page</h1>"));
@@ -619,11 +575,7 @@ function testServerComponentHmr() {
 
   test("Dev: editing the react-server file of a package's server Layout updates it without a reload, so the page keeps its state", async () => {
     await page.goto(getServerUrl() + "/react-server-layout-marked/client");
-    await waitForHydration("#counter");
-    await page.click("#counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#counter")).to.equal("Counter 1");
-    });
+    await clickCounter("#counter", "Counter 1");
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
     editFile("./react-server-layout/ServerLayout.server.js", (source) => source.replace("The react-server file", "The edited react-server file"));
     await page.waitForSelector("text=The edited react-server file of a server layout");
@@ -638,11 +590,7 @@ function testServerComponentHmr() {
 function testClientComponentHmr() {
   test("Dev: after an edit of the client Layout, client navigation shows each page and the Layout keeps its state, back on a page loaded before the edit too, without a reload", async () => {
     await page.goto(getServerUrl() + "/");
-    await waitForHydration("#layout-counter");
-    await page.click("#layout-counter");
-    await autoRetry(async () => {
-      expect(await page.textContent("#layout-counter")).to.equal("Layout 1");
-    });
+    await clickCounter("#layout-counter", "Layout 1");
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
     editFile("./pages/+Layout.tsx", (source) => source.replace("Layout {clicks}", "Edited layout {clicks}"));
     await page.waitForSelector("text=Edited layout 1");
@@ -825,6 +773,15 @@ async function waitForHydration(selector: string) {
     },
     { timeout: 5000 }
   );
+}
+
+// Clicks the counter `selector` once React has hydrated it, then waits until it shows `text`
+async function clickCounter(selector: string, text: string) {
+  await waitForHydration(selector);
+  await page.click(selector);
+  await autoRetry(async () => {
+    expect(await page.textContent(selector)).to.equal(text);
+  });
 }
 
 // The page may have no link to `pathname`: one is added, then clicked as a user would, so Vike's router navigates

@@ -2,18 +2,22 @@ import { useDeferredValue, useEffect, useState, type ReactElement, type ReactNod
 import type { Root as ReactRoot } from "react-dom/client";
 import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import type { PageContextClient } from "vike/types";
+import { applyHeadSettings } from "../integration/applyHeadSettings";
 import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
 import { AbortBoundary } from "./AbortBoundary";
 
+// A navigation's title, lang and description, applied once React has committed its page
+export type HeadSettings = Parameters<typeof applyHeadSettings>;
 // `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()
-type Shown = { pageContext: PageContextClient; root: ReactNode; fromAction?: boolean };
+type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings; fromAction?: boolean };
 
 // One for every copy of this file: after an edit, Vite can load the next page's entry with a new copy
 const shared = getShared(
   "page",
   (): {
-    // The page Vike renders last: actions call its URL, and their answers apply only while it stays current
+    // Vike's pageContext of the page shown, which rerender() doesn't replace: actions call its URL, and their answers apply
+    // only while it stays current
     current?: PageContextClient;
     // What Root shows, and how to change it once Root has mounted
     shown?: Shown;
@@ -54,16 +58,13 @@ export async function rendered(abortSignal?: AbortSignal): Promise<void> {
   }
 }
 
-function settle(error?: unknown): void {
+/** Ends the navigation waiting until React shows its page, with the error React threw on it if any. Also when a page leaves
+ * for a redirect's target instead */
+export function endNavigation(error?: unknown): void {
   const { rendering } = shared;
   shared.rendering = undefined;
   if (error === undefined) rendering?.resolve();
   else rendering?.reject(error);
-}
-
-/** Ends the navigation waiting until React shows its page, e.g. a page that leaves for a redirect's target instead */
-export function endNavigation(): void {
-  settle();
 }
 
 /** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent and none of the passToClient `keys` it didn't */
@@ -71,7 +72,7 @@ export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys:
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
   const pageContext = createPageContextFromServer_experimentalRSC(shared.current!, passed);
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
-  show({ pageContext, root, fromAction });
+  show({ ...shared.shown, pageContext, root, fromAction });
 }
 
 export function setReactRoot(reactRoot: ReactRoot): void {
@@ -85,7 +86,7 @@ export function onUncaughtError(error: unknown, errorInfo: { componentStack?: st
   if (error instanceof Error) Object.assign(error, { isAlreadyLogged: true });
   // React unmounted Root, or never mounted it when hydrating threw: the next page, e.g. the error page, mounts it again
   shared.setRootState = (shown) => shared.reactRoot!.render(<Root page={shown} />);
-  settle(error);
+  endNavigation(error);
 }
 
 /** Hydrates `page`, then shows what show() shows */
@@ -100,8 +101,12 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
   }, []);
+  // Once React has committed the next page; rerender() keeps its head settings
   useEffect(() => {
-    if (state === shared.shown) settle();
+    if (state.headSettings) applyHeadSettings(...state.headSettings);
+  }, [state.headSettings]);
+  useEffect(() => {
+    if (state === shared.shown) endNavigation();
   }, [state]);
   // Called, not rendered: React's dev performance track reads every key of a component's old props, and Vike's pageContext throws on a key it couldn't serialize
   // TODO: remove once the react peer dependency requires a React release that includes https://github.com/react/react/pull/36867

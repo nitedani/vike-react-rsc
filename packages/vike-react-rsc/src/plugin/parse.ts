@@ -26,6 +26,11 @@ export function getDirectives(program: ESTree.Program): Directive[] {
   return directives.filter((directive) => hasDirective(program.body, directive));
 }
 
+/** Whether the module's prologue has `directive`, parsed only when its code names it */
+export async function startsWithDirective(code: string, id: string, directive: Directive): Promise<boolean> {
+  return code.includes(directive) && getDirectives(await parse(code, id)).includes(directive);
+}
+
 /** The source of each name the module imports: a default, named or namespace import */
 export function getImports(program: ESTree.Program): Map<string, string> {
   const imports = new Map<string, string>();

@@ -1,7 +1,8 @@
 import { readFile } from "node:fs/promises";
 import type { Environment, Plugin } from "vite";
-import { findPackageServerComponentImport, getComponentConfigs, importsServerComponent, type ResolveContext } from "./clientDefault";
-import { getDirectives, getFile, getFileName, isAppFile, isModuleFile, parse } from "./parse";
+import { getComponentConfigs, type ResolveContext } from "./componentConfigs";
+import { getFile, getFileName, isAppFile, isModuleFile, startsWithDirective } from "./parse";
+import { findPackageServerComponentImport, importsServerComponent } from "./serverComponentImports";
 
 /** The browser importing a `"use server component"` file is an error, in dev and in the build, naming each Page, Layout, Wrapper or Loading that imports
  * it and the files in between. A Page, Layout, Wrapper or Loading with the directive is skipped: the browser gets at most a stub of it (see getServerComponentStub) */
@@ -19,14 +20,14 @@ export function noServerComponentsInBrowser(): Plugin {
       const { environment } = this;
       if (environment.mode !== "dev") {
         // The build knows every importer once it has loaded all modules
-        if (await isServerComponentFile(code, id)) serverComponentsInBrowser.add(id);
+        if (await startsWithDirective(code, id, "use server component")) serverComponentsInBrowser.add(id);
         return;
       }
       // In dev, the browser loads a package as Vite pre-bundled it, from the package's file the import names
       const preBundled = Object.values(environment.depsOptimizer?.metadata.optimized ?? {}).find(({ file }) => file === getFile(id))?.src;
       const serverComponentImport = preBundled
         ? await findPackageServerComponentImport(preBundled, environment.getTopLevelConfig())
-        : (await isServerComponentFile(code, id)) && [id];
+        : (await startsWithDirective(code, id, "use server component")) && [id];
       if (!serverComponentImport) return;
       const { moduleGraph } = environment;
       const chains = getImportChains(id, getComponentConfig, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])].flatMap((importer) => importer.id ?? []));
@@ -49,10 +50,6 @@ export function noServerComponentsInBrowser(): Plugin {
 
 type GetComponentConfig = Awaited<ReturnType<typeof getComponentConfigs>>;
 type Context = ResolveContext & { environment: Environment };
-
-async function isServerComponentFile(code: string, id: string): Promise<boolean> {
-  return code.includes("use server component") && getDirectives(await parse(code, id)).includes("use server component");
-}
 
 // Each way from `id` up its importers to a Page, Layout, Wrapper or Loading, or to a file the app's code doesn't import, the way
 // plugin-rsc reports server-only. Every page that imports it, not just the first: in dev, the one the browser opens.
@@ -106,7 +103,5 @@ async function getServerComponentInBrowserError(chain: string[], getComponentCon
 }
 
 async function isClientComponentFile(id: string): Promise<boolean> {
-  const file = getFile(id);
-  const code = await readFile(file, "utf8").catch(() => "");
-  return code.includes("use client") && getDirectives(await parse(code, file)).includes("use client");
+  return startsWithDirective(await readFile(getFile(id), "utf8").catch(() => ""), id, "use client");
 }

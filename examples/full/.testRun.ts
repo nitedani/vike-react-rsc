@@ -47,6 +47,9 @@ const DATA_ERROR = "data() failed on demand";
 const RSC_LOAD_ERROR = "FailingComponent failed on demand";
 const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server component";
 
+// Thrown by /head-settings-throw's +title in the browser, then Vike's error page logs ERROR_PAGE_IN_BROWSER_ERROR
+const HEAD_SETTING_ERROR = "+title failed in the browser on demand";
+
 // Logged on the server by testUnknownAction()
 const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
 
@@ -98,6 +101,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testErrorPageInBrowser(): in dev, Vite also forwards the browser's log to the server's stderr
       logText.includes(BROWSER_GUARD_ERROR) ||
       logText.includes(ERROR_PAGE_IN_BROWSER_ERROR) ||
+      // testHeadSettings(): in dev, Vite also forwards the browser's console.error() to the server's stderr
+      ((logSource === "Browser Error" || (isDev && logSource === "stderr")) && logText.includes(HEAD_SETTING_ERROR)) ||
       // testServerComponentThrows()
       logText.includes(THROWS_ERROR) ||
       (logSource === "Browser Error" && logText.includes("react.dev/errors/441")) ||
@@ -128,6 +133,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testUsePageContext();
   testWrapper();
   testHead();
+  testHeadSettings(isStatic);
   // plugin-rsc has no client JS to preload in dev
   if (!isDev) testClientJsPreload();
   testClientCss();
@@ -143,8 +149,10 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testClientDisconnect();
     testCounter();
     testTodoForm();
+    testHeadSettingsRerender();
     testSession();
     testGonePassToClientValue();
+    testConcurrentRerender();
     testActionOnce();
     testActionValueSurvivesDataError();
     testActionPageFailure();
@@ -314,12 +322,6 @@ async function waitForHydration(buttonText = "Increment") {
     },
     { timeout: 5000 }
   );
-}
-
-// The page may have no link to `pathname`: one is added, then clicked as a user would, so Vike's router navigates
-async function clickLink(pathname: string) {
-  await page.evaluate((pathname) => document.body.insertAdjacentHTML("beforeend", `<a data-test-link href="${pathname}">Go</a>`), pathname);
-  await page.click(`a[data-test-link][href="${pathname}"]`);
 }
 
 function testNavigationRequests() {
@@ -618,7 +620,7 @@ function testServerComponentAbort() {
 
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
-    // React throws it while rendering, so it goes to the navigation, which logs it
+    // React throws it while rendering, after the navigation ended, so the React root's onUncaughtError logs it
     const logged = page.waitForEvent("console", (message) => message.type() === "error" && message.text().includes(getRefusedRedirectError(next)));
     await clickNewLink(href);
     await logged;
@@ -1027,9 +1029,126 @@ function testWrapper() {
 
 function testHead() {
   test("Head sets the document's head", async () => {
-    expect(await fetchHtml("/")).to.include("<title>Vike RSC demo</title>");
+    const html = await fetchHtml("/");
+    expect(html.slice(0, html.indexOf("</head>"))).to.include('<meta name="theme-color" content="#f9fafb"/>');
+  });
+}
+
+function testHeadSettings(isStatic: boolean) {
+  test("Head settings: the HTML has their tags and attributes, the defaults, and none for null", async () => {
+    const html = await fetchHtml("/");
+    const head = html.slice(0, html.indexOf("</head>"));
+    expect(html).to.include('<html data-html="" lang="en">');
+    expect(head).to.include('<title>Vike RSC demo</title><meta property="og:title" content="Vike RSC demo" />');
+    expect(head).to.include(
+      '<meta name="description" content="A demo of Vike with React Server Components" /><meta property="og:description" content="A demo of Vike with React Server Components" />'
+    );
+    expect(head).to.include('<link rel="icon" href="/vike.svg" />');
+    expect(head.match(/<meta name="viewport"[^>]*>/g)).to.deep.equal(['<meta name="viewport" content="width=device-width,initial-scale=1">']);
+    const positions = [
+      "<!-- headHtmlBegin -->",
+      "<title>",
+      '<meta name="theme-color"',
+      '<link rel="icon"',
+      "<!-- headHtmlEnd -->",
+      "</head>",
+      '<body data-body=""',
+      "<!-- bodyHtmlBegin -->",
+      '<div id="root" data-root="">',
+      "<!-- bodyHtmlEnd / -->",
+      "</body>",
+    ].map((tag) => html.indexOf(tag));
+    expect(positions).to.not.include(-1);
+    expect(positions).to.deep.equal([...positions].sort((a, b) => a - b));
     await page.goto(getServerUrl() + "/");
+    expect(await page.getAttribute("body", "data-quoted")).to.equal('"><b>&amp;');
+    expect(await page.locator("body > b").count()).to.equal(0);
+
+    const set = await fetchHtml("/head-settings");
+    expect(set).to.include('<html data-html="" lang="fr">');
+    expect(set).to.include("<title>Head settings from +data</title>");
+    expect(set).to.include('<meta name="description" content="Set by +description" />');
+    expect(set).to.include('<meta property="og:image" content="/vike.svg"><meta name="twitter:card" content="summary_large_image">');
+    expect(set).to.include('<meta name="viewport" content="width=1024">');
+
+    const removed = await fetchHtml("/head-settings-null");
+    expect(removed).to.include('<html data-html="">');
+    expect(removed).to.not.match(/<title>|<meta name="(description|viewport)"|<meta property="og:/);
+  });
+
+  test("Head settings: a navigation applies the title, description and lang once its page shows", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    // The heading on screen at each change of the title
+    await page.evaluate(() => {
+      const headings: string[] = [];
+      Object.assign(window, { headingsAtTitleChange: headings });
+      new MutationObserver(() => headings.push(document.querySelector("h1")!.textContent!)).observe(
+        document.querySelector("title")!,
+        { childList: true, characterData: true, subtree: true }
+      );
+    });
+    const navigate = async (href: string, heading: string) => {
+      await clickNewLink(href);
+      await autoRetry(async () => expect(await page.textContent("h1")).to.equal(heading));
+    };
+    const description = () => page.getAttribute('meta[name="description"]', "content");
+
+    // /head-settings' Page takes 500 ms, during which / stays on screen
+    await navigate("/head-settings", "Head settings");
+    await autoRetry(async () => expect(await page.title()).to.equal("Head settings from +data"));
+    expect(await page.getAttribute("html", "lang")).to.equal("fr");
+    expect(await description()).to.equal("Set by +description");
+    expect(await page.getAttribute('meta[property="og:title"]', "content")).to.equal("Head settings from +data");
+
+    await navigate("/head-settings-null", "Head settings removed");
+    await autoRetry(async () => expect(await page.title()).to.equal(""));
+    expect(await page.getAttribute("html", "lang")).to.equal("en");
+    expect(await page.locator('meta[name="description"], meta[property^="og:"]').count()).to.equal(0);
+
+    await navigate("/", "Vike React Server Components");
+    await autoRetry(async () => expect(await page.title()).to.equal("Vike RSC demo"));
+    expect(await description()).to.equal("A demo of Vike with React Server Components");
+    expect(await page.locator("title").count()).to.equal(1);
+    expect(await page.evaluate(() => (window as { headingsAtTitleChange?: string[] }).headingsAtTitleChange)).to.deep.equal([
+      "Head settings",
+      "Head settings removed",
+      "Vike React Server Components",
+    ]);
+  });
+
+  test("Head settings: a setting that throws in the browser reaches Vike, and the previous page stays on screen with its actions", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    // Vike logs the errors it catches
+    const logged = page.waitForEvent("console", (message) => message.type() === "error" && message.text().includes(HEAD_SETTING_ERROR));
+    await clickNewLink("/head-settings-throw");
+    await logged;
+    expect(await page.textContent("h1")).to.equal("Vike React Server Components");
     expect(await page.title()).to.equal("Vike RSC demo");
+
+    // A static host can't run actions
+    if (isStatic) return;
+    const action = page.waitForRequest((request) => !!request.headers()["x-rsc-action"]);
+    await page.click('button:has-text("Increment")');
+    expect(new URL((await action).url()).pathname).to.equal("/");
+  });
+}
+
+function testHeadSettingsRerender() {
+  test("Head settings: rerender() keeps a title the page set in the browser", async () => {
+    // A navigation, so the page isn't the hydrated one, whose settings the HTML has
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await page.click('a[href="/todos"]');
+    await waitForHydration("Add Task");
+    await page.evaluate(() => (document.title = "Set in the browser"));
+    await page.fill('input[placeholder="What needs to be done?"]', "Head settings todo");
+    await page.click('button:has-text("Add Task")');
+    await autoRetry(async () => {
+      expect(await page.textContent("body")).to.include("Head settings todo");
+    });
+    expect(await page.title()).to.equal("Set in the browser");
   });
 }
 
@@ -1105,7 +1224,7 @@ function testServerLoading() {
   test('A +Loading that starts with "use server component" reaches the browser only as a stub', async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    await clickLink("/server-loading");
+    await clickNewLink("/server-loading");
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("A page whose +Loading is a server component");
     });
@@ -1119,7 +1238,7 @@ function testServerLoading() {
 function testSsrFalse(isStatic: boolean) {
   test("ssr: false: the first load's HTML has no page, and the browser renders it from its Flight", async () => {
     // Pre-rendered too: the HTML with an empty root, and the Flight
-    expect(await fetchHtml("/spa")).to.include('<div id="root"></div>');
+    expect(await fetchHtml("/spa")).to.include('<div id="root" data-root=""></div>');
     await page.goto(getServerUrl() + "/spa");
     // SpaControls reads window while it renders
     await page.waitForSelector("#spa-rerender");
@@ -1134,7 +1253,7 @@ function testSsrFalse(isStatic: boolean) {
     }
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    await clickLink("/spa");
+    await clickNewLink("/spa");
     await page.waitForSelector("#spa-rerender");
     expect(await page.textContent("#spa-rendered-on")).to.equal("Rendered on the server");
   });
@@ -1185,6 +1304,20 @@ function testGonePassToClientValue() {
     await page.click('button:has-text("Render again")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-visitor]")).to.equal("none");
+    });
+  });
+}
+
+function testConcurrentRerender() {
+  test("Server action: two rerender() calls in flight at once on one page both apply", async () => {
+    await page.goto(getServerUrl() + "/unserializable");
+    await waitForHydration("Render again");
+    const readRender = async () => Number(await page.textContent("[data-render]"));
+    const before = await readRender();
+    // The second click starts its action before the first one's answer arrives
+    await page.dblclick('button:has-text("Render again")');
+    await autoRetry(async () => {
+      expect(await readRender()).to.equal(before + 2);
     });
   });
 }
@@ -1303,13 +1436,13 @@ function trackConsoleErrors() {
   };
 }
 
-// No page links there. Vike's client router handles any link, so this is a client navigation.
+// Clicks a link appended to the page, so it works where no page links to href. Vike's client router handles any link, so this is a client navigation.
 async function clickNewLink(href: string) {
   await page.evaluate(
     (href) => document.body.append(Object.assign(document.createElement("a"), { href, textContent: href })),
     href
   );
-  await page.click(`a[href="${href}"]`);
+  await page.locator(`a[href="${href}"]`).last().click();
 }
 
 function testRscCache() {
@@ -1409,7 +1542,7 @@ function testErrorPageInBrowser() {
   test("The error page after an error in the browser: the console says why it can't render there, and the page stays", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    await clickLink("/browser-error");
+    await clickNewLink("/browser-error");
     await autoRetry(async () => {
       expectLog(
         `[vike-react-rsc] The page /src/pages/_error ${ERROR_PAGE_IN_BROWSER_ERROR}, but components: 'server' makes it a server component, which renders only on the server`,
@@ -1424,7 +1557,7 @@ function testServerComponentThrows() {
   test("A client navigation to a server component that throws: the console says why the error page can't render, and the next navigation shows its page", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    await clickLink("/throws");
+    await clickNewLink("/throws");
     // components: 'server' makes the error page a server component, which can't render in the browser
     await autoRetry(async () => {
       expectLog(
@@ -1432,7 +1565,7 @@ function testServerComponentThrows() {
         { filter: ({ logSource }) => logSource === "Browser Error" }
       );
     });
-    await clickLink("/client");
+    await clickNewLink("/client");
     await autoRetry(async () => {
       expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
     });

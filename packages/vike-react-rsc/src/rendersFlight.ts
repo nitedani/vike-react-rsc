@@ -8,9 +8,11 @@ export function rendersFlight(pageContext: PageContext): boolean {
 
 /** Under `components: 'client'`, the page's first Page, Layout, Wrapper or Loading that is a server component: in the rsc env
  * the plugin flags it, outside it the plugin's stub replaces it */
-export function findServerComponent(pageContext: PageContext): { file: string } | undefined {
+export function findServerComponent(pageContext: PageContext): { file: string; serverComponentImport?: string[] } | undefined {
   const { Page, Layout = [], Wrapper = [], Loading } = pageContext.config;
-  return [Page, ...Layout, ...Wrapper, Loading].find((component) => component && "isServerComponent" in component) as { file: string } | undefined;
+  return [Page, ...Layout, ...Wrapper, Loading].find((component) => component && "isServerComponent" in component) as
+    | { file: string; serverComponentImport?: string[] }
+    | undefined;
 }
 
 /** The files from each of the page's Page, Layouts, Wrappers or Loading that is a server component because it imports one, to
