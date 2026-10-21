@@ -35,7 +35,7 @@ export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInf
   const abort = getAbort(error);
   if (abort && "redirect" in abort) {
     const hint = "[vike-react-rsc] An error boundary caught a throw redirect(), so the browser stays on the page: throw it outside that boundary, or in guard() or data()";
-    console.error(hint, error, errorInfo.componentStack);
+    unlessHtmlRedirects(() => console.error(hint, error, errorInfo.componentStack));
   } else {
     console.error(error, errorInfo.componentStack);
   }
@@ -44,19 +44,22 @@ export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInf
 function Redirect({ url }: { url: string }) {
   const pageContext = usePageContext();
   useEffect(() => {
-    const leave = () => {
-      // The HTML's redirect meta makes the browser load the target: only once
-      if (document.querySelector("meta[data-vike-react-rsc-redirect]")) return;
-      // Thrown in what Vike navigated to, or what an rsc() load rendered: as with an HTTP redirect, the page's URL doesn't
-      // stay in history
-      void followRedirect(url, wasAnswered(pageContext));
-    };
-    // The meta comes after the error in the HTML
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", leave, { once: true });
-      return () => document.removeEventListener("DOMContentLoaded", leave);
-    }
-    leave();
+    // Thrown in what Vike navigated to, or what an rsc() load rendered: as with an HTTP redirect, the page's URL doesn't
+    // stay in history
+    return unlessHtmlRedirects(() => void followRedirect(url, wasAnswered(pageContext)));
   }, [url]);
   return null;
+}
+
+// The HTML's redirect meta makes the browser load the target itself
+function unlessHtmlRedirects(run: () => void): (() => void) | undefined {
+  const check = () => {
+    if (!document.querySelector("meta[data-vike-react-rsc-redirect]")) run();
+  };
+  // The meta comes after the error in the HTML
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", check, { once: true });
+    return () => document.removeEventListener("DOMContentLoaded", check);
+  }
+  check();
 }
