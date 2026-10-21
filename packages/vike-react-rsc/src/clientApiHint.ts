@@ -21,9 +21,10 @@ export function getClientApiHint(error: unknown, page?: string, serverComponentI
   const caller = import.meta.env.DEV && file ? file : (component ?? (page ? `A file of ${page}` : "A server component"));
   const use = api === "Component" ? "extends Component or PureComponent" : `calls ${api}()`;
   const runsOnServer = `${caller} ${use}, which runs only in the browser, but runs on the server`;
-  // If the failing file is one of those files: the files from it to the server component it imports
+  // If the failing file is one of those files: the files from it to the server component it imports. They're named from the
+  // app's root, so a file outside it starts with ../
   const serverComponentImport = serverComponentImports.flatMap((files) => {
-    const index = files.slice(0, -1).findIndex((imported) => file?.endsWith(`/${imported}`));
+    const index = files.slice(0, -1).findIndex((imported) => file?.endsWith(`/${imported.replace(/^(\.\.\/)+/, "")}`));
     return index === -1 ? [] : [files.slice(index)];
   })[0];
   if (!serverComponentImport) {
