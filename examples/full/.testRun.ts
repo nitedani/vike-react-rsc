@@ -593,6 +593,18 @@ function testServerComponentAbort() {
     await logged;
     expect(await page.textContent("[data-boundary-fallback]")).to.equal("Caught");
     expect(new URL(page.url()).pathname).to.equal("/abort/redirect-caught");
+
+    // On a first load the HTML's meta still redirects, so there is nothing to report
+    const consoleErrors = trackConsoleErrors();
+    const target = getServerUrl() + "/";
+    await page.route(target, async (route) => {
+      await sleep(2000);
+      await route.continue();
+    });
+    await page.goto(getServerUrl() + "/abort/redirect-caught");
+    await page.waitForURL(target);
+    await page.unroute(target);
+    expect(consoleErrors.stop()).to.deep.equal([]);
   });
 
   // Each one leaves for the target with a client navigation, not a document load, and logs no error
