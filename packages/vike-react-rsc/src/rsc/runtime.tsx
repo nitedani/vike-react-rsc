@@ -3,7 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
 import { getAbortDigest } from "../abort";
-import type { ActionOutcome, ActionPayload, PagePayload } from "../types";
+import type { ActionOutcome, ActionPayload, PagePayload, PassedToClient } from "../types";
 import { runInScope } from "./scope";
 
 // Per page render, after a form submitted before hydration
@@ -16,12 +16,9 @@ export function pagePayload(pageContext: PageContext): ReadableStream<Uint8Array
   }));
 }
 
-export function actionPayload(
-  pageContext: PageContext,
-  { returnValue, rerender }: ActionOutcome
-): ReadableStream<Uint8Array> {
+export function actionPayload(pageContext: PageContext, returnValue: unknown, passedToClient?: PassedToClient): ReadableStream<Uint8Array> {
   return renderOnRead<ActionPayload>(pageContext, () =>
-    rerender ? { returnValue, root: getPage(pageContext) } : { returnValue }
+    passedToClient ? { returnValue, root: getPage(pageContext), passedToClient } : { returnValue }
   );
 }
 
@@ -69,7 +66,7 @@ function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Paylo
           const abortDigest = getAbortDigest(error);
           if (abortDigest) return abortDigest;
           // Not the abort, nor what failed because of it
-          if (!stopped.signal.aborted) console.error("[vike-react-rsc] A server component failed:", error);
+          if (!stopped.signal.aborted) console.error("[vike-react-rsc] A server component, or a value sent to the browser, failed:", error);
         },
       })
     );

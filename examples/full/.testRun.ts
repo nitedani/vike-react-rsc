@@ -49,6 +49,9 @@ const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server comp
 // Logged on the server by testUnknownAction()
 const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
 
+// Logged on the server for /unserializable, whose data holds a function
+const UNSERIALIZABLE_LOG = "can't be serialized and, therefore, can't be passed to the client side";
+
 // Thrown in the browser by testServerComponentAbort()
 const getRefusedRedirectError = (next: string) =>
   `[vike-react-rsc] The server redirected to ${next}, which isn't an http(s) URL`;
@@ -84,6 +87,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testUnknownAction()
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
+      // testUnserializableData()
+      (logSource === "stderr" && logText.includes(UNSERIALIZABLE_LOG)) ||
       // testServerComponentAbort(): the redirect an app's error boundary caught, as React logs it in dev and in production
       ((logSource === "Browser Error" || (isDev && logSource === "stderr" && logText.includes("[vite][console.error]"))) &&
         logText.includes("Error: AbortRender")) ||
@@ -114,6 +119,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testClientCss();
   if (isDev) testClientCssLinkRemoved();
   testMisuse();
+  testUnserializableData(isStatic);
   // A static host has no server: nothing renders per request, and server actions can't run.
   if (!isStatic) {
     testPageLoading();
@@ -122,6 +128,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testCounter();
     testTodoForm();
     testSession();
+    testGonePassToClientValue();
     testActionOnce();
     testActionValueSurvivesDataError();
     testActionPageFailure();
@@ -345,9 +352,11 @@ function testTodoForm() {
   test("Todo form functionality", async () => {
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
-    const readTodoCount = async () =>
-      Number((await page.textContent("#todo-count"))?.match(/\d+/)?.[0]);
+    const readTodoCount = async (selector = "#todo-count") =>
+      Number((await page.textContent(selector))?.match(/\d+/)?.[0]);
     const countBefore = await readTodoCount();
+    expect(await readTodoCount("#todo-count-client")).to.equal(countBefore);
+    expect(await readTodoCount("#todo-count-streamed")).to.equal(countBefore);
     const requests: string[] = [];
     const onRequest = (request: { method(): string; url(): string; resourceType(): string }) => {
       if (["document", "fetch", "xhr"].includes(request.resourceType())) {
@@ -363,6 +372,10 @@ function testTodoForm() {
     });
     // One request: the action, then +data and the page, which see the new task
     expect(await readTodoCount()).to.equal(countBefore + 1);
+    // Client components get the new pageContext too
+    expect(await readTodoCount("#todo-count-client")).to.equal(countBefore + 1);
+    expect(await page.textContent("#todo-count-client")).to.include("Task Manager");
+    expect(await readTodoCount("#todo-count-streamed")).to.equal(countBefore + 1);
     expect(requests).to.deep.equal(["POST /todos"]);
     page.off("request", onRequest);
   });
@@ -1097,6 +1110,20 @@ function testClientDisconnect() {
   });
 }
 
+function testGonePassToClientValue() {
+  test("After rerender(), a passToClient value the server no longer sets is gone, as after a navigation", async () => {
+    await page.context().addCookies([{ name: "visitor", value: "alice", url: getServerUrl() }]);
+    await page.goto(getServerUrl() + "/client");
+    await waitForHydration("Render again");
+    expect(await page.textContent("[data-visitor]")).to.equal("alice");
+    await page.context().clearCookies({ name: "visitor" });
+    await page.click('button:has-text("Render again")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-visitor]")).to.equal("none");
+    });
+  });
+}
+
 function testActionOnce() {
   test("Server action: runs once when guard() throws render()", async () => {
     // Without a name, the guard of /account throws render("/login") after the action
@@ -1310,6 +1337,31 @@ function testRscCacheKey() {
     const response = await fetch(request.url(), { method: "POST", headers: request.headers(), body: request.postData() });
     expect(response.status).to.equal(500);
     expect(await response.text()).to.not.include("Something went wrong");
+  });
+}
+
+function testUnserializableData(isStatic: boolean) {
+  test("A page whose data holds a function updates on navigation and after rerender()", async () => {
+    // Pre-rendered too, without a query
+    expect(await fetchHtml("/unserializable")).to.include('href="/unserializable?page=2"');
+    // A static host has no server: only the pre-rendered page exists
+    if (isStatic) return;
+    await page.goto(getServerUrl() + "/unserializable?page=1");
+    await waitForHydration("Render again");
+    for (const next of ["2", "3"]) {
+      await page.click('a:has-text("Next page")');
+      await autoRetry(async () => {
+        expect(await page.textContent("[data-page]")).to.equal(next);
+      });
+    }
+    const readRender = async () => Number(await page.textContent("[data-render]"));
+    for (let i = 0; i < 2; i++) {
+      const before = await readRender();
+      await page.click('button:has-text("Render again")');
+      await autoRetry(async () => {
+        expect(await readRender()).to.be.greaterThan(before);
+      });
+    }
   });
 }
 
