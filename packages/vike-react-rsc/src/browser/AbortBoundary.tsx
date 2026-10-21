@@ -31,7 +31,14 @@ export class AbortBoundary extends Component<Props, State> {
 
 // AbortBoundary catches only the redirects it follows; a boundary of the app's may swallow one, so it's reported
 export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInfo) => {
-  if (!(errorInfo.errorBoundary instanceof AbortBoundary)) console.error(error, errorInfo.componentStack);
+  if (errorInfo.errorBoundary instanceof AbortBoundary) return;
+  const abort = getAbort(error);
+  if (abort && "redirect" in abort) {
+    const hint = "[vike-react-rsc] An error boundary caught a throw redirect(), so the browser stays on the page: throw it outside that boundary, or in guard() or data()";
+    console.error(hint, error, errorInfo.componentStack);
+  } else {
+    console.error(error, errorInfo.componentStack);
+  }
 };
 
 function Redirect({ url }: { url: string }) {
