@@ -2,9 +2,10 @@ import { startTransition, useEffect, useState, type ReactElement, type ReactNode
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
 import { applyHeadSettings } from "../integration/applyHeadSettings";
-import { getHeadSetting } from "../integration/getHeadSetting";
 
-type Shown = { pageContext: PageContextClient; root: ReactNode };
+// A navigation's title, lang and description, applied once React has committed its page
+export type Head = Parameters<typeof applyHeadSettings>;
+type Shown = { pageContext: PageContextClient; root: ReactNode; head?: Head };
 
 // The page Vike renders last: actions call its URL, and their answers apply only while it stays current
 let current: PageContextClient;
@@ -28,7 +29,7 @@ export function show(next: Shown): void {
 
 /** Shows a new tree for the page shown, e.g. the one an action's rerender() sent */
 export function showRoot(root: ReactNode): void {
-  show({ pageContext: shown.pageContext, root });
+  show({ ...shown, root });
 }
 
 /** Hydrates `page`, then shows what show() shows */
@@ -39,22 +40,9 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shown);
   }, []);
-  // Once React has committed the next page; rerender() keeps the pageContext, and the HTML has the hydrated page's
+  // Once React has committed the next page; rerender() keeps its head
   useEffect(() => {
-    if (state.pageContext.isHydration) return;
-    try {
-      applyHead(state.pageContext);
-    } catch (err) {
-      // Thrown in the effect, it would make React unmount the page
-      reportError(err);
-    }
-  }, [state.pageContext]);
+    if (state.head) applyHeadSettings(...state.head);
+  }, [state.head]);
   return <PageContextProvider pageContext={state.pageContext}>{state.root}</PageContextProvider>;
-}
-
-function applyHead(pageContext: PageContextClient) {
-  const title = getHeadSetting<string | null>("title", pageContext);
-  const lang = getHeadSetting<string | null>("lang", pageContext);
-  const description = getHeadSetting<string | null>("description", pageContext);
-  applyHeadSettings(title, lang, description);
 }

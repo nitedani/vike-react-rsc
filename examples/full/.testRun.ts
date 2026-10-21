@@ -48,6 +48,9 @@ const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server comp
 
 // Thrown by /head-settings-throw's +title in the browser
 const HEAD_SETTING_ERROR = "+title failed in the browser on demand";
+// Vike then renders the error page in the browser, which has no Flight payload there until
+// https://github.com/vikejs/vike/pull/3636 is released.
+const ERROR_PAGE_IN_BROWSER_ERROR = "Cannot read properties of undefined (reading 'getReader')";
 
 // Logged on the server by testUnknownAction()
 const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
@@ -83,8 +86,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testUnknownAction()
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
-      // testHeadSettings(): in dev, Vite also forwards the browser's uncaught error to the server's stderr
-      ((logSource === "Browser Error" || (isDev && logSource === "stderr")) && logText.includes(HEAD_SETTING_ERROR)) ||
+      // testHeadSettings(): in dev, Vite also forwards the browser's console.error() to the server's stderr
+      ((logSource === "Browser Error" || (isDev && logSource === "stderr")) &&
+        (logText.includes(HEAD_SETTING_ERROR) || logText.includes(ERROR_PAGE_IN_BROWSER_ERROR))) ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
       // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
@@ -849,20 +853,25 @@ function testHeadSettings() {
     ]);
   });
 
-  test("Head settings: a setting that throws in the browser keeps the page on screen, and the error is uncaught", async () => {
+  test("Head settings: a setting that throws in the browser reaches Vike, and the previous page stays on screen", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
+    // Vike logs the errors it catches
     await page.evaluate(() => {
       const errors: string[] = [];
-      Object.assign(window, { uncaughtErrors: errors });
-      addEventListener("error", (event) => errors.push(event.message));
+      Object.assign(window, { loggedErrors: errors });
+      const { error } = console;
+      console.error = (...args) => {
+        errors.push(String(args[0]));
+        error(...args);
+      };
     });
     await clickNewLink("/head-settings-throw");
     await autoRetry(async () => {
-      const errors = await page.evaluate(() => (window as { uncaughtErrors?: string[] }).uncaughtErrors);
+      const errors = await page.evaluate(() => (window as { loggedErrors?: string[] }).loggedErrors);
       expect(errors!.some((message) => message.includes(HEAD_SETTING_ERROR))).to.equal(true);
     });
-    expect(await page.textContent("h1")).to.equal("Head setting throws");
+    expect(await page.textContent("h1")).to.equal("Vike React Server Components");
     expect(await page.title()).to.equal("Vike RSC demo");
   });
 }
