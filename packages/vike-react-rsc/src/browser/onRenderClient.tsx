@@ -2,13 +2,14 @@ import { createFromReadableStream, setServerCallback } from "@vitejs/plugin-rsc/
 import { createRoot, hydrateRoot } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
+import { getHeadSetting } from "../integration/getHeadSetting";
 import { getPageElement } from "../integration/getPageElement";
 import { findServerComponent } from "../rendersFlight";
 import type { PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { onCaughtError } from "./AbortBoundary";
 import { callServer } from "./callServer";
-import { onUncaughtError, rendered, Root, setCurrentPageContext, setReactRoot, show } from "./page";
+import { onUncaughtError, rendered, Root, setCurrentPageContext, setReactRoot, show, type HeadSettings } from "./page";
 import { markRscOutputsStale } from "./rsc";
 
 // Whether a page can render without a Flight, as in vike-react: under components: 'client', and always in dev
@@ -17,12 +18,14 @@ declare const __VIKE_REACT_RSC_CLIENT_DEFAULT__: boolean;
 setServerCallback(callServer);
 
 export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
-  setCurrentPageContext(pageContext);
   // Use case:
   // - Store hydration https://github.com/vikejs/vike-react/issues/110
   await callCumulativeHooks(pageContext.config.onBeforeRenderClient, pageContext);
   const { root, formState } = await getPagePayload(pageContext);
-  const page = { pageContext, root };
+  // Evaluated before the page shows, so a setting that throws reaches Vike; the HTML has the hydrated page's
+  const headSettings = pageContext.isHydration ? undefined : getHeadSettings(pageContext);
+  const page = { pageContext, root, headSettings };
+  setCurrentPageContext(pageContext);
   show(page);
   // As vike-react's: Vike ends the navigation once React shows the page, and renders the error page if React throws on
   // it. Not on hydration, whose onHydrationEnd() may navigate before React commits.
@@ -62,6 +65,14 @@ async function getPagePayload(pageContext: PageContextClient): Promise<PagePaylo
 
 function cannotRenderInBrowser(pageContext: PageContextClient, cause: string): Error {
   return new Error(`[vike-react-rsc] The page ${pageContext.pageId} has to render in the browser, e.g. the error page after an error there, but ${cause}, which renders only on the server`);
+}
+
+function getHeadSettings(pageContext: PageContextClient): HeadSettings {
+  return [
+    getHeadSetting<string | null>("title", pageContext),
+    getHeadSetting<string | null>("lang", pageContext),
+    getHeadSetting<string | null>("description", pageContext),
+  ];
 }
 
 if (import.meta.hot) {

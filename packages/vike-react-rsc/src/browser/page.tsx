@@ -2,18 +2,22 @@ import { useDeferredValue, useEffect, useState, type ReactElement, type ReactNod
 import type { Root as ReactRoot } from "react-dom/client";
 import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import type { PageContextClient } from "vike/types";
+import { applyHeadSettings } from "../integration/applyHeadSettings";
 import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
 import { AbortBoundary } from "./AbortBoundary";
 
+// A navigation's title, lang and description, applied once React has committed its page
+export type HeadSettings = Parameters<typeof applyHeadSettings>;
 // `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()
-type Shown = { pageContext: PageContextClient; root: ReactNode; fromAction?: boolean };
+type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings; fromAction?: boolean };
 
 // One for every copy of this file: after an edit, Vite can load the next page's entry with a new copy
 const shared = getShared(
   "page",
   (): {
-    // The page Vike renders last: actions call its URL, and their answers apply only while it stays current
+    // Vike's pageContext of the page shown, which rerender() doesn't replace: actions call its URL, and their answers apply
+    // only while it stays current
     current?: PageContextClient;
     // What Root shows, and how to change it once Root has mounted
     shown?: Shown;
@@ -60,7 +64,7 @@ export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys:
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
   const pageContext = createPageContextFromServer_experimentalRSC(shared.current!, passed);
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
-  show({ pageContext, root, fromAction });
+  show({ ...shared.shown, pageContext, root, fromAction });
 }
 
 export function setReactRoot(reactRoot: ReactRoot): void {
@@ -89,6 +93,10 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
   }, []);
+  // Once React has committed the next page; rerender() keeps its head settings
+  useEffect(() => {
+    if (state.headSettings) applyHeadSettings(...state.headSettings);
+  }, [state.headSettings]);
   useEffect(() => {
     if (state === shared.shown) settle();
   }, [state]);
