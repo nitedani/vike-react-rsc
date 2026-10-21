@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { Component, useEffect, useState, type ReactNode } from "react";
 import { usePageContext } from "../pageContext";
 import { getShared } from "../shared";
 
-type Output = { node: ReactNode; generation: number; loadedAt: number };
+type Output = { node: ReactNode; generation: number; drops: number; loadedAt: number };
 
 const outputs = new Map<string, Output>();
 // One load per key at a time, shared by every component that renders it
@@ -13,7 +13,12 @@ const serverComponentIds = new Map<Function, number>();
 const state = getShared("rsc", () => ({
   // Raised by every server action except rsc()'s loads: an output loaded before may show data the action changed
   generation: 0,
+  // Raised by every redirect that drops the outputs, a library copy's included: an output or a load from before is
+  // neither shown, shared nor cached
+  drops: 0,
   isLoading: false,
+  // What rsc() outputs threw: AbortBoundary tells them from what a server action's answer sent
+  thrownByOutputs: new WeakSet<object>(),
 }));
 
 /** Makes a client component that loads the server component from the server, and shows `fallback`, or Loading.component, until it loads */
@@ -28,7 +33,8 @@ export function rsc<Props extends object>(
     const key = `${id}:${JSON.stringify(props)}`;
     const staleTime = pageContext.config.rsc?.staleTime ?? 60_000;
     // Shown until the next load arrives, even when out of date. Never set during SSR: loads start in effects.
-    const cached = outputs.get(key);
+    const output = outputs.get(key);
+    const cached = output?.drops === state.drops ? output : undefined;
     const isFresh = !!cached && cached.generation === state.generation && Date.now() - cached.loadedAt < staleTime;
     const [loaded, setLoaded] = useState<{ key: string; node: ReactNode }>();
 
@@ -45,10 +51,26 @@ export function rsc<Props extends object>(
     }, [key]);
 
     const node = loaded?.key === key ? loaded.node : cached?.node;
-    if (node !== undefined) return node;
+    if (node !== undefined) return <OutputBoundary>{node}</OutputBoundary>;
     const DefaultFallback = pageContext.config.Loading?.component;
     return fallback ?? (DefaultFallback && <DefaultFallback />);
   };
+}
+
+// Marks what the output throws, then leaves it to the error boundaries above
+class OutputBoundary extends Component<{ children: ReactNode }> {
+  static getDerivedStateFromError(error: unknown): never {
+    if (typeof error === "object" && error !== null) state.thrownByOutputs.add(error);
+    throw error;
+  }
+
+  render(): ReactNode {
+    return this.props.children;
+  }
+}
+
+export function isThrownByRscOutput(error: unknown): boolean {
+  return typeof error === "object" && error !== null && state.thrownByOutputs.has(error);
 }
 
 /** True while rsc() calls a server function: callServer() reads it in the same synchronous call */
@@ -60,9 +82,15 @@ export function markRscOutputsStale(): void {
   state.generation++;
 }
 
+export function dropRscOutputs(): void {
+  state.drops++;
+}
+
 // Resolves to undefined when the load fails: the fallback, or the last output, stays
 function load(key: string, call: () => Promise<ReactNode>, staleTime: number): Promise<ReactNode | undefined> {
-  const pending = loads.get(key);
+  const startedAfter = state.drops;
+  const loadKey = `${startedAfter}:${key}`;
+  const pending = loads.get(loadKey);
   if (pending) return pending;
   // An action that runs while this loads may change what it shows
   const startedIn = state.generation;
@@ -72,7 +100,7 @@ function load(key: string, call: () => Promise<ReactNode>, staleTime: number): P
   const loading = request
     .then(
       (node) => {
-        if (staleTime > 0 && node !== undefined) outputs.set(key, { node, generation: startedIn, loadedAt: Date.now() });
+        if (staleTime > 0 && node !== undefined && startedAfter === state.drops) outputs.set(key, { node, generation: startedIn, drops: startedAfter, loadedAt: Date.now() });
         return node;
       },
       (error: unknown) => {
@@ -80,7 +108,7 @@ function load(key: string, call: () => Promise<ReactNode>, staleTime: number): P
         return undefined;
       }
     )
-    .finally(() => loads.delete(key));
-  loads.set(key, loading);
+    .finally(() => loads.delete(loadKey));
+  loads.set(loadKey, loading);
   return loading;
 }

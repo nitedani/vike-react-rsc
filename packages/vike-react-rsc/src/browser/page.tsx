@@ -2,10 +2,12 @@ import { startTransition, useEffect, useState, type ReactElement, type ReactNode
 import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
 import { applyHeadSettings } from "../integration/applyHeadSettings";
+import { AbortBoundary } from "./AbortBoundary";
 
 // A navigation's title, lang and description, applied once React has committed its page
 export type HeadSettings = Parameters<typeof applyHeadSettings>;
-type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings };
+// `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()
+type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings; fromAction?: boolean };
 
 // What Root shows, and how to change it once Root has mounted
 let shown: Shown;
@@ -23,8 +25,8 @@ export function show(next: Shown): void {
 }
 
 /** Shows a new tree for the page shown, e.g. the one an action's rerender() sent */
-export function showRoot(root: ReactNode): void {
-  show({ ...shown, root });
+export function showRoot(root: ReactNode, fromAction: boolean): void {
+  show({ ...shown, root, fromAction });
 }
 
 /** Hydrates `page`, then shows what show() shows */
@@ -39,5 +41,9 @@ export function Root({ page }: { page: Shown }): ReactElement {
   useEffect(() => {
     if (state.headSettings) applyHeadSettings(...state.headSettings);
   }, [state.headSettings]);
-  return <PageContextProvider pageContext={state.pageContext}>{state.root}</PageContextProvider>;
+  return (
+    <PageContextProvider pageContext={state.pageContext}>
+      <AbortBoundary keepsPage={!!state.fromAction}>{state.root}</AbortBoundary>
+    </PageContextProvider>
+  );
 }

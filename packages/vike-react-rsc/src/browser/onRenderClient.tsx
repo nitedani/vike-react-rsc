@@ -4,6 +4,7 @@ import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import { getHeadSetting } from "../integration/getHeadSetting";
 import type { PagePayload } from "../types";
+import { onCaughtError } from "./AbortBoundary";
 import { callServer } from "./callServer";
 import { Root, show, type HeadSettings } from "./page";
 import { markRscOutputsStale } from "./rsc";
@@ -16,7 +17,8 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   const headSettings = pageContext.isHydration ? undefined : getHeadSettings(pageContext);
   const page = { pageContext, root, headSettings };
   show(page);
-  if (pageContext.isHydration) hydrateRoot(document.getElementById("root")!, <Root page={page} />, { formState });
+  if (!pageContext.isHydration) return;
+  hydrateRoot(document.getElementById("root")!, <Root page={page} />, { formState, onCaughtError });
 };
 
 function getHeadSettings(pageContext: PageContextClient): HeadSettings {

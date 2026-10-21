@@ -77,6 +77,9 @@ importers:
 
   packages/vike-react-rsc:
     dependencies:
+      '@brillout/json-serializer':
+        specifier: ^0.5.27
+        version: 0.5.27
       react-server-dom-webpack:
         specifier: '>=19.3.1 <20'
         version: 19.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(webpack@5.111.1(esbuild@0.27.0))
@@ -262,9 +265,6 @@ packages:
 
   '@brillout/import@0.2.6':
     resolution: {integrity: sha512-1GUTmADc8trUC1YSW2lp9r6PmwluMoEyHajnE1kxVdbKGD0wJOlq/DvTWMUqLtBDCnQR+n//qgMtz6HwA/lotA==}
-
-  '@brillout/json-serializer@0.5.25':
-    resolution: {integrity: sha512-/Ahv1XIHAYyROWfyOQZxbxmkvM3ef3aMPPzEC0EfkyZUFb88y/nFFwCFvYUjE20MGoF8/9Z1jIy7ihkpkE+maw==}
 
   '@brillout/json-serializer@0.5.27':
     resolution: {integrity: sha512-D+Pc40tS6mme3dtlQzOD+nqP+yAWHQ+KX7gcJJ3DRs02pbqBh/6FBk/OWkLuNyaI0rgedh4KYla/xCSg0jArEw==}
@@ -2494,8 +2494,6 @@ snapshots:
 
   '@brillout/import@0.2.6': {}
 
-  '@brillout/json-serializer@0.5.25': {}
-
   '@brillout/json-serializer@0.5.27': {}
 
   '@brillout/part-regex@0.1.4': {}
@@ -3984,7 +3982,7 @@ snapshots:
   react-streaming@0.4.21(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
       '@brillout/import': 0.2.6
-      '@brillout/json-serializer': 0.5.25
+      '@brillout/json-serializer': 0.5.27
       '@brillout/picocolors': 1.0.31
       isbot-fast: 1.2.0
       react: 19.3.1
