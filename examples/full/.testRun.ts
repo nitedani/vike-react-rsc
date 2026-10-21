@@ -1492,25 +1492,13 @@ function testNavigationKeepsPage() {
   test("A navigation keeps the current page until the next page's client components have loaded", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    let release!: () => void;
-    const released = new Promise<void>((resolve) => (release = resolve));
-    let isHeld = false;
-    await page.route("**/*", async (route) => {
-      if (route.request().resourceType() !== "script") return route.continue();
-      const response = await route.fetch();
-      if ((await response.text()).includes("data-url-pathname")) {
-        isHeld = true;
-        await released;
-      }
-      await route.fulfill({ response });
-    });
+    const held = await holdClientPage();
     await clickNewLink("/client");
-    // /client's Page is a client component: its module is held
-    await autoRetry(() => expect(isHeld).to.equal(true));
+    await autoRetry(() => expect(held.isHeld).to.equal(true));
     await sleep(500);
     expect(await page.locator("[data-loading-layout]").count()).to.equal(0);
     expect(await page.textContent("h1")).to.include("Vike React Server Components");
-    release();
+    held.release();
     await autoRetry(async () => {
       expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
     });
@@ -1518,6 +1506,39 @@ function testNavigationKeepsPage() {
     expect(await page.evaluate(() => (window as { shownAtTransitionEnd?: string | null }).shownAtTransitionEnd)).to.equal("/client");
     await page.unroute("**/*");
   });
+  test("A click on another link while the next page's client components load shows that page at once", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    const held = await holdClientPage();
+    await clickNewLink("/client");
+    await autoRetry(() => expect(held.isHeld).to.equal(true));
+    await page.click('a[href="/todos"]');
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include("Task Manager");
+    });
+    // The page left doesn't show once its client components load
+    held.release();
+    await sleep(500);
+    expect(await page.textContent("h1")).to.include("Task Manager");
+    await page.unroute("**/*");
+  });
+}
+
+// Holds the module of /client's Page, a client component, until release()
+async function holdClientPage() {
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => (release = resolve));
+  const held = { isHeld: false, release };
+  await page.route("**/*", async (route) => {
+    if (route.request().resourceType() !== "script") return route.continue();
+    const response = await route.fetch();
+    if ((await response.text()).includes("data-url-pathname")) {
+      held.isHeld = true;
+      await released;
+    }
+    await route.fulfill({ response });
+  });
+  return held;
 }
 
 function testErrorOverlay() {

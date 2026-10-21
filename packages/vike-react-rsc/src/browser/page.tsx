@@ -38,9 +38,20 @@ export function show(next: Shown): void {
   shared.setRootState?.(next);
 }
 
-/** Resolves once React shows what show() was last given, or rejects with the error React throws while rendering it */
-export function rendered(): Promise<void> {
-  return new Promise((resolve, reject) => (shared.rendering = { resolve, reject }));
+/** Resolves once React shows what show() was last given or `abortSignal` aborts, or rejects with the error React throws while rendering it */
+export async function rendered(abortSignal?: AbortSignal): Promise<void> {
+  let end!: () => void;
+  const rendering = new Promise<void>((resolve, reject) => {
+    shared.rendering = { resolve, reject };
+    end = resolve;
+  });
+  abortSignal?.addEventListener("abort", end);
+  if (abortSignal?.aborted) end();
+  try {
+    await rendering;
+  } finally {
+    abortSignal?.removeEventListener("abort", end);
+  }
 }
 
 function settle(error?: unknown): void {
