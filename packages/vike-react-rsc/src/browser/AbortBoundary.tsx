@@ -1,11 +1,8 @@
 import { Component, useEffect, type ReactNode } from "react";
 import type { HydrationOptions } from "react-dom/client";
-import { navigate } from "vike/client/router";
-import type { PageContext } from "vike/types";
 import { getAbort } from "../abort";
 import { usePageContext } from "../pageContext";
-import { getRedirectUrl } from "../redirect";
-import { dropRscOutputs } from "./rsc";
+import { followRedirect, wasAnswered } from "./callServer";
 
 type Props = { children: ReactNode };
 type State = { children?: ReactNode; redirectTo?: string };
@@ -37,34 +34,22 @@ export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInf
   if (!(errorInfo.errorBoundary instanceof AbortBoundary)) console.error(error, errorInfo.componentStack);
 };
 
-// The pages a server action answered
-const answeredPages = new WeakSet<PageContext>();
-
-/** A redirect thrown in what a server action's rerender() sent keeps the page in history, as the action's own redirect does */
-export function markAnswered(pageContext: PageContext): void {
-  answeredPages.add(pageContext);
-}
-
 function Redirect({ url }: { url: string }) {
   const pageContext = usePageContext();
   useEffect(() => {
     const leave = () => {
-      const target = getRedirectUrl(url, location.href);
-      if (!target) throw new Error(`[vike-react-rsc] A server component redirected to ${url}, which isn't an http(s) URL`);
       // The HTML's redirect meta makes the browser load the target: only once
       if (document.querySelector("meta[data-vike-react-rsc-redirect]")) return;
       // Thrown in what Vike navigated to, or what an rsc() load rendered: as with an HTTP redirect, the page's URL doesn't
       // stay in history
-      const keepsPage = answeredPages.has(pageContext);
-      if (target.origin !== location.origin) return location[keepsPage ? "assign" : "replace"](target.href);
-      // An rsc() output that threw it would throw it again, shown from the cache
-      dropRscOutputs();
-      void navigate(target.pathname + target.search + target.hash, { overwriteLastHistoryEntry: !keepsPage });
+      void followRedirect(url, wasAnswered(pageContext));
     };
     // The meta comes after the error in the HTML
-    if (document.readyState !== "loading") return leave();
-    document.addEventListener("DOMContentLoaded", leave, { once: true });
-    return () => document.removeEventListener("DOMContentLoaded", leave);
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", leave, { once: true });
+      return () => document.removeEventListener("DOMContentLoaded", leave);
+    }
+    leave();
   }, [url]);
   return null;
 }

@@ -1,13 +1,15 @@
 import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
 import { navigate } from "vike/client/router";
-import type { PageContextClient } from "vike/types";
+import type { PageContext, PageContextClient } from "vike/types";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import { getRedirectUrl } from "../redirect";
 import type { ActionPayload } from "../types";
-import { markAnswered } from "./AbortBoundary";
 import { getCurrentPageContext, showRoot } from "./page";
 import { dropRscOutputs, isRscLoad, markRscOutputsStale } from "./rsc";
+
+// The pages a server action answered
+const answeredPages = new WeakSet<PageContext>();
 
 /** React calls it for every server function the browser calls, rsc()'s included */
 export async function callServer(id: string, args: unknown[]): Promise<unknown> {
@@ -34,15 +36,15 @@ async function postAction(url: string, id: string, args: unknown[]): Promise<Res
   });
 }
 
-async function followRedirect(redirectTo: string, keepsPage: boolean): Promise<undefined> {
+/** Follows a redirect the server sent: `keepsPage` keeps the page in history */
+export function followRedirect(redirectTo: string, keepsPage: boolean): Promise<void> {
   const url = getRedirectUrl(redirectTo, location.href);
-  if (!url) throw new Error(`[vike-react-rsc] The server action redirected to ${redirectTo}, which isn't an http(s) URL`);
+  if (!url) throw new Error(`[vike-react-rsc] The server redirected to ${redirectTo}, which isn't an http(s) URL`);
   if (url.origin !== location.origin) return leavePage(() => location[keepsPage ? "assign" : "replace"](url.href));
   // An rsc() output that throws redirect(), loaded or still loading, would throw it again after Back
   dropRscOutputs();
   // Settles after the navigation, so a form action's pending transition doesn't hold the new page back
-  await navigate(url.pathname + url.search + url.hash, { overwriteLastHistoryEntry: !keepsPage });
-  return undefined;
+  return navigate(url.pathname + url.search + url.hash, { overwriteLastHistoryEntry: !keepsPage });
 }
 
 async function readAnswer(response: Response, pageContext: PageContextClient, isAction: boolean): Promise<unknown> {
@@ -50,10 +52,15 @@ async function readAnswer(response: Response, pageContext: PageContextClient, is
   const isFlight = response.headers.get("content-type")?.split(";")[0] === FLIGHT_CONTENT_TYPE.split(";")[0];
   if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
   const { returnValue, root } = await createFromFetch<ActionPayload>(Promise.resolve(response));
-  if (isAction) markAnswered(pageContext);
+  if (isAction) answeredPages.add(pageContext);
   // The page changed since the call: this answer's page is out of date
   if (root && getCurrentPageContext() === pageContext) startTransition(() => showRoot(root));
   return returnValue;
+}
+
+/** A redirect thrown in what a server action's rerender() sent keeps the page in history, as the action's own redirect does */
+export function wasAnswered(pageContext: PageContext): boolean {
+  return answeredPages.has(pageContext);
 }
 
 // Never settles: the caller doesn't resume, the document goes away

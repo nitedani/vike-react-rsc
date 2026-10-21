@@ -51,7 +51,7 @@ const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
 
 // Thrown in the browser by testServerComponentAbort()
 const getRefusedRedirectError = (next: string) =>
-  `[vike-react-rsc] A server component redirected to ${next}, which isn't an http(s) URL`;
+  `[vike-react-rsc] The server redirected to ${next}, which isn't an http(s) URL`;
 
 function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isDev = cmd === "pnpm run dev";
@@ -89,7 +89,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
         logText.includes("Error: AbortRender")) ||
       (logSource === "Browser Error" && logText.includes("Minified React error #441")) ||
       // testServerComponentAbort(), with React's warning for it. In dev, Vite also forwards both to the server's stderr.
-      logText.includes("[vike-react-rsc] A server component redirected to") ||
+      logText.includes("[vike-react-rsc] The server redirected to") ||
       logText.includes("An error occurred in the <Redirect> component") ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
@@ -688,7 +688,7 @@ function testActionAbort() {
     await page.click('button:has-text("Redirect to a javascript: URL")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal(
-        "Rejected: [vike-react-rsc] The server action redirected to javascript:void(window.__redirected=1), which isn't an http(s) URL"
+        "Rejected: [vike-react-rsc] The server redirected to javascript:void(window.__redirected=1), which isn't an http(s) URL"
       );
     });
     expect(await page.evaluate(() => "__redirected" in window)).to.equal(false);
