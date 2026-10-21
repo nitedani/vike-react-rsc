@@ -1,12 +1,13 @@
 import { Component, useEffect, type ReactNode } from "react";
 import type { HydrationOptions } from "react-dom/client";
 import { getAbort } from "../abort";
-import { usePageContext } from "../pageContext";
-import { followRedirect, wasRerendered } from "./callServer";
-import { dropRscOutputs } from "./rsc";
+import { followRedirect } from "./callServer";
+import { dropRscOutputs, isThrownByRscOutput } from "./rsc";
 
-type Props = { children: ReactNode };
-type State = { children?: ReactNode; redirectTo?: string };
+// `keepsPage`: a server action's answer sent the children, so their redirect keeps the page in history, as the
+// action's own redirect does
+type Props = { children: ReactNode; keepsPage: boolean };
+type State = { children?: ReactNode; redirectTo?: string; isFromRscOutput?: boolean };
 
 /** Leaves for the target of a `throw redirect()` that a server component threw after the response started: in the
  * HTML's Suspense boundaries, a navigation's Flight, an rsc() load or an action's rerender() */
@@ -22,11 +23,13 @@ export class AbortBoundary extends Component<Props, State> {
     const abort = getAbort(error);
     // A `throw render()`: Vike's client router can't show the error page from here
     if (!abort || !("redirect" in abort)) throw error;
-    return { redirectTo: abort.redirect.url };
+    return { redirectTo: abort.redirect.url, isFromRscOutput: isThrownByRscOutput(error) };
   }
 
   render(): ReactNode {
-    return this.state.redirectTo ? <Redirect url={this.state.redirectTo} /> : this.props.children;
+    const { redirectTo, isFromRscOutput } = this.state;
+    // An rsc() output loads on its own, even inside what the answer sent
+    return redirectTo ? <Redirect url={redirectTo} keepsPage={this.props.keepsPage && !isFromRscOutput} /> : this.props.children;
   }
 }
 
@@ -42,14 +45,13 @@ export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInf
   }
 };
 
-function Redirect({ url }: { url: string }) {
-  const pageContext = usePageContext();
+function Redirect({ url, keepsPage }: { url: string; keepsPage: boolean }) {
   useEffect(() => {
     return unlessHtmlRedirects(() => {
       // An rsc() output that throws redirect(), loaded or still loading, would throw it again after Back
       dropRscOutputs();
-      // Replaces the page in history, as an HTTP redirect does, unless a server action's rerender() sent what threw it
-      void followRedirect(url, wasRerendered(pageContext));
+      // Replaces the page in history, as an HTTP redirect does, unless a server action's answer sent what threw it
+      void followRedirect(url, keepsPage);
     });
   }, [url]);
   return null;

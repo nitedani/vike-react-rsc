@@ -654,14 +654,25 @@ function testServerComponentAbort() {
     }
   });
 
-  test("Server component: throw redirect() in what an rsc() load renders, or in its server function, doesn't stay in history after a server action without rerender(), and coming back loads it again", async () => {
+  test("Server component: throw redirect() in what an rsc() load renders, or in its server function, doesn't stay in history after a server action, with rerender() or without, and coming back loads it again", async () => {
+    const saveWithRerender = async () => {
+      await page.click('button:has-text("Slow save")');
+      await page.waitForSelector("[data-result]:has-text('Returned: saved')");
+    };
+    const countSubmit = async () => {
+      await page.click('button:has-text("Count a submit")');
+      await page.waitForSelector("[data-submits]:has-text('Submitted 1 times')");
+    };
     // The first panel's redirect comes from AbortBoundary, then from callServer()
-    for (const button of ["Load a server component whose child redirects", "Load a server component that redirects, then ones whose child redirects"]) {
+    for (const [runAction, button] of [
+      // The panels load after the page the answer sent, so their redirect isn't the action's
+      [saveWithRerender, "Load a server component whose child redirects"],
+      [countSubmit, "Load a server component that redirects, then ones whose child redirects"],
+    ] as const) {
       await page.goto(getServerUrl() + "/todos");
       await waitForHydration("Add Task");
       await navigateToActions();
-      await page.click('button:has-text("Count a submit")');
-      await page.waitForSelector("[data-submits]:has-text('Submitted 1 times')");
+      await runAction();
       const loadPanels = () => page.click(`button:has-text("${button}")`);
       await expectRedirectedHome(loadPanels);
       // The 1000 ms child answers before Back, the 3000 ms one is still loading at the next click

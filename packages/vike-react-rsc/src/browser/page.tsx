@@ -3,7 +3,8 @@ import type { PageContextClient } from "vike/types";
 import { PageContextProvider } from "../pageContext";
 import { AbortBoundary } from "./AbortBoundary";
 
-type Shown = { pageContext: PageContextClient; root: ReactNode };
+// `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()
+type Shown = { pageContext: PageContextClient; root: ReactNode; fromAction?: boolean };
 
 // The page Vike renders last: actions call its URL, and their answers apply only while it stays current
 let current: PageContextClient;
@@ -26,8 +27,8 @@ export function show(next: Shown): void {
 }
 
 /** Shows a new tree for the page shown, e.g. the one an action's rerender() sent */
-export function showRoot(root: ReactNode): void {
-  show({ pageContext: shown.pageContext, root });
+export function showRoot(root: ReactNode, fromAction: boolean): void {
+  show({ pageContext: shown.pageContext, root, fromAction });
 }
 
 /** Hydrates `page`, then shows what show() shows */
@@ -40,7 +41,7 @@ export function Root({ page }: { page: Shown }): ReactElement {
   }, []);
   return (
     <PageContextProvider pageContext={state.pageContext}>
-      <AbortBoundary>{state.root}</AbortBoundary>
+      <AbortBoundary keepsPage={!!state.fromAction}>{state.root}</AbortBoundary>
     </PageContextProvider>
   );
 }

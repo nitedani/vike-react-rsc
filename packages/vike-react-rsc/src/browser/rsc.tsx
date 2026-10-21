@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { Component, useEffect, useState, type ReactNode } from "react";
 import { usePageContext } from "../pageContext";
 import { getShared } from "../shared";
 
@@ -17,6 +17,8 @@ const state = getShared("rsc", () => ({
   // neither shown, shared nor cached
   drops: 0,
   isLoading: false,
+  // What rsc() outputs threw: AbortBoundary tells them from what a server action's answer sent
+  thrownByOutputs: new WeakSet<object>(),
 }));
 
 /** Makes a client component that loads the server component from the server, and shows `fallback`, or Loading.component, until it loads */
@@ -49,10 +51,26 @@ export function rsc<Props extends object>(
     }, [key]);
 
     const node = loaded?.key === key ? loaded.node : cached?.node;
-    if (node !== undefined) return node;
+    if (node !== undefined) return <OutputBoundary>{node}</OutputBoundary>;
     const DefaultFallback = pageContext.config.Loading?.component;
     return fallback ?? (DefaultFallback && <DefaultFallback />);
   };
+}
+
+// Marks what the output throws, then leaves it to the error boundaries above
+class OutputBoundary extends Component<{ children: ReactNode }> {
+  static getDerivedStateFromError(error: unknown): never {
+    if (typeof error === "object" && error !== null) state.thrownByOutputs.add(error);
+    throw error;
+  }
+
+  render(): ReactNode {
+    return this.props.children;
+  }
+}
+
+export function isThrownByRscOutput(error: unknown): boolean {
+  return typeof error === "object" && error !== null && state.thrownByOutputs.has(error);
 }
 
 /** True while rsc() calls a server function: callServer() reads it in the same synchronous call */
