@@ -84,17 +84,18 @@ async function getServerComponentInBrowserError(chain: string[], getComponentCon
   const importer = importers[index]!;
   const through = index > 0 ? ` through ${importers.slice(0, index).reverse().join(", ")}` : "";
   const imports = clientIndex === -1 ? "imports" : 'starts with "use client" and imports';
-  // Without "use client", the file moves to the server only if it imports a server component, and an import() doesn't count
-  const toServerComponent =
-    clientIndex !== -1 && (await importsServerComponent(getFile(chain[index + 1]!), context))
-      ? `remove "use client" from ${importer}, so it runs on the server`
-      : `replace "use client" in ${importer} with "use server component"`;
+  const moveHooks = ', and move its hooks and event handlers into their own "use client" component';
+  // Without "use client", a Page, Layout, Wrapper or Loading that imports a server component, not by import(), runs on the server; any other file where its importer runs
   const toServer =
-    clientIndex !== -1
-      ? `${toServerComponent}, and move its hooks and event handlers into their own "use client" component`
-      : getComponentConfig(chain.at(-1)!)
+    clientIndex === -1
+      ? getComponentConfig(chain.at(-1)!)
         ? `if ${importer} needs nothing from the browser (no hooks, no event handlers), start it with "use server component"`
-        : "import it only from server components";
+        : "import it only from server components"
+      : !(await importsServerComponent(getFile(chain[index + 1]!), context))
+        ? `replace "use client" in ${importer} with "use server component"${moveHooks}`
+        : getComponentConfig(chain[index + 1]!)
+          ? `remove "use client" from ${importer}, so it runs on the server${moveHooks}`
+          : `render it in a server component and pass it to ${importer} as children or a prop`;
   // A package's file isn't the app's to change
   const typesOnly = isAppFile(chain[1]!) ? `; or, if ${importers[0]} imports only its types, write \`import type\`` : "";
   return (
