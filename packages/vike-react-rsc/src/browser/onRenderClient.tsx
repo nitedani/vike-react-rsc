@@ -5,7 +5,7 @@ import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import { getHeadSetting } from "../integration/getHeadSetting";
 import type { PagePayload } from "../types";
 import { callServer } from "./callServer";
-import { Root, show, type Head } from "./page";
+import { Root, show, type HeadSettings } from "./page";
 import { markRscOutputsStale } from "./rsc";
 
 setServerCallback(callServer);
@@ -13,13 +13,13 @@ setServerCallback(callServer);
 export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   const { root, formState } = await createFromReadableStream<PagePayload>(pageContext.rscPayload);
   // Evaluated before the page shows, so a setting that throws reaches Vike; the HTML has the hydrated page's
-  const head = pageContext.isHydration ? undefined : getHead(pageContext);
-  const page = { pageContext, root, head };
+  const headSettings = pageContext.isHydration ? undefined : getHeadSettings(pageContext);
+  const page = { pageContext, root, headSettings };
   show(page);
   if (pageContext.isHydration) hydrateRoot(document.getElementById("root")!, <Root page={page} />, { formState });
 };
 
-function getHead(pageContext: PageContextClient): Head {
+function getHeadSettings(pageContext: PageContextClient): HeadSettings {
   return [
     getHeadSetting<string | null>("title", pageContext),
     getHeadSetting<string | null>("lang", pageContext),

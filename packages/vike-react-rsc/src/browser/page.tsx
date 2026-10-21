@@ -4,8 +4,8 @@ import { PageContextProvider } from "../pageContext";
 import { applyHeadSettings } from "../integration/applyHeadSettings";
 
 // A navigation's title, lang and description, applied once React has committed its page
-export type Head = Parameters<typeof applyHeadSettings>;
-type Shown = { pageContext: PageContextClient; root: ReactNode; head?: Head };
+export type HeadSettings = Parameters<typeof applyHeadSettings>;
+type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings };
 
 // What Root shows, and how to change it once Root has mounted
 let shown: Shown;
@@ -35,9 +35,9 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shown);
   }, []);
-  // Once React has committed the next page; rerender() keeps its head
+  // Once React has committed the next page; rerender() keeps its head settings
   useEffect(() => {
-    if (state.head) applyHeadSettings(...state.head);
-  }, [state.head]);
+    if (state.headSettings) applyHeadSettings(...state.headSettings);
+  }, [state.headSettings]);
   return <PageContextProvider pageContext={state.pageContext}>{state.root}</PageContextProvider>;
 }
