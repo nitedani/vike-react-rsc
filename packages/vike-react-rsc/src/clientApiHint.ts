@@ -31,7 +31,7 @@ export function getClientApiHint(error: unknown, page?: string, serverComponentI
     // A package's file isn't the app's to change
     if (file?.includes("/node_modules/")) {
       const name = /.*\/node_modules\/((?:@[^/]+\/)?[^/.][^/]*)\//.exec(file)?.[1] ?? "its package";
-      return `${runsOnServer}: import ${component ?? "its components"} from a "use client" file of the app that re-exports ${component ? "it" : "them"} from ${name}`;
+      return `${runsOnServer}: re-export what you use from ${name} in a "use client" file of the app and import it from there`;
     }
     // A build's stack doesn't name the failing file, which could be one of those
     const orMove = !import.meta.env.DEV && serverComponentImports.length > 0 ? `, or, if its file imports a server component, move the code that ${use} into a "use client" component` : "";
