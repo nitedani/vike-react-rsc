@@ -324,12 +324,6 @@ async function waitForHydration(buttonText = "Increment") {
   );
 }
 
-// The page may have no link to `pathname`: one is added, then clicked as a user would, so Vike's router navigates
-async function clickLink(pathname: string) {
-  await page.evaluate((pathname) => document.body.insertAdjacentHTML("beforeend", `<a data-test-link href="${pathname}">Go</a>`), pathname);
-  await page.click(`a[data-test-link][href="${pathname}"]`);
-}
-
 function testNavigationRequests() {
   test("Navigation and back navigation: one request each", async () => {
     await page.goto(getServerUrl() + "/");
@@ -1230,7 +1224,7 @@ function testServerLoading() {
   test('A +Loading that starts with "use server component" reaches the browser only as a stub', async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    await clickLink("/server-loading");
+    await clickNewLink("/server-loading");
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("A page whose +Loading is a server component");
     });
@@ -1259,7 +1253,7 @@ function testSsrFalse(isStatic: boolean) {
     }
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    await clickLink("/spa");
+    await clickNewLink("/spa");
     await page.waitForSelector("#spa-rerender");
     expect(await page.textContent("#spa-rendered-on")).to.equal("Rendered on the server");
   });
@@ -1548,7 +1542,7 @@ function testErrorPageInBrowser() {
   test("The error page after an error in the browser: the console says why it can't render there, and the page stays", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    await clickLink("/browser-error");
+    await clickNewLink("/browser-error");
     await autoRetry(async () => {
       expectLog(
         `[vike-react-rsc] The page /src/pages/_error ${ERROR_PAGE_IN_BROWSER_ERROR}, but components: 'server' makes it a server component, which renders only on the server`,
@@ -1563,7 +1557,7 @@ function testServerComponentThrows() {
   test("A client navigation to a server component that throws: the console says why the error page can't render, and the next navigation shows its page", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    await clickLink("/throws");
+    await clickNewLink("/throws");
     // components: 'server' makes the error page a server component, which can't render in the browser
     await autoRetry(async () => {
       expectLog(
@@ -1571,7 +1565,7 @@ function testServerComponentThrows() {
         { filter: ({ logSource }) => logSource === "Browser Error" }
       );
     });
-    await clickLink("/client");
+    await clickNewLink("/client");
     await autoRetry(async () => {
       expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
     });
