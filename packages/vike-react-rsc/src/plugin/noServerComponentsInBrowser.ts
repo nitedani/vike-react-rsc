@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
-import type { Plugin } from "vite";
+import type { Plugin, ResolvedConfig } from "vite";
 import { getOwnFileFix } from "../clientApiHint";
-import { findPackageServerComponentImport, getComponentConfigs } from "./clientDefault";
+import { findPackageServerComponentImport, getComponentConfigs, takesOnlyOtherExports } from "./clientDefault";
 import { getDirectives, getFile, getFileName, isAppFile, isModuleFile, parse } from "./parse";
 
 /** The browser importing a `"use server component"` file is an error, in dev and in the build, naming each Page, Layout, Wrapper or Loading that imports
@@ -32,14 +32,14 @@ export function noServerComponentsInBrowser(): Plugin {
       const { moduleGraph } = environment;
       const chains = getImportChains(id, getComponentConfig, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])].flatMap((importer) => importer.id ?? []));
       const fromServerComponent = serverComponentImport.toReversed();
-      this.error(await getServerComponentInBrowserErrors(chains.map(([, ...importers]) => [...fromServerComponent, ...importers]), getComponentConfig, environment.config.root));
+      this.error(await getServerComponentInBrowserErrors(chains.map(([, ...importers]) => [...fromServerComponent, ...importers]), getComponentConfig, environment.getTopLevelConfig()));
     },
     async buildEnd() {
       if (this.environment.name !== "client") return;
       const getComponentConfig = await getComponentConfigs(this);
       for (const id of serverComponentsInBrowser) {
         const chains = getImportChains(id, getComponentConfig, (id) => [...(this.getModuleInfo(id)?.importers ?? [])]);
-        this.error(await getServerComponentInBrowserErrors(chains, getComponentConfig, this.environment.config.root));
+        this.error(await getServerComponentInBrowserErrors(chains, getComponentConfig, this.environment.getTopLevelConfig()));
       }
     },
   };
@@ -65,15 +65,15 @@ function getImportChains(id: string, getComponentConfig: GetComponentConfig, get
   return chains;
 }
 
-async function getServerComponentInBrowserErrors(chains: string[][], getComponentConfig: GetComponentConfig, root: string): Promise<string> {
-  const errors = await Promise.all(chains.map((chain) => getServerComponentInBrowserError(chain, getComponentConfig, root)));
+async function getServerComponentInBrowserErrors(chains: string[][], getComponentConfig: GetComponentConfig, config: ResolvedConfig): Promise<string> {
+  const errors = await Promise.all(chains.map((chain) => getServerComponentInBrowserError(chain, getComponentConfig, config)));
   return [...new Set(errors)].join("\n");
 }
 
 // A server component renders only on the server, and so does a file without a directive that imports one. A component in the
 // browser shows one through rsc(); a file that says "use client" can't import one.
-async function getServerComponentInBrowserError(chain: string[], getComponentConfig: GetComponentConfig, root: string): Promise<string> {
-  const [file, ...importers] = chain.map((id) => getFileName(id, root));
+async function getServerComponentInBrowserError(chain: string[], getComponentConfig: GetComponentConfig, config: ResolvedConfig): Promise<string> {
+  const [file, ...importers] = chain.map((id) => getFileName(id, config.root));
   if (importers.length === 0) return `${file} starts with "use server component", but the browser loads it`;
   // The file that puts the chain in the browser, or else the file at its top
   const clientIndex = (await Promise.all(chain.slice(1).map(isClientComponentFile))).indexOf(true);
@@ -88,7 +88,9 @@ async function getServerComponentInBrowserError(chain: string[], getComponentCon
         ? `if ${importer} needs nothing from the browser (no hooks, no event handlers), start it with "use server component"`
         : "import it only from server components";
   // A package's file isn't the app's to change
-  const importFix = isAppFile(chain[1]!) ? `if ${importers[0]} imports only its types, write \`import type\`` : getOwnFileFix([file!, ...importers].toReversed());
+  const importFix = isAppFile(chain[1]!)
+    ? `if ${importers[0]} imports only its types, write \`import type\``
+    : (await takesOnlyOtherExports(chain.toReversed(), config)) && getOwnFileFix([file!, ...importers].toReversed());
   return (
     `${file} starts with "use server component", but the browser loads it: ${importer} ${imports} it${through}. ` +
     `To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ` +

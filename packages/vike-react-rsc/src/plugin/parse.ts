@@ -36,6 +36,46 @@ export function getImports(program: ESTree.Program): Map<string, string> {
   return imports;
 }
 
+/** Each export of another module that a module imports or re-exports, by its source and name ("*" for all of them), and
+ * each of its own exports: from such an import, or else its own code */
+export function getBindings(program: ESTree.Program): { imports: Binding[]; exports: Map<string, Binding | undefined>; exportAll: string[] } {
+  const imported = new Map<string, Binding>();
+  const exports = new Map<string, Binding | undefined>();
+  const exportAll: string[] = [];
+  for (const statement of program.body) {
+    if (statement.type !== "ImportDeclaration" || statement.importKind === "type") continue;
+    for (const specifier of statement.specifiers) {
+      const name = specifier.type === "ImportSpecifier" ? getName(specifier.imported) : specifier.type === "ImportDefaultSpecifier" ? "default" : "*";
+      imported.set(specifier.local.name, { source: String(statement.source.value), name });
+    }
+  }
+  for (const statement of program.body) {
+    if (statement.type === "ExportAllDeclaration" && statement.exportKind !== "type") {
+      const source = String(statement.source.value);
+      if (statement.exported) exports.set(getName(statement.exported), { source, name: "*" });
+      else exportAll.push(source);
+    } else if (statement.type === "ExportNamedDeclaration" && statement.exportKind !== "type") {
+      const { declaration, source } = statement;
+      if ((declaration?.type === "FunctionDeclaration" || declaration?.type === "ClassDeclaration") && declaration.id) exports.set(declaration.id.name, undefined);
+      if (declaration?.type === "VariableDeclaration") for (const { id } of declaration.declarations) if (id.type === "Identifier") exports.set(id.name, undefined);
+      for (const { local, exported } of statement.specifiers) {
+        exports.set(getName(exported), source ? { source: String(source.value), name: getName(local) } : imported.get(getName(local)));
+      }
+    } else if (statement.type === "ExportDefaultDeclaration") {
+      const { declaration } = statement;
+      exports.set("default", declaration.type === "Identifier" ? imported.get(declaration.name) : undefined);
+    }
+  }
+  const reexports = [...exports.values()].flatMap((binding) => binding ?? []);
+  return { imports: [...imported.values(), ...reexports, ...exportAll.map((source) => ({ source, name: "*" }))], exports, exportAll };
+}
+
+export type Binding = { source: string; name: string };
+
+function getName(node: ESTree.ModuleExportName): string {
+  return node.type === "Literal" ? node.value : node.name;
+}
+
 /** Each module that a module as `parseCompiled()` gives it imports or re-exports statically */
 export function getImportSources(program: ESTree.Program): string[] {
   return program.body.flatMap((statement) => {

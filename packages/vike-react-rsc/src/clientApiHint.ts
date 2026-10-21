@@ -10,7 +10,7 @@ const clientApis = [
  * one, so never a hook's own file, or else the file that failed as `page` loaded it. A build's stack names its chunks, not
  * the files. `serverComponentImports` are the files from each of the page's files that is a server component because it
  * imports one, to that server component. */
-export function getClientApiHint(error: unknown, page?: string, serverComponentImports: string[][] = []): string | undefined {
+export function getClientApiHint(error: unknown, page?: string, serverComponentImports: ServerComponentImport[] = []): string | undefined {
   if (!(error instanceof TypeError)) return;
   const api = error.message.includes("Class extends value undefined") ? "Component" : /(\w+)\)? is not a function/.exec(error.message)?.[1];
   if (!api || !(api === "Component" || clientApis.includes(api))) return;
@@ -23,9 +23,9 @@ export function getClientApiHint(error: unknown, page?: string, serverComponentI
   const runsOnServer = `${caller} ${use}, which runs only in the browser, but runs on the server`;
   // If the failing file is one of those files: the files from it to the server component it imports. They're named from the
   // app's root, so a file outside it starts with ../
-  const serverComponentImport = serverComponentImports.flatMap((files) => {
+  const serverComponentImport = serverComponentImports.flatMap(({ files, takesOnlyOtherExports }) => {
     const index = files.slice(0, -1).findIndex((imported) => file?.endsWith(`/${imported.replace(/^(\.\.\/)+/, "")}`));
-    return index === -1 ? [] : [files.slice(index)];
+    return index === -1 ? [] : [{ files: files.slice(index), takesOnlyOtherExports }];
   })[0];
   if (!serverComponentImport) {
     // A build's stack doesn't name the failing file, which could be one of those
@@ -33,18 +33,25 @@ export function getClientApiHint(error: unknown, page?: string, serverComponentI
     return `${runsOnServer}: start ${caller === file ? "it" : "its file"} with "use client"${orMove}`;
   }
   // A "use client" file can't import a server component
-  const [importer, ...imported] = serverComponentImport;
+  const [importer, ...imported] = serverComponentImport.files;
   const serverComponent = imported.pop()!;
   const through = imported.length > 0 ? ` through ${imported.join(", ")}` : "";
-  const fix = isPackageFile(serverComponent) ? getOwnFileFix(serverComponentImport) : `remove "use server component" from ${serverComponent}`;
+  const fix = !isPackageFile(serverComponent)
+    ? `remove "use server component" from ${serverComponent}`
+    : serverComponentImport.takesOnlyOtherExports && getOwnFileFix(serverComponentImport.files);
   return (
     `${runsOnServer}, as ${importer} imports the server component ${serverComponent}${through}: ` +
     `move the code that ${use} into a "use client" component${fix ? `, or ${fix}` : ""}`
   );
 }
 
-/** For the files from an app's file to a package's server component that a file of the package re-exports, e.g. its index:
- * the fix of importing what the app's file takes from its own file, as a package's files aren't the app's to change */
+/** The files from a file to the server component it imports, and whether the app's file among them takes from a package
+ * only exports that don't lead to the package's server component */
+export type ServerComponentImport = { files: string[]; takesOnlyOtherExports: boolean };
+
+/** For the files from an app's file to a package's server component that a file of the package re-exports, e.g. its index,
+ * where the app's file takes other exports from it: the fix of importing those from their own files, as a package's files
+ * aren't the app's to change */
 export function getOwnFileFix(files: string[]): string | undefined {
   const index = files.findIndex(isPackageFile);
   if (index < 1 || index === files.length - 1) return;
