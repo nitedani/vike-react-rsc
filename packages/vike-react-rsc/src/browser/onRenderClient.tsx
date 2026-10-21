@@ -6,7 +6,7 @@ import { getHeadSetting } from "../integration/getHeadSetting";
 import type { PagePayload } from "../types";
 import { onCaughtError } from "./AbortBoundary";
 import { callServer } from "./callServer";
-import { Root, show, type HeadSettings } from "./page";
+import { Root, setCurrentPageContext, show, type HeadSettings } from "./page";
 import { markRscOutputsStale } from "./rsc";
 
 setServerCallback(callServer);
@@ -16,6 +16,7 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   // Evaluated before the page shows, so a setting that throws reaches Vike; the HTML has the hydrated page's
   const headSettings = pageContext.isHydration ? undefined : getHeadSettings(pageContext);
   const page = { pageContext, root, headSettings };
+  setCurrentPageContext(pageContext);
   show(page);
   if (!pageContext.isHydration) return;
   hydrateRoot(document.getElementById("root")!, <Root page={page} />, { formState, onCaughtError });

@@ -14,6 +14,8 @@ export default {
   rootAttributes: { "data-root": "" },
   headHtmlEnd: "<!-- headHtmlEnd -->",
   bodyHtmlBegin: "<!-- bodyHtmlBegin -->",
+  // Set by +onCreateGlobalContext and +onCreatePageContext
+  passToClient: ["appName", "visitor"],
   meta: {
     // Loaded in the rsc environment only: the server reads it at pageContext.environments.rsc.config, see /pages/environments
     greeting: { env: { rsc: true } },

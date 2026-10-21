@@ -8,8 +8,10 @@ import type { TagAttributes } from "./utils/getTagAttributesString";
 
 /** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */
 export type PagePayload = { root: ReactNode; formState?: ReactFormState };
-/** A server action's Flight decodes to it; `root` is the page, after rerender() */
-export type ActionPayload = { returnValue: unknown; root?: ReactNode };
+/** A server action's Flight decodes to it; `root` is the page, after rerender(), with the browser's new pageContext values */
+export type ActionPayload = { returnValue: unknown } & ({} | { root: ReactNode; passedToClient: PassedToClient });
+/** pageContext values for the browser, serialized as Vike serializes them for a navigation, and the key of every passToClient value */
+export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[] };
 export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
 
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */

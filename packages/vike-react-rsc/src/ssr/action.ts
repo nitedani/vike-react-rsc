@@ -1,8 +1,9 @@
 // Vike loads +middleware at startup, before Vite optimizes React, so neither this module nor its imports may import React
+import { getPageContextJson } from "vike/__internal";
 import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
-import type { ActionOutcome } from "../types";
+import type { ActionOutcome, PassedToClient } from "../types";
 import { getRsc } from "./bridge";
 
 /** One action request. The rsc env runs it with `id` and `body`; without `id`, `body` is a form submitted before
@@ -44,7 +45,7 @@ export class ActionCall {
     // No outcome: the action threw. After render() to a page, the answer is that page, as for a form; Vike's error
     // page (is404 set) is left out, as callServer() rejects on its status without reading it
     const { returnValue, rerender } = this.outcome ?? { returnValue: undefined, rerender: pageContext.is404 === null };
-    return runtime.actionPayload(rscPageContext, { returnValue, rerender });
+    return runtime.actionPayload(rscPageContext, returnValue, rerender ? getPassedToClient(pageContext) : undefined);
   }
 
   /** The answer to the action, from the response of the page Vike rendered */
@@ -89,11 +90,22 @@ export class ActionCall {
   #answerReturnValue(response: Response, returnValue: unknown): Response {
     void response.body?.cancel();
     const { runtime, pageContext } = this.#rsc!;
-    const body = runtime.actionPayload(pageContext, { returnValue, rerender: false });
+    const body = runtime.actionPayload(pageContext, returnValue);
     return new Response(body, {
       headers: new Headers([...this.#setCookies.map((setCookie): [string, string] => ["set-cookie", setCookie]), ["content-type", FLIGHT_CONTENT_TYPE]]),
     });
   }
+}
+
+// The keys let the browser drop a value the server no longer sets, as a navigation's new pageContext doesn't have it
+function getPassedToClient(pageContext: PageContextServer): PassedToClient {
+  const keys = (pageContext.config.passToClient ?? [])
+    .flat()
+    // Vike's Config type also takes { prop, once }, which its resolved type leaves out
+    .map((prop: string | { prop: string }) => (typeof prop === "string" ? prop : prop.prop))
+    // The top-level key: 'user' for 'user.id', and '\\.' is a dot in a key
+    .map((prop) => prop.split(/(?<!\\)\./)[0]!.replace(/\\\./g, "."));
+  return { json: getPageContextJson(pageContext), keys };
 }
 
 function answerRedirect(response: Response, headers: Headers, location: string): Response {
