@@ -131,6 +131,15 @@ function testServerComponents() {
     });
   });
 
+  test("components: 'client': a file without a directive that imports only a type from a server component, without import type, stays a client component", async () => {
+    await page.goto(getServerUrl() + "/type-import");
+    await waitForHydration("#type-import-counter");
+    await page.click("#type-import-counter");
+    await autoRetry(async () => {
+      expect(await page.textContent("#type-import-counter")).to.equal("Clicked 1 times");
+    });
+  });
+
   test("components: 'client': a server component calls a function from a component file, on the server", async () => {
     expect(await fetchHtml("/helper")).to.include("A FUNCTION OF A COMPONENT FILE, CALLED ON THE SERVER!");
   });

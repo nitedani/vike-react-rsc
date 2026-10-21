@@ -2,8 +2,8 @@ import { transformModuleExportEffect } from "@vitejs/plugin-rsc/transforms";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
-import { createIdResolver, type Environment, type ESTree, type Plugin } from "vite";
-import { getDirectives, getFile, getImportSources, isAppFile, parse, type Directive } from "./parse";
+import { createIdResolver, type Environment, type ESTree, type Plugin, type ResolvedConfig } from "vite";
+import { getDirectives, getFile, getImportSources, isAppFile, parse, parseCompiled, type Directive } from "./parse";
 
 // A client component's import, which plugin-rsc's client reference imports in each env
 const CLIENT_IMPORT = "virtual:vike-react-rsc/client-import:";
@@ -18,19 +18,21 @@ export function clientDefault(): Plugin {
   const readFiles = new Map<string, Set<string>>();
   // Each app file's directives and imports, by env and file
   const appModules = new Map<string, Promise<AppModule>>();
+  let config: ResolvedConfig;
   let resolveImport: ReturnType<typeof createIdResolver>;
   // Each app file's directives and imports, as the env resolves them, without registering the packages for Vite to pre-bundle
   const getAppModule = (environment: Environment) => (file: string) => {
     const key = `${environment.name}:${file}`;
     let appModule = appModules.get(key);
-    if (!appModule) appModules.set(key, (appModule = readAppModule(file, (source) => resolveImport(environment, source, file))));
+    if (!appModule) appModules.set(key, (appModule = readAppModule(file, config, (source) => resolveImport(environment, source, file))));
     return appModule;
   };
   return {
     name: "vike-react-rsc:client-default",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
-    configResolved: (config) => {
+    configResolved: (resolvedConfig) => {
+      config = resolvedConfig;
       resolveImport = createIdResolver(config);
     },
     configureServer: (server) => setBrowserEnvironment(server.environments.client!),
@@ -151,8 +153,8 @@ async function findServerComponentImport(file: string, getAppModule: GetAppModul
 }
 
 // A file that doesn't parse has neither: its own transform reports why
-async function readAppModule(file: string, resolve: (source: string) => Promise<string | undefined>): Promise<AppModule> {
-  const program = await readFile(file, "utf8").then((code) => parse(code, file)).catch(() => undefined);
+async function readAppModule(file: string, config: ResolvedConfig, resolve: (source: string) => Promise<string | undefined>): Promise<AppModule> {
+  const program = await readFile(file, "utf8").then((code) => parseCompiled(code, file, config)).catch(() => undefined);
   if (!program) return { directives: [], imports: [] };
   const imports = await Promise.all(getImportSources(program).map(resolve));
   return { directives: getDirectives(program), imports: imports.flatMap((id) => (id && isAppFile(id) ? [getFile(id)] : [])) };
