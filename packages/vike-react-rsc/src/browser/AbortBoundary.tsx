@@ -2,7 +2,7 @@ import { Component, useEffect, type ReactNode } from "react";
 import type { HydrationOptions } from "react-dom/client";
 import { getAbort } from "../abort";
 import { followRedirect } from "./callServer";
-import { dropRscOutputs, isThrownByRscOutput } from "./rsc";
+import { isThrownByRscOutput } from "./rsc";
 
 // `keepsPage`: a server action's answer sent the children, so their redirect keeps the page in history, as the
 // action's own redirect does
@@ -48,8 +48,6 @@ export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInf
 function Redirect({ url, keepsPage }: { url: string; keepsPage: boolean }) {
   useEffect(() => {
     return unlessHtmlRedirects(() => {
-      // An rsc() output that throws redirect(), loaded or still loading, would throw it again after Back
-      dropRscOutputs();
       // Replaces the page in history, as an HTTP redirect does, unless a server action's answer sent what threw it
       void followRedirect(url, keepsPage);
     });

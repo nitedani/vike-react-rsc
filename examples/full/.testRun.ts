@@ -703,6 +703,22 @@ function testServerComponentAbort() {
     });
     await waitForHydration("Slow save");
   });
+  test("Server component: throw redirect() in what a server action's rerender() sent keeps the cached rsc() outputs", async () => {
+    await showLoadCounts();
+    const loaded = await readLoadCounts();
+    await navigateToActions();
+    await expectRedirectedHome(() => page.click('button:has-text("Save, then the page throws redirect()")'));
+    await page.goBack();
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/actions");
+    });
+    await waitForHydration("Slow save");
+    await page.goBack();
+    await waitForHydration("Show server counts");
+    await toggleLoadCounts();
+    expect(await page.locator("[data-loading-component]").count()).to.equal(0);
+    expect(await readLoadCounts()).to.deep.equal(loaded);
+  });
 }
 
 function testStaticHostAction() {
