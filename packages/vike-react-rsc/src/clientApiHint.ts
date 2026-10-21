@@ -34,10 +34,25 @@ export function getClientApiHint(error: unknown, page?: string, serverComponentI
   }
   // A "use client" file can't import a server component
   const [importer, ...imported] = serverComponentImport;
-  const serverComponent = imported.pop();
+  const serverComponent = imported.pop()!;
   const through = imported.length > 0 ? ` through ${imported.join(", ")}` : "";
+  const fix = isPackageFile(serverComponent) ? getOwnFileFix(serverComponentImport) : `remove "use server component" from ${serverComponent}`;
   return (
     `${runsOnServer}, as ${importer} imports the server component ${serverComponent}${through}: ` +
-    `move the code that ${use} into a "use client" component, or remove "use server component" from ${serverComponent}`
+    `move the code that ${use} into a "use client" component${fix ? `, or ${fix}` : ""}`
   );
+}
+
+/** For the files from an app's file to a package's server component that a file of the package re-exports, e.g. its index:
+ * the fix of importing what the app's file takes from its own file, as a package's files aren't the app's to change */
+export function getOwnFileFix(files: string[]): string | undefined {
+  const index = files.findIndex(isPackageFile);
+  if (index < 1 || index === files.length - 1) return;
+  const name = /^node_modules\/((?:@[^/]+\/)?[^/]+)/.exec(files[index]!)![1];
+  return `import the client components ${files[index - 1]} takes from ${name} from their own files, not from ${files[index]}`;
+}
+
+// As the plugin names a package's file
+function isPackageFile(file: string): boolean {
+  return file.startsWith("node_modules/");
 }

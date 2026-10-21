@@ -4,7 +4,7 @@ import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
 import { createIdResolver, type Environment, type ESTree, type Plugin, type ResolvedConfig } from "vite";
 import packageJson from "../../package.json";
-import { getDirectives, getFile, getImportSources, isAppFile, isModuleFile, parse, parseCompiled, type Directive } from "./parse";
+import { getDirectives, getFile, getFileName, getImportSources, isAppFile, isModuleFile, parse, parseCompiled, type Directive } from "./parse";
 
 // A client component's import, which plugin-rsc's client reference imports in each env
 const CLIENT_IMPORT = "virtual:vike-react-rsc/client-import:";
@@ -80,7 +80,7 @@ export function clientDefault(): Plugin {
       if (!isServerComponent) return;
       const { root } = this.environment.config;
       const file = path.relative(root, getFile(id));
-      const flags = getServerComponentFlags(file, serverComponentImport?.map((imported) => path.relative(root, imported)));
+      const flags = getServerComponentFlags(file, serverComponentImport?.map((imported) => getFileName(imported, root)));
       return isRsc ? tagServerComponent(code, program, components, file, flags) : getServerComponentStub(components, flags);
     },
     async hotUpdate({ type, file, read }) {

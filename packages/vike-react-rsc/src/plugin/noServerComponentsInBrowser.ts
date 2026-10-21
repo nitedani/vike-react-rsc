@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { Plugin } from "vite";
+import { getOwnFileFix } from "../clientApiHint";
 import { findPackageServerComponentImport, getComponentConfigs } from "./clientDefault";
 import { getDirectives, getFile, getFileName, isAppFile, isModuleFile, parse } from "./parse";
 
@@ -87,11 +88,11 @@ async function getServerComponentInBrowserError(chain: string[], getComponentCon
         ? `if ${importer} needs nothing from the browser (no hooks, no event handlers), start it with "use server component"`
         : "import it only from server components";
   // A package's file isn't the app's to change
-  const typesOnly = isAppFile(chain[1]!) ? `; or, if ${importers[0]} imports only its types, write \`import type\`` : "";
+  const importFix = isAppFile(chain[1]!) ? `if ${importers[0]} imports only its types, write \`import type\`` : getOwnFileFix([file!, ...importers].toReversed());
   return (
     `${file} starts with "use server component", but the browser loads it: ${importer} ${imports} it${through}. ` +
     `To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ` +
-    `or, ${toServer}${typesOnly}`
+    `or, ${toServer}${importFix ? `; or, ${importFix}` : ""}`
   );
 }
 
