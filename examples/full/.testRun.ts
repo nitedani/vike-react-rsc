@@ -10,6 +10,7 @@ import {
   sleep,
   editFile,
   editFileRevert,
+  expectLog,
 } from "@brillout/test-e2e";
 
 const pages = {
@@ -46,14 +47,18 @@ const DATA_ERROR = "data() failed on demand";
 const RSC_LOAD_ERROR = "FailingComponent failed on demand";
 const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server component";
 
-// Thrown by /head-settings-throw's +title in the browser
+// Thrown by /head-settings-throw's +title in the browser, then Vike's error page logs ERROR_PAGE_IN_BROWSER_ERROR
 const HEAD_SETTING_ERROR = "+title failed in the browser on demand";
-// Vike then renders the error page in the browser, which has no Flight payload there until
-// https://github.com/vikejs/vike/pull/3636 is released.
-const ERROR_PAGE_IN_BROWSER_ERROR = "Cannot read properties of undefined (reading 'getReader')";
 
 // Logged on the server by testUnknownAction()
 const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
+
+// Thrown by /browser-error's guard() in the browser, then logged with why the error page can't render there
+const BROWSER_GUARD_ERROR = "guard() failed in the browser on demand";
+const ERROR_PAGE_IN_BROWSER_ERROR = "has to render in the browser, e.g. the error page after an error there";
+
+// Thrown by /throws on the server, then logged there, and by React in the browser: in production as its error #441
+const THROWS_ERROR = "A server component failed on demand";
 
 // Logged on the server for /unserializable, whose data holds a function
 const UNSERIALIZABLE_LOG = "can't be serialized and, therefore, can't be passed to the client side";
@@ -93,9 +98,14 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testUnknownAction()
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
+      // testErrorPageInBrowser(): in dev, Vite also forwards the browser's log to the server's stderr
+      logText.includes(BROWSER_GUARD_ERROR) ||
+      logText.includes(ERROR_PAGE_IN_BROWSER_ERROR) ||
       // testHeadSettings(): in dev, Vite also forwards the browser's console.error() to the server's stderr
-      ((logSource === "Browser Error" || (isDev && logSource === "stderr")) &&
-        (logText.includes(HEAD_SETTING_ERROR) || logText.includes(ERROR_PAGE_IN_BROWSER_ERROR))) ||
+      ((logSource === "Browser Error" || (isDev && logSource === "stderr")) && logText.includes(HEAD_SETTING_ERROR)) ||
+      // testServerComponentThrows()
+      logText.includes(THROWS_ERROR) ||
+      (logSource === "Browser Error" && logText.includes("react.dev/errors/441")) ||
       // testUnserializableData()
       (logSource === "stderr" && logText.includes(UNSERIALIZABLE_LOG)) ||
       // testServerComponentAbort(): the redirect an app's error boundary caught, as React logs it in dev and in production
@@ -129,6 +139,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testClientCss();
   if (isDev) testClientCssLinkRemoved();
   testMisuse();
+  testServerLoading();
+  testSsrFalse(isStatic);
   testUnserializableData(isStatic);
   // A static host has no server: nothing renders per request, and server actions can't run.
   if (!isStatic) {
@@ -166,6 +178,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testPageNavigation();
   testPendingPage();
   testNavigationKeepsPage();
+  testErrorPageInBrowser();
+  // /throws isn't pre-rendered: a static host has neither its HTML nor its pageContext
+  if (!isStatic) testServerComponentThrows();
   if (isDev) testErrorOverlay();
   if (isDev) testServerCssHmr();
 }
@@ -605,9 +620,10 @@ function testServerComponentAbort() {
 
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
-    const thrown = page.waitForEvent("pageerror", (error) => error.message === getRefusedRedirectError(next));
+    // React throws it while rendering, after the navigation ended, so the React root's onUncaughtError logs it
+    const logged = page.waitForEvent("console", (message) => message.type() === "error" && message.text().includes(getRefusedRedirectError(next)));
     await clickNewLink(href);
-    await thrown;
+    await logged;
     expect(new URL(page.url()).pathname).to.equal("/abort/redirect-to-next");
   };
 
@@ -1204,6 +1220,45 @@ function testMisuse() {
   });
 }
 
+function testServerLoading() {
+  test('A +Loading that starts with "use server component" reaches the browser only as a stub', async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await clickNewLink("/server-loading");
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include("A page whose +Loading is a server component");
+    });
+    const scripts = await page.evaluate(() =>
+      performance.getEntriesByType("resource").map((entry) => entry.name).filter((url) => /\.[cm]?[jt]sx?$/.test(new URL(url).pathname))
+    );
+    for (const url of scripts) expect(await (await fetch(url)).text(), url).to.not.include("read on the server");
+  });
+}
+
+function testSsrFalse(isStatic: boolean) {
+  test("ssr: false: the first load's HTML has no page, and the browser renders it from its Flight", async () => {
+    // Pre-rendered too: the HTML with an empty root, and the Flight
+    expect(await fetchHtml("/spa")).to.include('<div id="root" data-root=""></div>');
+    await page.goto(getServerUrl() + "/spa");
+    // SpaControls reads window while it renders
+    await page.waitForSelector("#spa-rerender");
+    expect(await page.textContent("#spa-rendered-on")).to.equal("Rendered on the server");
+    // A static host has no server to run the action
+    if (!isStatic) {
+      const renders = Number(await page.textContent("#spa-renders"));
+      await page.click("#spa-rerender");
+      await autoRetry(async () => {
+        expect(Number(await page.textContent("#spa-renders"))).to.be.greaterThan(renders);
+      });
+    }
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await clickNewLink("/spa");
+    await page.waitForSelector("#spa-rerender");
+    expect(await page.textContent("#spa-rendered-on")).to.equal("Rendered on the server");
+  });
+}
+
 function testPageLoading() {
   test("Loading.layout streams before the page it waits for", async () => {
     // /data waits two seconds for its films
@@ -1483,6 +1538,40 @@ function testRscCacheKey() {
   });
 }
 
+function testErrorPageInBrowser() {
+  test("The error page after an error in the browser: the console says why it can't render there, and the page stays", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await clickNewLink("/browser-error");
+    await autoRetry(async () => {
+      expectLog(
+        `[vike-react-rsc] The page /src/pages/_error ${ERROR_PAGE_IN_BROWSER_ERROR}, but components: 'server' makes it a server component, which renders only on the server`,
+        { filter: ({ logSource }) => logSource === "Browser Error" }
+      );
+    });
+    expect(await page.textContent("h1")).to.include("Vike React Server Components");
+  });
+}
+
+function testServerComponentThrows() {
+  test("A client navigation to a server component that throws: the console says why the error page can't render, and the next navigation shows its page", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await clickNewLink("/throws");
+    // components: 'server' makes the error page a server component, which can't render in the browser
+    await autoRetry(async () => {
+      expectLog(
+        `[vike-react-rsc] The page /src/pages/_error ${ERROR_PAGE_IN_BROWSER_ERROR}, but components: 'server' makes it a server component, which renders only on the server`,
+        { filter: ({ logSource }) => logSource === "Browser Error" }
+      );
+    });
+    await clickNewLink("/client");
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
+    });
+  });
+}
+
 function testUnserializableData(isStatic: boolean) {
   test("A page whose data holds a function updates on navigation and after rerender()", async () => {
     // Pre-rendered too, without a query
@@ -1558,6 +1647,8 @@ function testNavigationKeepsPage() {
     await autoRetry(async () => {
       expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
     });
+    // The navigation ends once React shows the page
+    expect(await page.evaluate(() => (window as { shownAtTransitionEnd?: string | null }).shownAtTransitionEnd)).to.equal("/client");
     await page.unroute("**/*");
   });
 }

@@ -1,8 +1,11 @@
 import { decodeAction, decodeFormState, decodeReply, loadServerAction, renderToReadableStream } from "@vitejs/plugin-rsc/rsc";
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
 import { getAbortDigest } from "../abort";
+import { getClientApiHint } from "../clientApiHint";
+import { getPageElement } from "../integration/getPageElement";
+import { getServerComponentImports } from "../rendersFlight";
 import type { ActionOutcome, ActionPayload, PagePayload, PassedToClient } from "../types";
 import { runInScope } from "./scope";
 
@@ -14,6 +17,11 @@ export function pagePayload(pageContext: PageContext): ReadableStream<Uint8Array
     root: getPage(pageContext),
     formState: formStates.get(pageContext),
   }));
+}
+
+/** The Flight of a page that renders without one: only what a form submitted before hydration returned */
+export function formStatePayload(pageContext: PageContext): ReadableStream<Uint8Array> {
+  return renderOnRead<PagePayload>(pageContext, () => ({ root: null, formState: formStates.get(pageContext) }));
 }
 
 export function actionPayload(pageContext: PageContext, returnValue: unknown, passedToClient?: PassedToClient): ReadableStream<Uint8Array> {
@@ -66,7 +74,9 @@ function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Paylo
           const abortDigest = getAbortDigest(error);
           if (abortDigest) return abortDigest;
           // Not the abort, nor what failed because of it
-          if (!stopped.signal.aborted) console.error("[vike-react-rsc] A server component, or a value sent to the browser, failed:", error);
+          if (stopped.signal.aborted) return;
+          const hint = getClientApiHint(error, undefined, getServerComponentImports(pageContext));
+          console.error(`[vike-react-rsc] A server component, or a value sent to the browser, failed${hint ? `: ${hint}` : ""}:`, error);
         },
       })
     );
@@ -88,9 +98,6 @@ function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Paylo
 // The Page, inside its Layouts, inside its Wrappers. With Loading.layout, each of them shows it while what it wraps
 // suspends.
 function getPage(pageContext: PageContext): ReactNode {
-  const { Page, Layout = [], Wrapper = [], Loading } = pageContext.config;
-  if (!Page) throw new Error(`[vike-react-rsc] The page ${pageContext.pageId} has no Page: add a +Page file`);
-  const suspend = (node: ReactNode) =>
-    Loading?.layout ? <Suspense fallback={<Loading.layout />}>{node}</Suspense> : node;
-  return [...Layout, ...Wrapper].reduce<ReactNode>((children, Outer) => suspend(<Outer>{children}</Outer>), suspend(<Page />));
+  if (!pageContext.config.Page) throw new Error(`[vike-react-rsc] The page ${pageContext.pageId} has no Page: add a +Page file`);
+  return getPageElement(pageContext);
 }

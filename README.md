@@ -9,9 +9,15 @@ React RSC integration for [Vike](https://vike.dev).
   - Progressive hydration
   - **`throw redirect()`** and **`throw render()`** inside a server component
     - In the HTML, outside every `<Suspense>`, Vike answers them as in `guard()`: the redirect, `render(url)`'s page, or the error page and its status. A crawler gets the page whole, so Vike answers them inside `<Suspense>` too.
-    - Inside `<Suspense>`, on a client navigation, in an `rsc()` load and after `rerender()`, the browser still goes to the redirect's target (from the HTML, without JavaScript too). `render()` shows a blank page there, until Vike can show its error page from a component.
+    - Inside `<Suspense>`, on a client navigation, in an `rsc()` load and after `rerender()`, the browser still goes to the redirect's target (from the HTML, without JavaScript too). `render()` shows a blank page there, until Vike can show its error page from a component. With `components: 'client'`, a client navigation to a page that throws `render()` outside `<Suspense>` shows your error page instead.
     - On a client navigation, in an `rsc()` load or after `rerender()`, an error boundary of yours around the throwing component catches the redirect first and shows its fallback, so the browser stays on the page (Next has the same limit).
     - `Loading.layout` puts the page inside `<Suspense>`: for a real 302 or 404 in a browser, throw in `guard()` or `data()`, or set `Loading = {}`.
+- **Progressive adoption**: with `components: 'client'` in your root `+config.js`, the components of a `vike-react` app run as they do with `vike-react`. Then move a file to the server by starting it with `"use server component"`.
+  - A file runs where the file that imports it runs. A `Page`, `Layout`, `Wrapper` or `Loading`'s `layout`, as a `+` file or imported by a `+config` file, runs where `components` says (default: `'server'`).
+  - A file without a directive that imports a `"use server component"` file, of the app or of a package, directly or through other such files, is a server component too, up to the `Page`, `Layout`, `Wrapper` or `Loading` that imports it. A `"use client"` file can't import one.
+  - [`ssr: false`](https://vike.dev/ssr) leaves the page out of the first load's HTML, under either `components` value: the browser renders it, and its server components still run on the server.
+  - A component that calls a hook such as `useState()` starts with `"use client"` when a server component imports it. A file that imports a server component can't, so its hooks move into their own `"use client"` component.
+  - `vike-react`'s `useData()`, `useHydrated()`, `usePageContext()` and `<ClientOnly>` are at `vike-react-rsc/useData`, `/useHydrated`, `/usePageContext` and `/ClientOnly`.
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
   - An action runs before `guard()` and `data()` of its request, so they see what it changed: `pageContext.cookies.get()` returns a cookie the action set.

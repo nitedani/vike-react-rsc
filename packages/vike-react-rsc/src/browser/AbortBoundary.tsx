@@ -2,6 +2,7 @@ import { Component, use, type ReactNode } from "react";
 import type { HydrationOptions } from "react-dom/client";
 import { getAbort } from "../abort";
 import { followRedirect } from "./callServer";
+import { endNavigation } from "./page";
 import { isThrownByRscOutput } from "./rsc";
 
 // `keepsPage`: a server action's answer sent the children, so their redirect keeps the page in history, as the
@@ -50,6 +51,8 @@ const leaving = new WeakMap<object, Promise<never>>();
 
 function Redirect({ thrown, url, keepsPage }: { thrown: object; url: string; keepsPage: boolean }): ReactNode {
   if (!leaving.has(thrown)) {
+    // Vike starts the target's navigation once the one showing this page ends
+    endNavigation();
     // Replaces the page in history, as an HTTP redirect does, unless a server action's answer sent what threw it
     unlessHtmlRedirects(() => void followRedirect(url, keepsPage));
     leaving.set(thrown, new Promise(() => {}));

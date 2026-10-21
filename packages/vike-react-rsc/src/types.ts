@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
-import type { ImportString, PageContext } from "vike/types";
+import type { ImportString, PageContext, PageContextClient } from "vike/types";
 import type { ActionCall } from "./ssr/action";
 import type { Cookies } from "./ssr/cookies";
 import type { HtmlInjection, Viewport } from "./ssr/onRenderHtml";
@@ -17,6 +17,7 @@ export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknown
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */
 export type RscRuntime = typeof import("./rsc/runtime");
 
+type RenderClientHook = (pageContext: PageContextClient) => void;
 type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
 export type HeadValue = ReactNode | (() => ReactNode);
 type LoadingValue = {
@@ -29,8 +30,8 @@ type LoadingValue = {
 declare global {
   namespace Vike {
     interface PageContext {
-      /** The page's Flight: inlined in the HTML, or streamed in the pageContext a navigation fetches */
-      rscPayload: ReadableStream<Uint8Array>;
+      /** The page's Flight: inlined in the HTML, or streamed in the pageContext a navigation fetches. For a page that renders as in vike-react, only useActionState()'s state after a form submitted before hydration. */
+      rscPayload?: ReadableStream<Uint8Array>;
       /** On the server, while it answers a server action */
       rscAction?: ActionCall;
     }
@@ -172,9 +173,9 @@ declare global {
        */
       rootAttributes?: TagAttributes | ((pageContext: PageContextServer) => TagAttributes | undefined);
 
-      /** A server component around the page, e.g. its navigation and footer. With several, the one closest to the page is innermost. @see https://vike.dev/Layout */
+      /** A component around the page, e.g. its navigation and footer. With several, the one closest to the page is innermost. @see https://vike.dev/Layout */
       Layout?: WrapperComponent | ImportString;
-      /** A server component around the page and all its layouts. @see https://vike.dev/Wrapper */
+      /** A component around the page and all its layouts. @see https://vike.dev/Wrapper */
       Wrapper?: WrapperComponent | ImportString;
       /** What shows while something loads. @see https://vike.dev/Loading */
       Loading?: LoadingValue | ImportString;
@@ -184,6 +185,31 @@ declare global {
         /** The most bytes a server action's request body may have; a bigger one gets a 413. Default: 1 048 576 (1 MB). */
         bodySizeLimit?: number;
       };
+      /** Where a Page, Layout, Wrapper or Loading's `layout` without a directive runs, as a + file or imported by a +config file: on the server (`'server'`, React's default) or in the browser (`'client'`, as in vike-react). Under `'client'`, one without a directive that imports a `"use server component"` file, directly or through files without a directive, runs on the server. +Loading's `component`, the fallback of rsc(), renders in the browser and the HTML, so a +Loading with `"use server component"` has none. Any other file runs where the file that imports it runs, and `"use client"` at the top of a file puts it in the browser, `"use server component"` on the server. Set once, in the root `+config.js`. Default: `'server'`. */
+      components?: "client" | "server";
+      /**
+       * If `true`, the page is rendered twice: on the server-side (to HTML) and on the client-side (hydration).
+       *
+       * If `false`, the first load's HTML has no page and the browser renders it, under either `components` value. Server
+       * components still render on the server.
+       *
+       * @default true
+       *
+       * https://vike.dev/ssr
+       */
+      ssr?: boolean;
+      /**
+       * Client-side hook called before the page is rendered.
+       *
+       * https://vike.dev/onBeforeRenderClient
+       */
+      onBeforeRenderClient?: RenderClientHook | ImportString;
+      /**
+       * Client-side hook called after the page is rendered.
+       *
+       * https://vike.dev/onAfterRenderClient
+       */
+      onAfterRenderClient?: RenderClientHook | ImportString;
       /** Internal: the rsc env's runtime */
       rscRuntime?: RscRuntime | ImportString;
     }
@@ -201,6 +227,8 @@ declare global {
       Layout?: WrapperComponent[];
       Wrapper?: WrapperComponent[];
       Loading?: LoadingValue;
+      onBeforeRenderClient?: Function[];
+      onAfterRenderClient?: Function[];
       rscRuntime: RscRuntime;
     }
   }

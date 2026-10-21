@@ -21,10 +21,25 @@
       "react-server": "./dist/pageContext.rsc.js",
       "default": "./dist/pageContext.js"
     },
+    "./usePageContext": {
+      "react-server": "./dist/hooks/usePageContext.rsc.js",
+      "default": "./dist/hooks/usePageContext.js"
+    },
+    "./useData": {
+      "react-server": "./dist/hooks/useData.rsc.js",
+      "default": "./dist/hooks/useData.js"
+    },
+    "./useHydrated": "./dist/hooks/useHydrated.js",
+    "./ClientOnly": {
+      "react-server": "./dist/components/ClientOnly.rsc.js",
+      "default": "./dist/components/ClientOnly.js"
+    },
     "./__internal/browser": "./dist/__internal/browser.js",
     "./__internal/ssr": "./dist/__internal/ssr.server.js",
     "./__internal/rsc": "./dist/__internal/rsc.js",
-    "./__internal/middleware": "./dist/__internal/middleware.js"
+    "./__internal/middleware": "./dist/__internal/middleware.js",
+    "./__internal/onError": "./dist/__internal/onError.js",
+    "./__internal/LoadingBoundary": "./dist/components/LoadingBoundary.js"
   },
   "files": [
     "dist"

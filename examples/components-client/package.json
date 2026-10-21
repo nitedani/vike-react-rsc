@@ -1,0 +1,31 @@
+{
+  "name": "vike-react-rsc-example-components-client",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vike dev",
+    "build": "vike build",
+    "preview": "vike build && vike preview"
+  },
+  "dependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@universal-deploy/node": "^0.1.9",
+    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-rsc": "^0.5.36",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-server-dom-webpack": "19.3.1",
+    "typescript": "^7.0.2",
+    "vike": "0.4.268-commit-ca58695",
+    "vike-react-rsc": "^1.0.0",
+    "vite": "^8.2.0",
+    "react-server-layout": "link:./react-server-layout",
+    "server-component-package": "file:./server-component-package",
+    "server-component-wrapper": "file:./server-component-wrapper"
+  },
+  "devDependencies": {
+    "@mdx-js/rollup": "^3"
+  }
+}
