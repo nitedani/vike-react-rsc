@@ -23,6 +23,8 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
   // The page loads again with the new build's actions; the call rejects below when it already did for this id
   if (response.headers.has(UNKNOWN_ACTION_HEADER) && claimReload(id)) return leavePage(() => location.reload());
   const redirectTo = response.headers.get(REDIRECT_HEADER);
+  // An rsc() output that throws redirect(), loaded or still loading, would throw it again after Back
+  if (redirectTo && !isAction) dropRscOutputs();
   // As in Next.js, an action's redirect keeps the page in history, and a server component's replaces it, as an HTTP redirect does
   if (redirectTo) return followRedirect(redirectTo, isAction);
   return readAnswer(response, pageContext, isAction);
@@ -41,8 +43,6 @@ export function followRedirect(redirectTo: string, keepsPage: boolean): Promise<
   const url = getRedirectUrl(redirectTo, location.href);
   if (!url) throw new Error(`[vike-react-rsc] The server redirected to ${redirectTo}, which isn't an http(s) URL`);
   if (url.origin !== location.origin) return leavePage(() => location[keepsPage ? "assign" : "replace"](url.href));
-  // An rsc() output that throws redirect(), loaded or still loading, would throw it again after Back
-  dropRscOutputs();
   // Settles after the navigation, so a form action's pending transition doesn't hold the new page back
   return navigate(url.pathname + url.search + url.hash, { overwriteLastHistoryEntry: !keepsPage });
 }

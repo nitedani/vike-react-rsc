@@ -392,6 +392,10 @@ function testSession() {
     await page.goto(getServerUrl() + "/account");
     await waitForHydration("Log out");
     expect(await page.textContent("#account-mw")).to.equal("GET");
+    await showLoadCounts();
+    const loaded = await readLoadCounts();
+    await clickNewLink("/account");
+    await waitForHydration("Log out");
 
     // The action clears the cookie, then throws redirect("/"): a client navigation, not a document load
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
@@ -406,6 +410,12 @@ function testSession() {
     await page.goBack();
     await waitForHydration("Log in");
     expect(new URL(page.url()).pathname).to.equal("/account");
+    // The redirect came from the action, not from an rsc() output, so the cached outputs show until they refresh
+    await page.goBack();
+    await waitForHydration("Show server counts");
+    await toggleLoadCounts();
+    expect(await page.locator("[data-loading-component]").count()).to.equal(0);
+    expect(await readLoadCounts()).to.deep.equal(loaded);
   });
 
   test("Server action: guard() of the same request throws redirect()", async () => {

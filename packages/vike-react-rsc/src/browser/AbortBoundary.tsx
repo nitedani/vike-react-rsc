@@ -3,6 +3,7 @@ import type { HydrationOptions } from "react-dom/client";
 import { getAbort } from "../abort";
 import { usePageContext } from "../pageContext";
 import { followRedirect, wasAnswered } from "./callServer";
+import { dropRscOutputs } from "./rsc";
 
 type Props = { children: ReactNode };
 type State = { children?: ReactNode; redirectTo?: string };
@@ -44,8 +45,12 @@ export const onCaughtError: HydrationOptions["onCaughtError"] = (error, errorInf
 function Redirect({ url }: { url: string }) {
   const pageContext = usePageContext();
   useEffect(() => {
-    // Replaces the page in history, as an HTTP redirect does, unless a server action's rerender() sent what threw it
-    return unlessHtmlRedirects(() => void followRedirect(url, wasAnswered(pageContext)));
+    return unlessHtmlRedirects(() => {
+      // An rsc() output that throws redirect(), loaded or still loading, would throw it again after Back
+      dropRscOutputs();
+      // Replaces the page in history, as an HTTP redirect does, unless a server action's rerender() sent what threw it
+      void followRedirect(url, wasAnswered(pageContext));
+    });
   }, [url]);
   return null;
 }
