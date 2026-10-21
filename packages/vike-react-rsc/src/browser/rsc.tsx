@@ -2,11 +2,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePageContext } from "../pageContext";
 import { getShared } from "../shared";
 
-type Output = { node: ReactNode; generation: number; loadedAt: number };
+type Output = { node: ReactNode; generation: number; drops: number; loadedAt: number };
 
 const outputs = new Map<string, Output>();
-// Every copy's outputs: a redirect thrown in what a library's own rsc() loaded drops those too
-const outputsOfEveryCopy = getShared("rscOutputs", () => new Set<Map<string, Output>>()).add(outputs);
 // One load per key at a time, shared by every component that renders it
 const loads = new Map<string, Promise<ReactNode | undefined>>();
 // Production builds name every server function "action", so the key tells them apart by identity
@@ -15,7 +13,8 @@ const serverComponentIds = new Map<Function, number>();
 const state = getShared("rsc", () => ({
   // Raised by every server action except rsc()'s loads: an output loaded before may show data the action changed
   generation: 0,
-  // Raised by every redirect that drops the outputs: a load that started before is neither shared nor cached
+  // Raised by every redirect that drops the outputs, a library copy's included: an output or a load from before is
+  // neither shown, shared nor cached
   drops: 0,
   isLoading: false,
 }));
@@ -32,7 +31,8 @@ export function rsc<Props extends object>(
     const key = `${id}:${JSON.stringify(props)}`;
     const staleTime = pageContext.config.rsc?.staleTime ?? 60_000;
     // Shown until the next load arrives, even when out of date. Never set during SSR: loads start in effects.
-    const cached = outputs.get(key);
+    const output = outputs.get(key);
+    const cached = output?.drops === state.drops ? output : undefined;
     const isFresh = !!cached && cached.generation === state.generation && Date.now() - cached.loadedAt < staleTime;
     const [loaded, setLoaded] = useState<{ key: string; node: ReactNode }>();
 
@@ -66,7 +66,6 @@ export function markRscOutputsStale(): void {
 
 export function dropRscOutputs(): void {
   state.drops++;
-  for (const copyOutputs of outputsOfEveryCopy) copyOutputs.clear();
 }
 
 // Resolves to undefined when the load fails: the fallback, or the last output, stays
@@ -83,7 +82,7 @@ function load(key: string, call: () => Promise<ReactNode>, staleTime: number): P
   const loading = request
     .then(
       (node) => {
-        if (staleTime > 0 && node !== undefined && startedAfter === state.drops) outputs.set(key, { node, generation: startedIn, loadedAt: Date.now() });
+        if (staleTime > 0 && node !== undefined && startedAfter === state.drops) outputs.set(key, { node, generation: startedIn, drops: startedAfter, loadedAt: Date.now() });
         return node;
       },
       (error: unknown) => {
