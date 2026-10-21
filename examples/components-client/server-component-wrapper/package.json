@@ -1,0 +1,15 @@
+{
+  "name": "server-component-wrapper",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "dependencies": {
+    "server-component-package": "file:../server-component-package"
+  }
+}

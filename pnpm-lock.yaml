@@ -53,6 +53,9 @@ importers:
       server-component-package:
         specifier: file:./server-component-package
         version: file:examples/components-client/server-component-package(react@19.3.1)
+      server-component-wrapper:
+        specifier: file:./server-component-wrapper
+        version: file:examples/components-client/server-component-wrapper(react@19.3.1)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -2509,6 +2512,9 @@ packages:
     resolution: {directory: examples/components-client/server-component-package, type: directory}
     peerDependencies:
       react: '*'
+
+  server-component-wrapper@file:examples/components-client/server-component-wrapper:
+    resolution: {directory: examples/components-client/server-component-wrapper, type: directory}
 
   server-only@0.0.1:
     resolution: {integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==}
@@ -5395,6 +5401,12 @@ snapshots:
   server-component-package@file:examples/components-client/server-component-package(react@19.3.1):
     dependencies:
       react: 19.3.1
+
+  server-component-wrapper@file:examples/components-client/server-component-wrapper(react@19.3.1):
+    dependencies:
+      server-component-package: file:examples/components-client/server-component-package(react@19.3.1)
+    transitivePeerDependencies:
+      - react
 
   server-only@0.0.1: {}
 

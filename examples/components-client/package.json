@@ -22,7 +22,8 @@
     "vike-react-rsc": "^1.0.0",
     "vite": "^8.2.0",
     "react-server-layout": "link:./react-server-layout",
-    "server-component-package": "file:./server-component-package"
+    "server-component-package": "file:./server-component-package",
+    "server-component-wrapper": "file:./server-component-wrapper"
   },
   "devDependencies": {
     "@mdx-js/rollup": "^3"
