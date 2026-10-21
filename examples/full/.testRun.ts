@@ -626,7 +626,7 @@ function testServerComponentAbort() {
 
     await page.goto(getServerUrl() + "/todos");
     await waitForHydration("Add Task");
-    // React throws it while rendering, so it goes to the navigation, which logs it
+    // React throws it while rendering, after the navigation ended, so the React root's onUncaughtError logs it
     const logged = page.waitForEvent("console", (message) => message.type() === "error" && message.text().includes(getRefusedRedirectError(next)));
     await clickNewLink(href);
     await logged;
