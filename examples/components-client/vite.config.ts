@@ -7,7 +7,8 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [
     { enforce: "pre", ...mdx() },
-    react({ include: /\.(mdx|js|jsx|ts|tsx)$/ }),
+    // The linked vike-react-rsc stays out of Fast Refresh, as it does when installed from npm
+    react({ include: /\.(mdx|js|jsx|ts|tsx)$/, exclude: [/\/node_modules\//, /\/packages\/vike-react-rsc\//] }),
     vike(),
     // An import only a plugin resolves, as vite-tsconfig-paths resolves the tsconfig's paths
     {
