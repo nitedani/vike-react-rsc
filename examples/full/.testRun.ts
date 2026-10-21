@@ -140,6 +140,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testHeadSettingsRerender();
     testSession();
     testGonePassToClientValue();
+    testConcurrentRerender();
     testActionOnce();
     testActionValueSurvivesDataError();
     testActionPageFailure();
@@ -1248,6 +1249,20 @@ function testGonePassToClientValue() {
     await page.click('button:has-text("Render again")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-visitor]")).to.equal("none");
+    });
+  });
+}
+
+function testConcurrentRerender() {
+  test("Server action: two rerender() calls in flight at once on one page both apply", async () => {
+    await page.goto(getServerUrl() + "/unserializable");
+    await waitForHydration("Render again");
+    const readRender = async () => Number(await page.textContent("[data-render]"));
+    const before = await readRender();
+    // The second click starts its action before the first one's answer arrives
+    await page.dblclick('button:has-text("Render again")');
+    await autoRetry(async () => {
+      expect(await readRender()).to.equal(before + 2);
     });
   });
 }
