@@ -674,6 +674,33 @@ function testServerComponentImports() {
     );
   });
 
+  const importPackageServerComponent = () =>
+    '"use client";\nimport { createElement } from "react";\nimport ServerBadge from "server-component-package/ServerBadge";\n' +
+    'export default function Page() {\n  return createElement(ServerBadge, { label: "A badge" });\n}\n';
+  const packageServerComponentInBrowser = `node_modules/server-component-package/ServerBadge.js ${SERVER_COMPONENT_IN_BROWSER_ERROR}: pages/js-page/+Page.js starts with "use client" and imports it.`;
+
+  test('Build: a "use client" file importing a package\'s server component fails the build, naming the package\'s file', async () => {
+    const output = await getBuildError("./pages/js-page/+Page.js", importPackageServerComponent);
+    expect(output).to.include(
+      `${packageServerComponentInBrowser} ` +
+        'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
+        'or, remove "use client" from pages/js-page/+Page.js, so it runs on the server, and move its hooks and event handlers into their own "use client" component'
+    );
+  });
+
+  test('Dev: a "use client" file importing a package\'s server component, which the browser loads pre-bundled, gets the error', async () => {
+    editFile("./pages/js-page/+Page.js", importPackageServerComponent);
+    try {
+      await page.goto(getServerUrl() + "/js-page");
+      await autoRetry(async () => {
+        expectLog(packageServerComponentInBrowser, { filter: ({ logSource }) => logSource === "stderr" });
+      });
+    } finally {
+      await page.goto("about:blank");
+      editFileRevert();
+    }
+  });
+
   test("Build: a server + file re-exporting with export * fails the build, saying to name the export", async () => {
     // The dev server sees the edit too, and renders nothing with it while no page is open
     await page.goto("about:blank");

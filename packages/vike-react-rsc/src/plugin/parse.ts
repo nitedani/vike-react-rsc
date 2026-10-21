@@ -54,6 +54,12 @@ export function isModuleFile(id: string): boolean {
   return !id.startsWith("\0") && path.extname(getFile(id)) in langs;
 }
 
+/** The file from the app's root, a package's in the app's node_modules, e.g. node_modules/my-package/Button.js */
+export function getFileName(id: string, root: string): string {
+  const file = getFile(id);
+  return /^.*\/(node_modules\/.+)$/.exec(file)?.[1] ?? path.relative(root, file);
+}
+
 export function getFile(id: string): string {
   return id.split("?")[0]!;
 }

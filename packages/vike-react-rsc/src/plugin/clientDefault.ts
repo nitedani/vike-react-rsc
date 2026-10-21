@@ -159,6 +159,15 @@ async function findServerComponentImport(file: string, getModule: GetModule): Pr
   return { read };
 }
 
+/** The files from a package's file to the "use server component" file it is or imports through files without a
+ * directive, if any, as the browser loads them */
+export async function findPackageServerComponentImport(file: string, config: ResolvedConfig): Promise<string[] | undefined> {
+  const getModule = (file: string) => readModule(file, () => readFile(file, "utf8"), config, async (source) => resolveForBrowser(source, file));
+  const { directives } = await getModule(file);
+  if (directives.includes("use server component")) return [file];
+  if (directives.length === 0) return (await findServerComponentImport(file, getModule)).serverComponentImport;
+}
+
 // A file that doesn't parse has neither: its own transform reports why
 async function readModule(
   file: string,

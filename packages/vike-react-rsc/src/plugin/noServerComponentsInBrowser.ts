@@ -1,8 +1,7 @@
 import { readFile } from "node:fs/promises";
-import path from "node:path";
 import type { Plugin } from "vite";
-import { getComponentConfigs } from "./clientDefault";
-import { getDirectives, getFile, isAppFile, parse } from "./parse";
+import { findPackageServerComponentImport, getComponentConfigs } from "./clientDefault";
+import { getDirectives, getFile, getFileName, isAppFile, isModuleFile, parse } from "./parse";
 
 /** The browser importing a `"use server component"` file is an error, in dev and in the build, naming each Page, Layout, Wrapper or Loading that imports
  * it and the files in between. A Page, Layout, Wrapper or Loading with the directive is skipped: the browser gets at most a stub of it (see getServerComponentStub) */
@@ -14,17 +13,25 @@ export function noServerComponentsInBrowser(): Plugin {
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
     async transform(code, id) {
-      if (!isAppFile(id) || this.environment.name !== "client") return;
+      if (!isModuleFile(id) || this.environment.name !== "client") return;
       const getComponentConfig = await getComponentConfigs(this);
-      if (getComponentConfig(id) || !(await isServerComponentFile(code, id))) return;
-      // The build knows every importer once it has loaded all modules
-      if (this.environment.mode !== "dev") {
-        serverComponentsInBrowser.add(id);
+      if (getComponentConfig(id)) return;
+      const { environment } = this;
+      if (environment.mode !== "dev") {
+        // The build knows every importer once it has loaded all modules
+        if (await isServerComponentFile(code, id)) serverComponentsInBrowser.add(id);
         return;
       }
-      const { moduleGraph } = this.environment;
+      // In dev, the browser loads a package as Vite pre-bundled it, from the package's file the import names
+      const preBundled = Object.values(environment.depsOptimizer?.metadata.optimized ?? {}).find(({ file }) => file === getFile(id))?.src;
+      const serverComponentImport = preBundled
+        ? await findPackageServerComponentImport(preBundled, environment.getTopLevelConfig())
+        : (await isServerComponentFile(code, id)) && [id];
+      if (!serverComponentImport) return;
+      const { moduleGraph } = environment;
       const chains = getImportChains(id, getComponentConfig, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])].flatMap((importer) => importer.id ?? []));
-      this.error(await getServerComponentInBrowserErrors(chains, getComponentConfig, this.environment.config.root));
+      const fromServerComponent = serverComponentImport.toReversed();
+      this.error(await getServerComponentInBrowserErrors(chains.map(([, ...importers]) => [...fromServerComponent, ...importers]), getComponentConfig, environment.config.root));
     },
     async buildEnd() {
       if (this.environment.name !== "client") return;
@@ -49,7 +56,7 @@ function getImportChains(id: string, getComponentConfig: GetComponentConfig, get
   const chains: string[][] = [];
   const walk = (chain: string[]) => {
     const file = chain.at(-1)!;
-    const importers = getComponentConfig(file) ? [] : getImporters(file).filter((importer) => isAppFile(importer) && !chain.includes(importer));
+    const importers = getComponentConfig(file) ? [] : getImporters(file).filter((importer) => isModuleFile(importer) && !chain.includes(importer));
     if (importers.length === 0) chains.push(chain);
     for (const importer of importers) walk([...chain, importer]);
   };
@@ -65,7 +72,7 @@ async function getServerComponentInBrowserErrors(chains: string[][], getComponen
 // A server component renders only on the server, and so does a file without a directive that imports one. A component in the
 // browser shows one through rsc(); a file that says "use client" can't import one.
 async function getServerComponentInBrowserError(chain: string[], getComponentConfig: GetComponentConfig, root: string): Promise<string> {
-  const [file, ...importers] = chain.map((id) => path.relative(root, getFile(id)));
+  const [file, ...importers] = chain.map((id) => getFileName(id, root));
   if (importers.length === 0) return `${file} starts with "use server component", but the browser loads it`;
   // The file that puts the chain in the browser, or else the file at its top
   const clientIndex = (await Promise.all(chain.slice(1).map(isClientComponentFile))).indexOf(true);
@@ -79,11 +86,12 @@ async function getServerComponentInBrowserError(chain: string[], getComponentCon
       : getComponentConfig(chain.at(-1)!)
         ? `if ${importer} needs nothing from the browser (no hooks, no event handlers), start it with "use server component"`
         : "import it only from server components";
-  const typesOnly = `if ${path.relative(root, getFile(chain[1]!))} imports only its types, write \`import type\``;
+  // A package's file isn't the app's to change
+  const typesOnly = isAppFile(chain[1]!) ? `; or, if ${importers[0]} imports only its types, write \`import type\`` : "";
   return (
     `${file} starts with "use server component", but the browser loads it: ${importer} ${imports} it${through}. ` +
     `To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ` +
-    `or, ${toServer}; or, ${typesOnly}`
+    `or, ${toServer}${typesOnly}`
   );
 }
 
