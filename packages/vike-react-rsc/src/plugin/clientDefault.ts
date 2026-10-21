@@ -4,7 +4,7 @@ import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
 import { createIdResolver, type Environment, type ESTree, type Plugin, type ResolvedConfig } from "vite";
 import packageJson from "../../package.json";
-import { getDirectives, getFile, getFileName, getImportSources, isAppFile, isModuleFile, parse, parseCompiled, type Directive } from "./parse";
+import { getDirectives, getFile, getFileName, getImportSources, isAppFile, isModuleFile, parse, parseCompiled, startsWithDirective, type Directive } from "./parse";
 
 // A client component's import, which plugin-rsc's client reference imports in each env
 const CLIENT_IMPORT = "virtual:vike-react-rsc/client-import:";
@@ -287,8 +287,9 @@ async function readComponentConfigs(pageConfigs: PageConfigs, context: ResolveCo
           // An import that the env resolves to another file than the browser, by the package's conditions or to the dep Vite
           // pre-bundled in dev: the directive of the browser's file says where the component runs
           if (!browserFile || !file || file === browserFile) imports.push({ file, config });
-          else if (await isServerComponentFile(browserFile)) imports.push({ file, config: { ...config, isServerComponentImport: true } });
-          else if (context.environment.name === "rsc") clientImports.add(importPath);
+          else if (await startsWithDirective(await readFile(browserFile, "utf8"), browserFile, "use server component")) {
+            imports.push({ file, config: { ...config, isServerComponentImport: true } });
+          } else if (context.environment.name === "rsc") clientImports.add(importPath);
         }
       }
     }
@@ -332,11 +333,6 @@ let resolveForBrowser: (importPath: string, importer: string | undefined) => Pro
 function setBrowserEnvironment(environment: Environment) {
   const resolve = createIdResolver(environment.getTopLevelConfig());
   resolveForBrowser = (importPath, importer) => resolve(environment, importPath, importer);
-}
-
-async function isServerComponentFile(file: string): Promise<boolean> {
-  const code = await readFile(file, "utf8");
-  return code.includes("use server component") && getDirectives(await parse(code, file)).includes("use server component");
 }
 
 // The import strings in a value: an extension's, or the one Vike makes of a +config file's import, e.g. "import:/app/Spinner.tsx:Spinner"
