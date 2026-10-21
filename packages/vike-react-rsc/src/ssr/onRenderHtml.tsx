@@ -52,15 +52,10 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
   const nonce = pageContext.cspNonce ?? undefined;
   // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this hook returns, then the
   // HTML has started and only the stream can tell the browser
-  let abort: Abort | undefined;
-  const onAbort = (thrown: Abort) => {
-    if (deps.injectToStream) deps.injectToStream(renderAbortMeta(thrown));
-    else abort ??= thrown;
-  };
-  const handOver = (thrown: Abort) => {
-    htmlSent.abort();
-    void pageContext.rscPayload.cancel();
-    return toVikeAbort(thrown);
+  let boundaryAbort: unknown;
+  const onAbort = (error: unknown, abort: Abort) => {
+    if (deps.injectToStream) deps.injectToStream(renderAbortMeta(abort));
+    else boundaryAbort ??= error;
   };
   let html;
   try {
@@ -71,8 +66,8 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
         userAgent: pageContext.headers?.["user-agent"],
         streamOptions: { nonce, formState },
         onBoundaryError: (error) => {
-          const thrown = getAbort(error);
-          if (thrown) onAbort(thrown);
+          const abort = getAbort(error);
+          if (abort) onAbort(error, abort);
         },
       });
       // A crawler gets the page whole, so Vike can still answer a boundary's abort, which react-streaming reports late
@@ -80,13 +75,15 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
       void html.streamEnd.then(() => htmlSent.abort());
       deps.injectToStream = html.injectToStream;
     }
+    // Inside a Suspense boundary, but reported before this hook returns, e.g. a crawler's
+    if (boundaryAbort) throw boundaryAbort;
   } catch (error) {
-    // Outside every Suspense boundary: the shell failed
-    const thrown = getAbort(error);
-    throw thrown ? handOver(thrown) : error;
+    const abort = getAbort(error);
+    if (!abort) throw error;
+    htmlSent.abort();
+    void pageContext.rscPayload.cancel();
+    throw toVikeAbort(abort);
   }
-  // Inside one, but reported before this hook returns, e.g. a crawler's
-  if (abort) throw handOver(abort);
   // Once the shell has rendered, React has loaded every client component in it
   const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
 
@@ -108,10 +105,10 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
 
 // A pre-rendered page has to be complete, so it waits for every Suspense boundary. React's prerender() would, but takes
 // no CSP nonce. react-streaming would, but Vike's pre-rendering loads its own copy, which takes over ours.
-async function renderWhole(page: ReactNode, nonce: string | undefined, onAbort: (abort: Abort) => void) {
+async function renderWhole(page: ReactNode, nonce: string | undefined, onAbort: (error: unknown, abort: Abort) => void) {
   const onError = (error: unknown) => {
     const abort = getAbort(error);
-    if (abort) onAbort(abort);
+    if (abort) onAbort(error, abort);
     else console.error(error);
   };
   const stream = await renderToReadableStream(page, { nonce, onError });
