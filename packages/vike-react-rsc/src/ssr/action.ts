@@ -23,9 +23,9 @@ export class ActionCall {
   ) {}
 
   // Vike creates a pageContext for every page it renders, and an error or a `throw render()` makes it render another
-  // page for the same request: only the first one runs the action
+  // page for the same request: only the first one runs the action, and the others wait for it
   async run(pageContext: PageContextServer): Promise<void> {
-    if (this.#rsc) return;
+    if (this.#rsc) return void (await this.#running?.catch(() => {}));
     this.#rsc = getRsc(pageContext);
     const before = pageContext.headersResponse.getSetCookie().length;
     try {
