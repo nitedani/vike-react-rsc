@@ -21,7 +21,11 @@ export function runInScope<T>(scope: Scope, run: () => T): T {
 export function getPageContext(): PageContextServer {
   const scope = storage.getStore();
   if (!scope) {
-    throw new Error("[vike-react-rsc] getPageContext() needs a server component render or a server action, and neither runs here");
+    throw new Error("[vike-react-rsc] getPageContext() needs a server component render, and none runs here");
+  }
+  // An action runs for the request, from whichever page called it
+  if (scope.action) {
+    throw new Error("[vike-react-rsc] getPageContext() is for server components: call getRequestContext() from vike-react-rsc/server in a server action or a component passed to rsc(), which have no page");
   }
   // The rsc env's view of the server's pageContext
   return scope.pageContext as PageContextServer;

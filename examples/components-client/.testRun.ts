@@ -432,7 +432,7 @@ function testServerFunctionComponents() {
 function testClientHooks() {
   test("Dev: usePageContext() and useData() in a server component throw, naming what to call instead", async () => {
     for (const [hook, fix] of [
-      ["usePageContext", "call getPageContext() in a server component or a server action"],
+      ["usePageContext", "call getPageContext() in a server component, or getRequestContext() in a server action"],
       ["useData", "read getPageContext().data in a server component"],
     ]) {
       await expectHelperPageError(

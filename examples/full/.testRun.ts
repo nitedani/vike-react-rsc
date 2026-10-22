@@ -426,8 +426,8 @@ function testSession() {
       (await page.context().cookies()).find((c) => c.name === "session")?.value;
     expect(await session()).to.equal("alice");
 
-    // The action's pageContext, which its re-render shows, has the context of the +middleware ordered after the action
-    // middleware, which ran once, like a page request's
+    // The page its re-render shows has the context of the +middleware ordered after the action middleware, which ran
+    // once, like a page request's
     expect(await getServerCount("middleware /account")).to.equal(middlewareRuns + 1);
     expect(await page.textContent("#account-mw")).to.equal("POST");
     await page.goto(getServerUrl() + "/account");
@@ -1219,7 +1219,7 @@ function testMisuse() {
     const html = await fetchHtml("/misuse");
     const error = (call: string) => new RegExp(`data-misuse="${call}">([^<]*)<`).exec(html)?.[1];
     expect(error("getPageContext")).to.equal(
-      "[vike-react-rsc] getPageContext() needs a server component render or a server action, and neither runs here"
+      "[vike-react-rsc] getPageContext() needs a server component render, and none runs here"
     );
     expect(error("rerender")).to.equal("[vike-react-rsc] rerender() needs a running server action, and none runs here");
     // The same message from data(), which runs outside the rsc env
