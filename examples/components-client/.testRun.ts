@@ -715,6 +715,8 @@ function testServerComponentImports() {
       `import { MARKDOWN_ID } from "../../components/Markdown";\n${source.replace('greeting: "Data from +data"', '$&, id: MARKDOWN_ID')}`
     );
     expect(isSuccess).to.equal(true);
+    // Vike reloads the user files after the revert, and the lane's server stopping during that reload logs an error
+    await sleep(1000);
   });
 }
 
