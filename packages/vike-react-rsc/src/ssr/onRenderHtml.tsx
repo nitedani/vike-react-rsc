@@ -14,7 +14,7 @@ import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import { getRedirectUrl } from "../redirect";
-import type { HeadValue, PagePayload } from "../types";
+import type { HeadValue, PagePayload, ReactOptions } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { getTagAttributesString, type TagAttributes } from "../utils/getTagAttributesString";
 
@@ -88,7 +88,14 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   forkPageContext(pageContext);
   // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
   await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
-  const { renderToStringOptions, renderToStreamOptions } = resolveReactOptions(pageContext);
+  await renderRootToHtml(pageContext, deps, resolveReactOptions(pageContext));
+  // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
+  await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
+}
+
+// The Flight's root, or a client Page, to pageContext.pageHtmlString or pageHtmlStream; an abort in a server component
+// becomes Vike's
+async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps, { renderToStringOptions, renderToStreamOptions }: ReactOptions) {
   const streamSetting = resolveStreamSetting(pageContext);
   // Where vike-react calls renderToString(), its options go to the stream's render: server components render only to a stream
   const streamOptions = {
@@ -142,8 +149,6 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
     void pageContext.rscPayload?.cancel();
     throw toVikeAbort(abort);
   }
-  // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
-  await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
 }
 
 // vike-react's resolveStreamSetting(): the HTML streams unless `enable` is false, as when vike-react's `require` is true
