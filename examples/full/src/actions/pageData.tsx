@@ -12,6 +12,11 @@ export async function PageDataComponent() {
   return <PageData />;
 }
 
+// Loaded with rsc(): it runs as a server action, which has no page
+export async function PageContextErrorComponent() {
+  return <p data-rsc-page-context="">{getError(getPageContext)}</p>;
+}
+
 function PageContextError() {
   return <p data-returned-page-context="">{getError(getPageContext)}</p>;
 }

@@ -3,19 +3,21 @@
 import { useActionState, useState, type ReactNode } from "react";
 import { rsc } from "vike-react-rsc/client";
 import { countSubmit, FailingComponent, loginThenRender, readRequestContext, RedirectOnceComponent, redirectToScript, requireLogin, save, saveThenGuard404, saveThenRedirectPage, slowSave } from "../../actions/edgeCases";
-import { PageDataComponent, returnPageContextError } from "../../actions/pageData";
+import { PageContextErrorComponent, PageDataComponent, returnPageContextError } from "../../actions/pageData";
 import { RedirectingChildComponent } from "../../actions/redirectingChild";
 
 const FailingComponentRsc = rsc(FailingComponent);
 const RedirectOnceComponentRsc = rsc(RedirectOnceComponent);
 const RedirectingChildComponentRsc = rsc(RedirectingChildComponent);
 const PageDataComponentRsc = rsc(PageDataComponent);
+const PageContextErrorComponentRsc = rsc(PageContextErrorComponent);
 
 export default function ActionsClient() {
   const [result, setResult] = useState("");
   const [showFailing, setShowFailing] = useState(false);
   const [showRedirecting, setShowRedirecting] = useState(false);
   const [showPageData, setShowPageData] = useState(false);
+  const [showPageContextError, setShowPageContextError] = useState(false);
   const [returned, setReturned] = useState<ReactNode>(null);
   const [firstRedirect, setFirstRedirect] = useState<"child" | "server-function">();
   const [submits, countSubmitAction] = useActionState(countSubmit, 0);
@@ -47,6 +49,8 @@ export default function ActionsClient() {
       <p data-rsc-redirecting="">{showRedirecting && <RedirectOnceComponentRsc fallback="Not loaded" />}</p>
       <button onClick={() => setShowPageData(true)}>Load a server component that reads data()</button>
       {showPageData && <PageDataComponentRsc />}
+      <button onClick={() => setShowPageContextError(true)}>Load a server component that calls getPageContext()</button>
+      {showPageContextError && <PageContextErrorComponentRsc />}
       <button onClick={async () => setReturned(await returnPageContextError())}>Return a server component that calls getPageContext()</button>
       {returned}
       <button onClick={() => setFirstRedirect("child")}>Load a server component whose child redirects</button>

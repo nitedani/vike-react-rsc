@@ -1398,6 +1398,14 @@ function testActionRequestContext() {
       expect(await page.textContent("[data-returned-page-context]")).to.equal(noPageError);
     });
   });
+  test("rsc(): getPageContext() throws in the component passed to it", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Load a server component that calls getPageContext()")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-rsc-page-context]")).to.equal(noPageError);
+    });
+  });
 }
 
 function testActionValueSurvivesHookError() {
