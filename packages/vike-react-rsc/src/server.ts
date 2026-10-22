@@ -7,7 +7,7 @@ export function rerender(): void {
   throw notInServerAction();
 }
 
-/** The request, in a server action or a server component: its `headers`, its `cookies`, and what your server and your +middleware add, such as `req` or `user`. */
+/** The request, in a server action or a server component: its `headers`, its `cookies`, and what your server and your +middleware add, such as `req` or `user`. Not what Vike and your app compute for a page: `routeParams`, the page's config, `data`, what your +onCreatePageContext sets. */
 export function getRequestContext(): RequestContext {
   throw noRequestContext();
 }
