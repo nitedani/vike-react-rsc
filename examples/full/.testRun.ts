@@ -40,6 +40,9 @@ const REACT_DEV_EVAL_CSP_ERROR =
 // https://github.com/react/react/pull/37572 is released.
 const REACT_DEV_PERF_TRACK_ERROR = "cannot have a negative time stamp";
 
+// Thrown by +onCreatePageContext while testActionValueSurvivesHookError() sets its cookie
+const ON_CREATE_PAGE_CONTEXT_ERROR = "+onCreatePageContext failed on demand";
+
 // Thrown by /actions' FailingComponent(), then logged by rsc() in the browser
 const RSC_LOAD_ERROR = "FailingComponent failed on demand";
 const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server component";
@@ -84,6 +87,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testActionBodyLimit()
       (logSource === "stderr" &&
         (logText.includes("HTTP response ← /todos 413") || logText.includes("HTTP response ← /actions 413"))) ||
+      // testActionValueSurvivesHookError()
+      (logSource === "stderr" && logText.includes(ON_CREATE_PAGE_CONTEXT_ERROR)) ||
       // testActionPageFailure()
       (logSource === "Browser Error" && logText.includes("status of 404")) ||
       // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
@@ -149,6 +154,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testConcurrentRerender();
     testActionOnce();
     testActionSkipsData();
+    testActionValueSurvivesHookError();
     testActionPageFailure();
     testStaleAction();
     testActionAbort();
@@ -1355,6 +1361,19 @@ function testActionSkipsData() {
       expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
     });
     expect(await getServerCount("data /actions")).to.equal(before);
+  });
+}
+
+function testActionValueSurvivesHookError() {
+  test("Server action: without rerender(), its value survives an error in +onCreatePageContext", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.context().addCookies([{ name: "failOnCreatePageContext", value: "1", url: getServerUrl() }]);
+    await page.click('button:text-is("Save")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
+    });
+    await page.context().clearCookies({ name: "failOnCreatePageContext" });
   });
 }
 
