@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { rsc } from "vike-react-rsc/client";
-import { countSubmit, FailingComponent, loginThenRender, RedirectOnceComponent, redirectToScript, requireLogin, saveThenFailData, saveThenGuard404, saveThenRedirectPage, slowSave } from "../../actions/edgeCases";
+import { countSubmit, FailingComponent, loginThenRender, RedirectOnceComponent, redirectToScript, requireLogin, save, saveThenGuard404, saveThenRedirectPage, slowSave } from "../../actions/edgeCases";
 import { RedirectingChildComponent } from "../../actions/redirectingChild";
 
 const FailingComponentRsc = rsc(FailingComponent);
@@ -28,7 +28,7 @@ export default function ActionsClient() {
   };
   return (
     <>
-      <button onClick={call(saveThenFailData)}>Save, then data() throws</button>
+      <button onClick={call(save)}>Save</button>
       <button onClick={call(saveThenGuard404)}>Save, then guard() throws render(404)</button>
       <button onClick={call(saveThenRedirectPage)}>Save, then the page throws redirect()</button>
       <button onClick={call(slowSave)}>Slow save</button>

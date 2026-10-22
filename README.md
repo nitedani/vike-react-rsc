@@ -20,7 +20,7 @@ React RSC integration for [Vike](https://vike.dev).
   - `vike-react`'s `useData()`, `useHydrated()`, `usePageContext()` and `<ClientOnly>` are at `vike-react-rsc/useData`, `/useHydrated`, `/usePageContext` and `/ClientOnly`.
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
-  - An action runs before `guard()` and `data()` of its request, so they see what it changed: `pageContext.cookies.get()` returns a cookie the action set.
+  - An action runs before `guard()` and `data()` of its request, so they see what it changed: `pageContext.cookies.get()` returns a cookie the action set. Without `rerender()` they don't run, as the answer is only what the action returned.
   - `guard()` doesn't protect an action: check authorization in the action itself.
   - An action's request body over **`rsc.bodySizeLimit`** bytes (default 1 MB) is refused with a 413, before it's buffered whole. Under `@vikejs/express`, a limit above 1 MB empties a `multipart/form-data` form posted to your own route with a body between 1 MB and the limit; once [magne4000/universal-middleware#457](https://github.com/magne4000/universal-middleware/pull/457) is released, it gets a 413 instead.
   - An action's `pageContext` has what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `pageContext.user`).

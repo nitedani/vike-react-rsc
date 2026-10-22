@@ -6,11 +6,10 @@ import { getPageContext } from "vike-react-rsc/pageContext";
 import { rerender } from "vike-react-rsc/server";
 
 // Read by the hooks of /actions, which run in another environment
-const failNext = ((globalThis as { __failNext?: { data?: boolean; guard?: boolean; page?: boolean } }).__failNext ??= {});
+const failNext = ((globalThis as { __failNext?: { guard?: boolean; page?: boolean } }).__failNext ??= {});
 
-// Without rerender(), the caller gets the return value even though data() throws after the action
-export async function saveThenFailData() {
-  failNext.data = true;
+// Without rerender(), the page's data() doesn't run
+export async function save() {
   return "saved";
 }
 

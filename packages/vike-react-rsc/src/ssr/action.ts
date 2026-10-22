@@ -56,8 +56,8 @@ export class ActionCall {
     // The page, or a redirect a browser follows
     if (this.isForm) return new Response(response.body, { status, headers });
 
-    // Without rerender() the page isn't part of the answer, so neither is guard()'s or data()'s failure: the caller
-    // gets what the action returned
+    // Without rerender() the page isn't part of the answer, so neither is a failure after the action: the caller gets
+    // what the action returned
     if (this.outcome && !this.outcome.rerender && status !== 200) {
       return this.#answerReturnValue(response, this.outcome.returnValue);
     }

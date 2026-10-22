@@ -5,9 +5,12 @@ import { createCookies } from "./cookies";
 
 export async function onCreatePageContext(pageContext: PageContextServer): Promise<void> {
   pageContext.cookies = createCookies(pageContext);
-  await pageContext.rscAction?.run(pageContext);
+  const call = pageContext.rscAction;
+  await call?.run(pageContext);
+  // Returned without rerender(): the answer is the return value alone, so nothing reads what guard() and data() provide
+  if (call?.outcome && !call.isForm && !call.outcome.rerender) pageContext._skipGuardAndData_experimentalRSC = true;
   // A server action's answer renders the page itself: Vike would otherwise send this Flight along with rerender()'s values
-  if (pageContext.rscAction && !pageContext.rscAction.isForm) return;
+  if (call && !call.isForm) return;
   const { runtime, pageContext: rscPageContext } = getRsc(pageContext);
   // The rsc env's pageContext: under ssr: false, the server env doesn't load the page's files
   if (rendersFlight(rscPageContext)) pageContext.rscPayload = runtime.pagePayload(rscPageContext);

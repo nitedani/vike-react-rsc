@@ -40,9 +40,6 @@ const REACT_DEV_EVAL_CSP_ERROR =
 // https://github.com/react/react/pull/37572 is released.
 const REACT_DEV_PERF_TRACK_ERROR = "cannot have a negative time stamp";
 
-// Thrown by /actions' data() after saveThenFailData()
-const DATA_ERROR = "data() failed on demand";
-
 // Thrown by /actions' FailingComponent(), then logged by rsc() in the browser
 const RSC_LOAD_ERROR = "FailingComponent failed on demand";
 const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server component";
@@ -87,13 +84,10 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testActionBodyLimit()
       (logSource === "stderr" &&
         (logText.includes("HTTP response ← /todos 413") || logText.includes("HTTP response ← /actions 413"))) ||
-      // testActionValueSurvivesDataError()
-      (logSource === "stderr" &&
-        (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
       // testActionPageFailure()
       (logSource === "Browser Error" && logText.includes("status of 404")) ||
       // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
-      (logSource === "stderr" && logText.includes(RSC_LOAD_ERROR)) ||
+      (logSource === "stderr" && (logText.includes(RSC_LOAD_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
       logText.includes(RSC_LOAD_ERROR_LOG) ||
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testUnknownAction()
@@ -154,7 +148,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testGonePassToClientValue();
     testConcurrentRerender();
     testActionOnce();
-    testActionValueSurvivesDataError();
+    testActionSkipsData();
     testActionPageFailure();
     testStaleAction();
     testActionAbort();
@@ -764,7 +758,7 @@ function testStaticHostAction() {
   test("Server action: a static host's answer rejects the call with its status", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
-    await page.click('button:has-text("Save, then data() throws")');
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] Server action failed: HTTP 404");
     });
@@ -819,13 +813,13 @@ function testUnknownAction() {
     await waitForHydration("Slow save");
     await callUnknownId(unknownId);
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
-    await page.click('button:has-text("Save, then data() throws")');
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.evaluate(() => performance.timeOrigin)).to.not.equal(timeOrigin);
     });
     await waitForHydration("Slow save");
     await callUnknownId(unknownId);
-    await page.click('button:has-text("Save, then data() throws")');
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] Server action failed: HTTP 404");
     });
@@ -1338,14 +1332,16 @@ function testActionOnce() {
   });
 }
 
-function testActionValueSurvivesDataError() {
-  test("Server action: without rerender(), its value survives a data() error", async () => {
+function testActionSkipsData() {
+  test("Server action: without rerender(), the page's data() doesn't run", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
-    await page.click('button:has-text("Save, then data() throws")');
+    const before = await getServerCount("data /actions");
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
     });
+    expect(await getServerCount("data /actions")).to.equal(before);
   });
 }
 
