@@ -20,13 +20,15 @@ React RSC integration for [Vike](https://vike.dev).
   - `vike-react`'s `useData()`, `useHydrated()`, `usePageContext()` and `<ClientOnly>` are at `vike-react-rsc/useData`, `/useHydrated`, `/usePageContext` and `/ClientOnly`.
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
-  - An action reads **`getRequestContext()`** (from `vike-react-rsc/server`): the request's `headers` and `cookies`, and what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `user`). It leaves out what Vike and your app compute for a page: `routeParams`, the page's config, `data`, and what your `+onCreatePageContext` sets. An action has no page, so `getPageContext()` throws in it and in a component passed to `rsc()`. Without `rerender()`, the server components an action called from JavaScript returns have no page either; load them with `rsc()` to read it. Server components can call `getRequestContext()` too.
+  - An action reads **`getRequestContext()`** (from `vike-react-rsc/server`): the request's `headers` and `cookies`, and what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `user`). It leaves out what Vike and your app compute for a page: `routeParams`, the page's config, `data`, and what your `+onCreatePageContext` sets.
     ```ts
     import { getRequestContext } from "vike-react-rsc/server";
     const { user, cookies } = getRequestContext();
     ```
+  - An action has no page, so `getPageContext()` throws in it and in a component passed to `rsc()`, while the server components that component returns keep it, with the page's `data`. Without `rerender()`, the server components an action called from JavaScript returns have no page either; load them with `rsc()` to read it.
+  - Server components can call `getRequestContext()` too.
   - An action runs before `guard()` and `data()` of its request, so they see what it changed: `pageContext.cookies.get()` returns a cookie the action set. Without `rerender()`, an action called from JavaScript doesn't run them, as its answer is only what the action returned.
-  - `guard()` doesn't protect an action: check authorization in the action itself, with what your auth [`+middleware`](https://vike.dev/middleware) adds. An action doesn't see what your `+onCreatePageContext` sets.
+  - `guard()` doesn't protect an action: check authorization in the action itself, with what your auth [`+middleware`](https://vike.dev/middleware) adds.
   - An action's request body over **`rsc.bodySizeLimit`** bytes (default 1 MB) is refused with a 413, before it's buffered whole. Under `@vikejs/express`, a limit above 1 MB empties a `multipart/form-data` form posted to your own route with a body between 1 MB and the limit; once [magne4000/universal-middleware#457](https://github.com/magne4000/universal-middleware/pull/457) is released, it gets a 413 instead.
   - [Telefunc](https://telefunc.com) works next to server actions.
 - **`pageContext.cookies`**: `get(name)`, `getAll()`, `has(name)`, `set(name, value, options)` and `delete(name, options)`.
