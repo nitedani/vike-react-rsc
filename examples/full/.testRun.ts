@@ -168,6 +168,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscPropsChange();
     testRscLoadError();
     testRscLoadRedirect();
+    testRscLoadReadsData();
     testServerComponentAbort();
     testRscCache();
     testRscCacheInvalidation();
@@ -567,6 +568,17 @@ function testRscLoadRedirect() {
     await page.click('button:has-text("Load a redirecting server component")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-rsc-redirecting]")).to.equal("Loaded");
+    });
+  });
+}
+
+function testRscLoadReadsData() {
+  test("rsc(): the server components a load returns read the page's data()", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Load a server component that reads data()")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-rsc-page-data]")).to.equal('{"from":"data()"}');
     });
   });
 }

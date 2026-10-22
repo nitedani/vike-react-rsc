@@ -7,8 +7,8 @@ export async function onCreatePageContext(pageContext: PageContextServer): Promi
   pageContext.cookies = createCookies(pageContext);
   const call = pageContext.rscAction;
   await call?.run(pageContext);
-  // Returned without rerender(): the answer is the return value alone, so nothing reads what guard() and data() provide
-  if (call?.outcome && !call.isForm && !call.outcome.rerender) pageContext._skipGuardAndData_experimentalRSC = true;
+  // Without rerender(), a plain action's answer is its return value alone, which reads nothing guard() and data() provide
+  if (call?.outcome && !call.isForm && !call.isRscLoad && !call.outcome.rerender) pageContext._skipGuardAndData_experimentalRSC = true;
   // A server action's answer renders the page itself: Vike would otherwise send this Flight along with rerender()'s values
   if (call && !call.isForm) return;
   const { runtime, pageContext: rscPageContext } = getRsc(pageContext);

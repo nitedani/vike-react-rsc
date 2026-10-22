@@ -3,16 +3,19 @@
 import { useActionState, useState } from "react";
 import { rsc } from "vike-react-rsc/client";
 import { countSubmit, FailingComponent, loginThenRender, readRequestContext, RedirectOnceComponent, redirectToScript, requireLogin, save, saveThenGuard404, saveThenRedirectPage, slowSave } from "../../actions/edgeCases";
+import { PageDataComponent } from "../../actions/pageData";
 import { RedirectingChildComponent } from "../../actions/redirectingChild";
 
 const FailingComponentRsc = rsc(FailingComponent);
 const RedirectOnceComponentRsc = rsc(RedirectOnceComponent);
 const RedirectingChildComponentRsc = rsc(RedirectingChildComponent);
+const PageDataComponentRsc = rsc(PageDataComponent);
 
 export default function ActionsClient() {
   const [result, setResult] = useState("");
   const [showFailing, setShowFailing] = useState(false);
   const [showRedirecting, setShowRedirecting] = useState(false);
+  const [showPageData, setShowPageData] = useState(false);
   const [firstRedirect, setFirstRedirect] = useState<"child" | "server-function">();
   const [submits, countSubmitAction] = useActionState(countSubmit, 0);
   const call = (action: () => Promise<string>) => async () => {
@@ -41,6 +44,8 @@ export default function ActionsClient() {
       {showFailing && <FailingComponentRsc fallback={<p data-rsc-fallback="">Not loaded</p>} />}
       <button onClick={() => setShowRedirecting(true)}>Load a redirecting server component</button>
       <p data-rsc-redirecting="">{showRedirecting && <RedirectOnceComponentRsc fallback="Not loaded" />}</p>
+      <button onClick={() => setShowPageData(true)}>Load a server component that reads data()</button>
+      {showPageData && <PageDataComponentRsc />}
       <button onClick={() => setFirstRedirect("child")}>Load a server component whose child redirects</button>
       <button onClick={() => setFirstRedirect("server-function")}>Load a server component that redirects, then ones whose child redirects</button>
       {firstRedirect && (

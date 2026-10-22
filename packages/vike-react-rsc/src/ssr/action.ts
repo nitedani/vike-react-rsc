@@ -2,12 +2,12 @@
 import { getPageContextJson } from "vike/__internal";
 import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
-import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import type { ActionOutcome, PassedToClient } from "../types";
 import { getRsc } from "./bridge";
 
 /** One action request. The rsc env runs it with `id` and `body`; without `id`, `body` is a form submitted before
- * hydration. */
+ * hydration. `isRscLoad` when rsc() calls it to load a server component. */
 export class ActionCall {
   /** The Set-Cookie lines the action appended to pageContext.headersResponse */
   #setCookies: string[] = [];
@@ -19,7 +19,8 @@ export class ActionCall {
   constructor(
     readonly id: string | undefined,
     readonly body: string | FormData,
-    readonly url: string
+    readonly url: string,
+    readonly isRscLoad: boolean
   ) {}
 
   // Vike creates a pageContext for every page it renders, and an error or a `throw render()` makes it render another
@@ -123,7 +124,7 @@ export async function actionMiddleware(
 
   const body = id ? await readBody(request, limit) : form;
   if (body === undefined) return new Response(null, { status: 413 });
-  const call = new ActionCall(id, body, request.url);
+  const call = new ActionCall(id, body, request.url, request.headers.has(RSC_LOAD_HEADER));
   // A middleware returns either context or a response function: the context is the object Vike merges into the page's
   // pageContext, so it gets the action directly
   Object.assign(context, { rscAction: call });
