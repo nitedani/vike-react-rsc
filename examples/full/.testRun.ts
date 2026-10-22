@@ -88,11 +88,12 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "stderr" &&
         (logText.includes("HTTP response ← /todos 413") || logText.includes("HTTP response ← /actions 413"))) ||
       // testActionValueSurvivesHookError()
-      (logSource === "stderr" && logText.includes(ON_CREATE_PAGE_CONTEXT_ERROR)) ||
+      (logSource === "stderr" &&
+        (logText.includes(ON_CREATE_PAGE_CONTEXT_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
       // testActionPageFailure()
       (logSource === "Browser Error" && logText.includes("status of 404")) ||
       // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
-      (logSource === "stderr" && (logText.includes(RSC_LOAD_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
+      (logSource === "stderr" && logText.includes(RSC_LOAD_ERROR)) ||
       logText.includes(RSC_LOAD_ERROR_LOG) ||
       (logSource === "Browser Error" && logText.includes("status of 500")) ||
       // testUnknownAction()
