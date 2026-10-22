@@ -463,6 +463,19 @@ function testSession() {
     });
     await page.context().clearCookies();
   });
+
+  test("Server action: a +middleware ordered before the action middleware redirects it", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    // The app's auth middleware answers with a 302
+    await page.context().addCookies([{ name: "expired", value: "1", url: getServerUrl() }]);
+    await page.click('button:text-is("Save")');
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/login");
+      expect(await page.textContent("h1")).to.equal("Log in");
+    });
+    await page.context().clearCookies({ name: "expired" });
+  });
 }
 
 function testRscComponentCall() {

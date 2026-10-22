@@ -61,10 +61,6 @@ export class ActionCall {
     if (this.outcome && !this.outcome.rerender && status !== 200) {
       return this.#answerReturnValue(response, this.outcome.returnValue);
     }
-    // A redirect thrown by the action, guard() or data(). fetch() would follow it and hand the new page's HTML to the
-    // Flight decoder, so callServer() gets the target in a header and navigates.
-    const location = headers.get("location");
-    if (status >= 300 && status < 400 && location) return answerRedirect(response, headers, location);
     return new Response(response.body, { status, headers });
   }
 
@@ -108,13 +104,6 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
   return { json: getPageContextJson(pageContext), keys };
 }
 
-function answerRedirect(response: Response, headers: Headers, location: string): Response {
-  void response.body?.cancel();
-  headers.delete("location");
-  headers.set(REDIRECT_HEADER, location);
-  return new Response(null, { headers });
-}
-
 // Vike's +middleware. It hands the action to the page Vike renders after every middleware: onCreatePageContext runs it
 // there, before guard() and data(), so they see what it changed, and the action sees the context of every middleware.
 export async function actionMiddleware(
@@ -136,6 +125,23 @@ export async function actionMiddleware(
   Object.assign(context, { rscAction: call });
   return (response: Response) => call.answer(response);
 }
+
+// Before every other +middleware, so every answer to a server action called by JS passes here, whoever produced it:
+// fetch() would follow a redirect into the Flight decoder, so callServer() gets the target in a header and navigates
+export function actionRedirectMiddleware(request: Request): ((response: Response) => Response) | undefined {
+  if (request.method !== "POST" || !request.headers.has(ACTION_HEADER)) return;
+  return (response) => {
+    const location = response.headers.get("location");
+    if (response.status < 300 || response.status >= 400 || !location) return response;
+    void response.body?.cancel();
+    const headers = new Headers(response.headers);
+    headers.delete("location");
+    headers.set(REDIRECT_HEADER, location);
+    return new Response(null, { headers });
+  };
+}
+// The name and order @universal-middleware/core's enhance() sets
+Object.assign(actionRedirectMiddleware, { [Symbol.for("unName")]: "vike-react-rsc:server-action-redirect", [Symbol.for("unOrder")]: -Infinity });
 
 // React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
 // before hydration, which the browser sends as a navigation. Read from a copy: any other POST reaches the next handler
