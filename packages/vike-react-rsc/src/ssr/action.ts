@@ -14,6 +14,7 @@ export class ActionCall {
   /** Set once the action returned */
   outcome?: ActionOutcome;
   #rsc?: ReturnType<typeof getRsc>;
+  #running?: Promise<ActionOutcome>;
 
   constructor(
     readonly id: string | undefined,
@@ -28,7 +29,8 @@ export class ActionCall {
     this.#rsc = getRsc(pageContext);
     const before = pageContext.headersResponse.getSetCookie().length;
     try {
-      this.outcome = await this.#rsc.runtime.runAction(this.#rsc.pageContext, this);
+      this.#running = this.#rsc.runtime.runAction(this.#rsc.pageContext, this);
+      this.outcome = await this.#running;
     } finally {
       this.#setCookies = pageContext.headersResponse.getSetCookie().slice(before);
     }
@@ -49,7 +51,9 @@ export class ActionCall {
   }
 
   /** The answer to the action, from the response of the page Vike rendered */
-  answer(response: Response): Response {
+  async answer(response: Response): Promise<Response> {
+    // Vike answers once one +onCreatePageContext throws, without waiting for the action
+    await this.#running?.catch(() => {});
     const { status } = response;
     if (this.outcome?.isUnknownAction) return this.#answerUnknownAction(response);
     const headers = this.#headersWithCookies(response);
@@ -109,7 +113,7 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
 export async function actionMiddleware(
   request: Request,
   context: object
-): Promise<Response | ((response: Response) => Response) | undefined> {
+): Promise<Response | ((response: Response) => Promise<Response>) | undefined> {
   if (request.method !== "POST") return;
   const id = request.headers.get(ACTION_HEADER) ?? undefined;
   const limit = (await getGlobalContext()).config.rsc?.bodySizeLimit ?? 1024 * 1024;
