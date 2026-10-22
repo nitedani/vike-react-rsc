@@ -20,7 +20,7 @@ React RSC integration for [Vike](https://vike.dev).
   - `vike-react`'s `useData()`, `useHydrated()`, `usePageContext()` and `<ClientOnly>` are at `vike-react-rsc/useData`, `/useHydrated`, `/usePageContext` and `/ClientOnly`.
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
-  - An action reads **`getRequestContext()`** (from `vike-react-rsc/server`): the request's `headers` and `cookies`, and what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `user`). It leaves out what Vike and your app compute for a page: `routeParams`, the page's config, `data`, and what your `+onCreatePageContext` sets. An action has no page, so `getPageContext()` throws in it, as in a component passed to `rsc()`; server components can call `getRequestContext()` too.
+  - An action reads **`getRequestContext()`** (from `vike-react-rsc/server`): the request's `headers` and `cookies`, and what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `user`). It leaves out what Vike and your app compute for a page: `routeParams`, the page's config, `data`, and what your `+onCreatePageContext` sets. An action has no page, so `getPageContext()` throws in it and in a component passed to `rsc()`. Without `rerender()`, the server components an action returns have no page either. Server components can call `getRequestContext()` too.
     ```ts
     import { getRequestContext } from "vike-react-rsc/server";
     const { user, cookies } = getRequestContext();
