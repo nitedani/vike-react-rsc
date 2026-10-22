@@ -88,7 +88,14 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   forkPageContext(pageContext);
   // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
   await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
-  const { renderToStreamOptions } = resolveReactOptions(pageContext);
+  const { renderToStringOptions, renderToStreamOptions } = resolveReactOptions(pageContext);
+  const streamSetting = resolveStreamSetting(pageContext);
+  // Where vike-react calls renderToString(), its options go to the stream's render: server components render only to a stream
+  const streamOptions = {
+    ...renderToStreamOptions?.streamOptions,
+    ...(!streamSetting.enable && !streamSetting.require && renderToStringOptions),
+    nonce: pageContext.cspNonce ?? undefined,
+  };
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
   const htmlSent = new AbortController();
@@ -104,16 +111,15 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   try {
     if (root !== null) {
       const page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
-      const nonce = pageContext.cspNonce ?? undefined;
       if (pageContext.isPrerendering) {
-        pageContext.pageHtmlString = await renderWhole(page, { ...renderToStreamOptions?.streamOptions, nonce }, onAbort);
+        pageContext.pageHtmlString = await renderWhole(page, streamOptions, onAbort);
       } else {
         const stream = await renderToStream(page, {
           userAgent: pageContext.headers?.["user-agent"],
           // Else react-streaming streams, except to bots
-          disable: isStreamDisabled(pageContext) || undefined,
+          disable: streamSetting.enable === false || undefined,
           ...renderToStreamOptions,
-          streamOptions: { ...renderToStreamOptions?.streamOptions, nonce, formState: flight?.formState },
+          streamOptions: { ...streamOptions, formState: flight?.formState },
           onBoundaryError: (error) => {
             const abort = getAbort(error);
             if (abort) onAbort(error, abort);
@@ -140,18 +146,21 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
 }
 
-// vike-react's resolveStreamSetting(), with +stream.require always true: server components render only to a stream
-function isStreamDisabled(pageContext: PageContextServer): boolean {
-  let enable = true;
+// vike-react's resolveStreamSetting(): the HTML streams unless `enable` is false, as when vike-react's `require` is true
+function resolveStreamSetting(pageContext: PageContextServer): { enable: boolean | null; require: boolean } {
+  const streamSetting = { enable: null as boolean | null, require: pageContext.config.streamIsRequired ?? false };
   pageContext.config.stream
     ?.slice()
     .reverse()
     .forEach((setting) => {
-      if (typeof setting === "boolean") enable = setting;
-      else if (typeof setting === "string") enable = true;
-      else if (setting && setting.enable !== null) enable = setting.enable ?? true;
+      if (typeof setting === "boolean") streamSetting.enable = setting;
+      else if (typeof setting === "string") streamSetting.enable = true;
+      else if (setting) {
+        if (setting.enable !== null) streamSetting.enable = setting.enable ?? true;
+        if (setting.require !== undefined) streamSetting.require = setting.require;
+      }
     });
-  return !enable;
+  return streamSetting;
 }
 
 function decodeFlight(pageContext: PageContextServer, signal: AbortSignal): Promise<PagePayload> {

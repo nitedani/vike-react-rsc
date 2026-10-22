@@ -300,6 +300,14 @@ function testVikeReactRendering() {
     expect(await page.textContent("#use-id")).to.equal(id);
   });
 
+  test("components: 'client': +react's renderToStringOptions set the options of a stream: false page's render, as in vike-react", async () => {
+    const id = /<p id="use-id">([^<]*)<\/p>/.exec(await fetchHtml("/render-to-string-options"))?.[1];
+    expect(id).to.include("vrr-string-");
+    await page.goto(getServerUrl() + "/render-to-string-options");
+    await waitForHydration("#use-id");
+    expect(await page.textContent("#use-id")).to.equal(id);
+  });
+
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");

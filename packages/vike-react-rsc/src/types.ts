@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import type { HydrationOptions, ReactFormState, RootOptions } from "react-dom/client";
+import type { ServerOptions } from "react-dom/server";
 import type { renderToStream, RenderToStreamOptions } from "react-streaming/server.web";
 import type { ImportString, PageContext, PageContextClient, PageContextServer } from "vike/types";
 import type { ActionCall } from "./ssr/action";
@@ -31,8 +32,17 @@ export type ReactOptions = {
    */
   createRootOptions?: RootOptions;
   /**
-   * Options passed to `react-streaming`'s `renderToStream()`, which renders the first load's HTML: server components
-   * render only to a stream, so there are no `renderToStringOptions`. When pre-rendering, only `streamOptions` apply.
+   * Options passed to React's `renderToString()` in vike-react, which renders a page whose `+stream` neither enables nor
+   * requires streaming (`false`, or not set). Server components render only to a stream, so they go to the stream's
+   * render, over the `streamOptions` of `renderToStreamOptions`.
+   *
+   * https://react.dev/reference/react-dom/server/renderToString
+   * https://vike.dev/react-setting
+   */
+  renderToStringOptions?: ServerOptions;
+  /**
+   * Options passed to `react-streaming`'s `renderToStream()`, which renders the first load's HTML. When pre-rendering,
+   * only `streamOptions` apply.
    *
    * https://github.com/brillout/react-streaming#options
    * https://vike.dev/react-setting
