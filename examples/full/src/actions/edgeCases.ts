@@ -2,8 +2,7 @@
 
 import type { ReactElement } from "react";
 import { redirect, render } from "vike/abort";
-import { getPageContext } from "vike-react-rsc/pageContext";
-import { rerender } from "vike-react-rsc/server";
+import { getRequestContext, rerender } from "vike-react-rsc/server";
 
 // Read by the hooks of /actions, which run in another environment
 const failNext = ((globalThis as { __failNext?: { guard?: boolean; page?: boolean } }).__failNext ??= {});
@@ -46,7 +45,7 @@ export async function requireLogin(): Promise<string> {
 
 // Its cookie reaches the guard of the page it renders
 export async function loginThenRender(): Promise<string> {
-  getPageContext().cookies.set("session", "bob", { path: "/" });
+  getRequestContext().cookies.set("session", "bob", { path: "/" });
   throw render("/account");
 }
 
