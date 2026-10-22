@@ -2,7 +2,7 @@
 
 import { useActionState, useState, type ReactNode } from "react";
 import { rsc } from "vike-react-rsc/client";
-import { countSubmit, FailingComponent, loginThenRender, readRequestContext, RedirectOnceComponent, redirectToScript, requireLogin, save, saveThenGuard404, saveThenRedirectPage, slowSave } from "../../actions/edgeCases";
+import { countSubmit, FailingComponent, loginThenRender, readRequestContext, RedirectOnceComponent, redirectToScript, requireLogin, save, saveThenGuard404, saveThenRedirectPage, slowPlainSave, slowSave } from "../../actions/edgeCases";
 import { PageContextErrorComponent, PageDataComponent, returnPageContextError } from "../../actions/pageData";
 import { RedirectingChildComponent } from "../../actions/redirectingChild";
 
@@ -38,6 +38,7 @@ export default function ActionsClient() {
       <button onClick={call(saveThenGuard404)}>Save, then guard() throws render(404)</button>
       <button onClick={call(saveThenRedirectPage)}>Save, then the page throws redirect()</button>
       <button onClick={call(slowSave)}>Slow save</button>
+      <button onClick={call(slowPlainSave)}>Save slowly, without rerender()</button>
       <button onClick={call(redirectToScript)}>Redirect to a javascript: URL</button>
       <button onClick={call(requireLogin)}>Require a login</button>
       <button onClick={call(loginThenRender)}>Log in, then render the account</button>

@@ -1,4 +1,5 @@
 import { redirect } from "vike/abort";
+import { getRequestContext } from "vike-react-rsc/server";
 import ActionsClient from "./ActionsClient";
 
 export default function Page() {
@@ -11,6 +12,7 @@ export default function Page() {
   return (
     <>
       <h1>Server action edge cases</h1>
+      <p data-page-request-context="">{String(getRequestContext().mwMethod)}</p>
       <ActionsClient />
     </>
   );

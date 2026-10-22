@@ -35,6 +35,12 @@ export async function slowSave() {
   return "saved";
 }
 
+// Without rerender(): still running when +onCreatePageContext throws
+export async function slowPlainSave() {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  return "saved";
+}
+
 // As if the target came from user input, e.g. ?next=: the browser must not run it
 export async function redirectToScript(): Promise<string> {
   throw redirect("javascript:void(window.__redirected=1)");

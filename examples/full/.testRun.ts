@@ -1384,6 +1384,10 @@ const returnedNoPageError =
   "[vike-react-rsc] getPageContext() needs a page, and the server components a server action returns without rerender() have none: load them with rsc(), or call getRequestContext() from vike-react-rsc/server";
 
 function testActionRequestContext() {
+  test("Server component: getRequestContext() has what every +middleware adds", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    expect(await page.textContent("[data-page-request-context]")).to.equal("GET");
+  });
   test("Server action: getRequestContext() has what every +middleware adds, and getPageContext() throws", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
@@ -1421,6 +1425,19 @@ function testActionValueSurvivesHookError() {
     });
     await page.context().clearCookies({ name: "failOnCreatePageContext" });
   });
+  for (const abort of ["render", "redirect"]) {
+    test(`Server action: without rerender(), its value survives +onCreatePageContext throwing ${abort}() while it runs`, async () => {
+      await page.goto(getServerUrl() + "/actions");
+      await waitForHydration("Slow save");
+      await page.context().addCookies([{ name: "abortOnCreatePageContext", value: `${abort}-${Math.random()}`, url: getServerUrl() }]);
+      await page.click('button:has-text("Save slowly, without rerender()")');
+      await autoRetry(async () => {
+        expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
+      });
+      expect(new URL(page.url()).pathname).to.equal("/actions");
+      await page.context().clearCookies({ name: "abortOnCreatePageContext" });
+    });
+  }
 }
 
 function testActionPageFailure() {
