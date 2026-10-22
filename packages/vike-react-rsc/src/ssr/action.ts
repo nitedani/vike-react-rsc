@@ -1,4 +1,5 @@
 // Vike loads +middleware at startup, before Vite optimizes React, so neither this module nor its imports may import React
+import { enhance } from "@universal-middleware/core";
 import { getPageContextJson } from "vike/__internal";
 import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
@@ -134,7 +135,7 @@ export async function actionMiddleware(
 // Before every other +middleware, so its response function runs first, before answer()'s, on whatever answered a server
 // action called by JS: fetch() would follow a redirect into the Flight decoder, so callServer() gets the target in a
 // header and navigates
-export function actionRedirectMiddleware(request: Request): ((response: Response) => Response) | undefined {
+function redirectInHeader(request: Request): ((response: Response) => Response) | undefined {
   if (request.method !== "POST" || !request.headers.has(ACTION_HEADER)) return;
   return (response) => {
     const location = response.headers.get("location");
@@ -146,8 +147,7 @@ export function actionRedirectMiddleware(request: Request): ((response: Response
     return new Response(null, { headers });
   };
 }
-// The name and order @universal-middleware/core's enhance() sets
-Object.assign(actionRedirectMiddleware, { [Symbol.for("unName")]: "vike-react-rsc:server-action-redirect", [Symbol.for("unOrder")]: -Infinity });
+export const actionRedirectMiddleware: typeof redirectInHeader = enhance(redirectInHeader, { name: "vike-react-rsc:server-action-redirect", order: -Infinity });
 
 // React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
 // before hydration, which the browser sends as a navigation. Read from a copy: any other POST reaches the next handler
