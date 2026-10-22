@@ -21,11 +21,16 @@ React RSC integration for [Vike](https://vike.dev).
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
   - An action runs before `guard()` and `data()` of its request, so they see what it changed: `pageContext.cookies.get()` returns a cookie the action set. Without `rerender()` they don't run, as the answer is only what the action returned.
-  - `guard()` doesn't protect an action: check authorization in the action itself.
+  - `guard()` doesn't protect an action: check authorization in the action itself, with what your auth [`+middleware`](https://vike.dev/middleware) adds. An action doesn't see what `+onCreatePageContext` sets.
   - An action's request body over **`rsc.bodySizeLimit`** bytes (default 1 MB) is refused with a 413, before it's buffered whole. Under `@vikejs/express`, a limit above 1 MB empties a `multipart/form-data` form posted to your own route with a body between 1 MB and the limit; once [magne4000/universal-middleware#457](https://github.com/magne4000/universal-middleware/pull/457) is released, it gets a 413 instead.
-  - An action's `pageContext` has what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `pageContext.user`).
+  - An action reads **`getRequestContext()`** (from `vike-react-rsc/server`): the request's `headers` and `cookies`, and what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `user`). An action has no page, so `getPageContext()` throws in it, as in a component passed to `rsc()`; server components can call `getRequestContext()` too.
+    ```ts
+    import { getRequestContext } from "vike-react-rsc/server";
+    const { user, cookies } = getRequestContext();
+    ```
+  - [Telefunc](https://telefunc.com) works next to server actions.
 - **`pageContext.cookies`**: `get(name)`, `getAll()`, `has(name)`, `set(name, value, options)` and `delete(name, options)`.
-  - In hooks such as `guard()` and `data()`, and as `getPageContext().cookies` (from `vike-react-rsc/pageContext`) in a server action or a server component.
+  - In hooks such as `guard()` and `data()`, as `getPageContext().cookies` (from `vike-react-rsc/pageContext`) in a server component, and as `getRequestContext().cookies` (from `vike-react-rsc/server`) in a server action.
   - `get()`, `getAll()` and `has()` see a cookie set earlier in the same request.
   - `set()` and `delete()` throw while server components render, as a component inside `<Suspense>` renders after the response's headers are sent.
   - Your own `+onCreatePageContext` runs before vike-react-rsc's, so `pageContext.cookies` isn't there yet: read `pageContext.headers.cookie` in it.
