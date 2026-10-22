@@ -1378,15 +1378,24 @@ function testActionSkipsData() {
   });
 }
 
+const noPageError =
+  "[vike-react-rsc] getPageContext() needs a page, and a server action, a component passed to rsc() and the server components a server action returns without rerender() have none: call getRequestContext() from vike-react-rsc/server";
+
 function testActionRequestContext() {
   test("Server action: getRequestContext() has what every +middleware adds, and getPageContext() throws", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
     await page.click('button:has-text("Read the request context")');
     await autoRetry(async () => {
-      expect(await page.textContent("[data-result]")).to.equal(
-        "Returned: POST | [vike-react-rsc] getPageContext() is for server components: call getRequestContext() from vike-react-rsc/server in a server action or a component passed to rsc(), which have no page"
-      );
+      expect(await page.textContent("[data-result]")).to.equal(`Returned: POST | ${noPageError}`);
+    });
+  });
+  test("Server action: getPageContext() throws in the server components it returns without rerender()", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Return a server component that calls getPageContext()")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-returned-page-context]")).to.equal(noPageError);
     });
   });
 }

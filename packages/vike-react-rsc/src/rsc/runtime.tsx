@@ -7,13 +7,13 @@ import { getClientApiHint } from "../clientApiHint";
 import { getPageElement } from "../integration/getPageElement";
 import { getServerComponentImports } from "../rendersFlight";
 import type { ActionOutcome, ActionPayload, PagePayload, PassedToClient } from "../types";
-import { runInScope } from "./scope";
+import { runInScope, type Scope } from "./scope";
 
 // Per page render, after a form submitted before hydration
 const formStates = new WeakMap<PageContext, ReactFormState>();
 
 export function pagePayload(pageContext: PageContext): ReadableStream<Uint8Array> {
-  return renderOnRead<PagePayload>(pageContext, () => ({
+  return renderOnRead<PagePayload>({ pageContext }, () => ({
     root: getPage(pageContext),
     formState: formStates.get(pageContext),
   }));
@@ -21,11 +21,15 @@ export function pagePayload(pageContext: PageContext): ReadableStream<Uint8Array
 
 /** The Flight of a page that renders without one: only what a form submitted before hydration returned */
 export function formStatePayload(pageContext: PageContext): ReadableStream<Uint8Array> {
-  return renderOnRead<PagePayload>(pageContext, () => ({ root: null, formState: formStates.get(pageContext) }));
+  return renderOnRead<PagePayload>({ pageContext }, () => ({ root: null, formState: formStates.get(pageContext) }));
 }
 
-export function actionPayload(pageContext: PageContext, returnValue: unknown, passedToClient?: PassedToClient): ReadableStream<Uint8Array> {
-  return renderOnRead<ActionPayload>(pageContext, () =>
+export function actionPayload(
+  pageContext: PageContext,
+  returnValue: unknown,
+  { passedToClient, withoutPage }: { passedToClient?: PassedToClient; withoutPage: boolean }
+): ReadableStream<Uint8Array> {
+  return renderOnRead<ActionPayload>({ pageContext, withoutPage }, () =>
     passedToClient ? { returnValue, root: getPage(pageContext), passedToClient } : { returnValue }
   );
 }
@@ -62,11 +66,12 @@ export async function runAction(
 
 // The Flight starts rendering when its stream is first read: for a page, that's after data(), and never if nobody
 // reads it. A reader that stops early, e.g. because the client left, aborts the render.
-function renderOnRead<Payload>(pageContext: PageContext, getPayload: () => Payload): ReadableStream<Uint8Array> {
+function renderOnRead<Payload>(scope: Scope, getPayload: () => Payload): ReadableStream<Uint8Array> {
+  const { pageContext } = scope;
   const stopped = new AbortController();
   let chunks: AsyncIterator<Uint8Array> | undefined;
   const render = () =>
-    runInScope({ pageContext }, () =>
+    runInScope(scope, () =>
       renderToReadableStream(getPayload(), {
         signal: stopped.signal,
         onError: (error: unknown) => {

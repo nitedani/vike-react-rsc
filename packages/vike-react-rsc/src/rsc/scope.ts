@@ -6,10 +6,12 @@ import type { ActionOutcome, RequestContext } from "../types";
 
 // React and user code call server components and server actions without a pageContext argument, so they find their
 // request here
-type Scope = {
+export type Scope = {
   pageContext: PageContext;
   // The outcome the running action builds
   action?: { outcome: ActionOutcome };
+  // Rendering what an action returns without rerender(), outside rsc(): the page's guard() and data() didn't run
+  withoutPage?: boolean;
 };
 
 const storage = getShared("scope", () => new AsyncLocalStorage<Scope>());
@@ -24,8 +26,8 @@ export function getPageContext(): PageContextServer {
     throw new Error("[vike-react-rsc] getPageContext() needs a server component render, and none runs here");
   }
   // An action runs for the request, from whichever page called it
-  if (scope.action) {
-    throw new Error("[vike-react-rsc] getPageContext() is for server components: call getRequestContext() from vike-react-rsc/server in a server action or a component passed to rsc(), which have no page");
+  if (scope.action || scope.withoutPage) {
+    throw new Error("[vike-react-rsc] getPageContext() needs a page, and a server action, a component passed to rsc() and the server components a server action returns without rerender() have none: call getRequestContext() from vike-react-rsc/server");
   }
   // The rsc env's view of the server's pageContext
   return scope.pageContext as PageContextServer;

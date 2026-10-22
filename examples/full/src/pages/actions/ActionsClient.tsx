@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ReactNode } from "react";
 import { rsc } from "vike-react-rsc/client";
 import { countSubmit, FailingComponent, loginThenRender, readRequestContext, RedirectOnceComponent, redirectToScript, requireLogin, save, saveThenGuard404, saveThenRedirectPage, slowSave } from "../../actions/edgeCases";
-import { PageDataComponent } from "../../actions/pageData";
+import { PageDataComponent, returnPageContextError } from "../../actions/pageData";
 import { RedirectingChildComponent } from "../../actions/redirectingChild";
 
 const FailingComponentRsc = rsc(FailingComponent);
@@ -16,6 +16,7 @@ export default function ActionsClient() {
   const [showFailing, setShowFailing] = useState(false);
   const [showRedirecting, setShowRedirecting] = useState(false);
   const [showPageData, setShowPageData] = useState(false);
+  const [returned, setReturned] = useState<ReactNode>(null);
   const [firstRedirect, setFirstRedirect] = useState<"child" | "server-function">();
   const [submits, countSubmitAction] = useActionState(countSubmit, 0);
   const call = (action: () => Promise<string>) => async () => {
@@ -46,6 +47,8 @@ export default function ActionsClient() {
       <p data-rsc-redirecting="">{showRedirecting && <RedirectOnceComponentRsc fallback="Not loaded" />}</p>
       <button onClick={() => setShowPageData(true)}>Load a server component that reads data()</button>
       {showPageData && <PageDataComponentRsc />}
+      <button onClick={async () => setReturned(await returnPageContextError())}>Return a server component that calls getPageContext()</button>
+      {returned}
       <button onClick={() => setFirstRedirect("child")}>Load a server component whose child redirects</button>
       <button onClick={() => setFirstRedirect("server-function")}>Load a server component that redirects, then ones whose child redirects</button>
       {firstRedirect && (
