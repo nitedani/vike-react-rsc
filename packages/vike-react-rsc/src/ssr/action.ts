@@ -56,9 +56,9 @@ export class ActionCall {
     // The page, or a redirect a browser follows
     if (this.isForm) return new Response(response.body, { status, headers });
 
-    // Without rerender() the page isn't part of the answer, so neither is a failure after the action: the caller gets
-    // what the action returned
-    if (this.outcome && !this.outcome.rerender && status !== 200) {
+    // Without rerender() the page isn't part of the answer, so neither is a failure or a redirect after the action, which
+    // actionRedirectMiddleware already turned into REDIRECT_HEADER: the caller gets what the action returned
+    if (this.outcome && !this.outcome.rerender && (status !== 200 || response.headers.has(REDIRECT_HEADER))) {
       return this.#answerReturnValue(response, this.outcome.returnValue);
     }
     return new Response(response.body, { status, headers });
@@ -126,8 +126,9 @@ export async function actionMiddleware(
   return (response: Response) => call.answer(response);
 }
 
-// Before every other +middleware, so every answer to a server action called by JS passes here, whoever produced it:
-// fetch() would follow a redirect into the Flight decoder, so callServer() gets the target in a header and navigates
+// Before every other +middleware, so its response function runs first, before answer()'s, on whatever answered a server
+// action called by JS: fetch() would follow a redirect into the Flight decoder, so callServer() gets the target in a
+// header and navigates
 export function actionRedirectMiddleware(request: Request): ((response: Response) => Response) | undefined {
   if (request.method !== "POST" || !request.headers.has(ACTION_HEADER)) return;
   return (response) => {
