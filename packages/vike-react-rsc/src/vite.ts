@@ -17,7 +17,8 @@ export function vikeReactRscPlugins(): Plugin[] {
           // would load the page store and rsc()'s cache twice
           // - Vite's scan doesn't see what the excluded entries import, so it would find the Vike entries they import on the
           //   first page load, then reload the page
-          client: { optimizeDeps: { exclude: ["vike-react-rsc"], include: ["vike/getPageContext", "vike/abort"] } },
+          // - vike/abort is excluded instead: Vike's router already loads it, so pre-bundling it would load a second copy
+          client: { optimizeDeps: { exclude: ["vike-react-rsc", "vike/abort"], include: ["vike/getPageContext"] } },
           // Vike deploys dist/server, rsc included
           rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
         },
