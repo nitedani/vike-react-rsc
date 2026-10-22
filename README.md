@@ -25,7 +25,7 @@ React RSC integration for [Vike](https://vike.dev).
     import { getRequestContext } from "vike-react-rsc/server";
     const { user, cookies } = getRequestContext();
     ```
-  - An action runs before `guard()` and `data()` of its request, so they see what it changed: `pageContext.cookies.get()` returns a cookie the action set. Without `rerender()` they don't run, as the answer is only what the action returned.
+  - An action runs before `guard()` and `data()` of its request, so they see what it changed: `pageContext.cookies.get()` returns a cookie the action set. Without `rerender()`, an action called from JavaScript doesn't run them, as its answer is only what the action returned.
   - `guard()` doesn't protect an action: check authorization in the action itself, with what your auth [`+middleware`](https://vike.dev/middleware) adds. An action doesn't see what your `+onCreatePageContext` sets.
   - An action's request body over **`rsc.bodySizeLimit`** bytes (default 1 MB) is refused with a 413, before it's buffered whole. Under `@vikejs/express`, a limit above 1 MB empties a `multipart/form-data` form posted to your own route with a body between 1 MB and the limit; once [magne4000/universal-middleware#457](https://github.com/magne4000/universal-middleware/pull/457) is released, it gets a 413 instead.
   - [Telefunc](https://telefunc.com) works next to server actions.
