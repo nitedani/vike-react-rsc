@@ -2,7 +2,9 @@
 
 import type { ReactElement } from "react";
 import { redirect, render } from "vike/abort";
+import { getPageContext } from "vike-react-rsc/pageContext";
 import { getRequestContext, rerender } from "vike-react-rsc/server";
+import { getError } from "../pages/misuse/getError";
 
 // Read by the hooks of /actions, which run in another environment
 const failNext = ((globalThis as { __failNext?: { guard?: boolean; page?: boolean } }).__failNext ??= {});
@@ -47,6 +49,11 @@ export async function requireLogin(): Promise<string> {
 export async function loginThenRender(): Promise<string> {
   getRequestContext().cookies.set("session", "bob", { path: "/" });
   throw render("/account");
+}
+
+// What the +middleware ordered after vike-react-rsc's adds, and what getPageContext() throws, as an action has no page
+export async function readRequestContext(): Promise<string> {
+  return `${getRequestContext().mwMethod} | ${getError(getPageContext)}`;
 }
 
 // With useActionState(): its count survives a submit without JavaScript

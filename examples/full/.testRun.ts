@@ -155,6 +155,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testConcurrentRerender();
     testActionOnce();
     testActionSkipsData();
+    testActionRequestContext();
     testActionValueSurvivesHookError();
     testActionPageFailure();
     testStaleAction();
@@ -1362,6 +1363,19 @@ function testActionSkipsData() {
       expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
     });
     expect(await getServerCount("data /actions")).to.equal(before);
+  });
+}
+
+function testActionRequestContext() {
+  test("Server action: getRequestContext() has what every +middleware adds, and getPageContext() throws", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Read the request context")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.equal(
+        "Returned: POST | [vike-react-rsc] getPageContext() is for server components: call getRequestContext() from vike-react-rsc/server in a server action or a component passed to rsc(), which have no page"
+      );
+    });
   });
 }
 
