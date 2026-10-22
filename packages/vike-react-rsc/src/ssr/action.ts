@@ -67,8 +67,8 @@ export class ActionCall {
     // The page, or a redirect a browser follows
     if (this.isForm) return new Response(response.body, { status, headers });
 
-    // Without rerender() the page isn't part of the answer, so neither is a failure or a redirect after the action, which
-    // actionRedirectMiddleware already turned into REDIRECT_HEADER: the caller gets what the action returned
+    // Without rerender() the answer is the return value, not the page: a failure or a redirect after the action, also
+    // in the guard() or data() an rsc() load runs, is dropped (actionRedirectMiddleware made redirects REDIRECT_HEADER)
     if (this.outcome && !this.outcome.rerender && (status !== 200 || response.headers.has(REDIRECT_HEADER))) {
       return this.#answerReturnValue(response, this.outcome.returnValue);
     }
