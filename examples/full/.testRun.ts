@@ -1378,8 +1378,10 @@ function testActionSkipsData() {
   });
 }
 
-const noPageError =
-  "[vike-react-rsc] getPageContext() needs a page, and a server action, a component passed to rsc() and the server components a server action returns without rerender() have none: call getRequestContext() from vike-react-rsc/server";
+const actionNoPageError =
+  "[vike-react-rsc] getPageContext() needs a page, and a server action or a component passed to rsc() has none: call getRequestContext() from vike-react-rsc/server";
+const returnedNoPageError =
+  "[vike-react-rsc] getPageContext() needs a page, and the server components a server action returns without rerender() have none: load them with rsc(), or call getRequestContext() from vike-react-rsc/server";
 
 function testActionRequestContext() {
   test("Server action: getRequestContext() has what every +middleware adds, and getPageContext() throws", async () => {
@@ -1387,7 +1389,7 @@ function testActionRequestContext() {
     await waitForHydration("Slow save");
     await page.click('button:has-text("Read the request context")');
     await autoRetry(async () => {
-      expect(await page.textContent("[data-result]")).to.equal(`Returned: POST | ${noPageError}`);
+      expect(await page.textContent("[data-result]")).to.equal(`Returned: POST | ${actionNoPageError}`);
     });
   });
   test("Server action: getPageContext() throws in the server components it returns without rerender()", async () => {
@@ -1395,7 +1397,7 @@ function testActionRequestContext() {
     await waitForHydration("Slow save");
     await page.click('button:has-text("Return a server component that calls getPageContext()")');
     await autoRetry(async () => {
-      expect(await page.textContent("[data-returned-page-context]")).to.equal(noPageError);
+      expect(await page.textContent("[data-returned-page-context]")).to.equal(returnedNoPageError);
     });
   });
   test("rsc(): getPageContext() throws in the component passed to it", async () => {
@@ -1403,7 +1405,7 @@ function testActionRequestContext() {
     await waitForHydration("Slow save");
     await page.click('button:has-text("Load a server component that calls getPageContext()")');
     await autoRetry(async () => {
-      expect(await page.textContent("[data-rsc-page-context]")).to.equal(noPageError);
+      expect(await page.textContent("[data-rsc-page-context]")).to.equal(actionNoPageError);
     });
   });
 }

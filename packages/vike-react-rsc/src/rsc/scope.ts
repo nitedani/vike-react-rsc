@@ -26,8 +26,11 @@ export function getPageContext(): PageContextServer {
     throw new Error("[vike-react-rsc] getPageContext() needs a server component render, and none runs here");
   }
   // An action runs for the request, from whichever page called it
-  if (scope.action || scope.withoutPage) {
-    throw new Error("[vike-react-rsc] getPageContext() needs a page, and a server action, a component passed to rsc() and the server components a server action returns without rerender() have none: call getRequestContext() from vike-react-rsc/server");
+  if (scope.action) {
+    throw new Error("[vike-react-rsc] getPageContext() needs a page, and a server action or a component passed to rsc() has none: call getRequestContext() from vike-react-rsc/server");
+  }
+  if (scope.withoutPage) {
+    throw new Error("[vike-react-rsc] getPageContext() needs a page, and the server components a server action returns without rerender() have none: load them with rsc(), or call getRequestContext() from vike-react-rsc/server");
   }
   // The rsc env's view of the server's pageContext
   return scope.pageContext as PageContextServer;
