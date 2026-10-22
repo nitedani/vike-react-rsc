@@ -43,6 +43,11 @@ export class ActionCall {
     return this.id === undefined;
   }
 
+  /** Without rerender(), a plain action's answer is its return value alone, which reads nothing guard() and data() provide */
+  get skipsGuardAndData(): boolean {
+    return !!this.outcome && !this.isForm && !this.isRscLoad && !this.outcome.rerender;
+  }
+
   /** The answer for the page Vike rendered: the return value, and the page after rerender() */
   renderAnswer(pageContext: PageContextServer): ReadableStream<Uint8Array> {
     const { runtime, pageContext: rscPageContext } = getRsc(pageContext);
