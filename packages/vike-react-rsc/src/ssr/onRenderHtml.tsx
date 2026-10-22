@@ -93,8 +93,7 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
 }
 
-// The Flight's root, or a client Page, to pageContext.pageHtmlString or pageHtmlStream; an abort in a server component
-// becomes Vike's
+// The Flight's root, or a client Page, to pageContext.pageHtmlString or pageHtmlStream
 async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps, { renderToStringOptions, renderToStreamOptions }: ReactOptions) {
   const streamSetting = resolveStreamSetting(pageContext);
   // Where vike-react calls renderToString(), its options go to the stream's render: server components render only to a stream
@@ -108,7 +107,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
   const htmlSent = new AbortController();
   const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
   const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
-  // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this hook returns, then the
+  // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this function returns, then the
   // HTML has started and only the stream can tell the browser
   let boundaryAbort: unknown;
   const onAbort = (error: unknown, abort: Abort) => {
@@ -140,7 +139,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         pageContext.pageHtmlStream = stream;
       }
     }
-    // Inside a Suspense boundary, but reported before this hook returns, e.g. a crawler's
+    // Inside a Suspense boundary, but reported before this function returns, e.g. a crawler's
     if (boundaryAbort) throw boundaryAbort;
   } catch (error) {
     const abort = getAbort(error);
