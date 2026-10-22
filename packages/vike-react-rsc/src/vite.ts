@@ -15,9 +15,9 @@ export function vikeReactRscPlugins(): Plugin[] {
         environments: {
           // Vike pre-bundles the entry its hooks import, but not the other entries of a linked copy, so the browser
           // would load the page store and rsc()'s cache twice
-          // - Vite's scan doesn't see what the excluded entries import, so it would find vike/getPageContext on the first page
-          //   load, then reload the page
-          client: { optimizeDeps: { exclude: ["vike-react-rsc"], include: ["vike/getPageContext"] } },
+          // - Vite's scan doesn't see what the excluded entries import, so it would find the Vike entries they import on the
+          //   first page load, then reload the page
+          client: { optimizeDeps: { exclude: ["vike-react-rsc"], include: ["vike/getPageContext", "vike/abort"] } },
           // Vike deploys dist/server, rsc included
           rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
         },
