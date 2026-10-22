@@ -1,1 +1,1 @@
-export { rerender } from "./rsc/scope";
+export { getRequestContext, rerender } from "./rsc/scope";

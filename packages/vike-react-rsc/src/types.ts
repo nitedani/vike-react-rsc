@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
-import type { ImportString, PageContext, PageContextClient } from "vike/types";
+import type { ImportString, PageContext, PageContextClient, PageContextServer } from "vike/types";
 import type { ActionCall } from "./ssr/action";
 import type { Cookies } from "./ssr/cookies";
 import type { HtmlInjection, Viewport } from "./ssr/onRenderHtml";
@@ -12,6 +12,8 @@ export type PagePayload = { root: ReactNode; formState?: ReactFormState };
 export type ActionPayload = { returnValue: unknown } & ({} | { root: ReactNode; passedToClient: PassedToClient });
 /** pageContext values for the browser, serialized as Vike serializes them for a navigation, and the key of every passToClient value */
 export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[] };
+/** getRequestContext()'s value. TypeScript doesn't know what a +middleware adds, so it is `unknown` */
+export type RequestContext = Pick<PageContextServer, "headers" | "cookies"> & Record<string, unknown>;
 export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
 
 /** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */

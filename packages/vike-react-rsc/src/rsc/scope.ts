@@ -1,8 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { PageContext, PageContextServer } from "vike/types";
-import { notInServerAction } from "../errors";
+import { noRequestContext, notInServerAction } from "../errors";
 import { getShared } from "../shared";
-import type { ActionOutcome } from "../types";
+import type { ActionOutcome, RequestContext } from "../types";
 
 // React and user code call server components and server actions without a pageContext argument, so they find their
 // request here
@@ -25,6 +25,15 @@ export function getPageContext(): PageContextServer {
   }
   // The rsc env's view of the server's pageContext
   return scope.pageContext as PageContextServer;
+}
+
+export function getRequestContext(): RequestContext {
+  const scope = storage.getStore();
+  if (!scope) throw noRequestContext();
+  const pageContext = scope.pageContext as PageContextServer & { _pageContextInit: { rscAction?: unknown } };
+  // What renderPage() got from the server and every middleware; rscAction is vike-react-rsc's own
+  const { rscAction: _, ...init } = pageContext._pageContextInit;
+  return { ...init, headers: pageContext.headers, cookies: pageContext.cookies };
 }
 
 /** Whether server components render here, e.g. a page's, outside a server action */
