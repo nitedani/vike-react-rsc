@@ -58,15 +58,7 @@ export type RscRuntime = typeof import("./rsc/runtime");
 type PageHtmlStream = Awaited<ReturnType<typeof renderToStream>>;
 type StreamSetting =
   | boolean
-  | "node"
-  | "web"
   | {
-      /**
-       * Whether the HTML stream should be a Web Stream or a Node.js Stream. Ignored: the stream is a Web Stream.
-       *
-       * https://vike.dev/stream
-       */
-      type?: "node" | "web";
       /**
        * Whether Server-Side Rendering (SSR) must use a stream. (Some tool integrations require it.)
        *
@@ -77,8 +69,6 @@ type StreamSetting =
       require?: boolean;
       /**
        * Setting +stream to `{ enable: null }` is the same as not setting +stream at all.
-       *
-       * Useful for changing stream settings without enabling streaming. For example, Vike extensions can set +stream to `{ enable: null, type: 'web' }` to change the default stream type without enabling streaming.
        *
        * https://vike.dev/stream
        */
@@ -277,14 +267,11 @@ declare global {
       /**
        * Settings for HTML Streaming. As in vike-react, the first load's HTML streams when this enables streaming, or when
        * an extension sets `require` and this doesn't disable streaming. Else it's sent at once, every Suspense boundary
-       * resolved, and, unless an extension sets `require`, +onAfterRenderHtml gets `pageContext.pageHtmlString`. The
-       * stream is a Web Stream, whatever `type` says.
+       * resolved, and, unless an extension sets `require`, +onAfterRenderHtml gets `pageContext.pageHtmlString`.
        *
        * https://vike.dev/stream
        */
       stream?: StreamSetting;
-      /** @deprecated Set +stream.require instead */
-      streamIsRequired?: boolean;
       /**
        * Hook called right before rendering the page's root React component to HTML.
        *

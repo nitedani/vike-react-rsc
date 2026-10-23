@@ -201,13 +201,12 @@ function cancelRender(pageContext: PageContextServer, htmlRender: AbortControlle
 
 // As vike-react's resolveStreamSetting()
 function resolveStreamSetting(pageContext: PageContextServer): { enable: boolean | null; require: boolean } {
-  const streamSetting = { enable: null as boolean | null, require: pageContext.config.streamIsRequired ?? false };
+  const streamSetting = { enable: null as boolean | null, require: false };
   pageContext.config.stream
     ?.slice()
     .reverse()
     .forEach((setting) => {
       if (typeof setting === "boolean") streamSetting.enable = setting;
-      else if (typeof setting === "string") streamSetting.enable = true;
       else if (setting) {
         if (setting.enable !== null) streamSetting.enable = setting.enable ?? true;
         if (setting.require !== undefined) streamSetting.require = setting.require;
