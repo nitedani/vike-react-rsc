@@ -322,6 +322,22 @@ function testVikeReactImports() {
     expect(await page.$("#lazy-wrapper")).to.not.equal(null);
   });
 
+  test('components: \'client\': usePageContext() and useData() in an async server component and in a file that a server component and a "use client" file import, on the first load and after a client navigation', async () => {
+    const expectPageInfo = async () => {
+      for (const id of ["#async-server", "#shared-server", "#shared-client"]) {
+        expect(await page.textContent(id), id).to.equal("/server-hooks: Data from +data");
+      }
+    };
+    await page.goto(getServerUrl() + "/server-hooks");
+    await waitForHydration("#layout-counter");
+    await expectPageInfo();
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/server-hooks");
+    await page.waitForSelector("#pathname:text-is('/server-hooks') ~ main #async-server");
+    await expectPageInfo();
+  });
+
   test("components: 'client': a server component renders <ClientOnly> through a client component, and calls useHydrated()", async () => {
     // The child reads window when its module loads, so loading it on the server would fail the render
     const html = await fetchHtml("/client-only");
@@ -430,18 +446,6 @@ function testServerFunctionComponents() {
 }
 
 function testClientHooks() {
-  test("Dev: usePageContext() and useData() in a server component throw, naming what to call instead", async () => {
-    for (const [hook, fix] of [
-      ["usePageContext", "call getPageContext() in a server component or a server action"],
-      ["useData", "read getPageContext().data in a server component"],
-    ]) {
-      await expectHelperPageError(
-        `"use server component";\nimport { ${hook} } from "vike-react-rsc/${hook}";\nexport default function Page() {\n  ${hook}();\n  return null;\n}\n`,
-        `${hook}() ${CLIENT_HOOK_ERROR}: ${fix}`
-      );
-    }
-  });
-
   test('Dev: <ClientOnly> in a server component throws, saying to render it in a "use client" file', async () => {
     await expectHelperPageError(
       `"use server component";\nimport { ClientOnly } from "vike-react-rsc/ClientOnly";\nexport default function Page() {\n  return <ClientOnly><p>Rendered in the browser</p></ClientOnly>;\n}\n`,

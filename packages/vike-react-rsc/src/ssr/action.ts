@@ -1,34 +1,41 @@
 // Vike loads +middleware at startup, before Vite optimizes React, so neither this module nor its imports may import React
+import { enhance } from "@universal-middleware/core";
 import { getPageContextJson } from "vike/__internal";
 import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
-import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import type { ActionOutcome, PassedToClient } from "../types";
 import { getRsc } from "./bridge";
 
 /** One action request. The rsc env runs it with `id` and `body`; without `id`, `body` is a form submitted before
- * hydration. */
+ * hydration. `isRscLoad` when rsc() calls it to load a server component. */
 export class ActionCall {
   /** The Set-Cookie lines the action appended to pageContext.headersResponse */
   #setCookies: string[] = [];
   /** Set once the action returned */
   outcome?: ActionOutcome;
   #rsc?: ReturnType<typeof getRsc>;
+  #running?: Promise<ActionOutcome>;
 
   constructor(
     readonly id: string | undefined,
     readonly body: string | FormData,
-    readonly url: string
+    readonly url: string,
+    readonly isRscLoad: boolean
   ) {}
 
   // Vike creates a pageContext for every page it renders, and an error or a `throw render()` makes it render another
-  // page for the same request: only the first one runs the action
+  // page for the same request: only the first one runs the action, and the others wait for it
   async run(pageContext: PageContextServer): Promise<void> {
-    if (this.#rsc) return;
+    if (this.#rsc) {
+      await this.#running?.catch(() => {});
+      return;
+    }
     this.#rsc = getRsc(pageContext);
     const before = pageContext.headersResponse.getSetCookie().length;
     try {
-      this.outcome = await this.#rsc.runtime.runAction(this.#rsc.pageContext, this);
+      this.#running = this.#rsc.runtime.runAction(this.#rsc.pageContext, this);
+      this.outcome = await this.#running;
     } finally {
       this.#setCookies = pageContext.headersResponse.getSetCookie().slice(before);
     }
@@ -39,32 +46,36 @@ export class ActionCall {
     return this.id === undefined;
   }
 
+  /** Without rerender(), a plain action's answer is its return value alone, which reads nothing guard() and data() provide */
+  get skipsGuardAndData(): boolean {
+    return !!this.outcome && !this.isForm && !this.isRscLoad && !this.outcome.rerender;
+  }
+
   /** The answer for the page Vike rendered: the return value, and the page after rerender() */
   renderAnswer(pageContext: PageContextServer): ReadableStream<Uint8Array> {
     const { runtime, pageContext: rscPageContext } = getRsc(pageContext);
     // No outcome: the action threw. After render() to a page, the answer is that page, as for a form; Vike's error
     // page (is404 set) is left out, as callServer() rejects on its status without reading it
     const { returnValue, rerender } = this.outcome ?? { returnValue: undefined, rerender: pageContext.is404 === null };
-    return runtime.actionPayload(rscPageContext, returnValue, rerender ? getPassedToClient(pageContext) : undefined);
+    const passedToClient = rerender ? getPassedToClient(pageContext) : undefined;
+    return runtime.actionPayload(rscPageContext, returnValue, { passedToClient, withoutPage: this.skipsGuardAndData });
   }
 
   /** The answer to the action, from the response of the page Vike rendered */
-  answer(response: Response): Response {
+  async answer(response: Response): Promise<Response> {
+    // Vike answers once one +onCreatePageContext throws, without waiting for the action
+    await this.#running?.catch(() => {});
     const { status } = response;
     if (this.outcome?.isUnknownAction) return this.#answerUnknownAction(response);
     const headers = this.#headersWithCookies(response);
     // The page, or a redirect a browser follows
     if (this.isForm) return new Response(response.body, { status, headers });
 
-    // Without rerender() the page isn't part of the answer, so neither is guard()'s or data()'s failure: the caller
-    // gets what the action returned
-    if (this.outcome && !this.outcome.rerender && status !== 200) {
+    // Without rerender() the answer is the return value, not the page: a failure or a redirect after the action, also
+    // in the guard() or data() an rsc() load runs, is dropped (actionRedirectMiddleware made redirects REDIRECT_HEADER)
+    if (this.outcome && !this.outcome.rerender && (status !== 200 || response.headers.has(REDIRECT_HEADER))) {
       return this.#answerReturnValue(response, this.outcome.returnValue);
     }
-    // A redirect thrown by the action, guard() or data(). fetch() would follow it and hand the new page's HTML to the
-    // Flight decoder, so callServer() gets the target in a header and navigates.
-    const location = headers.get("location");
-    if (status >= 300 && status < 400 && location) return answerRedirect(response, headers, location);
     return new Response(response.body, { status, headers });
   }
 
@@ -90,7 +101,7 @@ export class ActionCall {
   #answerReturnValue(response: Response, returnValue: unknown): Response {
     void response.body?.cancel();
     const { runtime, pageContext } = this.#rsc!;
-    const body = runtime.actionPayload(pageContext, returnValue);
+    const body = runtime.actionPayload(pageContext, returnValue, { withoutPage: this.skipsGuardAndData });
     return new Response(body, {
       headers: new Headers([...this.#setCookies.map((setCookie): [string, string] => ["set-cookie", setCookie]), ["content-type", FLIGHT_CONTENT_TYPE]]),
     });
@@ -108,19 +119,12 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
   return { json: getPageContextJson(pageContext), keys };
 }
 
-function answerRedirect(response: Response, headers: Headers, location: string): Response {
-  void response.body?.cancel();
-  headers.delete("location");
-  headers.set(REDIRECT_HEADER, location);
-  return new Response(null, { headers });
-}
-
 // Vike's +middleware. It hands the action to the page Vike renders after every middleware: onCreatePageContext runs it
 // there, before guard() and data(), so they see what it changed, and the action sees the context of every middleware.
 export async function actionMiddleware(
   request: Request,
   context: object
-): Promise<Response | ((response: Response) => Response) | undefined> {
+): Promise<Response | ((response: Response) => Promise<Response>) | undefined> {
   if (request.method !== "POST") return;
   const id = request.headers.get(ACTION_HEADER) ?? undefined;
   const limit = (await getGlobalContext()).config.rsc?.bodySizeLimit ?? 1024 * 1024;
@@ -130,12 +134,29 @@ export async function actionMiddleware(
 
   const body = id ? await readBody(request, limit) : form;
   if (body === undefined) return new Response(null, { status: 413 });
-  const call = new ActionCall(id, body, request.url);
+  const call = new ActionCall(id, body, request.url, request.headers.has(RSC_LOAD_HEADER));
   // A middleware returns either context or a response function: the context is the object Vike merges into the page's
   // pageContext, so it gets the action directly
   Object.assign(context, { rscAction: call });
   return (response: Response) => call.answer(response);
 }
+
+// Before every other +middleware, so its response function runs first, before answer()'s, on whatever answered a server
+// action called by JS: fetch() would follow a redirect into the Flight decoder, so callServer() gets the target in a
+// header and navigates
+function redirectInHeader(request: Request): ((response: Response) => Response) | undefined {
+  if (request.method !== "POST" || !request.headers.has(ACTION_HEADER)) return;
+  return (response) => {
+    const location = response.headers.get("location");
+    if (response.status < 300 || response.status >= 400 || !location) return response;
+    void response.body?.cancel();
+    const headers = new Headers(response.headers);
+    headers.delete("location");
+    headers.set(REDIRECT_HEADER, location);
+    return new Response(null, { headers });
+  };
+}
+export const actionRedirectMiddleware: typeof redirectInHeader = enhance(redirectInHeader, { name: "vike-react-rsc:server-action-redirect", order: -Infinity });
 
 // React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
 // before hydration, which the browser sends as a navigation. Read from a copy: any other POST reaches the next handler

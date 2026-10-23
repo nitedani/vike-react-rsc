@@ -40,8 +40,8 @@ const REACT_DEV_EVAL_CSP_ERROR =
 // https://github.com/react/react/pull/37572 is released.
 const REACT_DEV_PERF_TRACK_ERROR = "cannot have a negative time stamp";
 
-// Thrown by /actions' data() after saveThenFailData()
-const DATA_ERROR = "data() failed on demand";
+// Thrown by +onCreatePageContext while testActionValueSurvivesHookError() sets its cookie
+const ON_CREATE_PAGE_CONTEXT_ERROR = "+onCreatePageContext failed on demand";
 
 // Thrown by /actions' FailingComponent(), then logged by rsc() in the browser
 const RSC_LOAD_ERROR = "FailingComponent failed on demand";
@@ -87,9 +87,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testActionBodyLimit()
       (logSource === "stderr" &&
         (logText.includes("HTTP response ← /todos 413") || logText.includes("HTTP response ← /actions 413"))) ||
-      // testActionValueSurvivesDataError()
+      // testActionValueSurvivesHookError()
       (logSource === "stderr" &&
-        (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
+        (logText.includes(ON_CREATE_PAGE_CONTEXT_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
       // testActionPageFailure()
       (logSource === "Browser Error" && logText.includes("status of 404")) ||
       // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
@@ -154,7 +154,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testGonePassToClientValue();
     testConcurrentRerender();
     testActionOnce();
-    testActionValueSurvivesDataError();
+    testActionSkipsData();
+    testActionRequestContext();
+    testActionValueSurvivesHookError();
     testActionPageFailure();
     testStaleAction();
     testActionAbort();
@@ -166,6 +168,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscPropsChange();
     testRscLoadError();
     testRscLoadRedirect();
+    testRscLoadReadsData();
     testServerComponentAbort();
     testRscCache();
     testRscCacheInvalidation();
@@ -425,8 +428,8 @@ function testSession() {
       (await page.context().cookies()).find((c) => c.name === "session")?.value;
     expect(await session()).to.equal("alice");
 
-    // The action's pageContext, which its re-render shows, has the context of the +middleware ordered after the action
-    // middleware, which ran once, like a page request's
+    // The page its re-render shows has the context of the +middleware ordered after the action middleware, which ran
+    // once, like a page request's
     expect(await getServerCount("middleware /account")).to.equal(middlewareRuns + 1);
     expect(await page.textContent("#account-mw")).to.equal("POST");
     await page.goto(getServerUrl() + "/account");
@@ -468,6 +471,19 @@ function testSession() {
       expect(await page.textContent("#account-user")).to.equal("Logged in as alice");
     });
     await page.context().clearCookies();
+  });
+
+  test("Server action: a +middleware ordered before the action middleware redirects it", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    // The app's auth middleware answers with a 302
+    await page.context().addCookies([{ name: "expired", value: "1", url: getServerUrl() }]);
+    await page.click('button:text-is("Save")');
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/login");
+      expect(await page.textContent("h1")).to.equal("Log in");
+    });
+    await page.context().clearCookies({ name: "expired" });
   });
 }
 
@@ -552,6 +568,17 @@ function testRscLoadRedirect() {
     await page.click('button:has-text("Load a redirecting server component")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-rsc-redirecting]")).to.equal("Loaded");
+    });
+  });
+}
+
+function testRscLoadReadsData() {
+  test("rsc(): the server components a load returns read the page's data()", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Load a server component that reads data()")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-rsc-page-data]")).to.equal('{"from":"data()"}');
     });
   });
 }
@@ -764,7 +791,7 @@ function testStaticHostAction() {
   test("Server action: a static host's answer rejects the call with its status", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
-    await page.click('button:has-text("Save, then data() throws")');
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] Server action failed: HTTP 404");
     });
@@ -819,13 +846,13 @@ function testUnknownAction() {
     await waitForHydration("Slow save");
     await callUnknownId(unknownId);
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
-    await page.click('button:has-text("Save, then data() throws")');
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.evaluate(() => performance.timeOrigin)).to.not.equal(timeOrigin);
     });
     await waitForHydration("Slow save");
     await callUnknownId(unknownId);
-    await page.click('button:has-text("Save, then data() throws")');
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] Server action failed: HTTP 404");
     });
@@ -1205,7 +1232,7 @@ function testMisuse() {
     const html = await fetchHtml("/misuse");
     const error = (call: string) => new RegExp(`data-misuse="${call}">([^<]*)<`).exec(html)?.[1];
     expect(error("getPageContext")).to.equal(
-      "[vike-react-rsc] getPageContext() needs a server component render or a server action, and neither runs here"
+      "[vike-react-rsc] getPageContext() needs a server component render, and none runs here"
     );
     expect(error("rerender")).to.equal("[vike-react-rsc] rerender() needs a running server action, and none runs here");
     // The same message from data(), which runs outside the rsc env
@@ -1338,15 +1365,81 @@ function testActionOnce() {
   });
 }
 
-function testActionValueSurvivesDataError() {
-  test("Server action: without rerender(), its value survives a data() error", async () => {
+function testActionSkipsData() {
+  test("Server action: without rerender(), the page's data() doesn't run", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
-    await page.click('button:has-text("Save, then data() throws")');
+    const before = await getServerCount("data /actions");
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
     });
+    expect(await getServerCount("data /actions")).to.equal(before);
   });
+}
+
+const actionNoPageError =
+  "[vike-react-rsc] getPageContext() needs a page, and a server action or a component passed to rsc() has none: call getRequestContext() from vike-react-rsc/server";
+const usePageContextInActionError =
+  "[vike-react-rsc] usePageContext() needs a page, and a server action or a component passed to rsc() has none: call getRequestContext() from vike-react-rsc/server";
+const returnedNoPageError =
+  "[vike-react-rsc] getPageContext() needs a page, and the server components a server action returns without rerender() have none: load them with rsc(), or call getRequestContext() from vike-react-rsc/server";
+
+function testActionRequestContext() {
+  test("Server component: getRequestContext() has what every +middleware adds", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    expect(await page.textContent("[data-page-request-context]")).to.equal("GET");
+  });
+  test("Server action: getRequestContext() has what every +middleware adds, and getPageContext() and usePageContext() throw", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Read the request context")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.equal(`Returned: POST | ${actionNoPageError} | ${usePageContextInActionError}`);
+    });
+  });
+  test("Server action: getPageContext() throws in the server components it returns without rerender()", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Return a server component that calls getPageContext()")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-returned-page-context]")).to.equal(returnedNoPageError);
+    });
+  });
+  test("rsc(): getPageContext() throws in the component passed to it", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Load a server component that calls getPageContext()")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-rsc-page-context]")).to.equal(actionNoPageError);
+    });
+  });
+}
+
+function testActionValueSurvivesHookError() {
+  test("Server action: without rerender(), its value survives an error in +onCreatePageContext", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.context().addCookies([{ name: "failOnCreatePageContext", value: "1", url: getServerUrl() }]);
+    await page.click('button:text-is("Save")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
+    });
+    await page.context().clearCookies({ name: "failOnCreatePageContext" });
+  });
+  for (const abort of ["render", "redirect"]) {
+    test(`Server action: without rerender(), its value survives +onCreatePageContext throwing ${abort}() while it runs`, async () => {
+      await page.goto(getServerUrl() + "/actions");
+      await waitForHydration("Slow save");
+      await page.context().addCookies([{ name: "abortOnCreatePageContext", value: `${abort}-${Math.random()}`, url: getServerUrl() }]);
+      await page.click('button:has-text("Save slowly, without rerender()")');
+      await autoRetry(async () => {
+        expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
+      });
+      expect(new URL(page.url()).pathname).to.equal("/actions");
+      await page.context().clearCookies({ name: "abortOnCreatePageContext" });
+    });
+  }
 }
 
 function testActionPageFailure() {
