@@ -8,7 +8,7 @@ import {
   resolveComponentConfigs,
   resolveForBrowser,
   setBrowserEnvironment,
-  type ComponentConfig,
+  type Part,
   type ResolveContext,
 } from "./componentConfigs";
 import { getDirectives, getFile, getFileName, isAppFile, parse, type Directive } from "./parse";
@@ -131,7 +131,7 @@ export function clientDefault(): Plugin {
 async function decideIsServerComponent(
   file: string,
   directives: Directive[],
-  components: ComponentConfig[],
+  components: Part[],
   getModule: GetModule
 ): Promise<{ isServerComponent: boolean; serverComponentImport?: string[]; read: Set<string> }> {
   // By its directive, or as the file the env loads for a package's server component
@@ -145,13 +145,13 @@ async function decideIsServerComponent(
 
 // Outside the rsc env, a server Page, Layout, Wrapper or Loading: the page renders from its Flight, which has what it
 // rendered. Each export Vike reads, a + file's default one, whatever the file exports itself
-function getServerComponentStub(components: ComponentConfig[], flags: string) {
+function getServerComponentStub(components: Part[], flags: string) {
   const exports = [...new Set(components.map(({ exportName = "default" }) => `stub as ${exportName}`))].join(", ");
   return { code: `const stub = Object.assign(() => null, ${flags});\nexport { ${exports} };`, map: null };
 }
 
 // In the rsc env, a server Page, Layout, Wrapper or Loading carries the stub's flags, so every env finds it the same way
-function tagServerComponent(code: string, program: ESTree.Program, components: ComponentConfig[], file: string, flags: string) {
+function tagServerComponent(code: string, program: ESTree.Program, components: Part[], file: string, flags: string) {
   // The exports Vike reads: each import's, or a + file's default one or the one named after the config
   const exportNames = [...new Set(components.flatMap(({ configName, exportName }) => (exportName ? [exportName] : [configName, "default"])))];
   const configNames = [...new Set(components.map(({ configName }) => configName))].join(" or ");
