@@ -52,6 +52,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testVikeReactRendering();
   testVikeReactImports();
   testFormBeforeHydration();
+  testRestoredFormState();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
   if (isDev) testComponentsConfig();
@@ -464,6 +465,23 @@ function testFormBeforeHydration() {
     await autoRetry(async () => {
       expect(await page.textContent("#submits")).to.equal("Submitted 2 times");
     });
+  });
+}
+
+function testRestoredFormState() {
+  test("components: 'client': +react's formState renders and hydrates a request without a form submit, as in vike-react", async () => {
+    // The submit's state, which the page saves in a cookie
+    await withoutScripts(async (noJs) => {
+      await noJs.goto(getServerUrl() + "/form-restored");
+      await noJs.click('button:has-text("Count a submit")');
+      await noJs.waitForSelector("#submits:has-text('Submitted 1 times')");
+      await page.context().addCookies(await noJs.context().cookies());
+    });
+    const response = await page.goto(getServerUrl() + "/form-restored");
+    expect(await response!.text()).to.include("Submitted <!-- -->1<!-- --> times");
+    await waitForHydration("button");
+    expect(await page.textContent("#submits")).to.equal("Submitted 1 times");
+    await page.context().clearCookies({ name: "restored-form" });
   });
 }
 

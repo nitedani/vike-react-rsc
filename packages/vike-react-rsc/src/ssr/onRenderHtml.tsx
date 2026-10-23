@@ -137,7 +137,11 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
   // components render only to a stream
   const rendersToString = !streamSetting.enable && !streamSetting.require;
   const options: RenderToStreamOptions | undefined = rendersToString ? { streamOptions: renderToStringOptions } : renderToStreamOptions;
-  const streamOptions = { ...options?.streamOptions, nonce: pageContext.cspNonce ?? options?.streamOptions?.nonce };
+  const streamOptions = {
+    ...options?.streamOptions,
+    nonce: pageContext.cspNonce ?? options?.streamOptions?.nonce,
+    formState: formState ?? options?.streamOptions?.formState,
+  };
   // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this function returns, then the
   // HTML has started and only the stream can tell the browser
   let boundaryAbort: unknown;
@@ -157,7 +161,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         // the client leaves, or after react-streaming's default timeout.
         const render = getRenderSignal(htmlRender.signal);
         // As react-streaming when it doesn't stream: no large boundary sent apart, with a script that shows it
-        const renderOptions = { ...streamOptions, formState, progressiveChunkSize: Number.MAX_SAFE_INTEGER, signal: render.signal };
+        const renderOptions = { ...streamOptions, progressiveChunkSize: Number.MAX_SAFE_INTEGER, signal: render.signal };
         pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort).finally(render.clear);
         htmlRender.abort();
       } else {
@@ -168,7 +172,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
           ...options,
           // Server components render to a Web stream, and Vike takes either, so the page is the same
           webStream: true,
-          streamOptions: { ...streamOptions, formState },
+          streamOptions,
           signal: options?.signal ? AbortSignal.any([htmlRender.signal, options.signal]) : htmlRender.signal,
           onBoundaryError: (error) => {
             const abort = getAbort(error);

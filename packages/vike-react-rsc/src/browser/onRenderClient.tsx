@@ -42,7 +42,7 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   const { hydrateRootOptions, createRootOptions } = resolveReactOptions(pageContext);
   // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
   if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") {
-    const options = { ...hydrateRootOptions, ...withOurErrorCallbacks(hydrateRootOptions), formState };
+    const options = { ...hydrateRootOptions, ...withOurErrorCallbacks(hydrateRootOptions), formState: formState ?? hydrateRootOptions?.formState };
     setReactRoot(hydrateRoot(container, <Root page={page} />, options));
   } else {
     const reactRoot = createRoot(container, { ...createRootOptions, ...withOurErrorCallbacks(createRootOptions) });
