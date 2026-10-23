@@ -223,6 +223,8 @@ async function renderWhole(page: ReactNode, options: RenderToReadableStreamOptio
     if (abort) onAbort(error, abort);
     // Not the abort, nor what failed because of it
     else if (options.signal?.aborted) return;
+    // A server component's, which the Flight carries with its digest: the rsc env logged it
+    else if (typeof error === "object" && error !== null && "digest" in error) return;
     else if (options.onError) options.onError(error, errorInfo);
     else console.error(error);
   };
