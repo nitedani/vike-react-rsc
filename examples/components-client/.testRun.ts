@@ -367,6 +367,13 @@ function testVikeReactRendering() {
     await page.waitForSelector("#spa-rerender");
     expect(await page.textContent("#spa-rendered-on")).to.equal("Rendered on the server");
   });
+
+  test("components: 'client': ssr: false on a page with a server component: the browser renders it before its Flight ends", async () => {
+    // The page's load event waits for its Flight, which ends only once the page asks
+    await page.goto(getServerUrl() + "/spa-promise", { waitUntil: "commit" });
+    await page.click("button:text-is('Ask')");
+    await page.waitForSelector("#answer:text-is('Answered once asked')");
+  });
 }
 
 function testVikeReactImports() {

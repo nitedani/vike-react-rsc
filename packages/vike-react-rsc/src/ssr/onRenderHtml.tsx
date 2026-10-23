@@ -53,7 +53,7 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
     );
   }
   // A stream: Vike holds an HTML string until the Flight has ended
-  const html = pageContext.pageHtmlString ? new Response(pageContext.pageHtmlString).body! : (pageContext.pageHtmlStream ?? "");
+  const html = pageContext.pageHtmlStream ?? new Response(pageContext.pageHtmlString ?? "").body!;
   // Once the shell has rendered, React has loaded every client component in it
   const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
 
