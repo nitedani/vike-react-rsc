@@ -13,8 +13,7 @@ export function isClientDefault(): boolean {
   return values.has("client");
 }
 
-/** Finds each Page, Layout, Wrapper or Loading that Vike loads from a file, by its + file or by an import of a +config file
- * or an extension's config, as the browser resolves the import, or the env when the browser can't */
+/** Each Page, Layout, Wrapper or Loading that the env loads from the file, whatever the id's query */
 export async function getComponentConfigs(context: ResolveContext): Promise<(id: string) => Part[] | undefined> {
   const { byFile } = await resolveComponentConfigs(context);
   return (id) => byFile.get(getFile(id));
