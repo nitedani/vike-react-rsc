@@ -136,8 +136,8 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         // A crawler gets the page whole, so Vike can still answer a boundary's abort, which react-streaming reports late
         if (stream.disabled) await stream.streamEnd;
         void stream.streamEnd.then(() => htmlSent.abort());
-        // A stream: false page gets a string, as from vike-react's renderToString()
-        if (streamSetting.enable === false && !streamSetting.require) {
+        // As from vike-react's renderToString(): a string on a stream: false page, and for a page's +onAfterRenderHtml
+        if (!streamSetting.enable && !streamSetting.require && (streamSetting.enable === false || pageContext.config.onAfterRenderHtml)) {
           pageContext.pageHtmlString = await new Response(stream.readable).text();
         } else {
           deps.injectToStream = stream.injectToStream;
