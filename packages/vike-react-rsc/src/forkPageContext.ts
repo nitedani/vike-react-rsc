@@ -4,7 +4,7 @@ import { getShared } from "./shared";
 const forkKey = Symbol.for("vike-react-rsc:fork");
 type Forked = { [forkKey]?: object };
 
-/** From now on, server components read and write a copy of pageContext as it is now */
+/** From now on, server components read and write a copy of pageContext's keys as they are now: the objects they hold stay shared */
 export function forkPageContext(pageContext: object): void {
   // Copies descriptors, so no getter runs and Vike's internal props aren't read
   const standIn = Object.create(Object.getPrototypeOf(pageContext), Object.getOwnPropertyDescriptors(pageContext));
@@ -23,8 +23,8 @@ export function getForkedPageContext<T extends object>(pageContext: T): T {
 
 function createView(pageContext: object): object {
   const getTarget = () => (pageContext as Forked)[forkKey] ?? pageContext;
-  // The fork holds pageContext as it was before the HTML hooks. A key with the same value on both reads from the rsc env's
-  // pageContext, so `config` is the rsc env's; any other key reads from the fork, and a getter runs on the fork.
+  // The fork holds pageContext's keys as they were before the HTML hooks. A key with the same value on both reads from the
+  // rsc env's pageContext, so `config` is the rsc env's; any other key reads from the fork, and a getter runs on the fork.
   const isUnchanged = (fork: object, key: PropertyKey) => {
     const was = Object.getOwnPropertyDescriptor(fork, key);
     const now = Object.getOwnPropertyDescriptor(pageContext, key);

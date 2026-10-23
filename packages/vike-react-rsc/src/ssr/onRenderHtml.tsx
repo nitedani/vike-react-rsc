@@ -86,7 +86,7 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
 
 // As vike-react's: sets pageContext.pageHtmlString or pageHtmlStream, between the HTML hooks
 async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps): Promise<void> {
-  // Before any HTML hook: server components render as after a client navigation, which runs none
+  // Before any HTML hook: server components see pageContext's keys as after a client navigation, which runs none
   forkPageContext(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;

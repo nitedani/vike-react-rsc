@@ -263,7 +263,7 @@ function testVikeReactRendering() {
     expect(await fetchHtml("/wrap-page")).to.match(/<section id="wrapper">.*<p id="wrapped-child">.*<\/section>/s);
   });
 
-  test("components: 'client': on a full load, server components get the pageContext a client navigation gives them: nothing the HTML hooks do reaches them, and their writes stay theirs", async () => {
+  test("components: 'client': on a full load, server components get the pageContext a client navigation gives them: no value the HTML hooks assign on pageContext reaches them, and their writes stay theirs", async () => {
     const store = "A store a server component created";
     for (const [pathname, expected] of [
       ["/render-html", { "#server-store": store, "#same-store": "true", "#locale": "Locale en", "#components": "Components undefined", "#has-user": "false", "#deferred-store": store, "#deferred-write": "Written by a server component", "#deferred-getter": "Written by a server component" }],
