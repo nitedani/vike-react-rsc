@@ -142,15 +142,18 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
       } else if (rendersToString) {
         // Whole, as from vike-react's renderToString(), for a crawler too. Like a page that streams, the render stops once
         // the client leaves, or after react-streaming's default timeout.
-        const timeout = AbortSignal.timeout(20 * 1000);
-        const signal = left ? AbortSignal.any([left, timeout]) : timeout;
+        const timedOut = new AbortController();
+        const timeout = setTimeout(() => timedOut.abort(), 20 * 1000);
+        const signal = left ? AbortSignal.any([left, timedOut.signal]) : timedOut.signal;
         // As react-streaming when it doesn't stream: no large boundary sent apart, with a script that shows it
         const renderOptions = { ...streamOptions, formState, progressiveChunkSize: Number.MAX_SAFE_INTEGER, signal };
         // Once the client left before the shell rendered, React rejects, and nobody gets the HTML
-        pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort).catch((error: unknown) => {
-          if (left?.aborted) return "";
-          throw error;
-        });
+        pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort)
+          .catch((error: unknown) => {
+            if (left?.aborted) return "";
+            throw error;
+          })
+          .finally(() => clearTimeout(timeout));
         htmlSent.abort();
       } else {
         const stream = await renderToStream(page, {
