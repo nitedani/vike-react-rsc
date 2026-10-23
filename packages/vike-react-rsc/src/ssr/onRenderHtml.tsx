@@ -19,6 +19,8 @@ import type { HeadValue, PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { getTagAttributesString, type TagAttributes } from "../utils/getTagAttributesString";
 
+addEcosystemStamp();
+
 // The CSS and JS of the client components a page's HTML renders, for their links
 const clientDeps = new AsyncLocalStorage<ClientDeps>();
 type ClientDeps = { css: Set<string>; js: Set<string>; injectToStream?: (html: string) => void };
@@ -337,6 +339,13 @@ function getViewportTag(viewport: Viewport | undefined): string {
     return `<meta name="viewport" content="width=${viewport}">`;
   }
   return "";
+}
+
+// As vike-react's: react-streaming's and Vike's errors then tell to set +stream, e.g. for useAsync() on a page that
+// doesn't stream, rather than to install react-streaming
+function addEcosystemStamp() {
+  const g = globalThis as Record<string, unknown>;
+  g._isVikeReactApp = {};
 }
 
 export type HtmlInjection = string | ((pageContext: PageContextServer) => string);
