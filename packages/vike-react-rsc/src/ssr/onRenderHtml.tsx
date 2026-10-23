@@ -151,26 +151,28 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
       } else if (rendersToString) {
         // Whole, as from vike-react's renderToString(), for a crawler too. Like a page that streams, the render stops once
         // the client leaves, or after react-streaming's default timeout.
-        const timedOut = new AbortController();
-        const timeout = setTimeout(() => timedOut.abort(), 20 * 1000);
-        const signal = left ? AbortSignal.any([left, timedOut.signal]) : timedOut.signal;
+        const render = getRenderSignal(left, 20);
         // As react-streaming when it doesn't stream: no large boundary sent apart, with a script that shows it
-        const renderOptions = { ...streamOptions, formState, progressiveChunkSize: Number.MAX_SAFE_INTEGER, signal };
-        pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort).finally(() => clearTimeout(timeout));
+        const renderOptions = { ...streamOptions, formState, progressiveChunkSize: Number.MAX_SAFE_INTEGER, signal: render.signal };
+        pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort).finally(render.clear);
         htmlSent.abort();
       } else {
+        // A stream: false page that an extension requires to stream renders whole before react-streaming returns it, so,
+        // as a page without +stream, its render stops once the client leaves, or after react-streaming's timeout
+        const render = streamSetting.enable === false ? getRenderSignal(left, options?.timeout === undefined ? 20 : options.timeout) : undefined;
         const stream = await renderToStream(page, {
           userAgent: pageContext.headers?.["user-agent"],
           // Else react-streaming streams, except to bots
           disable: streamSetting.enable === false || undefined,
           ...options,
-          streamOptions: { ...streamOptions, formState },
+          // TODO: drop the cast once TODO-RS-PR makes `signal` a public option: react-streaming spreads streamOptions over its own signal
+          streamOptions: { ...streamOptions, formState, ...(render && { signal: render.signal }) } as RenderToStreamOptions["streamOptions"],
           onBoundaryError: (error) => {
             const abort = getAbort(error);
             if (abort) onAbort(error, abort);
             else options?.onBoundaryError?.(error);
           },
-        });
+        }).finally(() => render?.clear());
         // A stream: false page, and any page for a crawler, is rendered whole, so Vike can still answer a boundary's abort, which react-streaming reports late
         if (stream.disabled) await stream.streamEnd;
         void stream.streamEnd.then(() => htmlSent.abort());
@@ -185,6 +187,14 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
     if (!abort) throw error;
     throw toVikeAbort(abort);
   }
+}
+
+// Aborts once the client leaves, or after `timeout` seconds, never for null, as react-streaming's timeout does. clear()
+// once the render has ended.
+function getRenderSignal(left: AbortSignal | undefined, timeout: number | null): { signal: AbortSignal; clear: () => void } {
+  const timedOut = new AbortController();
+  const timer = timeout === null ? undefined : setTimeout(() => timedOut.abort(), timeout * 1000);
+  return { signal: left ? AbortSignal.any([left, timedOut.signal]) : timedOut.signal, clear: () => clearTimeout(timer) };
 }
 
 // The Flight's render stops once both its copies are cancelled: the HTML's, and the browser's, which Vike reads once

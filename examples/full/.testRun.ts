@@ -1330,10 +1330,16 @@ function testClientDisconnect() {
     expect(await getServerCount("slow")).to.equal(before + 1);
   });
 
-  test("A client leaving a page without +stream, which sends nothing before it has rendered whole, stops the render of its server and client components, also while its +onBeforeRenderHtml runs, and isn't logged as an error", async () => {
-    // A server component waits in /slow-whole, a client component waits for its own data in /slow-client, and the
-    // client leaves /slow-before-hook while its +onBeforeRenderHtml runs
-    for (const [path, key] of [["/slow-whole", "slow"], ["/slow-client", "slow-client"], ["/slow-before-hook", "slow"]] as const) {
+  test("A client leaving a page that renders whole, which sends nothing before it has rendered, stops the render of its server and client components, also while its +onBeforeRenderHtml runs, and isn't logged as an error", async () => {
+    // A server component waits in /slow-whole, a client component waits for its own data in /slow-client and in
+    // /slow-required-disabled (stream: false where streaming is required), and the client leaves /slow-before-hook while
+    // its +onBeforeRenderHtml runs
+    for (const [path, key] of [
+      ["/slow-whole", "slow"],
+      ["/slow-client", "slow-client"],
+      ["/slow-required-disabled", "slow-client"],
+      ["/slow-before-hook", "slow"],
+    ] as const) {
       const before = await getServerCount(key);
       await fetchHtml(path);
       expect(await getServerCount(key)).to.equal(before + 1);
