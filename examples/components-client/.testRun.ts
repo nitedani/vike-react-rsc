@@ -739,9 +739,12 @@ function testServerComponentImports() {
     editFile("./pages/js-page/+Page.js", importPackageServerComponent);
     try {
       await page.goto(getServerUrl() + "/js-page");
+      // Vite reloads the page once it has pre-bundled the package, and the reload would interrupt leaving the page
+      const reloaded = page.waitForEvent("load");
       await autoRetry(async () => {
         expectLog(packageServerComponentInBrowser, { filter: ({ logSource }) => logSource === "stderr" });
       });
+      await reloaded;
     } finally {
       await page.goto("about:blank");
       editFileRevert();
@@ -791,6 +794,8 @@ function testServerComponentImports() {
       `import { MARKDOWN_ID } from "../../components/Markdown";\n${source.replace('greeting: "Data from +data"', '$&, id: MARKDOWN_ID')}`
     );
     expect(isSuccess).to.equal(true);
+    // Vike reloads the user files after the revert, and the lane's server stopping during that reload logs an error
+    await sleep(1000);
   });
 }
 
