@@ -52,7 +52,8 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
       "[vike-react-rsc] +onAfterRenderHtml left both pageContext.pageHtmlString and pageContext.pageHtmlStream set: set only one of them, and the other to undefined"
     );
   }
-  const html = pageContext.pageHtmlString ? dangerouslySkipEscape(pageContext.pageHtmlString) : (pageContext.pageHtmlStream ?? "");
+  // A stream: Vike holds an HTML string until the Flight has ended
+  const html = pageContext.pageHtmlString ? new Response(pageContext.pageHtmlString).body! : (pageContext.pageHtmlStream ?? "");
   // Once the shell has rendered, React has loaded every client component in it
   const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
 

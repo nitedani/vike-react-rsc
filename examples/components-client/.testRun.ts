@@ -293,6 +293,13 @@ function testVikeReactRendering() {
     expect(html).to.not.include("<p>Waiting for the delay</p>");
   });
 
+  test("components: 'client': a stream: false page sends its HTML before its Flight ends, then the Flight's rows the HTML doesn't wait for", async () => {
+    const response = await fetch(getServerUrl() + "/stream-off-promise");
+    // With a content-length, Vike would have waited for the promise's row
+    expect(response.headers.get("transfer-encoding")).to.equal("chunked");
+    expect(await response.text()).to.match(/Show the answer.*Answered after a delay/s);
+  });
+
   test("components: 'client': +react sets the options of the HTML's render and of hydrateRoot(), as in vike-react", async () => {
     const id = /<p id="use-id">([^<]*)<\/p>/.exec(await fetchHtml("/react-options"))?.[1];
     expect(id).to.include("vrr-");
