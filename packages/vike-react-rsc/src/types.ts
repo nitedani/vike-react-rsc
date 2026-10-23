@@ -54,7 +54,34 @@ export type ReactOptions = {
 export type RscRuntime = typeof import("./rsc/runtime");
 
 type PageHtmlStream = Awaited<ReturnType<typeof renderToStream>>;
-type StreamSetting = boolean | "node" | "web" | { type?: "node" | "web"; require?: boolean; enable?: boolean | null };
+type StreamSetting =
+  | boolean
+  | "node"
+  | "web"
+  | {
+      /**
+       * Whether the HTML stream should be a Web Stream or a Node.js Stream. Ignored: the stream is a Web Stream.
+       *
+       * https://vike.dev/stream
+       */
+      type?: "node" | "web";
+      /**
+       * Whether Server-Side Rendering (SSR) must use a stream. (Some tool integrations require it.)
+       *
+       * Setting +stream to `{ require: true, disable: true }` means that SSR is done using a stream but, from the user's perspective, HTML Streaming is disabled: the stream is awaited, converted to a string, and the full HTML is sent at once.
+       *
+       * https://vike.dev/stream
+       */
+      require?: boolean;
+      /**
+       * Setting +stream to `{ enable: null }` is the same as not setting +stream at all.
+       *
+       * Useful for changing stream settings without enabling streaming. For example, Vike extensions can set +stream to `{ enable: null, type: 'web' }` to change the default stream type without enabling streaming.
+       *
+       * https://vike.dev/stream
+       */
+      enable?: boolean | null;
+    };
 type RenderHtmlHook = (pageContext: PageContextServer) => void;
 type RenderClientHook = (pageContext: PageContextClient) => void;
 type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
