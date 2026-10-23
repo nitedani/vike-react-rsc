@@ -94,7 +94,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "Browser Error" && logText.includes("status of 404")) ||
       // testClientDisconnect()
       (logSource === "stderr" &&
-        (logText.includes("HTTP response ← /slow-hook-throws 500") || logText.includes("HTTP response ← /slow-after-hook-throws 500"))) ||
+        (logText.includes("HTTP response ← /slow-hook-throws 500") ||
+          logText.includes("HTTP response ← /slow-after-hook-throws 500") ||
+          logText.includes("HTTP response ← /slow-after-hook-pipes 500"))) ||
       // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
       (logSource === "stderr" && logText.includes(RSC_LOAD_ERROR)) ||
       logText.includes(RSC_LOAD_ERROR_LOG) ||
@@ -1330,15 +1332,16 @@ function testClientDisconnect() {
     expect(await getServerCount("slow")).to.equal(before + 1);
   });
 
-  test("A client leaving a page that renders whole, which sends nothing before it has rendered, stops the render of its server and client components, also while its +onBeforeRenderHtml runs, and isn't logged as an error", async () => {
+  test("A client leaving a page that renders whole, which sends nothing before it has rendered, stops the render of its server and client components, also while its +onBeforeRenderHtml or +onAfterRenderHtml runs, and isn't logged as an error", async () => {
     // A server component waits in /slow-whole, a client component waits for its own data in /slow-client and in
     // /slow-required-disabled (stream: false where streaming is required), and the client leaves /slow-before-hook while
-    // its +onBeforeRenderHtml runs
+    // its +onBeforeRenderHtml runs, and the streamed /slow-after-hook while its +onAfterRenderHtml runs
     for (const [path, key] of [
       ["/slow-whole", "slow"],
       ["/slow-client", "slow-client"],
       ["/slow-required-disabled", "slow-client"],
       ["/slow-before-hook", "slow"],
+      ["/slow-after-hook", "slow-client"],
     ] as const) {
       const before = await getServerCount(key);
       await fetchHtml(path);
@@ -1357,16 +1360,25 @@ function testClientDisconnect() {
 
   test("An HTML hook that throws stops the page's render, of its server and client components", async () => {
     // A server component waits in /slow-hook-throws, a client component waits for its own data in the streamed
-    // /slow-after-hook-throws
+    // /slow-after-hook-throws, and in /slow-after-hook-pipes, whose hook has piped the HTML
     for (const [path, key, hook] of [
       ["/slow-hook-throws", "slow", "+onBeforeRenderHtml"],
       ["/slow-after-hook-throws", "slow-client", "+onAfterRenderHtml"],
+      ["/slow-after-hook-pipes", "slow-client", "+onAfterRenderHtml"],
     ] as const) {
       const before = await getServerCount(key);
       expect((await fetch(getServerUrl() + path)).status, path).to.equal(500);
       expectLog(`Thrown by ${path}'s ${hook}`, { filter: ({ logSource }) => logSource === "stderr" });
       await sleep(2500);
       expect(await getServerCount(key), path).to.equal(before);
+    }
+  });
+
+  test("A render that times out calls renderToStreamOptions.onTimeout once", async () => {
+    const before = await getServerCount("slow-required-timeout");
+    for (let i = 1; i <= 10; i++) {
+      expect(await fetchHtml("/slow-required-timeout")).to.include("Loading");
+      expect(await getServerCount("slow-required-timeout")).to.equal(before + i);
     }
   });
 }

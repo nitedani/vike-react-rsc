@@ -92,30 +92,28 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   forkPageContext(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
-  const htmlSent = new AbortController();
+  // Aborted once the HTML has rendered, or once nobody gets it: stops React's HTML render and the HTML's copy of the Flight
+  const htmlRender = new AbortController();
   // Once the client leaves, Vike cancels the HTML, and so the Flight, but only once onRenderHtml() has returned it: until
   // then, from the Flight's decoding to the last HTML hook, the request tells
   const left = pageContext.rscRequestSignal;
-  const onLeave = () => cancelFlight(pageContext, htmlSent);
+  const onLeave = () => cancelRender(pageContext, htmlRender);
   left?.addEventListener("abort", onLeave);
   try {
     left?.throwIfAborted();
-    const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
+    const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlRender.signal) : undefined;
     // The Flight's root, or a client Page
     const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
     if (root !== null) pageContext.page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
     // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
     await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
     left?.throwIfAborted();
-    await renderRootToHtml(pageContext, deps, htmlSent, flight?.formState);
+    await renderRootToHtml(pageContext, deps, htmlRender, flight?.formState);
     // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
     await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
   } catch (error) {
-    // Vike gets no HTML, so nothing reads the Flight, nor the HTML: cancelling the stream the hooks left stops React's
-    // render, also through a stream a hook piped from it
-    cancelFlight(pageContext, htmlSent);
-    const html = pageContext.pageHtmlStream?.readable;
-    if (html && !html.locked) void html.cancel();
+    // Vike gets no HTML, so nothing reads the Flight, nor the HTML, whatever stream the hooks left
+    cancelRender(pageContext, htmlRender);
     // The client left: nobody gets the HTML, nor the error its cancellation caused
     if (left?.aborted) return;
     throw error;
@@ -125,7 +123,7 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
 }
 
 // pageContext.page, as +onBeforeRenderHtml left it, to pageContext.pageHtmlString or pageHtmlStream
-async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps, htmlSent: AbortController, formState: ReactFormState | undefined) {
+async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps, htmlRender: AbortController, formState: ReactFormState | undefined) {
   const { renderToStringOptions, renderToStreamOptions } = resolveReactOptions(pageContext);
   const streamSetting = resolveStreamSetting(pageContext);
   // Where vike-react calls renderToString(), its options, and only those, apply, to React's stream render: server
@@ -140,7 +138,6 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
     if (deps.injectToStream) deps.injectToStream(renderAbortMeta(abort));
     else boundaryAbort ??= error;
   };
-  const left = pageContext.rscRequestSignal;
   try {
     const { page } = pageContext;
     if (page) {
@@ -151,33 +148,35 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
       } else if (rendersToString) {
         // Whole, as from vike-react's renderToString(), for a crawler too. Like a page that streams, the render stops once
         // the client leaves, or after react-streaming's default timeout.
-        const render = getRenderSignal(left, 20);
+        const render = getRenderSignal(htmlRender.signal);
         // As react-streaming when it doesn't stream: no large boundary sent apart, with a script that shows it
         const renderOptions = { ...streamOptions, formState, progressiveChunkSize: Number.MAX_SAFE_INTEGER, signal: render.signal };
         pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort).finally(render.clear);
-        htmlSent.abort();
+        htmlRender.abort();
       } else {
-        // A stream: false page that an extension requires to stream renders whole before react-streaming returns it, so,
-        // as a page without +stream, its render stops once the client leaves, or after react-streaming's timeout
-        const render = streamSetting.enable === false ? getRenderSignal(left, options?.timeout === undefined ? 20 : options.timeout) : undefined;
+        // A workaround, as react-streaming spreads streamOptions over its own signal, which its timeout aborts. TODO: once
+        // https://github.com/brillout/react-streaming/pull/62 is released, pass htmlRender.signal as renderToStream()'s own
+        // `signal` option, and drop this and onTimeout's abort.
+        const reactOptions = { ...streamOptions, formState, signal: htmlRender.signal };
         const stream = await renderToStream(page, {
           userAgent: pageContext.headers?.["user-agent"],
           // Else react-streaming streams, except to bots
           disable: streamSetting.enable === false || undefined,
           ...options,
-          // A workaround, as react-streaming spreads streamOptions over its own signal. TODO: once
-          // https://github.com/brillout/react-streaming/pull/62 is released, pass the request's signal as renderToStream()'s
-          // own `signal` option, which keeps react-streaming's timeout, and drop this, the cast and getRenderSignal() here.
-          streamOptions: { ...streamOptions, formState, ...(render && { signal: render.signal }) } as RenderToStreamOptions["streamOptions"],
+          streamOptions: reactOptions,
+          onTimeout: () => {
+            htmlRender.abort();
+            options?.onTimeout?.();
+          },
           onBoundaryError: (error) => {
             const abort = getAbort(error);
             if (abort) onAbort(error, abort);
             else options?.onBoundaryError?.(error);
           },
-        }).finally(() => render?.clear());
+        });
         // A stream: false page, and any page for a crawler, is rendered whole, so Vike can still answer a boundary's abort, which react-streaming reports late
         if (stream.disabled) await stream.streamEnd;
-        void stream.streamEnd.then(() => htmlSent.abort());
+        void stream.streamEnd.then(() => htmlRender.abort());
         deps.injectToStream = stream.injectToStream;
         pageContext.pageHtmlStream = stream;
       }
@@ -191,18 +190,17 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
   }
 }
 
-// Aborts once the client leaves, or after `timeout` seconds, never for null, as react-streaming's timeout does. clear()
-// once the render has ended.
-function getRenderSignal(left: AbortSignal | undefined, timeout: number | null): { signal: AbortSignal; clear: () => void } {
+// Aborts once `signal` does, or after react-streaming's default timeout. clear() once the render has ended.
+function getRenderSignal(signal: AbortSignal): { signal: AbortSignal; clear: () => void } {
   const timedOut = new AbortController();
-  const timer = timeout === null ? undefined : setTimeout(() => timedOut.abort(), timeout * 1000);
-  return { signal: left ? AbortSignal.any([left, timedOut.signal]) : timedOut.signal, clear: () => clearTimeout(timer) };
+  const timer = setTimeout(() => timedOut.abort(), 20 * 1000);
+  return { signal: AbortSignal.any([signal, timedOut.signal]), clear: () => clearTimeout(timer) };
 }
 
-// The Flight's render stops once both its copies are cancelled: the HTML's, and the browser's, which Vike reads once
-// onRenderHtml() returns
-function cancelFlight(pageContext: PageContextServer, htmlSent: AbortController) {
-  htmlSent.abort();
+// Stops the HTML's render, and the Flight's, which stops once both its copies are cancelled: the HTML's, and the
+// browser's, which Vike reads once onRenderHtml() returns
+function cancelRender(pageContext: PageContextServer, htmlRender: AbortController) {
+  htmlRender.abort();
   void pageContext.rscPayload?.cancel();
 }
 
