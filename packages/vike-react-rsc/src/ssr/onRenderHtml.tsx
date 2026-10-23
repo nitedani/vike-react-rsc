@@ -159,6 +159,8 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
           // Else react-streaming streams, except to bots
           disable: streamSetting.enable === false || undefined,
           ...options,
+          // Server components render to a Web stream, and Vike takes either, so the page is the same
+          webStream: true,
           streamOptions: { ...streamOptions, formState },
           signal: htmlRender.signal,
           onBoundaryError: (error) => {

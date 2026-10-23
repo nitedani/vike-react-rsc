@@ -316,7 +316,9 @@ function testVikeReactRendering() {
   });
 
   test("components: 'client': +react sets the options of a stream: true page's render and of hydrateRoot(), as in vike-react", async () => {
-    const id = /<p id="use-id">([^<]*)<\/p>/.exec(await fetchHtml("/react-options"))?.[1];
+    const response = await fetch(getServerUrl() + "/react-options");
+    expect(response.status).to.equal(200);
+    const id = /<p id="use-id">([^<]*)<\/p>/.exec(await response.text())?.[1];
     expect(id).to.include("vrr-");
     await page.goto(getServerUrl() + "/react-options");
     await waitForHydration("#use-id");
