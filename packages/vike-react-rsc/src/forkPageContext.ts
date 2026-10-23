@@ -23,15 +23,15 @@ export function getForkedPageContext<T extends object>(pageContext: T): T {
 
 function createView(pageContext: object): object {
   const getTarget = () => (pageContext as Forked)[forkKey] ?? pageContext;
-  // A value neither the HTML hooks nor server components changed since the fork reads through the rsc env's
-  // pageContext, for the rsc env's config. Getters run on the fork, as a navigation runs them on Vike's object.
+  // The fork holds pageContext as it was before the HTML hooks. A key with the same value on both reads from the rsc env's
+  // pageContext, so `config` is the rsc env's; any other key reads from the fork, and a getter runs on the fork.
   const isUnchanged = (fork: object, key: PropertyKey) => {
     const was = Object.getOwnPropertyDescriptor(fork, key);
     const now = Object.getOwnPropertyDescriptor(pageContext, key);
     return !was?.get && !now?.get && !was === !now && was?.value === now?.value;
   };
-  // The target only satisfies Proxy's invariants, so every key reads as configurable: every trap answers from
-  // pageContext or its fork
+  // Every trap answers from pageContext or its fork, so the target `{}` only serves Proxy's checks, which require each
+  // key it lacks to be reported configurable
   return new Proxy(
     {},
     {
