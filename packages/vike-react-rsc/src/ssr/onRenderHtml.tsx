@@ -131,7 +131,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
   // components render only to a stream
   const rendersToString = !streamSetting.enable && !streamSetting.require;
   const options: RenderToStreamOptions | undefined = rendersToString ? { streamOptions: renderToStringOptions } : renderToStreamOptions;
-  const streamOptions = { ...options?.streamOptions, nonce: pageContext.cspNonce ?? undefined };
+  const streamOptions = { ...options?.streamOptions, nonce: pageContext.cspNonce ?? options?.streamOptions?.nonce };
   // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this function returns, then the
   // HTML has started and only the stream can tell the browser
   let boundaryAbort: unknown;

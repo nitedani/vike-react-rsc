@@ -1385,6 +1385,10 @@ function testClientDisconnect() {
   test("+react's renderToStreamOptions.signal stops the render, as in vike-react", async () => {
     expect(await fetchHtml("/slow-user-signal")).to.include("<p>Loading</p>").and.not.include("<p>Resolved</p>");
   });
+
+  test("+react's streamOptions.nonce is on React's scripts when Vike sets no cspNonce, as in vike-react", async () => {
+    expect(await fetchHtml("/slow-user-signal")).to.include('<script nonce="app-nonce">').and.not.match(/<script>(\$R|requestAnimationFrame)/);
+  });
 }
 
 function testGonePassToClientValue() {
