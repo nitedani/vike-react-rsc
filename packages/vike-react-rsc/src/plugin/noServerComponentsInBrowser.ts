@@ -80,7 +80,7 @@ async function getServerComponentInBrowserError(chain: string[], getComponentCon
   const through = index > 0 ? ` through ${importers.slice(0, index).reverse().join(", ")}` : "";
   const imports = clientIndex === -1 ? "imports" : 'starts with "use client" and imports';
   const moveHooks = ', and move its hooks and event handlers into their own "use client" component';
-  // Without "use client", a Page, Layout, Wrapper or Loading that imports a server component, not by import(), runs on the server; any other file where its importer runs
+  // A file without a directive runs where the file that imports it runs, except a Page, Layout, Wrapper or Loading that imports a server component (not by import()): it runs on the server
   let toServer: string;
   if (clientIndex === -1) {
     toServer = getComponentConfig(chain.at(-1)!)
