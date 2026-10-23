@@ -154,20 +154,13 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort).finally(render.clear);
         htmlRender.abort();
       } else {
-        // A workaround, as react-streaming spreads streamOptions over its own signal, which its timeout aborts. TODO: once
-        // https://github.com/brillout/react-streaming/pull/62 is released, pass htmlRender.signal as renderToStream()'s own
-        // `signal` option, and drop this and onTimeout's abort.
-        const reactOptions = { ...streamOptions, formState, signal: htmlRender.signal };
         const stream = await renderToStream(page, {
           userAgent: pageContext.headers?.["user-agent"],
           // Else react-streaming streams, except to bots
           disable: streamSetting.enable === false || undefined,
           ...options,
-          streamOptions: reactOptions,
-          onTimeout: () => {
-            htmlRender.abort();
-            options?.onTimeout?.();
-          },
+          streamOptions: { ...streamOptions, formState },
+          signal: htmlRender.signal,
           onBoundaryError: (error) => {
             const abort = getAbort(error);
             if (abort) onAbort(error, abort);
