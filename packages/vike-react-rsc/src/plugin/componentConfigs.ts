@@ -54,11 +54,9 @@ async function readComponentConfigs(partImports: PartImport[], context: ResolveC
   const byFile = new Map<string, Part[]>();
   for (const { file, config } of imports) {
     if (!file) continue;
-    const configs = byFile.get(getFile(file)) ?? [];
-    if (!configs.some((c) => c.configName === config.configName && c.exportName === config.exportName && c.isServerComponentImport === config.isServerComponentImport)) {
-      configs.push(config);
-    }
-    byFile.set(getFile(file), configs);
+    const parts = byFile.get(getFile(file)) ?? [];
+    parts.push(config);
+    byFile.set(getFile(file), parts);
   }
   return { byFile, clientImports, packageImports };
 }
