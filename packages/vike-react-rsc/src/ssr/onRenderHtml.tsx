@@ -122,10 +122,12 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
       if (pageContext.isPrerendering) {
         pageContext.pageHtmlString = await renderWhole(page, streamOptions, onAbort);
       } else {
+        // Whole, as from vike-react's renderToString(), for the page's +onAfterRenderHtml
+        const toHookString = rendersToString && !!pageContext.config.onAfterRenderHtml;
         const stream = await renderToStream(page, {
           userAgent: pageContext.headers?.["user-agent"],
           // Else react-streaming streams, except to bots
-          disable: streamSetting.enable === false || undefined,
+          disable: streamSetting.enable === false || toHookString || undefined,
           ...renderToStreamOptions,
           streamOptions: { ...streamOptions, formState: flight?.formState },
           onBoundaryError: (error) => {
@@ -137,8 +139,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         // A crawler gets the page whole, so Vike can still answer a boundary's abort, which react-streaming reports late
         if (stream.disabled) await stream.streamEnd;
         void stream.streamEnd.then(() => htmlSent.abort());
-        // As from vike-react's renderToString(), for the page's +onAfterRenderHtml
-        if (rendersToString && pageContext.config.onAfterRenderHtml) {
+        if (toHookString) {
           pageContext.pageHtmlString = await new Response(stream.readable).text();
         } else {
           deps.injectToStream = stream.injectToStream;
