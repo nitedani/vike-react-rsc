@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { getVikeConfig } from "vike/plugin";
-import { createIdResolver, type Environment } from "vite";
+import { resolveForBrowser } from "./browserResolver";
 import { getFile, startsWithDirective } from "./parse";
 import { getPartImports, type PartImport } from "./vikeParts";
 
@@ -59,16 +59,6 @@ async function readComponentConfigs(partImports: PartImport[], context: ResolveC
     byFile.set(getFile(file), parts);
   }
   return { byFile, clientImports, packageImports };
-}
-
-// The file the browser loads for an import, as the client env resolves it, with the browser's conditions
-export let resolveForBrowser: (importPath: string, importer: string | undefined) => Promise<string | undefined> = () => {
-  throw new Error("[vike-react-rsc] The client env isn't known yet");
-};
-
-export function setBrowserEnvironment(environment: Environment): void {
-  const resolve = createIdResolver(environment.getTopLevelConfig());
-  resolveForBrowser = (importPath, importer) => resolve(environment, importPath, importer);
 }
 
 export type ResolveContext = { environment: { name: string }; resolve: (source: string, importer?: string) => Promise<{ id: string } | null> };

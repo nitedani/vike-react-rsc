@@ -2,7 +2,8 @@ import { readdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import type { Environment, ResolvedConfig } from "vite";
 import packageJson from "../../package.json";
-import { resolveForBrowser, type ResolveContext } from "./componentConfigs";
+import { resolveForBrowser } from "./browserResolver";
+import type { ResolveContext } from "./componentConfigs";
 import { getDirectives, getImportSources, isModuleFile, parseCompiled, type Directive } from "./parse";
 
 /** The first "use server component" file that `file` imports, through files without a directive, as the files from `file` to
