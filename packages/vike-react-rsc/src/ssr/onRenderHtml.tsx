@@ -111,8 +111,11 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
     // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
     await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
   } catch (error) {
-    // Vike gets no HTML, so nothing reads the Flight
+    // Vike gets no HTML, so nothing reads the Flight, nor the HTML: cancelling the stream the hooks left stops React's
+    // render, also through a stream a hook piped from it
     cancelFlight(pageContext, htmlSent);
+    const html = pageContext.pageHtmlStream?.readable;
+    if (html && !html.locked) void html.cancel();
     // The client left: nobody gets the HTML, nor the error its cancellation caused
     if (left?.aborted) return;
     throw error;

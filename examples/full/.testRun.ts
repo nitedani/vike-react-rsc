@@ -93,7 +93,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testActionPageFailure()
       (logSource === "Browser Error" && logText.includes("status of 404")) ||
       // testClientDisconnect()
-      (logSource === "stderr" && logText.includes("HTTP response ← /slow-hook-throws 500")) ||
+      (logSource === "stderr" &&
+        (logText.includes("HTTP response ← /slow-hook-throws 500") || logText.includes("HTTP response ← /slow-after-hook-throws 500"))) ||
       // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
       (logSource === "stderr" && logText.includes(RSC_LOAD_ERROR)) ||
       logText.includes(RSC_LOAD_ERROR_LOG) ||
@@ -1348,12 +1349,19 @@ function testClientDisconnect() {
     }
   });
 
-  test("An HTML hook that throws stops the render of the page's server components", async () => {
-    const before = await getServerCount("slow");
-    expect((await fetch(getServerUrl() + "/slow-hook-throws")).status).to.equal(500);
-    expectLog("Thrown by /slow-hook-throws's +onBeforeRenderHtml", { filter: ({ logSource }) => logSource === "stderr" });
-    await sleep(2500);
-    expect(await getServerCount("slow")).to.equal(before);
+  test("An HTML hook that throws stops the page's render, of its server and client components", async () => {
+    // A server component waits in /slow-hook-throws, a client component waits for its own data in the streamed
+    // /slow-after-hook-throws
+    for (const [path, key, hook] of [
+      ["/slow-hook-throws", "slow", "+onBeforeRenderHtml"],
+      ["/slow-after-hook-throws", "slow-client", "+onAfterRenderHtml"],
+    ] as const) {
+      const before = await getServerCount(key);
+      expect((await fetch(getServerUrl() + path)).status, path).to.equal(500);
+      expectLog(`Thrown by ${path}'s ${hook}`, { filter: ({ logSource }) => logSource === "stderr" });
+      await sleep(2500);
+      expect(await getServerCount(key), path).to.equal(before);
+    }
   });
 }
 
