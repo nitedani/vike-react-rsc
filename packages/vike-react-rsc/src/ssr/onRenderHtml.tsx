@@ -106,8 +106,8 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
 async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps, htmlSent: AbortController, formState: ReactFormState | undefined) {
   const { renderToStringOptions, renderToStreamOptions } = resolveReactOptions(pageContext);
   const streamSetting = resolveStreamSetting(pageContext);
-  // Where vike-react calls renderToString(), its options, and only those, go to the stream's render: server components
-  // render only to a stream
+  // Where vike-react calls renderToString(), its options, and only those, apply, to React's stream render: server
+  // components render only to a stream
   const rendersToString = !streamSetting.enable && !streamSetting.require;
   const options: RenderToStreamOptions | undefined = rendersToString ? { streamOptions: renderToStringOptions } : renderToStreamOptions;
   const streamOptions = { ...options?.streamOptions, nonce: pageContext.cspNonce ?? undefined };
@@ -136,11 +136,24 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         const html = await renderWhole(page, streamOptions, onAbort);
         if (rendersToString) pageContext.pageHtmlString = html;
         else pageContext.pageHtmlStream = toDisabledStream(html);
+      } else if (rendersToString) {
+        // Whole, as from vike-react's renderToString(), for a crawler too. Like a page that streams, the render stops once
+        // the client leaves, or after react-streaming's default timeout.
+        const timeout = AbortSignal.timeout(20 * 1000);
+        const signal = left ? AbortSignal.any([left, timeout]) : timeout;
+        // As react-streaming when it doesn't stream: no large boundary sent apart, with a script that shows it
+        const renderOptions = { ...streamOptions, formState, progressiveChunkSize: Number.MAX_SAFE_INTEGER, signal };
+        // Once the client left before the shell rendered, React rejects, and nobody gets the HTML
+        pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort).catch((error: unknown) => {
+          if (left?.aborted) return "";
+          throw error;
+        });
+        htmlSent.abort();
       } else {
         const stream = await renderToStream(page, {
           userAgent: pageContext.headers?.["user-agent"],
           // Else react-streaming streams, except to bots
-          disable: streamSetting.enable === false || rendersToString || undefined,
+          disable: streamSetting.enable === false || undefined,
           ...options,
           streamOptions: { ...streamOptions, formState },
           onBoundaryError: (error) => {
@@ -149,16 +162,11 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
             else options?.onBoundaryError?.(error);
           },
         });
-        // A page that doesn't stream, and any page for a crawler, is rendered whole, so Vike can still answer a boundary's abort, which react-streaming reports late
+        // A stream: false page, and any page for a crawler, is rendered whole, so Vike can still answer a boundary's abort, which react-streaming reports late
         if (stream.disabled) await stream.streamEnd;
         void stream.streamEnd.then(() => htmlSent.abort());
-        // Whole, as from vike-react's renderToString()
-        if (rendersToString) {
-          pageContext.pageHtmlString = await new Response(stream.readable).text();
-        } else {
-          deps.injectToStream = stream.injectToStream;
-          pageContext.pageHtmlStream = stream;
-        }
+        deps.injectToStream = stream.injectToStream;
+        pageContext.pageHtmlStream = stream;
       }
     }
     // Inside a Suspense boundary, but reported before this function returns, e.g. a crawler's
@@ -199,12 +207,15 @@ function decodeFlight(pageContext: PageContextServer, signal: AbortSignal): Prom
   return createFromReadableStream<PagePayload>(forHtml.pipeThrough(new TransformStream(), { signal }));
 }
 
-// A pre-rendered page has to be complete, so it waits for every Suspense boundary. React's prerender() would, but takes
-// no CSP nonce. react-streaming would, but Vike's pre-rendering loads its own copy, which takes over ours.
+// A page that renders whole, pre-rendered or without +stream, waits for every Suspense boundary. React's prerender() would,
+// but takes no CSP nonce. react-streaming would, but returns its abort() only once the page has rendered, and Vike's
+// pre-rendering loads its own copy, which takes over ours.
 async function renderWhole(page: ReactNode, options: RenderToReadableStreamOptions, onAbort: (error: unknown, abort: Abort) => void) {
   const onError: RenderToReadableStreamOptions["onError"] = (error, errorInfo) => {
     const abort = getAbort(error);
     if (abort) onAbort(error, abort);
+    // Not the abort, nor what failed because of it
+    else if (options.signal?.aborted) return;
     else if (options.onError) options.onError(error, errorInfo);
     else console.error(error);
   };

@@ -1300,19 +1300,22 @@ function testClientDisconnect() {
     expect(await getServerCount("slow")).to.equal(before + 1);
   });
 
-  test("A client leaving a page without +stream, which sends nothing before it has rendered whole, stops the render, and isn't logged as an error", async () => {
-    const before = await getServerCount("slow");
-    await fetchHtml("/slow-whole");
-    expect(await getServerCount("slow")).to.equal(before + 1);
+  test("A client leaving a page without +stream, which sends nothing before it has rendered whole, stops the render of its server and client components, and isn't logged as an error", async () => {
+    // A server component waits in /slow-whole, a client component waits for its own data in /slow-client
+    for (const [path, key] of [["/slow-whole", "slow"], ["/slow-client", "slow-client"]] as const) {
+      const before = await getServerCount(key);
+      await fetchHtml(path);
+      expect(await getServerCount(key)).to.equal(before + 1);
 
-    // Leaving once the render has started, before the Suspense boundary resolves
-    const controller = new AbortController();
-    const response = fetch(getServerUrl() + "/slow-whole", { signal: controller.signal }).catch(() => {});
-    await sleep(500);
-    controller.abort();
-    await response;
-    await sleep(2500);
-    expect(await getServerCount("slow")).to.equal(before + 1);
+      // Leaving once the render has started, before the Suspense boundary resolves
+      const controller = new AbortController();
+      const response = fetch(getServerUrl() + path, { signal: controller.signal }).catch(() => {});
+      await sleep(500);
+      controller.abort();
+      await response;
+      await sleep(2500);
+      expect(await getServerCount(key), path).to.equal(before + 1);
+    }
   });
 }
 
