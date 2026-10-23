@@ -1,6 +1,6 @@
 import type { PageContextServer } from "vike/types";
 
-// E.g. a store the HTML's client components and +Head read, as vike-react-redux creates
+// E.g. a store the HTML's client components and +Head read
 export function onBeforeRenderHtml(pageContext: PageContextServer) {
   pageContext.store = { greeting: "A store +onBeforeRenderHtml created" };
   // E.g. the HTML's own locale
