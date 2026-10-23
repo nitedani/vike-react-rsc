@@ -133,6 +133,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testUsePageContext();
   testWrapper();
   testHead();
+  testOnAfterRenderHtml();
   testHeadSettings(isStatic);
   // plugin-rsc has no client JS to preload in dev
   if (!isDev) testClientJsPreload();
@@ -1031,6 +1032,12 @@ function testHead() {
   test("Head sets the document's head", async () => {
     const html = await fetchHtml("/");
     expect(html.slice(0, html.indexOf("</head>"))).to.include('<meta name="theme-color" content="#f9fafb"/>');
+  });
+}
+
+function testOnAfterRenderHtml() {
+  test("+onAfterRenderHtml gets pageContext.pageHtmlStream on a page with stream: true, pre-rendered too, as in vike-react", async () => {
+    expect(await fetchHtml("/render-html")).to.include('<div id="root" data-root=""><!-- Streamed through +onAfterRenderHtml -->');
   });
 }
 

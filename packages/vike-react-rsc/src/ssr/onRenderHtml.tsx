@@ -120,7 +120,9 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
     if (root !== null) {
       const page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
       if (pageContext.isPrerendering) {
-        pageContext.pageHtmlString = await renderWhole(page, streamOptions, onAbort);
+        const html = await renderWhole(page, streamOptions, onAbort);
+        if (rendersToString) pageContext.pageHtmlString = html;
+        else pageContext.pageHtmlStream = toDisabledStream(html);
       } else {
         // Whole, as from vike-react's renderToString(), for the page's +onAfterRenderHtml
         const toHookString = rendersToString && !!pageContext.config.onAfterRenderHtml;
@@ -196,6 +198,22 @@ async function renderWhole(page: ReactNode, options: RenderToReadableStreamOptio
   const stream = await renderToReadableStream(page, { ...options, onError });
   await stream.allReady;
   return new Response(stream).text();
+}
+
+// As react-streaming's stream once Vike's pre-rendering disabled streaming, as vike-react's +onAfterRenderHtml gets it
+function toDisabledStream(html: string): Awaited<ReturnType<typeof renderToStream>> {
+  return {
+    readable: new Response(html).body!,
+    pipe: null,
+    disabled: true,
+    streamEnd: Promise.resolve(true),
+    hasStreamEnded: () => false,
+    doNotClose: () => () => {},
+    abort: () => {},
+    injectToStream: () => {
+      throw new Error("[vike-react-rsc] pageContext.pageHtmlStream.injectToStream() isn't available when pre-rendering");
+    },
+  };
 }
 
 // Once the HTML has started: search engines skip the page, and a redirect works without JavaScript
