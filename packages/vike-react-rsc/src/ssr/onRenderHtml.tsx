@@ -124,12 +124,10 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         if (rendersToString) pageContext.pageHtmlString = html;
         else pageContext.pageHtmlStream = toDisabledStream(html);
       } else {
-        // Whole, as from vike-react's renderToString(), for the page's +onAfterRenderHtml
-        const toHookString = rendersToString && !!pageContext.config.onAfterRenderHtml;
         const stream = await renderToStream(page, {
           userAgent: pageContext.headers?.["user-agent"],
           // Else react-streaming streams, except to bots
-          disable: streamSetting.enable === false || toHookString || undefined,
+          disable: streamSetting.enable === false || rendersToString || undefined,
           ...renderToStreamOptions,
           streamOptions: { ...streamOptions, formState: flight?.formState },
           onBoundaryError: (error) => {
@@ -141,7 +139,8 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         // A crawler gets the page whole, so Vike can still answer a boundary's abort, which react-streaming reports late
         if (stream.disabled) await stream.streamEnd;
         void stream.streamEnd.then(() => htmlSent.abort());
-        if (toHookString) {
+        // Whole, as from vike-react's renderToString()
+        if (rendersToString) {
           pageContext.pageHtmlString = await new Response(stream.readable).text();
         } else {
           deps.injectToStream = stream.injectToStream;
@@ -160,7 +159,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
   }
 }
 
-// vike-react's resolveStreamSetting(): the HTML streams unless `enable` is false, as when vike-react's `require` is true
+// As vike-react's resolveStreamSetting()
 function resolveStreamSetting(pageContext: PageContextServer): { enable: boolean | null; require: boolean } {
   const streamSetting = { enable: null as boolean | null, require: pageContext.config.streamIsRequired ?? false };
   pageContext.config.stream
