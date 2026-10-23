@@ -121,6 +121,8 @@ export async function actionMiddleware(
   request: Request,
   context: object
 ): Promise<Response | ((response: Response) => Response) | undefined> {
+  // For every page: onRenderHtml() stops the HTML's render once the client leaves, before Vike has a response to cancel
+  Object.assign(context, { rscRequestSignal: request.signal });
   if (request.method !== "POST") return;
   const id = request.headers.get(ACTION_HEADER) ?? undefined;
   const limit = (await getGlobalContext()).config.rsc?.bodySizeLimit ?? 1024 * 1024;

@@ -118,6 +118,17 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
     if (deps.injectToStream) deps.injectToStream(renderAbortMeta(abort));
     else boundaryAbort ??= error;
   };
+  // The Flight's render stops once both its copies are cancelled: the HTML's, and the browser's, which Vike reads once
+  // this function returns
+  const cancelFlight = () => {
+    htmlSent.abort();
+    void pageContext.rscPayload?.cancel();
+  };
+  // Once the client leaves, Vike cancels the HTML, and so the Flight, but only once this function has returned it: until
+  // then, e.g. while a page that doesn't stream renders whole, the request tells
+  const left = pageContext.rscRequestSignal;
+  if (left?.aborted) cancelFlight();
+  else left?.addEventListener("abort", cancelFlight);
   try {
     const { page } = pageContext;
     if (page) {
@@ -155,9 +166,10 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
   } catch (error) {
     const abort = getAbort(error);
     if (!abort) throw error;
-    htmlSent.abort();
-    void pageContext.rscPayload?.cancel();
+    cancelFlight();
     throw toVikeAbort(abort);
+  } finally {
+    left?.removeEventListener("abort", cancelFlight);
   }
 }
 

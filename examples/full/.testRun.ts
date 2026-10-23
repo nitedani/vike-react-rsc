@@ -1299,6 +1299,21 @@ function testClientDisconnect() {
     await sleep(2500);
     expect(await getServerCount("slow")).to.equal(before + 1);
   });
+
+  test("A client leaving a page without +stream, which sends nothing before it has rendered whole, stops the render, and isn't logged as an error", async () => {
+    const before = await getServerCount("slow");
+    await fetchHtml("/slow-whole");
+    expect(await getServerCount("slow")).to.equal(before + 1);
+
+    // Leaving once the render has started, before the Suspense boundary resolves
+    const controller = new AbortController();
+    const response = fetch(getServerUrl() + "/slow-whole", { signal: controller.signal }).catch(() => {});
+    await sleep(500);
+    controller.abort();
+    await response;
+    await sleep(2500);
+    expect(await getServerCount("slow")).to.equal(before + 1);
+  });
 }
 
 function testGonePassToClientValue() {
