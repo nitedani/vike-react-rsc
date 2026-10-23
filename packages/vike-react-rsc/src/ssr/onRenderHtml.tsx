@@ -162,7 +162,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
           // Server components render to a Web stream, and Vike takes either, so the page is the same
           webStream: true,
           streamOptions: { ...streamOptions, formState },
-          signal: htmlRender.signal,
+          signal: options?.signal ? AbortSignal.any([htmlRender.signal, options.signal]) : htmlRender.signal,
           onBoundaryError: (error) => {
             const abort = getAbort(error);
             if (abort) onAbort(error, abort);

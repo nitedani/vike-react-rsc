@@ -1381,6 +1381,10 @@ function testClientDisconnect() {
       expect(await getServerCount("slow-required-timeout")).to.equal(before + i);
     }
   });
+
+  test("+react's renderToStreamOptions.signal stops the render, as in vike-react", async () => {
+    expect(await fetchHtml("/slow-user-signal")).to.include("<p>Loading</p>").and.not.include("<p>Resolved</p>");
+  });
 }
 
 function testGonePassToClientValue() {
