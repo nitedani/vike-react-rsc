@@ -48,7 +48,30 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
 };
 
 async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) {
-  await renderPageToHtml(pageContext, deps);
+  // Aborted once the HTML has rendered, or once nobody gets it: stops React's HTML render and the HTML's copy of the Flight
+  const htmlRender = new AbortController();
+  // Once the client leaves, Vike cancels the HTML, and so the Flight, but only once onRenderHtml() has returned it: until
+  // then, from the Flight's decoding to the last HTML injection, the request tells
+  const left = pageContext.rscRequestSignal;
+  const onLeave = () => cancelRender(pageContext, htmlRender);
+  left?.addEventListener("abort", onLeave);
+  try {
+    left?.throwIfAborted();
+    await renderPageToHtml(pageContext, deps, htmlRender);
+    return await buildDocument(pageContext, deps);
+  } catch (error) {
+    // Vike gets no HTML, so nothing reads the Flight, nor the HTML, whatever stream the hooks left
+    cancelRender(pageContext, htmlRender);
+    if (!left?.aborted) throw error;
+    // The client left: nobody gets the HTML, nor the error its cancellation caused, so Vike sends this instead of a document
+    pageContext.content = "";
+  } finally {
+    left?.removeEventListener("abort", onLeave);
+  }
+}
+
+// The document around the page's HTML, from the HTML injections, the head settings and the tag attributes
+async function buildDocument(pageContext: PageContextServer, deps: ClientDeps) {
   // As onAfterRenderHtml() left them
   if (pageContext.pageHtmlString !== undefined && pageContext.pageHtmlStream !== undefined) {
     throw new Error(
@@ -87,40 +110,23 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
 }
 
 // As vike-react's: sets pageContext.pageHtmlString or pageHtmlStream, between the HTML hooks
-async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps): Promise<void> {
+async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps, htmlRender: AbortController): Promise<void> {
   // Before any HTML hook: server components see pageContext's keys as after a client navigation, which runs none
   // TODO: remove once server components get their own pageContext: https://github.com/nitedani/vike-react-rsc/issues/30
   forkPageContext(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
-  // Aborted once the HTML has rendered, or once nobody gets it: stops React's HTML render and the HTML's copy of the Flight
-  const htmlRender = new AbortController();
-  // Once the client leaves, Vike cancels the HTML, and so the Flight, but only once onRenderHtml() has returned it: until
-  // then, from the Flight's decoding to the last HTML hook, the request tells
-  const left = pageContext.rscRequestSignal;
-  const onLeave = () => cancelRender(pageContext, htmlRender);
-  left?.addEventListener("abort", onLeave);
-  try {
-    left?.throwIfAborted();
-    const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlRender.signal) : undefined;
-    // The Flight's root, or a client Page
-    const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
-    if (root !== null) pageContext.page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
-    // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
-    await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
-    left?.throwIfAborted();
-    await renderRootToHtml(pageContext, deps, htmlRender, flight?.formState);
-    // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
-    await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
-  } catch (error) {
-    // Vike gets no HTML, so nothing reads the Flight, nor the HTML, whatever stream the hooks left
-    cancelRender(pageContext, htmlRender);
-    // The client left: nobody gets the HTML, nor the error its cancellation caused
-    if (left?.aborted) return;
-    throw error;
-  } finally {
-    left?.removeEventListener("abort", onLeave);
-  }
+  const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlRender.signal) : undefined;
+  // The Flight's root, or a client Page
+  const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
+  if (root !== null) pageContext.page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
+  // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
+  await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
+  // The client left during the hook
+  htmlRender.signal.throwIfAborted();
+  await renderRootToHtml(pageContext, deps, htmlRender, flight?.formState);
+  // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
+  await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
 }
 
 // pageContext.page, as +onBeforeRenderHtml left it, to pageContext.pageHtmlString or pageHtmlStream
