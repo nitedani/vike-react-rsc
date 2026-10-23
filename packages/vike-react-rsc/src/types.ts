@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, JSX, ReactNode } from "react";
 import type { HydrationOptions, ReactFormState, RootOptions } from "react-dom/client";
 import type { ServerOptions } from "react-dom/server";
 import type { renderToStream, RenderToStreamOptions } from "react-streaming/server.web";
@@ -105,6 +105,8 @@ declare global {
     interface PageContextServer {
       /** The request's cookies: `get()`, `getAll()` and `has()`, and `set()` and `delete()`, which add a `Set-Cookie` header to the response. Not yet in your own `+onCreatePageContext`, which runs before vike-react-rsc's. */
       cookies: Cookies;
+      /** The root React element of the page. */
+      page?: JSX.Element;
       /** The +Page.jsx component rendered to the HTML string, as from vike-react's renderToString(), on a page whose `+stream` neither enables nor requires streaming. +onAfterRenderHtml can replace it. */
       pageHtmlString?: string;
       /** The +Page.jsx component rendered to an HTML stream. +onAfterRenderHtml can replace it. */

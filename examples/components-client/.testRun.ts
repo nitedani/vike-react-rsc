@@ -259,6 +259,10 @@ function testVikeReactRendering() {
     expect(await fetchHtml("/render-html")).to.include('<meta name="store-greeting" content="A store +onBeforeRenderHtml created"/>');
   });
 
+  test("components: 'client': +onBeforeRenderHtml gets pageContext.page and can replace it, e.g. to wrap it, as in vike-react", async () => {
+    expect(await fetchHtml("/wrap-page")).to.match(/<section id="wrapper">.*<p id="wrapped-child">.*<\/section>/s);
+  });
+
   test("components: 'client': on a full load, server components get the pageContext a client navigation gives them: nothing the HTML hooks do reaches them, and their writes stay theirs", async () => {
     const store = "A store a server component created";
     for (const [pathname, expected] of [

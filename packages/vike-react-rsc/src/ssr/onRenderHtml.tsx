@@ -1,6 +1,7 @@
 import { createFromReadableStream, setOnClientReference } from "@vitejs/plugin-rsc/ssr";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ReactNode } from "react";
+import type { ReactFormState } from "react-dom/client";
 import { renderToStaticMarkup, type RenderToReadableStreamOptions } from "react-dom/server";
 import { renderToReadableStream } from "react-dom/server.edge";
 import { renderToStream, type RenderToStreamOptions } from "react-streaming/server.web";
@@ -14,7 +15,7 @@ import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import { getRedirectUrl } from "../redirect";
-import type { HeadValue, PagePayload, ReactOptions } from "../types";
+import type { HeadValue, PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { getTagAttributesString, type TagAttributes } from "../utils/getTagAttributesString";
 
@@ -87,26 +88,29 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
 async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps): Promise<void> {
   // Before any HTML hook: server components render as after a client navigation, which runs none
   forkPageContext(pageContext);
+  // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
+  const ssr = pageContext.config.ssr !== false;
+  const htmlSent = new AbortController();
+  const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
+  // The Flight's root, or a client Page
+  const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
+  if (root !== null) pageContext.page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
   // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
   await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
-  await renderRootToHtml(pageContext, deps, resolveReactOptions(pageContext));
+  await renderRootToHtml(pageContext, deps, htmlSent, flight?.formState);
   // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
   await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
 }
 
-// The Flight's root, or a client Page, to pageContext.pageHtmlString or pageHtmlStream
-async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps, { renderToStringOptions, renderToStreamOptions }: ReactOptions) {
+// pageContext.page, as +onBeforeRenderHtml left it, to pageContext.pageHtmlString or pageHtmlStream
+async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps, htmlSent: AbortController, formState: ReactFormState | undefined) {
+  const { renderToStringOptions, renderToStreamOptions } = resolveReactOptions(pageContext);
   const streamSetting = resolveStreamSetting(pageContext);
   // Where vike-react calls renderToString(), its options, and only those, go to the stream's render: server components
   // render only to a stream
   const rendersToString = !streamSetting.enable && !streamSetting.require;
   const options: RenderToStreamOptions | undefined = rendersToString ? { streamOptions: renderToStringOptions } : renderToStreamOptions;
   const streamOptions = { ...options?.streamOptions, nonce: pageContext.cspNonce ?? undefined };
-  // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
-  const ssr = pageContext.config.ssr !== false;
-  const htmlSent = new AbortController();
-  const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
-  const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
   // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this function returns, then the
   // HTML has started and only the stream can tell the browser
   let boundaryAbort: unknown;
@@ -115,8 +119,8 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
     else boundaryAbort ??= error;
   };
   try {
-    if (root !== null) {
-      const page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
+    const { page } = pageContext;
+    if (page) {
       if (pageContext.isPrerendering) {
         const html = await renderWhole(page, streamOptions, onAbort);
         if (rendersToString) pageContext.pageHtmlString = html;
@@ -127,7 +131,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
           // Else react-streaming streams, except to bots
           disable: streamSetting.enable === false || rendersToString || undefined,
           ...options,
-          streamOptions: { ...streamOptions, formState: flight?.formState },
+          streamOptions: { ...streamOptions, formState },
           onBoundaryError: (error) => {
             const abort = getAbort(error);
             if (abort) onAbort(error, abort);
