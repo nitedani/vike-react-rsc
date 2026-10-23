@@ -243,8 +243,9 @@ declare global {
       ssr?: boolean;
       /**
        * Settings for HTML Streaming. Server components render only to a stream, so the first load's HTML streams unless
-       * this turns it off, as in vike-react with `stream.require`. `false` sends the HTML at once, every Suspense boundary
-       * resolved. The stream is a Web Stream, whatever `type` says.
+       * this turns it off, as in vike-react with `stream.require`. Without a `+stream` that enables or requires streaming,
+       * a page with +onAfterRenderHtml doesn't stream either: the hook gets `pageContext.pageHtmlString`, as in vike-react.
+       * `false` sends the HTML at once, every Suspense boundary resolved. The stream is a Web Stream, whatever `type` says.
        *
        * https://vike.dev/stream
        */
