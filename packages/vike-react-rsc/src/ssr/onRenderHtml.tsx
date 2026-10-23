@@ -93,20 +93,31 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
   const htmlSent = new AbortController();
-  const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
-  // The Flight's root, or a client Page
-  const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
-  if (root !== null) pageContext.page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
+  // Once the client leaves, Vike cancels the HTML, and so the Flight, but only once onRenderHtml() has returned it: until
+  // then, from the Flight's decoding to the last HTML hook, the request tells
+  const left = pageContext.rscRequestSignal;
+  const onLeave = () => cancelFlight(pageContext, htmlSent);
+  left?.addEventListener("abort", onLeave);
   try {
+    left?.throwIfAborted();
+    const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlSent.signal) : undefined;
+    // The Flight's root, or a client Page
+    const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
+    if (root !== null) pageContext.page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
     // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
     await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
+    left?.throwIfAborted();
     await renderRootToHtml(pageContext, deps, htmlSent, flight?.formState);
     // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
     await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
   } catch (error) {
     // Vike gets no HTML, so nothing reads the Flight
     cancelFlight(pageContext, htmlSent);
+    // The client left: nobody gets the HTML, nor the error its cancellation caused
+    if (left?.aborted) return;
     throw error;
+  } finally {
+    left?.removeEventListener("abort", onLeave);
   }
 }
 
@@ -126,12 +137,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
     if (deps.injectToStream) deps.injectToStream(renderAbortMeta(abort));
     else boundaryAbort ??= error;
   };
-  const onLeave = () => cancelFlight(pageContext, htmlSent);
-  // Once the client leaves, Vike cancels the HTML, and so the Flight, but only once this function has returned it: until
-  // then, e.g. while a page that doesn't stream renders whole, the request tells
   const left = pageContext.rscRequestSignal;
-  if (left?.aborted) onLeave();
-  else left?.addEventListener("abort", onLeave);
   try {
     const { page } = pageContext;
     if (page) {
@@ -147,13 +153,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         const signal = left ? AbortSignal.any([left, timedOut.signal]) : timedOut.signal;
         // As react-streaming when it doesn't stream: no large boundary sent apart, with a script that shows it
         const renderOptions = { ...streamOptions, formState, progressiveChunkSize: Number.MAX_SAFE_INTEGER, signal };
-        // Once the client left before the shell rendered, React rejects, and nobody gets the HTML
-        pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort)
-          .catch((error: unknown) => {
-            if (left?.aborted) return "";
-            throw error;
-          })
-          .finally(() => clearTimeout(timeout));
+        pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort).finally(() => clearTimeout(timeout));
         htmlSent.abort();
       } else {
         const stream = await renderToStream(page, {
@@ -181,8 +181,6 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
     const abort = getAbort(error);
     if (!abort) throw error;
     throw toVikeAbort(abort);
-  } finally {
-    left?.removeEventListener("abort", onLeave);
   }
 }
 
