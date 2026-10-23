@@ -2,7 +2,7 @@
 
 import type { ReactElement } from "react";
 import { redirect, render } from "vike/abort";
-import { getPageContext } from "vike-react-rsc/pageContext";
+import { getPageContext, usePageContext } from "vike-react-rsc/pageContext";
 import { getRequestContext, rerender } from "vike-react-rsc/server";
 import { getError } from "../pages/misuse/getError";
 
@@ -57,9 +57,9 @@ export async function loginThenRender(): Promise<string> {
   throw render("/account");
 }
 
-// What the +middleware ordered after vike-react-rsc's adds, and what getPageContext() throws, as an action has no page
+// What the +middleware ordered after vike-react-rsc's adds, and what getPageContext() and usePageContext() throw, as an action has no page
 export async function readRequestContext(): Promise<string> {
-  return `${getRequestContext().mwMethod} | ${getError(getPageContext)}`;
+  return `${getRequestContext().mwMethod} | ${getError(getPageContext)} | ${getError(usePageContext)}`;
 }
 
 // With useActionState(): its count survives a submit without JavaScript

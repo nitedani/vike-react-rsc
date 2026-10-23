@@ -1380,6 +1380,8 @@ function testActionSkipsData() {
 
 const actionNoPageError =
   "[vike-react-rsc] getPageContext() needs a page, and a server action or a component passed to rsc() has none: call getRequestContext() from vike-react-rsc/server";
+const usePageContextInActionError =
+  "[vike-react-rsc] usePageContext() needs a page, and a server action or a component passed to rsc() has none: call getRequestContext() from vike-react-rsc/server";
 const returnedNoPageError =
   "[vike-react-rsc] getPageContext() needs a page, and the server components a server action returns without rerender() have none: load them with rsc(), or call getRequestContext() from vike-react-rsc/server";
 
@@ -1388,12 +1390,12 @@ function testActionRequestContext() {
     await page.goto(getServerUrl() + "/actions");
     expect(await page.textContent("[data-page-request-context]")).to.equal("GET");
   });
-  test("Server action: getRequestContext() has what every +middleware adds, and getPageContext() throws", async () => {
+  test("Server action: getRequestContext() has what every +middleware adds, and getPageContext() and usePageContext() throw", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
     await page.click('button:has-text("Read the request context")');
     await autoRetry(async () => {
-      expect(await page.textContent("[data-result]")).to.equal(`Returned: POST | ${actionNoPageError}`);
+      expect(await page.textContent("[data-result]")).to.equal(`Returned: POST | ${actionNoPageError} | ${usePageContextInActionError}`);
     });
   });
   test("Server action: getPageContext() throws in the server components it returns without rerender()", async () => {
