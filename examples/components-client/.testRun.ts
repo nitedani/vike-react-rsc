@@ -611,6 +611,36 @@ function testClientComponentHmr() {
 }
 
 function testServerComponentImports() {
+  test('Build: a Page without a directive importing a server component with import() fails the build, saying to show it through rsc() or start the Page with "use server component"', async () => {
+    const output = await getBuildError(
+      "./pages/js-page/+Page.js",
+      () =>
+        'import { createElement, lazy } from "react";\n' +
+        'const Markdown = lazy(() => import("../../components/Markdown").then(({ Markdown }) => ({ default: Markdown })));\n' +
+        'export default function Page() {\n  return createElement(Markdown, { source: "**A** page" });\n}\n'
+    );
+    expect(output).to.include(
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/js-page/+Page.js imports it. ' +
+        'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
+        'or, if pages/js-page/+Page.js needs nothing from the browser (no hooks, no event handlers), start it with "use server component"; ' +
+        "or, if pages/js-page/+Page.js imports only its types, write `import type`"
+    );
+  });
+
+  test("Build: a client hook importing a server component fails the build, saying to show it through rsc() or import it only from server components", async () => {
+    // The dev server sees the edit too, and renders nothing with it while no page is open
+    await page.goto("about:blank");
+    const output = await getBuildError(
+      "./pages/after-render/+onAfterRenderClient.ts",
+      () => 'import { Markdown } from "../../components/Markdown";\n\nexport function onAfterRenderClient() {\n  console.log(Markdown);\n}\n'
+    );
+    expect(output).to.include(
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/after-render/+onAfterRenderClient.ts imports it. ' +
+        'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
+        "or, import it only from server components; or, if pages/after-render/+onAfterRenderClient.ts imports only its types, write `import type`"
+    );
+  });
+
   test('Build: a "use client" file importing a server component fails the build, saying to show it through rsc() or remove "use client"', async () => {
     const output = await getBuildError(
       "./pages/js-page/+Page.js",
@@ -650,14 +680,34 @@ function testServerComponentImports() {
     );
   });
 
-  test('Build: a "use client" file importing a package\'s server component with import() fails the build, naming the file', async () => {
+  test('Build: a "use client" file importing a package\'s server component with import() fails the build, saying to show it through rsc() or replace "use client" with "use server component"', async () => {
     const output = await getBuildError(
       "./pages/js-page/+Page.js",
       () =>
         '"use client";\nimport { createElement, lazy } from "react";\nconst ServerBadge = lazy(() => import("server-component-package/ServerBadge"));\n' +
         'export default function Page() {\n  return createElement(ServerBadge, { label: "A badge" });\n}\n'
     );
-    expect(output).to.include(packageServerComponentInBrowser);
+    expect(output).to.include(
+      `${packageServerComponentInBrowser} ` +
+        'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
+        'or, replace "use client" in pages/js-page/+Page.js with "use server component", and move its hooks and event handlers into their own "use client" component; ' +
+        "or, if pages/js-page/+Page.js imports only its types, write `import type`"
+    );
+  });
+
+  test('Build: a "use client" component importing a server component fails the build, saying to show it through rsc() or pass it in as children or a prop', async () => {
+    // The dev server sees the edit too, and renders nothing with it while no page is open
+    await page.goto("about:blank");
+    const output = await getBuildError("./components/Counter.tsx", (source) =>
+      source
+        .replace('import { useState } from "react";', '$&\nimport { Markdown } from "./Markdown";')
+        .replace("export function Counter() {", "$&\n  console.log(Markdown);")
+    );
+    expect(output).to.include(
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: components/Counter.tsx starts with "use client" and imports it. ' +
+        'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
+        "or, render it in a server component and pass it to components/Counter.tsx as children or a prop; or, if components/Counter.tsx imports only its types, write `import type`"
+    );
   });
 
   test('Dev: a "use client" file importing a package\'s server component, which the browser loads pre-bundled, gets the error', async () => {
