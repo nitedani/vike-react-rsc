@@ -78,7 +78,7 @@ declare global {
     interface PageContextServer {
       /** The request's cookies: `get()`, `getAll()` and `has()`, and `set()` and `delete()`, which add a `Set-Cookie` header to the response. Not yet in your own `+onCreatePageContext`, which runs before vike-react-rsc's. */
       cookies: Cookies;
-      /** The +Page.jsx component rendered to the HTML string, when pre-rendering. +onAfterRenderHtml can replace it. */
+      /** The +Page.jsx component rendered to the HTML string, when pre-rendering, or with `stream: false` unless an extension requires streaming. +onAfterRenderHtml can replace it. */
       pageHtmlString?: string;
       /** The +Page.jsx component rendered to an HTML stream. +onAfterRenderHtml can replace it. */
       pageHtmlStream?: PageHtmlStream;

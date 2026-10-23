@@ -281,9 +281,10 @@ function testVikeReactRendering() {
     }
   });
 
-  test("components: 'client': +onAfterRenderHtml runs once the page rendered to HTML, with pageContext.pageHtmlStream, and the HTML it sets is sent, as in vike-react", async () => {
+  test("components: 'client': +onAfterRenderHtml runs once the page rendered to HTML, with pageContext.pageHtmlStream, or pageHtmlString on a stream: false page, and the HTML it sets is sent, as in vike-react", async () => {
     expect(await fetchHtml("/render-html")).to.include('<div id="root"><!-- Streamed through +onAfterRenderHtml -->');
     expect(await fetchHtml("/stream-off")).to.include("<!-- Rendered to a string by +onAfterRenderHtml --></div>");
+    expect(await fetchHtml("/minify-html")).to.include('<p id="minified">Several spaces</p>');
   });
 
   test("components: 'client': stream: false sends the HTML at once, every Suspense boundary resolved, with streamIsRequired too, as in vike-react", async () => {
