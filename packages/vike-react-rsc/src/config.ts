@@ -16,7 +16,7 @@ const vikeReactRsc: Config = {
   // TODO: remove the cast once https://github.com/vikejs/vike/pull/3627 is released
   middleware: [
     "import:vike-react-rsc/__internal/middleware:actionRedirectMiddleware",
-    "import:vike-react-rsc/__internal/middleware:actionMiddleware",
+    "import:vike-react-rsc/__internal/middleware:rscMiddleware",
   ] as never,
   rscRuntime: "import:vike-react-rsc/__internal/rsc:rscRuntime",
   passToClient: ["rscPayload"],
