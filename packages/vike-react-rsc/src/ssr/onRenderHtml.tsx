@@ -98,9 +98,10 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
 async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps, { renderToStringOptions, renderToStreamOptions }: ReactOptions) {
   const streamSetting = resolveStreamSetting(pageContext);
   // Where vike-react calls renderToString(), its options go to the stream's render: server components render only to a stream
+  const rendersToString = !streamSetting.enable && !streamSetting.require;
   const streamOptions = {
     ...renderToStreamOptions?.streamOptions,
-    ...(!streamSetting.enable && !streamSetting.require && renderToStringOptions),
+    ...(rendersToString && renderToStringOptions),
     nonce: pageContext.cspNonce ?? undefined,
   };
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
@@ -137,7 +138,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         if (stream.disabled) await stream.streamEnd;
         void stream.streamEnd.then(() => htmlSent.abort());
         // As from vike-react's renderToString(), for the page's +onAfterRenderHtml
-        if (!streamSetting.enable && !streamSetting.require && pageContext.config.onAfterRenderHtml) {
+        if (rendersToString && pageContext.config.onAfterRenderHtml) {
           pageContext.pageHtmlString = await new Response(stream.readable).text();
         } else {
           deps.injectToStream = stream.injectToStream;
