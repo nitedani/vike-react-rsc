@@ -114,7 +114,7 @@ async function decideIsServerComponent(
     return { isServerComponent: true, read: new Set([file]) };
   }
   if (directives.length > 0 || !isClientDefault() || !isAppFile(file)) return { isServerComponent: false, read: new Set([file]) };
-  const { serverComponentImport, read } = await findServerComponentImport(file, context);
+  const { serverComponentImport, read } = await findServerComponentImport(file, (file) => getModule(context, file));
   return { isServerComponent: serverComponentImport !== undefined, serverComponentImport, read };
 }
 

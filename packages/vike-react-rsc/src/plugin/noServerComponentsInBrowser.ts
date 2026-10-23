@@ -25,7 +25,7 @@ export function noServerComponentsInBrowser(): Plugin {
       // In dev, the browser loads a package as Vite pre-bundled it, from the package's file the import names
       const preBundled = Object.values(environment.depsOptimizer?.metadata.optimized ?? {}).find(({ file }) => file === getFile(id))?.src;
       const serverComponentImport = preBundled
-        ? await findPackageServerComponentImport(preBundled, this)
+        ? await findPackageServerComponentImport(preBundled, environment.getTopLevelConfig())
         : (await startsWithDirective(code, id, "use server component")) && [id];
       if (!serverComponentImport) return;
       const { moduleGraph } = environment;

@@ -8,16 +8,16 @@ import { getDirectives, getImportSources, isModuleFile, parseCompiled, type Dire
 
 /** The first "use server component" file that `file` imports, through files without a directive, as the files from `file` to
  * it, and every file read to find it */
-export async function findServerComponentImport(file: string, context: Context): Promise<{ serverComponentImport?: string[]; read: Set<string> }> {
+export async function findServerComponentImport(file: string, getModule: GetModule): Promise<{ serverComponentImport?: string[]; read: Set<string> }> {
   const importers = new Map<string, string>();
   const read = new Set([file]);
   const queue = [file];
   for (const importer of queue) {
-    for (const imported of (await getModule(context, importer)).imports) {
+    for (const imported of (await getModule(importer)).imports) {
       if (read.has(imported)) continue;
       read.add(imported);
       importers.set(imported, importer);
-      const { directives } = await getModule(context, imported);
+      const { directives } = await getModule(imported);
       if (directives.includes("use server component")) {
         const chain = [imported];
         while (chain[0] !== file) chain.unshift(importers.get(chain[0]!)!);
@@ -32,16 +32,17 @@ export async function findServerComponentImport(file: string, context: Context):
 
 /** The files from a package's file to the "use server component" file it is or imports through files without a
  * directive, if any, as the browser loads them */
-export async function findPackageServerComponentImport(file: string, context: Context): Promise<string[] | undefined> {
-  const { directives } = await getModule(context, file);
+export async function findPackageServerComponentImport(file: string, config: ResolvedConfig): Promise<string[] | undefined> {
+  const getModule = (file: string) => readModule(file, () => readFile(file, "utf8"), config, async (source) => resolveForBrowser(source, file));
+  const { directives } = await getModule(file);
   if (directives.includes("use server component")) return [file];
-  if (directives.length === 0) return (await findServerComponentImport(file, context)).serverComponentImport;
+  if (directives.length === 0) return (await findServerComponentImport(file, getModule)).serverComponentImport;
 }
 
 /** Whether a file imports a "use server component" file through files without a directive, whatever its own directive: under
  * `'client'`, a Page, Layout, Wrapper or Loading without one that does is a server component */
 export async function importsServerComponent(file: string, context: Context): Promise<boolean> {
-  return (await findServerComponentImport(file, context)).serverComponentImport !== undefined;
+  return (await findServerComponentImport(file, (file) => getModule(context, file))).serverComponentImport !== undefined;
 }
 
 /** A module's directives and imports in the env, of the app or of a package. `read` gives its code if it isn't read yet */
@@ -127,6 +128,7 @@ async function findPackage(name: string, from: string): Promise<string | undefin
 }
 
 type WalkedModule = { directives: Directive[]; imports: string[] };
+type GetModule = (file: string) => Promise<WalkedModule>;
 export type Context = ResolveContext & { environment: Environment };
 // Each module's directives and imports, by env and file
 const modules = new WeakMap<Environment, Map<string, Promise<WalkedModule>>>();
