@@ -1,8 +1,7 @@
-import { readFile } from "node:fs/promises";
-import type { Environment, Plugin } from "vite";
-import { getComponentConfigs, type ResolveContext } from "./componentConfigs";
+import type { Plugin } from "vite";
+import { getComponentConfigs } from "./componentConfigs";
 import { getFile, getFileName, isAppFile, isModuleFile, startsWithDirective } from "./parse";
-import { findPackageServerComponentImport, importsServerComponent } from "./serverComponentImports";
+import { findPackageServerComponentImport, getModule, importsServerComponent, type Context } from "./serverComponentImports";
 
 /** The browser importing a `"use server component"` file is an error, in dev and in the build, naming each Page, Layout, Wrapper or Loading that imports
  * it and the files in between. A Page, Layout, Wrapper or Loading with the directive is skipped: the browser gets at most a stub of it (see getServerComponentStub) */
@@ -26,7 +25,7 @@ export function noServerComponentsInBrowser(): Plugin {
       // In dev, the browser loads a package as Vite pre-bundled it, from the package's file the import names
       const preBundled = Object.values(environment.depsOptimizer?.metadata.optimized ?? {}).find(({ file }) => file === getFile(id))?.src;
       const serverComponentImport = preBundled
-        ? await findPackageServerComponentImport(preBundled, environment.getTopLevelConfig())
+        ? await findPackageServerComponentImport(preBundled, this)
         : (await startsWithDirective(code, id, "use server component")) && [id];
       if (!serverComponentImport) return;
       const { moduleGraph } = environment;
@@ -49,7 +48,6 @@ export function noServerComponentsInBrowser(): Plugin {
 }
 
 type GetComponentConfig = Awaited<ReturnType<typeof getComponentConfigs>>;
-type Context = ResolveContext & { environment: Environment };
 
 // Each way from `id` up its importers to a Page, Layout, Wrapper or Loading, or to a file the app's code doesn't import, the way
 // plugin-rsc reports server-only. Every page that imports it, not just the first: in dev, the one the browser opens.
@@ -76,7 +74,7 @@ async function getServerComponentInBrowserError(chain: string[], getComponentCon
   const [file, ...importers] = chain.map((id) => getFileName(id, context.environment.config.root));
   if (importers.length === 0) return `${file} starts with "use server component", but the browser loads it`;
   // The file that puts the chain in the browser, or else the file at its top
-  const clientIndex = (await Promise.all(chain.slice(1).map(isClientComponentFile))).indexOf(true);
+  const clientIndex = (await Promise.all(chain.slice(1).map((id) => isClientComponentFile(id, context)))).indexOf(true);
   const index = clientIndex === -1 ? importers.length - 1 : clientIndex;
   const importer = importers[index]!;
   const through = index > 0 ? ` through ${importers.slice(0, index).reverse().join(", ")}` : "";
@@ -102,6 +100,6 @@ async function getServerComponentInBrowserError(chain: string[], getComponentCon
   );
 }
 
-async function isClientComponentFile(id: string): Promise<boolean> {
-  return startsWithDirective(await readFile(getFile(id), "utf8").catch(() => ""), id, "use client");
+async function isClientComponentFile(id: string, context: Context): Promise<boolean> {
+  return (await getModule(context, getFile(id))).directives.includes("use client");
 }

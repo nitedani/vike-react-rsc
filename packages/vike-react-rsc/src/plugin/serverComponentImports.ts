@@ -7,16 +7,16 @@ import { getDirectives, getImportSources, isModuleFile, parseCompiled, type Dire
 
 /** The first "use server component" file that `file` imports, through files without a directive, as the files from `file` to
  * it, and every file read to find it */
-export async function findServerComponentImport(file: string, getModule: GetModule): Promise<{ serverComponentImport?: string[]; read: Set<string> }> {
+export async function findServerComponentImport(file: string, context: Context): Promise<{ serverComponentImport?: string[]; read: Set<string> }> {
   const importers = new Map<string, string>();
   const read = new Set([file]);
   const queue = [file];
   for (const importer of queue) {
-    for (const imported of (await getModule(importer)).imports) {
+    for (const imported of (await getModule(context, importer)).imports) {
       if (read.has(imported)) continue;
       read.add(imported);
       importers.set(imported, importer);
-      const { directives } = await getModule(imported);
+      const { directives } = await getModule(context, imported);
       if (directives.includes("use server component")) {
         const chain = [imported];
         while (chain[0] !== file) chain.unshift(importers.get(chain[0]!)!);
@@ -31,29 +31,42 @@ export async function findServerComponentImport(file: string, getModule: GetModu
 
 /** The files from a package's file to the "use server component" file it is or imports through files without a
  * directive, if any, as the browser loads them */
-export async function findPackageServerComponentImport(file: string, config: ResolvedConfig): Promise<string[] | undefined> {
-  const getModule = (file: string) => readModule(file, () => readFile(file, "utf8"), config, async (source) => resolveForBrowser(source, file));
-  const { directives } = await getModule(file);
+export async function findPackageServerComponentImport(file: string, context: Context): Promise<string[] | undefined> {
+  const { directives } = await getModule(context, file);
   if (directives.includes("use server component")) return [file];
-  if (directives.length === 0) return (await findServerComponentImport(file, getModule)).serverComponentImport;
+  if (directives.length === 0) return (await findServerComponentImport(file, context)).serverComponentImport;
 }
 
 /** Whether a file imports a "use server component" file through files without a directive, whatever its own directive: under
  * `'client'`, a Page, Layout, Wrapper or Loading without one that does is a server component */
-export async function importsServerComponent(file: string, context: ResolveContext & { environment: Environment }): Promise<boolean> {
-  const config = context.environment.getTopLevelConfig();
-  const getModule = (file: string) => readModule(file, () => readFile(file, "utf8"), config, (source) => resolveImport(context, source, file));
-  return (await findServerComponentImport(file, getModule)).serverComponentImport !== undefined;
+export async function importsServerComponent(file: string, context: Context): Promise<boolean> {
+  return (await findServerComponentImport(file, context)).serverComponentImport !== undefined;
+}
+
+/** A module's directives and imports in the env, of the app or of a package. `read` gives its code if it isn't read yet */
+export function getModule(context: Context, file: string, read: () => string | Promise<string> = () => readFile(file, "utf8")): Promise<WalkedModule> {
+  const { environment } = context;
+  let byFile = modules.get(environment);
+  if (!byFile) modules.set(environment, (byFile = new Map()));
+  let walked = byFile.get(file);
+  if (!walked) byFile.set(file, (walked = readModule(file, read, environment.getTopLevelConfig(), (source) => resolveImport(context, source, file))));
+  return walked;
+}
+
+/** Forgets what the env read of the file, or of every file: a new or deleted file can change what its importers import */
+export function invalidateModules(environment: Environment, file?: string): void {
+  if (file) modules.get(environment)?.delete(file);
+  else modules.delete(environment);
 }
 
 /** An import as the browser resolves it, so a walk reads the files the browser would load, without registering the packages
  * for Vite to pre-bundle; or else as the env's plugins do, e.g. vite-tsconfig-paths */
-export async function resolveImport(context: ResolveContext, source: string, importer: string): Promise<string | undefined> {
+async function resolveImport(context: ResolveContext, source: string, importer: string): Promise<string | undefined> {
   return (await resolveForBrowser(source, importer)) ?? (await context.resolve(source, importer))?.id;
 }
 
 // A file that doesn't parse has neither: its own transform reports why
-export async function readModule(
+async function readModule(
   file: string,
   read: () => string | Promise<string>,
   config: ResolvedConfig,
@@ -112,8 +125,10 @@ async function findPackage(name: string, from: string): Promise<string | undefin
   }
 }
 
-export type WalkedModule = { directives: Directive[]; imports: string[] };
-export type GetModule = (file: string) => Promise<WalkedModule>;
+type WalkedModule = { directives: Directive[]; imports: string[] };
+export type Context = ResolveContext & { environment: Environment };
+// Each module's directives and imports, by env and file
+const modules = new WeakMap<Environment, Map<string, Promise<WalkedModule>>>();
 /** Whether a file of the package names "use server component", and the directory of each package it depends on */
 type Package = { namesServerComponent: boolean; dependencies: string[] };
 // By the package's directory: its files stay as installed
