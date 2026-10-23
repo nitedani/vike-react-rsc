@@ -92,6 +92,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
         (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
       // testActionPageFailure()
       (logSource === "Browser Error" && logText.includes("status of 404")) ||
+      // testClientDisconnect()
+      (logSource === "stderr" && logText.includes("HTTP response ← /slow-hook-throws 500")) ||
       // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
       (logSource === "stderr" && logText.includes(RSC_LOAD_ERROR)) ||
       logText.includes(RSC_LOAD_ERROR_LOG) ||
@@ -1316,6 +1318,14 @@ function testClientDisconnect() {
       await sleep(2500);
       expect(await getServerCount(key), path).to.equal(before + 1);
     }
+  });
+
+  test("An HTML hook that throws stops the render of the page's server components", async () => {
+    const before = await getServerCount("slow");
+    expect((await fetch(getServerUrl() + "/slow-hook-throws")).status).to.equal(500);
+    expectLog("Thrown by /slow-hook-throws's +onBeforeRenderHtml", { filter: ({ logSource }) => logSource === "stderr" });
+    await sleep(2500);
+    expect(await getServerCount("slow")).to.equal(before);
   });
 }
 
