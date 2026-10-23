@@ -3,7 +3,7 @@ import { startTransition } from "react";
 import { readPageContextJson } from "vike/__internal/client";
 import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
-import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import { getRedirectUrl } from "../redirect";
 import type { ActionPayload } from "../types";
 import { getCurrentPageContext, showRoot } from "./page";
@@ -14,7 +14,7 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
   // rsc() sets it only during its synchronous call, so it must be read before the first await
   const isAction = !isRscLoad();
   const pageContext = getCurrentPageContext();
-  const response = await postAction(pageContext.urlOriginal, id, args);
+  const response = await postAction(pageContext.urlOriginal, id, args, isAction);
   // Even when the answer is an error, the action may have run
   if (isAction) markRscOutputsStale();
 
@@ -26,10 +26,10 @@ export async function callServer(id: string, args: unknown[]): Promise<unknown> 
   return readAnswer(response, pageContext, isAction);
 }
 
-async function postAction(url: string, id: string, args: unknown[]): Promise<Response> {
+async function postAction(url: string, id: string, args: unknown[], isAction: boolean): Promise<Response> {
   return fetch(url, {
     method: "POST",
-    headers: { [ACTION_HEADER]: id, accept: FLIGHT_CONTENT_TYPE },
+    headers: { [ACTION_HEADER]: id, accept: FLIGHT_CONTENT_TYPE, ...(!isAction && { [RSC_LOAD_HEADER]: "1" }) },
     body: await encodeReply(args),
   });
 }

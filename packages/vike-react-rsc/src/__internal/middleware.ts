@@ -1,1 +1,1 @@
-export { actionMiddleware } from "../ssr/action";
+export { actionMiddleware, actionRedirectMiddleware } from "../ssr/action";

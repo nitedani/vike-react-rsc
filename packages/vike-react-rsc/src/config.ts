@@ -14,7 +14,10 @@ const vikeReactRsc: Config = {
   onError: "import:vike-react-rsc/__internal/onError:onError",
   // Vike's type doesn't list import strings, which it accepts
   // TODO: remove the cast once https://github.com/vikejs/vike/pull/3627 is released
-  middleware: "import:vike-react-rsc/__internal/middleware:actionMiddleware" as never,
+  middleware: [
+    "import:vike-react-rsc/__internal/middleware:actionRedirectMiddleware",
+    "import:vike-react-rsc/__internal/middleware:actionMiddleware",
+  ] as never,
   rscRuntime: "import:vike-react-rsc/__internal/rsc:rscRuntime",
   passToClient: ["rscPayload"],
   clientRouting: true,

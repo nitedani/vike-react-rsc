@@ -52,7 +52,7 @@
     "react": ">=19.3.1 <20",
     "react-dom": ">=19.3.1 <20",
     "react-server-dom-webpack": ">=19.3.1 <20",
-    "vike": "0.4.268-commit-ca58695 || >=0.4.269",
+    "vike": "0.4.268-commit-344615d || >=0.4.269",
     "vite": ">=8.0.0"
   },
   "peerDependenciesMeta": {
@@ -62,6 +62,7 @@
   },
   "dependencies": {
     "@brillout/json-serializer": "^0.5.27",
+    "@universal-middleware/core": "^0.7.1",
     "react-streaming": "^0.4.21"
   },
   "devDependencies": {
@@ -71,7 +72,7 @@
     "react-dom": "^19.3.1",
     "tsdown": "^0.22.14",
     "typescript": "^7.0.2",
-    "vike": "0.4.268-commit-ca58695",
+    "vike": "0.4.268-commit-344615d",
     "vite": "^8.2.0",
     "@vitejs/plugin-rsc": "^0.5.36"
   }
