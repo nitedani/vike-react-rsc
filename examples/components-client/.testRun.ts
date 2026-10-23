@@ -311,10 +311,18 @@ function testVikeReactRendering() {
     expect(await response.text()).to.match(/Show the answer.*Answered after a delay/s);
   });
 
-  test("components: 'client': +react sets the options of the HTML's render and of hydrateRoot(), as in vike-react", async () => {
+  test("components: 'client': +react sets the options of a stream: true page's render and of hydrateRoot(), as in vike-react", async () => {
     const id = /<p id="use-id">([^<]*)<\/p>/.exec(await fetchHtml("/react-options"))?.[1];
     expect(id).to.include("vrr-");
     await page.goto(getServerUrl() + "/react-options");
+    await waitForHydration("#use-id");
+    expect(await page.textContent("#use-id")).to.equal(id);
+  });
+
+  test("components: 'client': +react's renderToStreamOptions don't apply to a page without +stream, which hydrates, as in vike-react", async () => {
+    const id = /<p id="use-id">([^<]*)<\/p>/.exec(await fetchHtml("/stream-only-options"))?.[1];
+    expect(id).to.not.include("vrr-stream-");
+    await page.goto(getServerUrl() + "/stream-only-options");
     await waitForHydration("#use-id");
     expect(await page.textContent("#use-id")).to.equal(id);
   });

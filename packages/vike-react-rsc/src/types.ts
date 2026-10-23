@@ -34,15 +34,15 @@ export type ReactOptions = {
   /**
    * Options passed to React's `renderToString()` in vike-react, which renders a page whose `+stream` neither enables nor
    * requires streaming (`false`, or not set). Server components render only to a stream, so they go to the stream's
-   * render, over the `streamOptions` of `renderToStreamOptions`.
+   * render, in place of `renderToStreamOptions`.
    *
    * https://react.dev/reference/react-dom/server/renderToString
    * https://vike.dev/react-setting
    */
   renderToStringOptions?: ServerOptions;
   /**
-   * Options passed to `react-streaming`'s `renderToStream()`, which renders the first load's HTML. When pre-rendering,
-   * only `streamOptions` apply.
+   * Options passed to `react-streaming`'s `renderToStream()`, which renders the HTML of a page whose `+stream` enables or
+   * requires streaming. When pre-rendering, only `streamOptions` apply.
    *
    * https://github.com/brillout/react-streaming#options
    * https://vike.dev/react-setting
