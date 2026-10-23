@@ -58,7 +58,7 @@ async function readComponentConfigs(partImports: PartImport[], context: ResolveC
     parts.push(config);
     byFile.set(getFile(file), parts);
   }
-  return { byFile, clientImports, packageImports };
+  return { byFile, clientImports: new Map([...clientImports].map((importPath) => [importPath, packageImports.get(importPath)!])) };
 }
 
 export type ResolveContext = { environment: { name: string }; resolve: (source: string, importer?: string) => Promise<{ id: string } | null> };
@@ -71,10 +71,9 @@ export type Part = {
 };
 type ComponentConfigs = {
   byFile: Map<string, Part[]>;
-  /** The imports of client components that the rsc env resolves to another file than the browser */
-  clientImports: Set<string>;
-  /** Each import of a package or through a path alias: the first file that imports it, and the exports Vike reads */
-  packageImports: Map<string, { importer: string | undefined; exportNames: string[] }>;
+  /** The imports of client components that the rsc env resolves to another file than the browser: the first file that
+   * imports each, and the exports Vike reads */
+  clientImports: Map<string, { importer: string | undefined; exportNames: string[] }>;
 };
 // By Vike's part imports, then by env
 const componentConfigs = new WeakMap<PartImport[], Map<string, Promise<ComponentConfigs>>>();

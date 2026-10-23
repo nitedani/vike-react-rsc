@@ -6,7 +6,8 @@ import { getComponentConfigs, isClientDefault, resolveComponentConfigs, type Par
 import { getDirectives, getFile, getFileName, isAppFile, parse, type Directive } from "./parse";
 import { findServerComponentImport, getModule, invalidateModules, type Context } from "./serverComponentImports";
 
-// A client component's import, which plugin-rsc's client reference imports in each env
+// A client component's import, with the exports Vike reads and the file that imports it, which plugin-rsc's client reference
+// imports in each env
 const CLIENT_IMPORT = "virtual:vike-react-rsc/client-import:";
 
 /** A file runs where the file that imports it runs, and a Page, Layout, Wrapper or Loading's `layout` where `components` says, unless
@@ -34,14 +35,19 @@ export function placement(): Plugin {
         if (source.startsWith(`\0${CLIENT_IMPORT}`)) return source;
         if (this.environment.name !== "rsc" || !importer?.startsWith("\0virtual:vike:page-entry:") || !isClientDefault()) return;
         // A client component that the rsc env resolves to another file than the browser: its client reference is the import
-        if ((await resolveComponentConfigs(this)).clientImports.has(source)) return `\0${CLIENT_IMPORT}${source}`;
+        const clientImport = (await resolveComponentConfigs(this)).clientImports.get(source);
+        if (!clientImport) return;
+        const { importer: configFile, exportNames } = clientImport;
+        return `\0${CLIENT_IMPORT}${source}?${new URLSearchParams({ exports: exportNames.join(","), ...(configFile && { importer: configFile }) })}`;
       },
     },
     // Each env loads the file its own conditions give: the browser its file, the HTML render Node's
     async load(id) {
       if (!id.startsWith(`\0${CLIENT_IMPORT}`)) return;
-      const importPath = id.slice(CLIENT_IMPORT.length + 1);
-      const { importer, exportNames } = (await resolveComponentConfigs(this)).packageImports.get(importPath)!;
+      const [importPath, query] = id.slice(CLIENT_IMPORT.length + 1).split("?") as [string, string];
+      const params = new URLSearchParams(query);
+      const importer = params.get("importer") ?? undefined;
+      const exportNames = params.get("exports")!.split(",");
       const file = this.environment.name === "client" ? await resolveForBrowser(importPath, importer) : (await this.resolve(importPath, importer))?.id;
       return `"use client";\nexport { ${exportNames.join(", ")} } from ${JSON.stringify(file ?? importPath)};\n`;
     },
