@@ -269,9 +269,10 @@ declare global {
        */
       ssr?: boolean;
       /**
-       * Settings for HTML Streaming. As in vike-react, the first load's HTML streams only when this enables streaming or
-       * an extension sets `require`. Else it's sent at once, every Suspense boundary resolved, and +onAfterRenderHtml gets
-       * `pageContext.pageHtmlString`. The stream is a Web Stream, whatever `type` says.
+       * Settings for HTML Streaming. As in vike-react, the first load's HTML streams when this enables streaming, or when
+       * an extension sets `require` and this doesn't disable streaming. Else it's sent at once, every Suspense boundary
+       * resolved, and, unless an extension sets `require`, +onAfterRenderHtml gets `pageContext.pageHtmlString`. The
+       * stream is a Web Stream, whatever `type` says.
        *
        * https://vike.dev/stream
        */
