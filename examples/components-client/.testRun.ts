@@ -296,6 +296,14 @@ function testVikeReactRendering() {
     expect(html).to.not.include("<p>Waiting for the delay</p>");
   });
 
+  test("components: 'client': a page without +stream sends the HTML at once, every Suspense boundary resolved, as in vike-react", async () => {
+    const reader = (await fetch(getServerUrl() + "/stream-default")).body!.getReader();
+    const firstChunk = new TextDecoder().decode((await reader.read()).value);
+    await reader.cancel();
+    expect(firstChunk).to.include('<p id="delayed">Rendered after a delay</p>');
+    expect(firstChunk).to.not.include("<p>Waiting for the delay</p>");
+  });
+
   test("components: 'client': a stream: false page sends its HTML before its Flight ends, then the Flight's rows the HTML doesn't wait for", async () => {
     const response = await fetch(getServerUrl() + "/stream-off-promise");
     // With a content-length, Vike would have waited for the promise's row
