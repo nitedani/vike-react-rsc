@@ -39,7 +39,7 @@ function getImports(source: ConfigValueSource): Omit<PartImport, "configName">[]
 // The import strings in a value: an extension's, or the one Vike makes of a +config file's import, e.g. "import:/app/Spinner.tsx:Spinner"
 function getPointerImports(value: unknown): { importPath: string; exportName: string }[] {
   if (typeof value === "string") {
-    const parts = value.replace(/^​/, "").split(":");
+    const parts = value.replace(/^\u200b/, "").split(":");
     if (parts[0] !== "import" || parts.length < 2) return [];
     return parts.length === 2 ? [{ importPath: parts[1]!, exportName: "default" }] : [{ importPath: parts.slice(1, -1).join(":"), exportName: parts.at(-1)! }];
   }
