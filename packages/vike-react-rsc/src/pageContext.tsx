@@ -9,7 +9,7 @@ export function PageContextProvider({ pageContext, children }: { pageContext: Pa
   return <Context value={pageContext}>{children}</Context>;
 }
 
-/** The pageContext, in a client component */
+/** The pageContext, in any component */
 export function usePageContext(): PageContext {
   return useContext(Context);
 }

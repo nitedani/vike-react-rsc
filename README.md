@@ -17,7 +17,7 @@ React RSC integration for [Vike](https://vike.dev).
   - A file without a directive that imports a `"use server component"` file, of the app or of a package, directly or through other such files, is a server component too, up to the `Page`, `Layout`, `Wrapper` or `Loading` that imports it. A `"use client"` file can't import one.
   - [`ssr: false`](https://vike.dev/ssr) leaves the page out of the first load's HTML, under either `components` value: the browser renders it, and its server components still run on the server.
   - A component that calls a hook such as `useState()` starts with `"use client"` when a server component imports it. A file that imports a server component can't, so its hooks move into their own `"use client"` component.
-  - `vike-react`'s `useData()`, `useHydrated()`, `usePageContext()` and `<ClientOnly>` are at `vike-react-rsc/useData`, `/useHydrated`, `/usePageContext` and `/ClientOnly`.
+  - `vike-react`'s `useData()`, `useHydrated()`, `usePageContext()` and `<ClientOnly>` are at `vike-react-rsc/useData`, `/useHydrated`, `/usePageContext` and `/ClientOnly`. `useData()` and `usePageContext()` work in server components too.
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
   - An action reads **`getRequestContext()`** (from `vike-react-rsc/server`): the request's `headers` and `cookies`, and what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `user`). It leaves out what Vike and your app compute for a page: `routeParams`, the page's config, `data`, and what your `+onCreatePageContext` sets.
@@ -25,7 +25,7 @@ React RSC integration for [Vike](https://vike.dev).
     import { getRequestContext } from "vike-react-rsc/server";
     const { user, cookies } = getRequestContext();
     ```
-  - An action has no page, so `getPageContext()` throws in it and in a component passed to `rsc()`, while the server components that component returns keep it, with the page's `data`. Without `rerender()`, server components that an action returns to JavaScript have no page either: to call `getPageContext()` in them, load them with `rsc()`.
+  - An action has no page, so `getPageContext()` and `usePageContext()` throw in it and in a component passed to `rsc()`, while the server components that component returns keep them, with the page's `data`. Without `rerender()`, server components that an action returns to JavaScript have no page either: to call `getPageContext()` in them, load them with `rsc()`.
   - Server components can call `getRequestContext()` too.
   - An action runs before `guard()` and `data()` of its request, so they see what it changed: `pageContext.cookies.get()` returns a cookie the action set. Without `rerender()`, an action called from JavaScript doesn't run them, as its answer is only what the action returned.
   - `guard()` doesn't protect an action: check authorization in the action itself, with what your auth [`+middleware`](https://vike.dev/middleware) adds.
