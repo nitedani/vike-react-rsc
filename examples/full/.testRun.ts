@@ -1377,7 +1377,7 @@ function testClientDisconnect() {
   test("A render that times out calls renderToStreamOptions.onTimeout once", async () => {
     const before = await getServerCount("slow-required-timeout");
     for (let i = 1; i <= 10; i++) {
-      expect(await fetchHtml("/slow-required-timeout")).to.include("Loading");
+      expect(await fetchHtml("/slow-required-timeout")).to.include("<p>Loading</p>").and.not.include("<p>Resolved</p>");
       expect(await getServerCount("slow-required-timeout")).to.equal(before + i);
     }
   });
