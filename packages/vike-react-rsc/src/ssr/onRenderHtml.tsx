@@ -165,7 +165,9 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
           // Else react-streaming streams, except to bots
           disable: streamSetting.enable === false || undefined,
           ...options,
-          // TODO: drop the cast once TODO-RS-PR makes `signal` a public option: react-streaming spreads streamOptions over its own signal
+          // A workaround, as react-streaming spreads streamOptions over its own signal. TODO: once
+          // https://github.com/brillout/react-streaming/pull/62 is released, pass the request's signal as renderToStream()'s
+          // own `signal` option, which keeps react-streaming's timeout, and drop this, the cast and getRenderSignal() here.
           streamOptions: { ...streamOptions, formState, ...(render && { signal: render.signal }) } as RenderToStreamOptions["streamOptions"],
           onBoundaryError: (error) => {
             const abort = getAbort(error);
