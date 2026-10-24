@@ -182,8 +182,8 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         if (stream.disabled) await stream.streamEnd;
         void stream.streamEnd.then(() => htmlRender.abort());
         deps.injectToStream = stream.injectToStream;
-        // Pre-rendered, the stream has ended by now, so +onAfterRenderHtml gets one it can still inject into
-        pageContext.pageHtmlStream = pageContext.isPrerendering ? toDisabledStream(await new Response(stream.readable).text()) : stream;
+        // A disabled stream has ended by now, so +onAfterRenderHtml gets one it can still inject into
+        pageContext.pageHtmlStream = stream.disabled ? toDisabledStream(await new Response(stream.readable).text()) : stream;
       }
     }
     // Inside a Suspense boundary, but reported before this function returns, e.g. a crawler's
@@ -252,7 +252,7 @@ async function renderWhole(page: ReactNode, options: RenderToReadableStreamOptio
   return new Response(stream).text();
 }
 
-// As react-streaming's stream once Vike's pre-rendering disabled streaming, as vike-react's +onAfterRenderHtml gets it:
+// As react-streaming's stream when it doesn't stream, as vike-react's +onAfterRenderHtml gets it:
 // what a hook injects follows the page's HTML, in order, until the stream has been read to its end
 function toDisabledStream(html: string): Awaited<ReturnType<typeof renderToStream>> {
   const chunks: (string | Promise<string>)[] = [html];

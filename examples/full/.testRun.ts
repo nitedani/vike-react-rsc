@@ -1069,10 +1069,13 @@ function testHead() {
 }
 
 function testOnAfterRenderHtml() {
-  test("+onAfterRenderHtml gets pageContext.pageHtmlStream on a page with stream: true, pre-rendered too, as in vike-react", async () => {
+  test("+onAfterRenderHtml gets pageContext.pageHtmlStream on a page with stream: true, for a crawler and pre-rendered too, as in vike-react", async () => {
     expect(await fetchHtml("/render-html"))
       .to.include('<div id="root" data-root=""><!-- Streamed through +onAfterRenderHtml -->')
       .and.include("<!-- Injected by +onAfterRenderHtml -->");
+    // A crawler gets the page whole, from a stream that has ended before the hook injects
+    const crawled = await fetch(getServerUrl() + "/render-html", { headers: { "user-agent": "Googlebot/2.1" } });
+    expect(await crawled.text()).to.include("<!-- Injected by +onAfterRenderHtml -->");
   });
 }
 
