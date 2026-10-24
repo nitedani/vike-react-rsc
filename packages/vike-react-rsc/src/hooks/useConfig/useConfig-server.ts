@@ -7,6 +7,7 @@ import { useStreamOptional } from 'react-streaming'
 import { assert } from '../../utils/assert.js'
 import { escapeJavaScriptExpression } from '../../utils/escapeJavaScriptExpression.js'
 import { setPageContextConfigViaHook } from './setPageContextConfigViaHook.js'
+import { isInHtmlRender } from '../../ssr/htmlRender.js'
 
 /**
  * Set configurations inside components and Vike hooks.
@@ -16,7 +17,10 @@ import { setPageContextConfigViaHook } from './setPageContextConfigViaHook.js'
 function useConfig(): (config: ConfigViaHook) => void {
   // Vike hook
   let pageContext = getPageContext({ asyncHook: false }) as PageContext & PageContextInternal
-  if (pageContext) return (config: ConfigViaHook) => setPageContextConfigViaHook(config, pageContext)
+  // Not while React renders the HTML: until the next microtask after a Vike hook ran, getPageContext() still returns that
+  // hook's pageContext, also to a component React renders in between.
+  // TODO-UPSTREAM
+  if (pageContext && !isInHtmlRender()) return (config: ConfigViaHook) => setPageContextConfigViaHook(config, pageContext)
 
   // Component
   pageContext = usePageContext()
