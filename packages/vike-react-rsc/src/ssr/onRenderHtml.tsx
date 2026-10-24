@@ -7,14 +7,17 @@ import { renderToStream } from "react-streaming/server.web";
 import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { getAbort, toVikeAbort, type Abort } from "../abort";
+import { configsClientSide } from "../hooks/useConfig/configsClientSide";
 import { getHeadSetting } from "../integration/getHeadSetting";
 import { getPageElement } from "../integration/getPageElement";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import { getRedirectUrl } from "../redirect";
-import type { HeadValue, PagePayload } from "../types";
+import type { HeadValue, PageContextInternal, PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { getTagAttributesString, type TagAttributes } from "../utils/getTagAttributesString";
+import { includes } from "../utils/includes";
+import { objectKeys } from "../utils/objectKeys";
 
 // The CSS and JS of the client components a page's HTML renders, for their links
 const clientDeps = new AsyncLocalStorage<ClientDeps>();
@@ -42,7 +45,7 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
   return clientDeps.run(deps, () => renderDocument(pageContext, deps));
 };
 
-async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) {
+async function renderDocument(pageContext: PageContextServer & PageContextInternal, deps: ClientDeps) {
   const htmlSent = new AbortController();
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
@@ -95,6 +98,10 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
   const { headHtmlBegin, headHtmlEnd, bodyHtmlBegin, bodyHtmlEnd } = await getHtmlInjections(pageContext);
 
   const { htmlAttributesString, bodyAttributesString, rootAttributesString } = getTagAttributes(pageContext);
+
+  // Keep only what the client-side applies upon navigation, and remove the rest (HTML-only and/or
+  // non-serializable values such as <Head> components). https://github.com/vikejs/vike-vue/issues/233
+  removeServerOnlyConfigViaHook(pageContext);
 
   return {
     documentHtml: escapeInject`<!DOCTYPE html>
@@ -151,7 +158,19 @@ function renderAbortMeta(abort: Abort) {
   );
 }
 
-function getHeadHtml(pageContext: PageContextServer) {
+function removeServerOnlyConfigViaHook(pageContext: PageContextInternal) {
+  const configViaHook = pageContext._configViaHook;
+  if (!configViaHook) return;
+  objectKeys(configViaHook).forEach((configName) => {
+    if (!includes(configsClientSide, configName)) delete configViaHook[configName];
+  });
+  // Remove it altogether if there isn't anything left, saving KBs sent to the client
+  if (objectKeys(configViaHook).length === 0) delete pageContext._configViaHook;
+}
+
+function getHeadHtml(pageContext: PageContextServer & PageContextInternal) {
+  pageContext._headAlreadySet = true;
+
   const favicon = getHeadSetting<string | null>("favicon", pageContext);
   const title = getHeadSetting<string | null>("title", pageContext);
   const description = getHeadSetting<string | null>("description", pageContext);
@@ -171,6 +190,8 @@ function getHeadHtml(pageContext: PageContextServer) {
     [
       // Added by +Head
       ...(pageContext.config.Head ?? []),
+      // Added by useConfig()
+      ...(pageContext._configViaHook?.Head ?? []),
     ]
       .filter((Head) => Head !== null && Head !== undefined)
       .map((Head) => getHeadElementHtml(Head, pageContext))

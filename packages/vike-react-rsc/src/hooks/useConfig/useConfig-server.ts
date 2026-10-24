@@ -1,0 +1,70 @@
+export { useConfig }
+import type { PageContext, PageContextServer } from 'vike/types'
+import type { ConfigViaHook, PageContextInternal } from '../../types.js'
+import { usePageContext } from '../usePageContext.js'
+import { getPageContext } from 'vike/getPageContext'
+import { useStreamOptional } from 'react-streaming'
+import { objectKeys } from '../../utils/objectKeys.js'
+import { includes } from '../../utils/includes.js'
+import { assert } from '../../utils/assert.js'
+import { escapeJavaScriptExpression } from '../../utils/escapeJavaScriptExpression.js'
+import { configsCumulative } from './configsCumulative.js'
+import { configsClientSide } from './configsClientSide.js'
+
+/**
+ * Set configurations inside components and Vike hooks.
+ *
+ * https://vike.dev/useConfig
+ */
+function useConfig(): (config: ConfigViaHook) => void {
+  // Vike hook
+  let pageContext = getPageContext({ asyncHook: false }) as PageContext & PageContextInternal
+  if (pageContext) return (config: ConfigViaHook) => setPageContextConfigViaHook(config, pageContext)
+
+  // Component
+  pageContext = usePageContext()
+  assert(!pageContext.isClientSide)
+  const stream = useStreamOptional()
+  return (config: ConfigViaHook) => {
+    if (!pageContext._headAlreadySet) {
+      setPageContextConfigViaHook(config, pageContext)
+    } else {
+      assert(stream)
+      // <head> already sent to the browser => send DOM-manipulating scripts during HTML streaming
+      apply(config, stream, pageContext)
+    }
+  }
+}
+
+function setPageContextConfigViaHook(config: ConfigViaHook, pageContext: PageContext & PageContextInternal) {
+  pageContext._configViaHook ??= {}
+  objectKeys(config).forEach((configName) => {
+    // Skip HTML only configs which the client-side doesn't need, saving KBs sent to the client as well as avoiding serialization errors.
+    if (pageContext.isClientSideNavigation && !includes(configsClientSide, configName)) return
+
+    if (!includes(configsCumulative, configName)) {
+      // Overridable config
+      const configValue = config[configName]
+      if (configValue === undefined) return
+      pageContext._configViaHook![configName] = configValue as any
+    } else {
+      // Cumulative config
+      const configValue = config[configName]
+      if (!configValue) return
+      pageContext._configViaHook![configName] ??= []
+      pageContext._configViaHook![configName].push(configValue as any)
+    }
+  })
+}
+
+type Stream = NonNullable<ReturnType<typeof useStreamOptional>>
+function apply(config: ConfigViaHook, stream: Stream, pageContext: PageContextServer) {
+  const { title } = config
+  if (title) {
+    // No need to escape the injected nonce attribute — see https://github.com/vikejs/vike/blob/36201ddad5f5b527b244b24d548014ec86c204e4/packages/vike/src/server/runtime/renderPageServer/csp.ts#L45
+    const nonceAttr = pageContext.cspNonce ? ` nonce="${pageContext.cspNonce}"` : ''
+    const titleJs = escapeJavaScriptExpression(JSON.stringify(title))
+    const htmlSnippet = `<script${nonceAttr}>document.title = ${titleJs}</script>`
+    stream.injectToStream(htmlSnippet)
+  }
+}

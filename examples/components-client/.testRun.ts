@@ -338,6 +338,17 @@ function testVikeReactImports() {
     await expectPageInfo();
   });
 
+  test("components: 'client': vike-react's useConfig() and <Head> in a client component set the HTML head, and useConfig() the title on a client navigation", async () => {
+    const html = await fetchHtml("/use-config");
+    const head = html.slice(0, html.indexOf("</head>"));
+    expect(head).to.include("<title>useConfig() in a client component</title>");
+    expect(head).to.include('<meta name="use-config" content="Head in a client component"/>');
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/use-config");
+    await autoRetry(async () => expect(await page.title()).to.equal("useConfig() in a client component"));
+  });
+
   test("components: 'client': a server component renders <ClientOnly> through a client component, and calls useHydrated()", async () => {
     // The child reads window when its module loads, so loading it on the server would fail the render
     const html = await fetchHtml("/client-only");
