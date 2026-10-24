@@ -1069,7 +1069,9 @@ function testHead() {
 
 function testOnAfterRenderHtml() {
   test("+onAfterRenderHtml gets pageContext.pageHtmlStream on a page with stream: true, pre-rendered too, as in vike-react", async () => {
-    expect(await fetchHtml("/render-html")).to.include('<div id="root" data-root=""><!-- Streamed through +onAfterRenderHtml -->');
+    expect(await fetchHtml("/render-html"))
+      .to.include('<div id="root" data-root=""><!-- Streamed through +onAfterRenderHtml -->')
+      .and.include("<!-- Injected by +onAfterRenderHtml -->");
   });
 }
 

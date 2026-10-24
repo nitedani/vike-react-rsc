@@ -254,18 +254,36 @@ async function renderWhole(page: ReactNode, options: RenderToReadableStreamOptio
   return new Response(stream).text();
 }
 
-// As react-streaming's stream once Vike's pre-rendering disabled streaming, as vike-react's +onAfterRenderHtml gets it
+// As react-streaming's stream once Vike's pre-rendering disabled streaming, as vike-react's +onAfterRenderHtml gets it:
+// what a hook injects follows the page's HTML, in order, until the stream has been read to its end
 function toDisabledStream(html: string): Awaited<ReturnType<typeof renderToStream>> {
+  const chunks: (string | Promise<string>)[] = [html];
+  let ended = false;
+  const encoder = new TextEncoder();
+  const readable = new ReadableStream<Uint8Array>(
+    {
+      async pull(controller) {
+        const chunk = chunks.shift();
+        if (chunk === undefined) {
+          ended = true;
+          controller.close();
+        } else controller.enqueue(encoder.encode(await chunk));
+      },
+    },
+    // Pulled only when read, so the hooks can inject first
+    { highWaterMark: 0 },
+  );
   return {
-    readable: new Response(html).body!,
+    readable,
     pipe: null,
     disabled: true,
     streamEnd: Promise.resolve(true),
-    hasStreamEnded: () => false,
+    hasStreamEnded: () => ended,
     doNotClose: () => () => {},
     abort: () => {},
-    injectToStream: () => {
-      throw new Error("[vike-react-rsc] pageContext.pageHtmlStream.injectToStream() isn't available when pre-rendering");
+    injectToStream: (chunk) => {
+      if (ended) throw new Error("[vike-react-rsc] pageContext.pageHtmlStream.injectToStream() was called after the stream ended");
+      chunks.push(chunk);
     },
   };
 }
