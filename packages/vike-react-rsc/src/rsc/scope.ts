@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { PageContext, PageContextServer } from "vike/types";
 import { noRequestContext, notInServerAction } from "../errors";
+import { getForkedPageContext } from "../forkPageContext";
 import { getShared } from "../shared";
 import type { ActionOutcome, RequestContext } from "../types";
 
@@ -26,6 +27,11 @@ export function getPageContext(): PageContextServer {
 
 /** The page's pageContext; its errors name `caller`, the function the user called */
 export function readPageContext(caller: string): PageContextServer {
+  return getForkedPageContext(readHtmlPageContext(caller));
+}
+
+/** The pageContext the HTML render reads, without the fork that server components see */
+export function readHtmlPageContext(caller: string): PageContextServer {
   const scope = storage.getStore();
   if (!scope) {
     throw new Error(`[vike-react-rsc] ${caller} needs a server component render, and none runs here`);
@@ -37,16 +43,16 @@ export function readPageContext(caller: string): PageContextServer {
   if (scope.withoutPage) {
     throw new Error(`[vike-react-rsc] ${caller} needs a page, and the server components a server action returns without rerender() have none: load them with rsc(), or call getRequestContext() from vike-react-rsc/server`);
   }
-  // The rsc env's view of the server's pageContext
   return scope.pageContext as PageContextServer;
 }
 
 export function getRequestContext(): RequestContext {
   const scope = storage.getStore();
   if (!scope) throw noRequestContext();
-  const pageContext = scope.pageContext as PageContextServer & { _pageContextInit: { rscAction?: unknown } };
-  // What renderPage() got from the server and every middleware; rscAction is vike-react-rsc's own
-  const { rscAction: _, ...init } = pageContext._pageContextInit;
+  const pageContext = scope.pageContext as PageContextServer & { _pageContextInit: { rscAction?: unknown; rscRequestSignal?: unknown } };
+  // What renderPage() got from the server and every middleware, without rscAction and rscRequestSignal, which
+  // vike-react-rsc sets for itself
+  const { rscAction: _, rscRequestSignal: __, ...init } = pageContext._pageContextInit;
   return { ...init, headers: pageContext.headers, cookies: pageContext.cookies };
 }
 

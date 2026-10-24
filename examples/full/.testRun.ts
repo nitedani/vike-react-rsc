@@ -92,6 +92,11 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
         (logText.includes(ON_CREATE_PAGE_CONTEXT_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
       // testActionPageFailure()
       (logSource === "Browser Error" && logText.includes("status of 404")) ||
+      // testClientDisconnect()
+      (logSource === "stderr" &&
+        (logText.includes("HTTP response ← /slow-hook-throws 500") ||
+          logText.includes("HTTP response ← /slow-after-hook-throws 500") ||
+          logText.includes("HTTP response ← /slow-after-hook-pipes 500"))) ||
       // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
       (logSource === "stderr" && logText.includes(RSC_LOAD_ERROR)) ||
       logText.includes(RSC_LOAD_ERROR_LOG) ||
@@ -133,6 +138,9 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testUsePageContext();
   testWrapper();
   testHead();
+  testOnAfterRenderHtml();
+  testUseStream();
+  testLargeSuspense();
   testHeadSettings(isStatic);
   testConfig(isStatic);
   // plugin-rsc has no client JS to preload in dev
@@ -1063,6 +1071,31 @@ function testHead() {
   });
 }
 
+function testOnAfterRenderHtml() {
+  test("+onAfterRenderHtml gets pageContext.pageHtmlStream on a page with stream: true, for a crawler and pre-rendered too, as in vike-react", async () => {
+    expect(await fetchHtml("/render-html"))
+      .to.include('<div id="root" data-root=""><!-- Streamed through +onAfterRenderHtml -->')
+      .and.include("<!-- Injected by +onAfterRenderHtml -->");
+    // A crawler gets the page whole, from a stream that has ended before the hook injects
+    const crawled = await fetch(getServerUrl() + "/render-html", { headers: { "user-agent": "Googlebot/2.1" } });
+    expect(await crawled.text()).to.include("<!-- Injected by +onAfterRenderHtml -->");
+  });
+}
+
+function testUseStream() {
+  test("A client component gets react-streaming's useStream() on a page with stream: true, pre-rendered too, as in vike-react", async () => {
+    expect(await fetchHtml("/use-stream")).to.include("<!-- Injected by useStream() -->");
+  });
+}
+
+function testLargeSuspense() {
+  test("A page without +stream has a large Suspense boundary's content in place, pre-rendered too, as in vike-react", async () => {
+    const html = await fetchHtml("/large-suspense");
+    expect(/<main[^>]*>([\s\S]*?)<\/main>/.exec(html)?.[1]).to.include('<p id="large">Large content ');
+    expect(html).to.not.match(/<div hidden id="S:/).and.not.include("$RC");
+  });
+}
+
 function testHeadSettings(isStatic: boolean) {
   test("Head settings: the HTML has their tags and attributes, the defaults, and none for null", async () => {
     const html = await fetchHtml("/");
@@ -1359,6 +1392,66 @@ function testClientDisconnect() {
     controller.abort();
     await sleep(2500);
     expect(await getServerCount("slow")).to.equal(before + 1);
+  });
+
+  test("A client leaving a page that renders whole, which sends nothing before it has rendered, stops the render of its server and client components, also while its +onBeforeRenderHtml, +onAfterRenderHtml or +headHtmlBegin runs, and isn't logged as an error", async () => {
+    // A server component waits in /slow-whole, a client component waits for its own data in /slow-client and in
+    // /slow-required-disabled (stream: false where streaming is required), and the client leaves /slow-before-hook while
+    // its +onBeforeRenderHtml runs, the streamed /slow-after-hook while its +onAfterRenderHtml runs, and the streamed
+    // /slow-head-html while its +headHtmlBegin runs
+    for (const [path, key] of [
+      ["/slow-whole", "slow"],
+      ["/slow-client", "slow-client"],
+      ["/slow-required-disabled", "slow-client"],
+      ["/slow-before-hook", "slow"],
+      ["/slow-after-hook", "slow-client"],
+      ["/slow-head-html", "slow-client"],
+    ] as const) {
+      const before = await getServerCount(key);
+      await fetchHtml(path);
+      expect(await getServerCount(key)).to.equal(before + 1);
+
+      // Leaving once the render has started, before the Suspense boundary resolves
+      const controller = new AbortController();
+      const response = fetch(getServerUrl() + path, { signal: controller.signal }).catch(() => {});
+      await sleep(500);
+      controller.abort();
+      await response;
+      await sleep(2500);
+      expect(await getServerCount(key), path).to.equal(before + 1);
+    }
+  });
+
+  test("An HTML hook that throws stops the page's render, of its server and client components", async () => {
+    // A server component waits in /slow-hook-throws, a client component waits for its own data in the streamed
+    // /slow-after-hook-throws, and in /slow-after-hook-pipes, whose hook has piped the HTML
+    for (const [path, key, hook] of [
+      ["/slow-hook-throws", "slow", "+onBeforeRenderHtml"],
+      ["/slow-after-hook-throws", "slow-client", "+onAfterRenderHtml"],
+      ["/slow-after-hook-pipes", "slow-client", "+onAfterRenderHtml"],
+    ] as const) {
+      const before = await getServerCount(key);
+      expect((await fetch(getServerUrl() + path)).status, path).to.equal(500);
+      expectLog(`Thrown by ${path}'s ${hook}`, { filter: ({ logSource }) => logSource === "stderr" });
+      await sleep(2500);
+      expect(await getServerCount(key), path).to.equal(before);
+    }
+  });
+
+  test("A render that times out calls renderToStreamOptions.onTimeout once", async () => {
+    const before = await getServerCount("slow-required-timeout");
+    for (let i = 1; i <= 10; i++) {
+      expect(await fetchHtml("/slow-required-timeout")).to.include("<p>Loading</p>").and.not.include("<p>Resolved</p>");
+      expect(await getServerCount("slow-required-timeout")).to.equal(before + i);
+    }
+  });
+
+  test("+react's renderToStreamOptions.signal stops the render, as in vike-react", async () => {
+    expect(await fetchHtml("/slow-user-signal")).to.include("<p>Loading</p>").and.not.include("<p>Resolved</p>");
+  });
+
+  test("+react's streamOptions.nonce is on React's scripts when Vike sets no cspNonce, as in vike-react", async () => {
+    expect(await fetchHtml("/slow-user-signal")).to.include('<script nonce="app-nonce">').and.not.match(/<script>(\$R|requestAnimationFrame)/);
   });
 }
 
