@@ -134,6 +134,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testWrapper();
   testHead();
   testHeadSettings(isStatic);
+  testConfig(isStatic);
   // plugin-rsc has no client JS to preload in dev
   if (!isDev) testClientJsPreload();
   testClientCss();
@@ -150,6 +151,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testCounter();
     testTodoForm();
     testHeadSettingsRerender();
+    testConfigRerender();
     testSession();
     testGonePassToClientValue();
     testConcurrentRerender();
@@ -1176,6 +1178,45 @@ function testHeadSettingsRerender() {
       expect(await page.textContent("body")).to.include("Head settings todo");
     });
     expect(await page.title()).to.equal("Set in the browser");
+  });
+}
+
+function testConfig(isStatic: boolean) {
+  test("<Config> and <Head> in a server component set the HTML head, and <Config> the title on a client navigation", async () => {
+    // The first render after the server starts loads Config's module, during which +Loading shows and the <head> is sent
+    await fetchHtml("/config");
+    const html = await fetchHtml("/config");
+    const head = html.slice(0, html.indexOf("</head>"));
+    expect(head).to.match(/<title>Config in a server component, bumped \d+ times<\/title>/);
+    expect(head).to.include('<meta name="use-config" content="Head in a server component"/>');
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await clickNewLink("/config");
+    await autoRetry(async () => expect(await page.title()).to.match(/^Config in a server component, bumped \d+ times$/));
+  });
+
+  test("<Config> behind Suspense in a server component sets the title once it renders, on the first load and on a client navigation", async () => {
+    const title = "Config behind Suspense";
+    const html = await fetchHtml("/config-suspense");
+    // A pre-rendered page waits for every Suspense boundary before its <head>
+    if (isStatic) expect(html.slice(0, html.indexOf("</head>"))).to.include(`<title>${title}</title>`);
+    else expect(html.slice(html.indexOf("</head>"))).to.include(`document.title = "${title}"`);
+    await page.goto(getServerUrl() + "/config-suspense");
+    await autoRetry(async () => expect(await page.title()).to.equal(title));
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await clickNewLink("/config-suspense");
+    await autoRetry(async () => expect(await page.title()).to.equal(title));
+  });
+}
+
+function testConfigRerender() {
+  test("<Config> in a server component sets the title after rerender()", async () => {
+    await page.goto(getServerUrl() + "/config");
+    await waitForHydration("Bump the title");
+    const bumps = Number((await page.title()).match(/bumped (\d+) times/)![1]);
+    await page.click('button:has-text("Bump the title")');
+    await autoRetry(async () => expect(await page.title()).to.equal(`Config in a server component, bumped ${bumps + 1} times`));
   });
 }
 
