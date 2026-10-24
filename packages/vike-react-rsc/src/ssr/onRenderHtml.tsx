@@ -87,7 +87,8 @@ async function buildDocument(pageContext: PageContextServer & PageContextInterna
   // A string goes to Vike as a stream. Vike would hold an HTML string until the Flight has ended, and it sends a stream
   // at once.
   const html = pageContext.pageHtmlStream ?? new Response(pageContext.pageHtmlString ?? "").body!;
-  // Once the shell has rendered, React has loaded every client component in it
+  // The client components React has loaded so far: every one outside <Suspense>. One inside a <Suspense> that is still
+  // pending gets its links in the stream, from setOnClientReference() above.
   const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
 
   const headHtml = getHeadHtml(pageContext);
