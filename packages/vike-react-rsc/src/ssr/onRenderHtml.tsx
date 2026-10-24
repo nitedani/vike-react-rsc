@@ -163,10 +163,7 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         // Rendered whole, as vike-react's renderToString() renders it, for a crawler too. As on a page that streams, the
         // render stops once the client leaves, or after react-streaming's default timeout.
         const render = getRenderSignal(htmlRender.signal);
-        // As react-streaming does when it doesn't stream: React puts every Suspense boundary's content in place, however
-        // large, rather than in a hidden part of the HTML that a script moves into place
-        const renderOptions = { ...streamOptions, progressiveChunkSize: Number.MAX_SAFE_INTEGER, signal: render.signal };
-        pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort).finally(render.clear);
+        pageContext.pageHtmlString = await renderWhole(page, { ...streamOptions, signal: render.signal }, onAbort).finally(render.clear);
         htmlRender.abort();
       } else {
         const stream = await renderToStream(page, {
@@ -261,7 +258,9 @@ async function renderWhole(page: ReactNode, options: RenderToReadableStreamOptio
     else if (options.onError) options.onError(error, errorInfo);
     else console.error(error);
   };
-  const stream = await renderToReadableStream(page, { ...options, onError });
+  // As react-streaming does when it doesn't stream: React puts every Suspense boundary's content in place, however
+  // large, rather than in a hidden part of the HTML that a script moves into place
+  const stream = await renderToReadableStream(page, { ...options, progressiveChunkSize: Number.MAX_SAFE_INTEGER, onError });
   await stream.allReady;
   return new Response(stream).text();
 }

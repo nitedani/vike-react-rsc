@@ -140,6 +140,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testHead();
   testOnAfterRenderHtml();
   testUseStream();
+  testLargeSuspense();
   testHeadSettings(isStatic);
   // plugin-rsc has no client JS to preload in dev
   if (!isDev) testClientJsPreload();
@@ -1082,6 +1083,14 @@ function testOnAfterRenderHtml() {
 function testUseStream() {
   test("A client component gets react-streaming's useStream() on a page with stream: true, pre-rendered too, as in vike-react", async () => {
     expect(await fetchHtml("/use-stream")).to.include("<!-- Injected by useStream() -->");
+  });
+}
+
+function testLargeSuspense() {
+  test("A page without +stream has a large Suspense boundary's content in place, pre-rendered too, as in vike-react", async () => {
+    const html = await fetchHtml("/large-suspense");
+    expect(/<main[^>]*>([\s\S]*?)<\/main>/.exec(html)?.[1]).to.include('<p id="large">Large content ');
+    expect(html).to.not.match(/<div hidden id="S:/).and.not.include("$RC");
   });
 }
 
