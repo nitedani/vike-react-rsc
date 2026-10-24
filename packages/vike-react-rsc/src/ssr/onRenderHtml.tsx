@@ -174,8 +174,8 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
           // Without `disable`, react-streaming streams, except to bots, which get the page whole
           disable: streamSetting.enable === false || undefined,
           ...options,
-          // Always a Web stream, which server components need. Vike accepts either kind of stream, so a +react that asks
-          // for a Node stream gets the same page.
+          // Always a Web stream: the react-streaming entry imported above renders no Node stream. Vike accepts either
+          // kind of stream, so a +react that asks for a Node stream gets the same page.
           webStream: true,
           streamOptions,
           signal: options?.signal ? AbortSignal.any([htmlRender.signal, options.signal]) : htmlRender.signal,
