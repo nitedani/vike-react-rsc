@@ -81,6 +81,7 @@ const vikeReactRsc: Config = {
     onAfterRenderHtml: { env: { server: true }, cumulative: true },
     onBeforeRenderClient: { env: { client: true }, cumulative: true },
     onAfterRenderClient: { env: { client: true }, cumulative: true },
+    reactStrictMode: { env: { client: true, server: true } },
     react: { cumulative: true, env: {} },
     // vike-react's head settings; title, description and lang also apply on client navigation
     title: { env: { server: true, client: true } },

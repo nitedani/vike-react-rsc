@@ -53,6 +53,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testVikeReactImports();
   testFormBeforeHydration();
   testRestoredFormState();
+  if (isDev) testReactStrictMode();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
   if (isDev) testComponentsConfig();
@@ -504,6 +505,26 @@ async function withoutScripts(run: (noJs: typeof page) => Promise<void>) {
   } finally {
     await context.close();
   }
+}
+
+function testReactStrictMode() {
+  test("Dev: components: 'client': a page renders in <StrictMode> unless +reactStrictMode is false, on the first load and after a client navigation, as in vike-react", async () => {
+    for (const [pathname, runs] of [
+      ["/react-strict-mode", "Effect runs: 2"],
+      ["/react-strict-mode/off", "Effect runs: 1"],
+    ]) {
+      await page.goto(getServerUrl() + pathname);
+      await autoRetry(async () => {
+        expect(await page.textContent("#effect-runs"), pathname).to.equal(runs);
+      });
+    }
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/react-strict-mode");
+    await autoRetry(async () => {
+      expect(await page.textContent("#effect-runs")).to.equal("Effect runs: 2");
+    });
+  });
 }
 
 function testLoading() {

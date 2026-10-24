@@ -281,6 +281,14 @@ declare global {
        */
       stream?: StreamSetting;
       /**
+       * Whether to use `<StrictMode>`.
+       *
+       * @default true
+       *
+       * https://vike.dev/reactStrictMode
+       */
+      reactStrictMode?: boolean;
+      /**
        * Hook called right before rendering the page's root React component to HTML.
        *
        * https://vike.dev/onBeforeRenderHtml

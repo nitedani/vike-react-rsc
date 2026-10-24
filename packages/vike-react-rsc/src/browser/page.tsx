@@ -3,6 +3,7 @@ import type { Root as ReactRoot } from "react-dom/client";
 import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import type { PageContextClient } from "vike/types";
 import { applyHeadSettings } from "../integration/applyHeadSettings";
+import { withStrictMode } from "../integration/withStrictMode";
 import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
 import { AbortBoundary } from "./AbortBoundary";
@@ -78,8 +79,14 @@ export function onUncaughtError(error: unknown, errorInfo: { componentStack?: st
   // Vike renders the error page, and doesn't log the error again
   if (error instanceof Error) Object.assign(error, { isAlreadyLogged: true });
   // React unmounted Root, or never mounted it when hydrating threw: the next page, e.g. the error page, mounts it again
-  shared.setRootState = (shown) => shared.reactRoot!.render(<Root page={shown} />);
+  shared.setRootState = (shown) => shared.reactRoot!.render(getRootElement(shown));
   endNavigation(error);
+}
+
+/** What the React root renders. Its page's +reactStrictMode applies to every page it shows: React runs effects twice only
+ * in what mounts inside <StrictMode>, and Root mounts once */
+export function getRootElement(page: Shown): ReactElement {
+  return withStrictMode(page.pageContext, <Root page={page} />);
 }
 
 /** Hydrates `page`, then shows what show() shows */

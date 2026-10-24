@@ -10,7 +10,7 @@ import type { PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { onCaughtError } from "./AbortBoundary";
 import { callServer } from "./callServer";
-import { getReactRoot, onUncaughtError, rendered, Root, setCurrentPageContext, setReactRoot, show, type HeadSettings } from "./page";
+import { getReactRoot, getRootElement, onUncaughtError, rendered, setCurrentPageContext, setReactRoot, show, type HeadSettings } from "./page";
 import { markRscOutputsStale } from "./rsc";
 
 // Whether a page can render without a Flight, as in vike-react: under components: 'client', and always in dev
@@ -45,11 +45,11 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
   if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") {
     const options = { ...hydrateRootOptions, ...withOurErrorCallbacks(hydrateRootOptions), formState: formState ?? hydrateRootOptions?.formState };
-    setReactRoot(hydrateRoot(container, <Root page={page} />, options));
+    setReactRoot(hydrateRoot(container, getRootElement(page), options));
   } else {
     const reactRoot = createRoot(container, { ...createRootOptions, ...withOurErrorCallbacks(createRootOptions) });
     setReactRoot(reactRoot);
-    reactRoot.render(<Root page={page} />);
+    reactRoot.render(getRootElement(page));
   }
   pageContext.root = getReactRoot();
   // Once React hydrates, which onRenderClient() doesn't wait for: so after +onHydrationEnd, and a hook's error is an unhandled
