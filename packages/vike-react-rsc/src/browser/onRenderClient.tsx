@@ -10,7 +10,7 @@ import type { PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { onCaughtError } from "./AbortBoundary";
 import { callServer } from "./callServer";
-import { onUncaughtError, rendered, Root, setCurrentPageContext, setReactRoot, show, type HeadSettings } from "./page";
+import { getReactRoot, onUncaughtError, rendered, Root, setCurrentPageContext, setReactRoot, show, type HeadSettings } from "./page";
 import { markRscOutputsStale } from "./rsc";
 
 // Whether a page can render without a Flight, as in vike-react: under components: 'client', and always in dev
@@ -23,6 +23,7 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   // - Store hydration https://github.com/vikejs/vike-react/issues/110
   await callCumulativeHooks(pageContext.config.onBeforeRenderClient, pageContext);
   const { root, formState } = await getPagePayload(pageContext);
+  pageContext.page = root;
   // Evaluated before the page shows, so a setting that throws reaches Vike; the HTML has the hydrated page's
   const headSettings = pageContext.isHydration ? undefined : getHeadSettings(pageContext);
   const page = { pageContext, root, headSettings };
@@ -32,6 +33,7 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   // it. Not on hydration, whose onHydrationEnd() may navigate before React commits.
   if (!pageContext.isHydration) {
     await rendered();
+    pageContext.root = getReactRoot();
     // Use cases:
     // - Custom user settings: https://vike.dev/head-tags#custom-settings
     // - Testing tools: https://github.com/vikejs/vike-react/issues/95
@@ -49,6 +51,7 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
     setReactRoot(reactRoot);
     reactRoot.render(<Root page={page} />);
   }
+  pageContext.root = getReactRoot();
   // Once React hydrates, which onRenderClient() doesn't wait for: so after +onHydrationEnd, and a hook's error is an unhandled
   // rejection, not the error page. onUncaughtError() logs an error React throws instead.
   // TODO: await it, as vike-react does, once https://github.com/vikejs/vike/pull/3641 is released

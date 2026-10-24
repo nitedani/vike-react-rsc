@@ -68,6 +68,10 @@ export function setReactRoot(reactRoot: ReactRoot): void {
   shared.reactRoot = reactRoot;
 }
 
+export function getReactRoot(): ReactRoot {
+  return shared.reactRoot!;
+}
+
 /** The React root's: an error React throws while rendering goes to the navigation showing the page, as in vike-react */
 export function onUncaughtError(error: unknown, errorInfo: { componentStack?: string }): void {
   console.error(error, errorInfo.componentStack);

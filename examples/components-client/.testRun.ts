@@ -221,8 +221,8 @@ function testVikeReactRendering() {
     }
   });
 
-  test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, as in vike-react", async () => {
-    const shown = { isHydration: false, shown: "A page with +onAfterRenderClient" };
+  test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, with pageContext.root and pageContext.page, as in vike-react", async () => {
+    const shown = { isHydration: false, shown: "A page with +onAfterRenderClient", hasRoot: true, hasPage: true };
     await page.goto(getServerUrl() + "/after-render");
     await autoRetry(async () => {
       expect(await page.evaluate(() => (window as { afterRenders?: unknown[] }).afterRenders)).to.deep.equal([{ ...shown, isHydration: true }]);
