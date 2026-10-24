@@ -21,6 +21,7 @@ export default defineConfig({
     "src/hooks/useHydrated.ts",
     "src/hooks/useConfig/useConfig-server.ts",
     "src/hooks/useConfig/useConfig-client.ts",
+    "src/hooks/useConfig/useConfig.rsc.ts",
     "src/components/ClientOnly.tsx",
     "src/components/ClientOnly.rsc.ts",
     "src/components/Config/Config-server.ts",
