@@ -1,0 +1,39 @@
+export { Loading as default }
+
+import React from 'react'
+
+const Loading: { component: () => React.ReactNode } = {
+  component: VikeReactLoadingComponent,
+}
+
+function VikeReactLoadingComponent() {
+  return (
+    <>
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          maxHeight: '100%',
+          background: 'linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%)',
+          borderRadius: '5px',
+          backgroundSize: '200% 100%',
+          animation: '1.3s vike-react-loading linear infinite',
+          aspectRatio: '2.5/1',
+        }}
+      />
+      <style
+        href="vike-react-loading"
+        // React moves it into <head>, once per href
+        precedence="default"
+      >
+        {`
+          @keyframes vike-react-loading {
+            to {
+              background-position-x: -200%;
+            }
+          }
+        `}
+      </style>
+    </>
+  )
+}

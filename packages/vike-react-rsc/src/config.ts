@@ -8,6 +8,8 @@ const vikeReactRsc: Config = {
   name: "vike-react-rsc",
   require: { vike: ">=0.4.268" },
 
+  Loading: "import:vike-react-rsc/__internal/Loading:default",
+
   onCreatePageContext: "import:vike-react-rsc/__internal/ssr:onCreatePageContext",
   onRenderHtml: "import:vike-react-rsc/__internal/ssr:onRenderHtml",
   onRenderClient: "import:vike-react-rsc/__internal/browser:onRenderClient",

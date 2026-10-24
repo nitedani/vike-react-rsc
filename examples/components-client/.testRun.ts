@@ -535,6 +535,14 @@ function testLoading() {
     await page.waitForSelector("#pathname:text-is('/react-server-loading-marked') ~ main #loaded");
   });
 
+  test("components: 'client': without a +Loading, Loading.component is vike-react's, on the server and in the browser, as vike-react-query's fallback reads it", async () => {
+    expect(await fetchHtml("/default-loading")).to.include("@keyframes vike-react-loading");
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/default-loading");
+    await page.waitForSelector('#default-loading > div[style*="vike-react-loading"]');
+  });
+
   test("components: 'client': a +Loading without layout adds no Suspense boundary, as in vike-react", async () => {
     const html = await fetchHtml("/loading-component");
     expect(html).to.include('<p id="loaded">');

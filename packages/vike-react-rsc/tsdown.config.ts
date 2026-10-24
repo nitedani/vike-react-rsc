@@ -23,6 +23,7 @@ export default defineConfig({
     "src/components/ClientOnly.rsc.ts",
     // A client reference in the rsc env, so it stays a module of its own
     "src/components/LoadingBoundary.tsx",
+    "src/integration/Loading.tsx",
   ],
   format: ["esm"],
   // A client reference in the rsc env, so getPageElement() imports its module
