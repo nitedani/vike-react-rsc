@@ -13,11 +13,12 @@ export function vikeReactRscPlugins(): Plugin[] {
       enforce: "pre",
       config: ({ build }) => ({
         environments: {
-          // Vike pre-bundles the entry its hooks import, but not the other entries of a linked copy, so the browser
-          // would load the page store and rsc()'s cache twice
-          // - Vite's scan doesn't see what the excluded entries import, so it would find vike/getPageContext on the first page
-          //   load, then reload the page
-          client: { optimizeDeps: { exclude: ["vike-react-rsc"], include: ["vike/getPageContext"] } },
+          // vike-react-rsc ships "use client" modules, which Vite's scan finds only on the first request, so plugin-rsc
+          // asks to exclude it: an installed app can reload its first page with "Invalid hook call". A linked copy would
+          // also load the page store and rsc()'s cache twice
+          // TODO: drop vike/abort and vike/getPageContext once Vike excludes them itself, https://github.com/vikejs/vike/pull/3651
+          // (until then Vite would pre-bundle them on the first page load, a second copy of Vike's client code)
+          client: { optimizeDeps: { exclude: ["vike-react-rsc", "vike/abort", "vike/getPageContext"] } },
           // Vike deploys dist/server, rsc included
           rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
         },
