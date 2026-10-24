@@ -235,7 +235,7 @@ function decodeFlight(pageContext: PageContextServer, signal: AbortSignal): Prom
 }
 
 // A page without +stream, pre-rendered too, waits for every Suspense boundary. React's prerender() would, but takes no CSP
-// nonce. react-streaming would, but returns its abort() only once the page has rendered.
+// nonce. react-streaming would, but then useStream() and useAsync() work, where vike-react's renderToString() has them tell to set stream: true.
 async function renderWhole(page: ReactNode, options: RenderToReadableStreamOptions, onAbort: (error: unknown, abort: Abort) => void) {
   const onError: RenderToReadableStreamOptions["onError"] = (error, errorInfo) => {
     const abort = getAbort(error);
