@@ -1216,8 +1216,6 @@ function testHeadSettingsRerender() {
 
 function testConfig(isStatic: boolean) {
   test("<Config> and <Head> in a server component set the HTML head, and <Config> the title on a client navigation", async () => {
-    // The first render after the server starts loads Config's module, during which +Loading shows and the <head> is sent
-    await fetchHtml("/config");
     const html = await fetchHtml("/config");
     const head = html.slice(0, html.indexOf("</head>"));
     expect(head).to.match(/<title>Config in a server component, bumped \d+ times<\/title>/);
