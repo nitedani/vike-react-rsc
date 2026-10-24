@@ -31,7 +31,10 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   // As vike-react's: Vike ends the navigation once React shows the page, and renders the error page if React throws on
   // it. Not on hydration, whose onHydrationEnd() may navigate before React commits.
   if (!pageContext.isHydration) {
-    await rendered();
+    // Or until the user navigates elsewhere: Vike runs the next page's onRenderClient() only once this one ends
+    // TODO: require the Vike release that includes https://github.com/vikejs/vike/pull/3641, which adds pageContext.abortSignal
+    await rendered(pageContext.abortSignal);
+    if (pageContext.abortSignal.aborted) return;
     // Use cases:
     // - Custom user settings: https://vike.dev/head-tags#custom-settings
     // - Testing tools: https://github.com/vikejs/vike-react/issues/95
