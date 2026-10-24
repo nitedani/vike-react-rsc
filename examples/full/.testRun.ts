@@ -128,6 +128,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
         logText.includes("[PLUGIN_TIMINGS]")),
   });
 
+  // The first request after the server starts
+  testConfigFirstRender();
   testPages();
   testCssProp();
   testEnvironments();
@@ -1211,6 +1213,17 @@ function testHeadSettingsRerender() {
       expect(await page.textContent("body")).to.include("Head settings todo");
     });
     expect(await page.title()).to.equal("Set in the browser");
+  });
+}
+
+function testConfigFirstRender() {
+  test("<Config> and <Head> in a server component set the title on a page that streams, on the first request after the server starts", async () => {
+    const title = "Config on a streamed page";
+    // The render loads Config's module, so it sends the <head> before <Config> renders
+    const html = await fetchHtml("/config-streamed");
+    const head = html.slice(0, html.indexOf("</head>"));
+    // In the <head>, or, sent after it, as a script
+    expect(head.includes(`<title>${title}</title>`) || html.slice(head.length).includes(`document.title = "${title}"`)).to.equal(true);
   });
 }
 
