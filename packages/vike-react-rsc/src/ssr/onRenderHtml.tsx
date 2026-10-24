@@ -9,15 +9,19 @@ import { dangerouslySkipEscape, escapeInject } from "vike/server";
 import type { OnRenderHtmlAsync, PageContextServer } from "vike/types";
 import { getAbort, toVikeAbort, type Abort } from "../abort";
 import { forkPageContext } from "../forkPageContext";
+import { configsClientSide } from "../hooks/useConfig/configsClientSide";
 import { getHeadSetting } from "../integration/getHeadSetting";
 import { getPageElement } from "../integration/getPageElement";
 import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import { getRedirectUrl } from "../redirect";
-import type { HeadValue, PagePayload } from "../types";
+import type { HeadValue, PageContextInternal, PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { getTagAttributesString, type TagAttributes } from "../utils/getTagAttributesString";
+import { includes } from "../utils/includes";
+import { objectKeys } from "../utils/objectKeys";
+import { runHtmlRender } from "./htmlRender";
 
 addEcosystemStamp();
 
@@ -73,7 +77,7 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
 }
 
 // The document around the page's HTML, from the HTML injections, the head settings and the tag attributes
-async function buildDocument(pageContext: PageContextServer, deps: ClientDeps) {
+async function buildDocument(pageContext: PageContextServer & PageContextInternal, deps: ClientDeps) {
   // +onAfterRenderHtml may replace pageHtmlString or pageHtmlStream, but it must leave only one of them set
   if (pageContext.pageHtmlString !== undefined && pageContext.pageHtmlStream !== undefined) {
     throw new Error(
@@ -83,7 +87,8 @@ async function buildDocument(pageContext: PageContextServer, deps: ClientDeps) {
   // A string goes to Vike as a stream. Vike would hold an HTML string until the Flight has ended, and it sends a stream
   // at once.
   const html = pageContext.pageHtmlStream ?? new Response(pageContext.pageHtmlString ?? "").body!;
-  // Once the shell has rendered, React has loaded every client component in it
+  // The client components React has loaded so far: every one outside <Suspense>. One inside a <Suspense> that is still
+  // pending gets its links in the stream, from setOnClientReference() above.
   const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
 
   const headHtml = getHeadHtml(pageContext);
@@ -91,6 +96,10 @@ async function buildDocument(pageContext: PageContextServer, deps: ClientDeps) {
   const { headHtmlBegin, headHtmlEnd, bodyHtmlBegin, bodyHtmlEnd } = await getHtmlInjections(pageContext);
 
   const { htmlAttributesString, bodyAttributesString, rootAttributesString } = getTagAttributes(pageContext);
+
+  // Keep only what the client-side applies upon navigation, and remove the rest (HTML-only and/or
+  // non-serializable values such as <Head> components). https://github.com/vikejs/vike-vue/issues/233
+  removeServerOnlyConfigViaHook(pageContext);
 
   return {
     documentHtml: escapeInject`<!DOCTYPE html>
@@ -121,7 +130,7 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   forkPageContext(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
-  const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlRender.signal) : undefined;
+  const flight = ssr && pageContext.rscPayload ? await runHtmlRender(() => decodeFlight(pageContext, htmlRender.signal)) : undefined;
   // The root from the Flight, else the element of the client Page, else none
   const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
   if (root !== null) pageContext.page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
@@ -129,7 +138,7 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
   // Stop if the client left while +onBeforeRenderHtml ran
   htmlRender.signal.throwIfAborted();
-  await renderRootToHtml(pageContext, deps, htmlRender, flight?.formState);
+  await runHtmlRender(() => renderRootToHtml(pageContext, deps, htmlRender, flight?.formState));
   // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
   await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
 }
@@ -312,7 +321,19 @@ function renderAbortMeta(abort: Abort) {
   );
 }
 
-function getHeadHtml(pageContext: PageContextServer) {
+function removeServerOnlyConfigViaHook(pageContext: PageContextInternal) {
+  const configViaHook = pageContext._configViaHook;
+  if (!configViaHook) return;
+  objectKeys(configViaHook).forEach((configName) => {
+    if (!includes(configsClientSide, configName)) delete configViaHook[configName];
+  });
+  // Remove it altogether if there isn't anything left, saving KBs sent to the client
+  if (objectKeys(configViaHook).length === 0) delete pageContext._configViaHook;
+}
+
+function getHeadHtml(pageContext: PageContextServer & PageContextInternal) {
+  pageContext._headAlreadySet = true;
+
   const favicon = getHeadSetting<string | null>("favicon", pageContext);
   const title = getHeadSetting<string | null>("title", pageContext);
   const description = getHeadSetting<string | null>("description", pageContext);
@@ -332,6 +353,8 @@ function getHeadHtml(pageContext: PageContextServer) {
     [
       // Added by +Head
       ...(pageContext.config.Head ?? []),
+      // Added by useConfig()
+      ...(pageContext._configViaHook?.Head ?? []),
     ]
       .filter((Head) => Head !== null && Head !== undefined)
       .map((Head) => getHeadElementHtml(Head, pageContext))

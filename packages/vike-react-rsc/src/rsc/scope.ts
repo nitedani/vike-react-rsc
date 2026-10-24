@@ -27,6 +27,11 @@ export function getPageContext(): PageContextServer {
 
 /** The page's pageContext; its errors name `caller`, the function the user called */
 export function readPageContext(caller: string): PageContextServer {
+  return getForkedPageContext(readHtmlPageContext(caller));
+}
+
+/** The pageContext the HTML render reads, without the fork that server components see */
+export function readHtmlPageContext(caller: string): PageContextServer {
   const scope = storage.getStore();
   if (!scope) {
     throw new Error(`[vike-react-rsc] ${caller} needs a server component render, and none runs here`);
@@ -38,7 +43,7 @@ export function readPageContext(caller: string): PageContextServer {
   if (scope.withoutPage) {
     throw new Error(`[vike-react-rsc] ${caller} needs a page, and the server components a server action returns without rerender() have none: load them with rsc(), or call getRequestContext() from vike-react-rsc/server`);
   }
-  return getForkedPageContext(scope.pageContext) as PageContextServer;
+  return scope.pageContext as PageContextServer;
 }
 
 export function getRequestContext(): RequestContext {
