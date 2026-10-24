@@ -12,7 +12,7 @@ export default function Page() {
   );
 }
 
-// Renders once the HTML's <head> was sent, unless the page is pre-rendered
+// Renders after the <head>, unless the page is pre-rendered
 async function Title() {
   await new Promise((resolve) => setTimeout(resolve, 300));
   return <Config title="Config behind Suspense" />;
