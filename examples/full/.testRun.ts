@@ -139,6 +139,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testWrapper();
   testHead();
   testOnAfterRenderHtml();
+  testUseStream();
   testHeadSettings(isStatic);
   // plugin-rsc has no client JS to preload in dev
   if (!isDev) testClientJsPreload();
@@ -1072,6 +1073,12 @@ function testOnAfterRenderHtml() {
     expect(await fetchHtml("/render-html"))
       .to.include('<div id="root" data-root=""><!-- Streamed through +onAfterRenderHtml -->')
       .and.include("<!-- Injected by +onAfterRenderHtml -->");
+  });
+}
+
+function testUseStream() {
+  test("A client component gets react-streaming's useStream() on a page with stream: true, pre-rendered too, as in vike-react", async () => {
+    expect(await fetchHtml("/use-stream")).to.include("<!-- Injected by useStream() -->");
   });
 }
 

@@ -152,10 +152,8 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
   try {
     const { page } = pageContext;
     if (page) {
-      if (pageContext.isPrerendering) {
-        const html = await renderWhole(page, streamOptions, onAbort);
-        if (rendersToString) pageContext.pageHtmlString = html;
-        else pageContext.pageHtmlStream = toDisabledStream(html);
+      if (rendersToString && pageContext.isPrerendering) {
+        pageContext.pageHtmlString = await renderWhole(page, streamOptions, onAbort);
       } else if (rendersToString) {
         // Whole, as from vike-react's renderToString(), for a crawler too. Like a page that streams, the render stops once
         // the client leaves, or after react-streaming's default timeout.
@@ -184,7 +182,8 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
         if (stream.disabled) await stream.streamEnd;
         void stream.streamEnd.then(() => htmlRender.abort());
         deps.injectToStream = stream.injectToStream;
-        pageContext.pageHtmlStream = stream;
+        // Pre-rendered, the stream has ended by now, so +onAfterRenderHtml gets one it can still inject into
+        pageContext.pageHtmlStream = pageContext.isPrerendering ? toDisabledStream(await new Response(stream.readable).text()) : stream;
       }
     }
     // Inside a Suspense boundary, but reported before this function returns, e.g. a crawler's
@@ -235,9 +234,8 @@ function decodeFlight(pageContext: PageContextServer, signal: AbortSignal): Prom
   return createFromReadableStream<PagePayload>(forHtml.pipeThrough(new TransformStream(), { signal }));
 }
 
-// A page that renders whole, pre-rendered or without +stream, waits for every Suspense boundary. React's prerender() would,
-// but takes no CSP nonce. react-streaming would, but returns its abort() only once the page has rendered, and Vike's
-// pre-rendering loads its own copy, which takes over ours.
+// A page without +stream, pre-rendered too, waits for every Suspense boundary. React's prerender() would, but takes no CSP
+// nonce. react-streaming would, but returns its abort() only once the page has rendered.
 async function renderWhole(page: ReactNode, options: RenderToReadableStreamOptions, onAbort: (error: unknown, abort: Abort) => void) {
   const onError: RenderToReadableStreamOptions["onError"] = (error, errorInfo) => {
     const abort = getAbort(error);

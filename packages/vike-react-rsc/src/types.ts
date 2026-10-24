@@ -44,7 +44,7 @@ export type ReactOptions = {
   renderToStringOptions?: ServerOptions;
   /**
    * Options passed to `react-streaming`'s `renderToStream()`, which renders the HTML of a page whose `+stream` enables or
-   * requires streaming. When pre-rendering, only `streamOptions` apply.
+   * requires streaming.
    *
    * https://github.com/brillout/react-streaming#options
    * https://vike.dev/react-setting
