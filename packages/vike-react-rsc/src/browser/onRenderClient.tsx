@@ -58,10 +58,7 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
 // Ours, then the user's, as in vike-react
 function withOurErrorCallbacks(options: RootOptions | undefined): Pick<RootOptions, "onCaughtError" | "onUncaughtError"> {
   return {
-    onCaughtError: (error, errorInfo) => {
-      onCaughtError(error, errorInfo);
-      options?.onCaughtError?.(error, errorInfo);
-    },
+    onCaughtError: (error, errorInfo) => onCaughtError(error, errorInfo, options?.onCaughtError),
     onUncaughtError: (error, errorInfo) => {
       onUncaughtError(error, errorInfo);
       options?.onUncaughtError?.(error, errorInfo);

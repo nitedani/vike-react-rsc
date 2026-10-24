@@ -326,6 +326,17 @@ function testVikeReactRendering() {
     expect(await page.textContent("#use-id")).to.equal(id);
   });
 
+  test("components: 'client': a +react onCaughtError replaces the logging of what an error boundary catches, as in vike-react", async () => {
+    await page.goto(getServerUrl() + "/caught-error");
+    await waitForHydration("#fail");
+    await page.click("#fail");
+    await page.waitForSelector("#caught");
+    // Nothing is logged: test-e2e fails a test on a browser error it doesn't tolerate
+    await autoRetry(async () => {
+      expect(await page.getAttribute("body", "data-reported")).to.equal("Error: A client component failed on a click");
+    });
+  });
+
   test("components: 'client': +react's renderToStreamOptions don't apply to a page without +stream, which hydrates, as in vike-react", async () => {
     const id = /<p id="use-id">([^<]*)<\/p>/.exec(await fetchHtml("/stream-only-options"))?.[1];
     expect(id).to.not.include("vrr-stream-");

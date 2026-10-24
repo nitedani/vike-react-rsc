@@ -1,10 +1,11 @@
 import { Component, use, type ReactNode } from "react";
-import type { HydrationOptions } from "react-dom/client";
+import type { RootOptions } from "react-dom/client";
 import { getAbort } from "../abort";
 import { followRedirect } from "./callServer";
 import { endNavigation } from "./page";
 import { isThrownByRscOutput } from "./rsc";
 
+type CaughtErrorInfo = Parameters<NonNullable<RootOptions["onCaughtError"]>>[1];
 // `keepsPage`: a server action's answer sent the children, so their redirect keeps the page in history, as the
 // action's own redirect does
 type Props = { children: ReactNode; keepsPage: boolean };
@@ -34,17 +35,20 @@ export class AbortBoundary extends Component<Props, State> {
   }
 }
 
-// AbortBoundary catches only the redirects it follows; a boundary of the app's may swallow one, so it's reported
-export const onCaughtError: NonNullable<HydrationOptions["onCaughtError"]> = (error, errorInfo) => {
-  if (errorInfo.errorBoundary instanceof AbortBoundary) return;
-  const abort = getAbort(error);
-  if (abort && "redirect" in abort) {
-    const hint = "[vike-react-rsc] An error boundary caught a throw redirect(), so the browser stays on the page: throw it outside that boundary, or in guard() or data()";
-    unlessHtmlRedirects(() => console.error(hint, error, errorInfo.componentStack));
-  } else {
-    console.error(error, errorInfo.componentStack);
+// AbortBoundary catches only the redirects it follows; a boundary of the app's may swallow one, so it's reported. Then
+// the user's onCaughtError, which replaces the logging of other errors, as it replaces React's in vike-react.
+export function onCaughtError(error: unknown, errorInfo: CaughtErrorInfo, userOnCaughtError: RootOptions["onCaughtError"]): void {
+  if (!(errorInfo.errorBoundary instanceof AbortBoundary)) {
+    const abort = getAbort(error);
+    if (abort && "redirect" in abort) {
+      const hint = "[vike-react-rsc] An error boundary caught a throw redirect(), so the browser stays on the page: throw it outside that boundary, or in guard() or data()";
+      unlessHtmlRedirects(() => console.error(hint, error, errorInfo.componentStack));
+    } else if (!userOnCaughtError) {
+      console.error(error, errorInfo.componentStack);
+    }
   }
-};
+  userOnCaughtError?.(error, errorInfo);
+}
 
 // One per thrown redirect: React renders the boundary again each time it retries the update that threw it
 const leaving = new WeakMap<object, Promise<never>>();
