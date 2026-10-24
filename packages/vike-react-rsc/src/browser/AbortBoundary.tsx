@@ -35,8 +35,9 @@ export class AbortBoundary extends Component<Props, State> {
   }
 }
 
-// AbortBoundary catches only the redirects it follows; a boundary of the app's may swallow one, so it's reported. Then
-// the user's onCaughtError, which replaces the logging of other errors, as it replaces React's in vike-react.
+// AbortBoundary catches only the redirects it follows. An error boundary of the app may catch a redirect instead, which
+// keeps the browser on the page, so we log a hint. We log other caught errors only when the user set no onCaughtError:
+// theirs replaces our logging, as it replaces React's in vike-react. The user's onCaughtError then gets every error.
 export function onCaughtError(error: unknown, errorInfo: CaughtErrorInfo, userOnCaughtError: RootOptions["onCaughtError"]): void {
   if (!(errorInfo.errorBoundary instanceof AbortBoundary)) {
     const abort = getAbort(error);

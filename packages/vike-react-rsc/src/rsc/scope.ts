@@ -45,7 +45,8 @@ export function getRequestContext(): RequestContext {
   const scope = storage.getStore();
   if (!scope) throw noRequestContext();
   const pageContext = scope.pageContext as PageContextServer & { _pageContextInit: { rscAction?: unknown; rscRequestSignal?: unknown } };
-  // What renderPage() got from the server and every middleware; rscAction and rscRequestSignal are vike-react-rsc's own
+  // What renderPage() got from the server and every middleware, without rscAction and rscRequestSignal, which
+  // vike-react-rsc sets for itself
   const { rscAction: _, rscRequestSignal: __, ...init } = pageContext._pageContextInit;
   return { ...init, headers: pageContext.headers, cookies: pageContext.cookies };
 }

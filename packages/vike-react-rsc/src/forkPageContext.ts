@@ -1,10 +1,13 @@
 import { getShared } from "./shared";
 
-// Kept on pageContext itself, which the rsc env's pageContext views
+// The fork is stored on pageContext itself, under a Symbol.for() key, so that every copy of this module finds it
 const forkKey = Symbol.for("vike-react-rsc:fork");
 type Forked = { [forkKey]?: object };
 
-/** From now on, server components read and write a copy of pageContext's keys as they are now: the objects they hold stay shared */
+/**
+ * From now on, server components read and write a copy of pageContext's keys as they are now. The objects the keys hold
+ * stay shared.
+ */
 export function forkPageContext(pageContext: object): void {
   // Copies descriptors, so no getter runs and Vike's internal props aren't read
   const standIn = Object.create(Object.getPrototypeOf(pageContext), Object.getOwnPropertyDescriptors(pageContext));
@@ -23,15 +26,16 @@ export function getForkedPageContext<T extends object>(pageContext: T): T {
 
 function createView(pageContext: object): object {
   const getTarget = () => (pageContext as Forked)[forkKey] ?? pageContext;
-  // The fork holds pageContext's keys as they were before the HTML hooks. A key with the same value on both reads from the
-  // rsc env's pageContext, so `config` is the rsc env's; any other key reads from the fork, and a getter runs on the fork.
+  // The fork holds pageContext's keys as they were before the HTML hooks ran. A key with the same value on both is read
+  // from the rsc env's pageContext, so `config` is the rsc env's own. Any other key is read from the fork, and a getter
+  // runs on the fork.
   const isUnchanged = (fork: object, key: PropertyKey) => {
     const was = Object.getOwnPropertyDescriptor(fork, key);
     const now = Object.getOwnPropertyDescriptor(pageContext, key);
     return !was?.get && !now?.get && !was === !now && was?.value === now?.value;
   };
-  // Every trap answers from pageContext or its fork, so the target `{}` only serves Proxy's checks, which require each
-  // key it lacks to be reported configurable
+  // Every trap answers from pageContext or its fork. The empty target `{}` is there only for Proxy's invariant checks,
+  // which require every key the target lacks to be reported as configurable.
   return new Proxy(
     {},
     {

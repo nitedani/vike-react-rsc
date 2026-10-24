@@ -48,10 +48,11 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
 };
 
 async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) {
-  // Aborted once the HTML has rendered, or once nobody gets it: stops React's HTML render and the HTML's copy of the Flight
+  // Aborted once the HTML has rendered, or once nobody will read it. Aborting stops React's HTML render and the copy of
+  // the Flight that the HTML reads.
   const htmlRender = new AbortController();
-  // Once the client leaves, Vike cancels the HTML, and so the Flight, but only once onRenderHtml() has returned it: until
-  // then, from the Flight's decoding to the last HTML injection, the request tells
+  // Vike cancels the HTML once the client leaves, which stops the Flight too, but only after onRenderHtml() has returned
+  // the HTML. Until then, we listen to the request's abort signal ourselves.
   const left = pageContext.rscRequestSignal;
   const onLeave = () => cancelRender(pageContext, htmlRender);
   left?.addEventListener("abort", onLeave);
@@ -60,10 +61,11 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
     await renderPageToHtml(pageContext, deps, htmlRender);
     return await buildDocument(pageContext, deps);
   } catch (error) {
-    // Vike gets no HTML, so nothing reads the Flight, nor the HTML, whatever stream the hooks left
+    // Vike gets no HTML, so nothing will read the Flight, nor any HTML stream the hooks left: stop both renders
     cancelRender(pageContext, htmlRender);
     if (!left?.aborted) throw error;
-    // The client left: nobody gets the HTML, nor the error its cancellation caused, so Vike sends this instead of a document
+    // The client left, so nobody gets the HTML, nor the error that cancelling it caused. Vike sends this instead of a
+    // document.
     pageContext.content = "";
   } finally {
     left?.removeEventListener("abort", onLeave);
@@ -72,13 +74,14 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
 
 // The document around the page's HTML, from the HTML injections, the head settings and the tag attributes
 async function buildDocument(pageContext: PageContextServer, deps: ClientDeps) {
-  // As onAfterRenderHtml() left them
+  // +onAfterRenderHtml may replace pageHtmlString or pageHtmlStream, but it must leave only one of them set
   if (pageContext.pageHtmlString !== undefined && pageContext.pageHtmlStream !== undefined) {
     throw new Error(
       "[vike-react-rsc] +onAfterRenderHtml left both pageContext.pageHtmlString and pageContext.pageHtmlStream set: set only one of them, and the other to undefined"
     );
   }
-  // A stream: Vike holds an HTML string until the Flight has ended
+  // A string goes to Vike as a stream. Vike would hold an HTML string until the Flight has ended, and it sends a stream
+  // at once.
   const html = pageContext.pageHtmlStream ?? new Response(pageContext.pageHtmlString ?? "").body!;
   // Once the shell has rendered, React has loaded every client component in it
   const clientLinks = dangerouslySkipEscape(renderClientLinks(deps));
@@ -109,32 +112,34 @@ async function buildDocument(pageContext: PageContextServer, deps: ClientDeps) {
   };
 }
 
-// As vike-react's: sets pageContext.pageHtmlString or pageHtmlStream, between the HTML hooks
+// As in vike-react: runs +onBeforeRenderHtml, renders the page to pageContext.pageHtmlString or pageHtmlStream, then
+// runs +onAfterRenderHtml
 async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps, htmlRender: AbortController): Promise<void> {
-  // Before any HTML hook: server components see pageContext's keys as after a client navigation, which runs none
+  // Before any HTML hook runs, so that server components see pageContext's keys as on a client navigation, where no HTML
+  // hook runs
   // TODO: remove once server components get their own pageContext: https://github.com/nitedani/vike-react-rsc/issues/30
   forkPageContext(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
   const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlRender.signal) : undefined;
-  // The Flight's root, or a client Page
+  // The root from the Flight, else the element of the client Page, else none
   const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
   if (root !== null) pageContext.page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
   // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
   await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
-  // The client left during the hook
+  // Stop if the client left while +onBeforeRenderHtml ran
   htmlRender.signal.throwIfAborted();
   await renderRootToHtml(pageContext, deps, htmlRender, flight?.formState);
   // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
   await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
 }
 
-// pageContext.page, as +onBeforeRenderHtml left it, to pageContext.pageHtmlString or pageHtmlStream
+// Renders pageContext.page, which +onBeforeRenderHtml may have replaced, to pageContext.pageHtmlString or pageHtmlStream
 async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps, htmlRender: AbortController, formState: ReactFormState | undefined) {
   const { renderToStringOptions, renderToStreamOptions } = resolveReactOptions(pageContext);
   const streamSetting = resolveStreamSetting(pageContext);
-  // Where vike-react calls renderToString(), its options, and only those, apply, to React's stream render: server
-  // components render only to a stream
+  // On a page that vike-react renders with renderToString(), only renderToStringOptions apply. We pass them to React's
+  // stream render, because server components can't render to a string.
   const rendersToString = !streamSetting.enable && !streamSetting.require;
   const options: RenderToStreamOptions | undefined = rendersToString ? { streamOptions: renderToStringOptions } : renderToStreamOptions;
   const streamOptions = {
@@ -142,8 +147,8 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
     nonce: pageContext.cspNonce ?? options?.streamOptions?.nonce,
     formState: formState ?? options?.streamOptions?.formState,
   };
-  // A `throw redirect()` or `throw render()` in a server component: Vike answers it until this function returns, then the
-  // HTML has started and only the stream can tell the browser
+  // A server component may `throw redirect()` or `throw render()`. Until this function returns, Vike can still answer
+  // it. After that, the HTML has started, so only tags we inject into the stream can tell the browser.
   let boundaryAbort: unknown;
   const onAbort = (error: unknown, abort: Abort) => {
     if (deps.injectToStream) deps.injectToStream(renderAbortMeta(abort));
@@ -155,20 +160,22 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
       if (rendersToString && pageContext.isPrerendering) {
         pageContext.pageHtmlString = await renderWhole(page, streamOptions, onAbort);
       } else if (rendersToString) {
-        // Whole, as from vike-react's renderToString(), for a crawler too. Like a page that streams, the render stops once
-        // the client leaves, or after react-streaming's default timeout.
+        // Rendered whole, as vike-react's renderToString() renders it, for a crawler too. As on a page that streams, the
+        // render stops once the client leaves, or after react-streaming's default timeout.
         const render = getRenderSignal(htmlRender.signal);
-        // As react-streaming when it doesn't stream: no large boundary sent apart, with a script that shows it
+        // As react-streaming does when it doesn't stream: React puts every Suspense boundary's content in place, however
+        // large, rather than in a hidden part of the HTML that a script moves into place
         const renderOptions = { ...streamOptions, progressiveChunkSize: Number.MAX_SAFE_INTEGER, signal: render.signal };
         pageContext.pageHtmlString = await renderWhole(page, renderOptions, onAbort).finally(render.clear);
         htmlRender.abort();
       } else {
         const stream = await renderToStream(page, {
           userAgent: pageContext.headers?.["user-agent"],
-          // Else react-streaming streams, except to bots
+          // Without `disable`, react-streaming streams, except to bots, which get the page whole
           disable: streamSetting.enable === false || undefined,
           ...options,
-          // Server components render to a Web stream, and Vike takes either, so the page is the same
+          // Always a Web stream, which server components need. Vike accepts either kind of stream, so a +react that asks
+          // for a Node stream gets the same page.
           webStream: true,
           streamOptions,
           signal: options?.signal ? AbortSignal.any([htmlRender.signal, options.signal]) : htmlRender.signal,
@@ -178,15 +185,19 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
             else options?.onBoundaryError?.(error);
           },
         });
-        // A stream: false page, and any page for a crawler, is rendered whole, so Vike can still answer a boundary's abort, which react-streaming reports late
+        // react-streaming renders the page whole for a crawler, when pre-rendering, and with
+        // { require: true, enable: false }. We wait for its end: react-streaming reports a Suspense boundary's abort
+        // late, and Vike can answer it only until this function returns.
         if (stream.disabled) await stream.streamEnd;
         void stream.streamEnd.then(() => htmlRender.abort());
         deps.injectToStream = stream.injectToStream;
-        // A disabled stream has ended by now, so +onAfterRenderHtml gets one it can still inject into
+        // That stream has ended, so injecting into it would throw. +onAfterRenderHtml gets a new stream with the same
+        // HTML, which it can still inject into.
         pageContext.pageHtmlStream = stream.disabled ? toDisabledStream(await new Response(stream.readable).text()) : stream;
       }
     }
-    // Inside a Suspense boundary, but reported before this function returns, e.g. a crawler's
+    // An abort thrown inside a Suspense boundary and reported before this function returns, e.g. on a page rendered
+    // whole: Vike answers it
     if (boundaryAbort) throw boundaryAbort;
   } catch (error) {
     const abort = getAbort(error);
@@ -195,15 +206,17 @@ async function renderRootToHtml(pageContext: PageContextServer, deps: ClientDeps
   }
 }
 
-// Aborts once `signal` does, or after react-streaming's default timeout. clear() once the render has ended.
+// A signal that aborts once `signal` does, or after react-streaming's default timeout. Call clear() once the render has
+// ended, to stop the timer.
 function getRenderSignal(signal: AbortSignal): { signal: AbortSignal; clear: () => void } {
   const timedOut = new AbortController();
   const timer = setTimeout(() => timedOut.abort(), 20 * 1000);
   return { signal: AbortSignal.any([signal, timedOut.signal]), clear: () => clearTimeout(timer) };
 }
 
-// Stops the HTML's render, and the Flight's, which stops once both its copies are cancelled: the HTML's, and the
-// browser's, which Vike reads once onRenderHtml() returns
+// Stops React's HTML render, and the Flight's render. The Flight stops only once both its copies are cancelled: the
+// HTML's copy, which htmlRender's signal cuts, and the browser's copy, which Vike reads only after onRenderHtml()
+// returns.
 function cancelRender(pageContext: PageContextServer, htmlRender: AbortController) {
   htmlRender.abort();
   void pageContext.rscPayload?.cancel();
@@ -241,9 +254,9 @@ async function renderWhole(page: ReactNode, options: RenderToReadableStreamOptio
   const onError: RenderToReadableStreamOptions["onError"] = (error, errorInfo) => {
     const abort = getAbort(error);
     if (abort) onAbort(error, abort);
-    // Not the abort, nor what failed because of it
+    // Once the render is aborted, other errors are the abort's consequences: don't log them
     else if (options.signal?.aborted) return;
-    // A server component's, which the Flight carries with its digest: the rsc env logged it
+    // A server component's error comes through the Flight with a digest, and the rsc env has already logged it
     else if (typeof error === "object" && error !== null && "digest" in error) return;
     else if (options.onError) options.onError(error, errorInfo);
     else console.error(error);
@@ -253,8 +266,8 @@ async function renderWhole(page: ReactNode, options: RenderToReadableStreamOptio
   return new Response(stream).text();
 }
 
-// As react-streaming's stream when it doesn't stream, as vike-react's +onAfterRenderHtml gets it:
-// what a hook injects follows the page's HTML, in order, until the stream has been read to its end
+// A stream like react-streaming's when it doesn't stream, as vike-react's +onAfterRenderHtml gets it. What a hook
+// injects goes after the page's HTML, in order, until the stream has been read to its end.
 function toDisabledStream(html: string): Awaited<ReturnType<typeof renderToStream>> {
   const chunks: (string | Promise<string>)[] = [html];
   let ended = false;
@@ -377,8 +390,8 @@ function getViewportTag(viewport: Viewport | undefined): string {
   return "";
 }
 
-// As vike-react's: react-streaming's and Vike's errors then tell to set +stream, e.g. for useAsync() on a page that
-// doesn't stream, rather than to install react-streaming
+// As in vike-react. With this flag, react-streaming's and Vike's errors tell the user to set +stream, e.g. for
+// useAsync() on a page that doesn't stream, rather than to install react-streaming.
 function addEcosystemStamp() {
   const g = globalThis as Record<string, unknown>;
   g._isVikeReactApp = {};

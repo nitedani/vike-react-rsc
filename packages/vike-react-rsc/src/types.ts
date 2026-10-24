@@ -34,9 +34,9 @@ export type ReactOptions = {
    */
   createRootOptions?: RootOptions;
   /**
-   * Options passed to React's `renderToString()` in vike-react, which renders a page whose `+stream` neither enables nor
-   * requires streaming (`false`, or not set). Server components render only to a stream, so they go to the stream's
-   * render, in place of `renderToStreamOptions`.
+   * Options for a page whose `+stream` neither enables nor requires streaming (`false`, or not set), which vike-react
+   * renders with React's `renderToString()`. Server components can't render to a string, so these options go to React's
+   * stream render, in place of `renderToStreamOptions`.
    *
    * https://react.dev/reference/react-dom/server/renderToString
    * https://vike.dev/react-setting
@@ -266,8 +266,9 @@ declare global {
       ssr?: boolean;
       /**
        * Settings for HTML Streaming. As in vike-react, the first load's HTML streams when this enables streaming, or when
-       * an extension sets `require` and this doesn't disable streaming. Else it's sent at once, every Suspense boundary
-       * resolved, and, unless an extension sets `require`, +onAfterRenderHtml gets `pageContext.pageHtmlString`.
+       * an extension sets `require` and this doesn't disable streaming. Else the HTML is sent at once, with every
+       * Suspense boundary resolved. Then +onAfterRenderHtml gets `pageContext.pageHtmlString`, unless an extension sets
+       * `require`.
        *
        * https://vike.dev/stream
        */

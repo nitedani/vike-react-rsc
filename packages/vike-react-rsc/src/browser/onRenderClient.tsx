@@ -55,7 +55,7 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   void rendered().then(() => callCumulativeHooks(pageContext.config.onAfterRenderClient, pageContext), () => {});
 };
 
-// Ours, then the user's, as in vike-react
+// Our error callbacks run first, then the user's, as in vike-react
 function withOurErrorCallbacks(options: RootOptions | undefined): Pick<RootOptions, "onCaughtError" | "onUncaughtError"> {
   return {
     onCaughtError: (error, errorInfo) => onCaughtError(error, errorInfo, options?.onCaughtError),
