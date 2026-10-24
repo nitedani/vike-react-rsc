@@ -508,22 +508,26 @@ async function withoutScripts(run: (noJs: typeof page) => Promise<void>) {
 }
 
 function testReactStrictMode() {
-  test("Dev: components: 'client': a page renders in <StrictMode> unless +reactStrictMode is false, on the first load and after a client navigation, as in vike-react", async () => {
-    for (const [pathname, runs] of [
+  test("Dev: components: 'client': a page renders in <StrictMode> unless +reactStrictMode is false, on the first load and after a client navigation that turns it on or off, as in vike-react", async () => {
+    const pages = [
       ["/react-strict-mode", "Effect runs: 2"],
       ["/react-strict-mode/off", "Effect runs: 1"],
-    ]) {
-      await page.goto(getServerUrl() + pathname);
-      await autoRetry(async () => {
+    ];
+    const expectRuns = (pathname: string, runs: string) =>
+      autoRetry(async () => {
         expect(await page.textContent("#effect-runs"), pathname).to.equal(runs);
       });
+    for (const [pathname, runs] of pages) {
+      await page.goto(getServerUrl() + pathname);
+      await expectRuns(pathname, runs);
     }
-    await page.goto(getServerUrl() + "/");
-    await waitForHydration("#counter");
-    await clickLink("/react-strict-mode");
-    await autoRetry(async () => {
-      expect(await page.textContent("#effect-runs")).to.equal("Effect runs: 2");
-    });
+    // From the page without it: a client navigation that turns it on, then one that turns it off
+    await waitForHydration("#layout-counter");
+    for (const [pathname, runs] of pages) {
+      await clickLink(pathname);
+      await page.waitForSelector(`#pathname:text-is('${pathname}')`);
+      await expectRuns(pathname, runs);
+    }
   });
 }
 

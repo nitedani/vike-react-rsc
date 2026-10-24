@@ -39,8 +39,12 @@ export function getCurrentPageContext(): PageContextClient {
 }
 
 export function show(next: Shown): void {
+  const previous = shared.shown;
   shared.shown = next;
-  shared.setRootState?.(next);
+  // As in vike-react, a navigation that turns +reactStrictMode on or off mounts the page again, its layouts included
+  const isFlip = previous && (previous.pageContext.config.reactStrictMode === false) !== (next.pageContext.config.reactStrictMode === false);
+  if (isFlip) shared.reactRoot!.render(getRootElement(next));
+  else shared.setRootState?.(next);
 }
 
 /** Resolves once React shows what show() was last given, or rejects with the error React throws while rendering it */
@@ -83,8 +87,8 @@ export function onUncaughtError(error: unknown, errorInfo: { componentStack?: st
   endNavigation(error);
 }
 
-/** What the React root renders. Its page's +reactStrictMode applies to every page it shows: React runs effects twice only
- * in what mounts inside <StrictMode>, and Root mounts once */
+/** What the React root renders: Root, inside <StrictMode> unless its page sets +reactStrictMode to false. Not the page
+ * inside Root: React runs effects twice only in what mounts inside <StrictMode> */
 export function getRootElement(page: Shown): ReactElement {
   return withStrictMode(page.pageContext, <Root page={page} />);
 }
