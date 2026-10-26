@@ -1234,6 +1234,15 @@ function testConfig(isStatic: boolean) {
     await autoRetry(async () => expect(await page.title()).to.match(/^Config in a server component, bumped \d+ times$/));
   });
 
+  test("useConfig() in +data sets the title, on the first load and on a client navigation", async () => {
+    const html = await fetchHtml("/todos");
+    expect(html.slice(0, html.indexOf("</head>"))).to.match(/<title>Task Manager: \d+ tasks<\/title>/);
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await clickNewLink("/todos");
+    await autoRetry(async () => expect(await page.title()).to.match(/^Task Manager: \d+ tasks$/));
+  });
+
   test("<Config> behind Suspense in a server component sets the title once it renders, on the first load and on a client navigation", async () => {
     const title = "Config behind Suspense";
     const html = await fetchHtml("/config-suspense");
