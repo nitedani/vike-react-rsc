@@ -61,7 +61,7 @@ export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys:
   const pageContext = createPageContextFromServer_experimentalRSC(shared.current!, passed);
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
   // Another page's tree, e.g. a throw render()'s, applies its head settings; the page's own keeps the shown ones
-  const isOtherPage = pageContext.pageId !== shared.current!.pageId;
+  const isOtherPage = pageContext.pageId !== shared.shown!.pageContext.pageId;
   show({ ...shared.shown, pageContext, root, fromAction, ...(isOtherPage && { headSettings }) });
 }
 

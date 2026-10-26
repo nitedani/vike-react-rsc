@@ -1205,6 +1205,13 @@ function testHeadSettingsRerender() {
     await autoRetry(async () => expect(await page.textContent("h1")).to.equal("Log in"));
     await autoRetry(async () => expect(await page.title()).to.equal("Vike RSC demo"));
     expect(await page.getAttribute('meta[name="description"]', "content")).to.equal("A demo of Vike with React Server Components");
+
+    // Logging in renders /head-settings again, under its own head
+    await page.click('button:has-text("Log in")');
+    await autoRetry(async () => expect(await page.title()).to.equal("Head settings from +data"));
+    expect(await page.getAttribute('meta[name="description"]', "content")).to.equal("Set by +description");
+    // The next tests start logged out
+    await page.context().clearCookies({ name: "session" });
   });
   test("Head settings: rerender() keeps a title the page set in the browser", async () => {
     // A navigation, so the page isn't the hydrated one, whose settings the HTML has
