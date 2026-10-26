@@ -1235,12 +1235,13 @@ function testConfig(isStatic: boolean) {
   });
 
   test("useConfig() in +data sets the title, on the first load and on a client navigation", async () => {
-    const html = await fetchHtml("/todos");
-    expect(html.slice(0, html.indexOf("</head>"))).to.match(/<title>Task Manager: \d+ tasks<\/title>/);
+    const title = "Environments: Hello from the rsc environment";
+    const html = await fetchHtml("/environments");
+    expect(html.slice(0, html.indexOf("</head>"))).to.include(`<title>${title}</title>`);
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    await clickNewLink("/todos");
-    await autoRetry(async () => expect(await page.title()).to.match(/^Task Manager: \d+ tasks$/));
+    await clickNewLink("/environments");
+    await autoRetry(async () => expect(await page.title()).to.equal(title));
   });
 
   test("<Config> behind Suspense in a server component sets the title once it renders, on the first load and on a client navigation", async () => {
