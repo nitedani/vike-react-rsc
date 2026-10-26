@@ -3,7 +3,7 @@ import type { Root as ReactRoot } from "react-dom/client";
 import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import type { PageContextClient } from "vike/types";
 import { applyHeadSettings } from "../integration/applyHeadSettings";
-import { withStrictMode } from "../integration/withStrictMode";
+import { isStrictMode, withStrictMode } from "../integration/withStrictMode";
 import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
 import { AbortBoundary } from "./AbortBoundary";
@@ -42,8 +42,7 @@ export function show(next: Shown): void {
   const previous = shared.shown;
   shared.shown = next;
   // As in vike-react, a navigation that turns +reactStrictMode on or off mounts the page again, its layouts included
-  const isFlip = previous && (previous.pageContext.config.reactStrictMode === false) !== (next.pageContext.config.reactStrictMode === false);
-  if (isFlip) shared.reactRoot!.render(getRootElement(next));
+  if (previous && isStrictMode(previous.pageContext) !== isStrictMode(next.pageContext)) shared.reactRoot!.render(getRootElement(next));
   else shared.setRootState?.(next);
 }
 
