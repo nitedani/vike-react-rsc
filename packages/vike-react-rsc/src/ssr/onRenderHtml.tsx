@@ -16,6 +16,7 @@ import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import { getRedirectUrl } from "../redirect";
+import { getShared } from "../shared";
 import type { HeadValue, PageContextInternal, PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { getTagAttributesString, type TagAttributes } from "../utils/getTagAttributesString";
@@ -24,9 +25,10 @@ import { objectKeys } from "../utils/objectKeys";
 
 addEcosystemStamp();
 
-// The CSS and JS of the client components a page's HTML renders, for their links
-const clientDeps = new AsyncLocalStorage<ClientDeps>();
-type ClientDeps = { css: Set<string>; js: Set<string>; injectToStream?: (html: string) => void };
+// The CSS and JS of the client components a page's HTML renders, for their links, and the loads of their modules
+const clientDeps = getShared("clientDeps", () => new AsyncLocalStorage<ClientDeps>());
+type ClientDeps = { css: Set<string>; js: Set<string>; loads: Promise<unknown>[]; injectToStream?: (html: string) => void };
+recordClientModuleLoads();
 setOnClientReference(({ deps }) => {
   const store = clientDeps.getStore();
   if (!store) return;
@@ -38,6 +40,23 @@ setOnClientReference(({ deps }) => {
   if (store.injectToStream && (css.length || js.length)) store.injectToStream(renderClientLinks({ css, js }));
 });
 
+// Every load of a client module goes in its render's `loads`: plugin-rsc loads a module on its first use only, and until
+// it has loaded, React renders the closest <Suspense> fallback in its place
+function recordClientModuleLoads() {
+  const recorded = Symbol.for("vike-react-rsc:loadsRecorded");
+  const pluginRsc = globalThis as unknown as { __vite_rsc_client_require__: ((id: string) => Promise<unknown>) & { [recorded]?: true } };
+  const load = pluginRsc.__vite_rsc_client_require__;
+  if (load[recorded]) return;
+  pluginRsc.__vite_rsc_client_require__ = Object.assign(
+    (id: string) => {
+      const loading = load(id);
+      clientDeps.getStore()?.loads.push(loading);
+      return loading;
+    },
+    { [recorded]: true as const }
+  );
+}
+
 export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
   // A server action: the answer is Flight, and the middleware (ssr/action.ts) sends it
   const call = pageContext.rscAction;
@@ -46,7 +65,7 @@ export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
     pageContext.headersResponse.set("content-type", FLIGHT_CONTENT_TYPE);
     return;
   }
-  const deps: ClientDeps = { css: new Set(), js: new Set() };
+  const deps: ClientDeps = { css: new Set(), js: new Set(), loads: [] };
   return clientDeps.run(deps, () => renderDocument(pageContext, deps));
 };
 
@@ -129,7 +148,7 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   forkPageContext(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
-  const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlRender.signal) : undefined;
+  const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, deps, htmlRender.signal) : undefined;
   // The root from the Flight, else the element of the client Page, else none
   const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
   if (root !== null) pageContext.page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
@@ -243,13 +262,17 @@ function resolveStreamSetting(pageContext: PageContextServer): { enable: boolean
   return streamSetting;
 }
 
-function decodeFlight(pageContext: PageContextServer, signal: AbortSignal): Promise<PagePayload> {
+async function decodeFlight(pageContext: PageContextServer, deps: ClientDeps, signal: AbortSignal): Promise<PagePayload> {
   // The page renders to Flight once: one copy becomes the HTML, Vike inlines the other for hydration
   const [forHtml, forBrowser] = pageContext.rscPayload!.tee();
   pageContext.rscPayload = forBrowser;
   // tee() keeps the render going while either copy is read, so the HTML's copy stops once the HTML is sent, or the
   // client left. The decoder holds its stream's lock, hence a pipe that can be cut.
-  return createFromReadableStream<PagePayload>(forHtml.pipeThrough(new TransformStream(), { signal }));
+  const payload = await createFromReadableStream<PagePayload>(forHtml.pipeThrough(new TransformStream(), { signal }));
+  // The client components the Flight has sent so far render in the shell, as in vike-react, e.g. a <Config> on a
+  // server's first request
+  await Promise.allSettled(deps.loads);
+  return payload;
 }
 
 // A page without +stream, pre-rendered too, waits for every Suspense boundary. React's prerender() would too, but takes
