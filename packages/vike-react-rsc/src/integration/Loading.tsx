@@ -23,7 +23,8 @@ function VikeReactLoadingComponent() {
       />
       <style
         href="vike-react-loading"
-        // React moves it into <head>, once per href
+        // https://react.dev/reference/react-dom/components/style#special-rendering-behavior
+        // https://github.com/vikejs/vike-react/pull/184#discussion_r2348075206
         precedence="default"
       >
         {`
