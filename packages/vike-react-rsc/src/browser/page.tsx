@@ -16,7 +16,7 @@ type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: H
 const shared = getShared(
   "page",
   (): {
-    // Vike's pageContext of the page shown, which rerender() doesn't replace: actions call its URL, and their answers apply
+    // Vike's pageContext of the page Vike showed, which an action's answer doesn't replace: actions call its URL, and their answers apply
     // only while it stays current
     current?: PageContextClient;
     // What Root shows, and how to change it once Root has mounted
@@ -56,7 +56,7 @@ export function endNavigation(error?: unknown): void {
   else rendering?.reject(error);
 }
 
-/** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent and none of the passToClient `keys` it didn't */
+/** Shows the tree an action's answer sent, after rerender() or as a throw render()'s page, with the pageContext values it sent and none of the passToClient `keys` it didn't */
 export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys: string[], fromAction: boolean, headSettings: HeadSettings): void {
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
   const pageContext = createPageContextFromServer_experimentalRSC(shared.current!, passed);
