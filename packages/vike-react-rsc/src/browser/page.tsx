@@ -83,8 +83,7 @@ export function onUncaughtError(error: unknown, errorInfo: { componentStack?: st
   endNavigation(error);
 }
 
-/** What the React root renders: Root, inside <StrictMode> unless its page sets +reactStrictMode to false. Around Root, not
- * inside it: on hydration, React runs effects twice only under a <StrictMode> at the root */
+// Around Root, not inside it: on hydration, React runs effects twice only under a <StrictMode> at the root
 export function getRootElement(page: Shown): ReactElement {
   return withStrictMode(page.pageContext, <Root page={page} />);
 }
