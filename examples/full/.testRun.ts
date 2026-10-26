@@ -1214,6 +1214,9 @@ function testHeadSettingsRerender() {
     await page.click('button:has-text("Log in")');
     await autoRetry(async () => expect(await page.title()).to.equal("Head settings from +data"));
     expect(await page.getAttribute('meta[name="description"]', "content")).to.equal("Set by +description");
+    // As on a navigation, the title that page's <Config> sets wins
+    await page.click('button:has-text("Show the Config page")');
+    await autoRetry(async () => expect(await page.title()).to.match(/^Config in a server component, bumped \d+ times$/));
     // The next tests start logged out
     await page.context().clearCookies({ name: "session" });
   });

@@ -51,6 +51,11 @@ export async function requireLogin(): Promise<never> {
   throw render("/login");
 }
 
+// A page whose title its <Config> sets
+export async function showConfigPage(): Promise<never> {
+  throw render("/config");
+}
+
 // Its cookie reaches the guard of the page it renders
 export async function loginThenRender(): Promise<string> {
   getRequestContext().cookies.set("session", "bob", { path: "/" });
