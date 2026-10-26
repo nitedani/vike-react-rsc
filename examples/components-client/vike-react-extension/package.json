@@ -1,0 +1,16 @@
+{
+  "name": "vike-react-extension",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./Wrapper": {
+      "types": "./Wrapper.d.ts",
+      "default": "./Wrapper.js"
+    }
+  },
+  "peerDependencies": {
+    "react": "*",
+    "vike-react": ">=0.6.8"
+  }
+}
