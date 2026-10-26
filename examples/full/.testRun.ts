@@ -1219,19 +1219,15 @@ function testHeadSettingsRerender() {
 function testConfigFirstRender() {
   test("<Config> and <Head> in a server component set the HTML head on a page that streams, on the first request after the server starts", async () => {
     // The first request loads the modules of <Config> and <Head>
-    const html = await fetchHtml("/config-streamed");
-    const head = html.slice(0, html.indexOf("</head>"));
-    expect(head).to.include("<title>Config on a streamed page</title>");
-    expect(head).to.include('<meta name="use-config" content="Head on a streamed page"/>');
-  });
-}
-
-function testConfig(isStatic: boolean) {
-  test("<Config> and <Head> in a server component set the HTML head, and <Config> the title on a client navigation", async () => {
     const html = await fetchHtml("/config");
     const head = html.slice(0, html.indexOf("</head>"));
     expect(head).to.match(/<title>Config in a server component, bumped \d+ times<\/title>/);
     expect(head).to.include('<meta name="use-config" content="Head in a server component"/>');
+  });
+}
+
+function testConfig(isStatic: boolean) {
+  test("<Config> in a server component sets the title on a client navigation", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
     await clickNewLink("/config");
