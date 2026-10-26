@@ -42,6 +42,7 @@ setOnClientReference(({ deps }) => {
 
 // Every load of a client module goes in its render's `loads`: plugin-rsc loads a module on its first use only, and until
 // it has loaded, React renders the closest <Suspense> fallback in its place
+// TODO: remove once plugin-rsc offers a public way to wait for client modules during SSR (vitejs/vite-plugin-react#<pending>)
 function recordClientModuleLoads() {
   const recorded = Symbol.for("vike-react-rsc:loadsRecorded");
   const pluginRsc = globalThis as unknown as { __vite_rsc_client_require__: ((id: string) => Promise<unknown>) & { [recorded]?: true } };
