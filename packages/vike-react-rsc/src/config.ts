@@ -21,7 +21,7 @@ const vikeReactRsc: Config = {
     "import:vike-react-rsc/__internal/middleware:rscMiddleware",
   ] as never,
   rscRuntime: "import:vike-react-rsc/__internal/rsc:rscRuntime",
-  passToClient: ["rscPayload"],
+  passToClient: ["rscPayload", "_configViaHook"],
   clientRouting: true,
   // Under components: 'server', the browser has no Page to load: its onRenderClient decodes the Flight
   clientHooks: true,
