@@ -16,7 +16,7 @@ export function useConfig(): (config: ConfigViaHook) => void {
   };
 }
 
-// Once for each line that calls the function useConfig() returns: the error's stack lists the message, that function, then the line
+// Logs once per line that calls the setter: line 2 of the error's stack is that line, after the message and the setter
 function logOnce(error: Error) {
   const callSite = error.stack?.split("\n")[2];
   if (loggedCallSites.has(callSite)) return;
