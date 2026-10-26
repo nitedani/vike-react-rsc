@@ -10,6 +10,7 @@ import type { PageContextInternal } from "../types";
 import { AbortBoundary } from "./AbortBoundary";
 
 // `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()
+// `headSettings`: the head an answer sent with `root`, which Root applies once React has committed it
 type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings; fromAction?: boolean };
 
 // One for every copy of this file: after an edit, Vite can load the next page's entry with a new copy
@@ -21,12 +22,14 @@ const shared = getShared(
     current?: PageContextClient;
     // What Root shows, and how to change it once Root has mounted
     shown?: Shown;
+    // The head the tab last got, the HTML's at first: an answer applies only the values that differ from it
+    head?: HeadSettings;
     setRootState?: (shown: Shown) => void;
     // The React root Root renders in, to mount Root again after an error unmounted it or kept it from mounting
     reactRoot?: ReactRoot;
     // The navigation waiting until React shows its page, or throws on it
     rendering?: { resolve: () => void; reject: (error: unknown) => void };
-  } => ({})
+  } => ({ head: readHtmlHead() })
 );
 
 export function setCurrentPageContext(pageContext: PageContextClient): void {
@@ -61,12 +64,11 @@ export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys:
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
   const pageContext = createPageContextFromServer_experimentalRSC(shared.current!, passed);
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
-  // Another page's tree, e.g. a throw render()'s, brings its head settings. A later answer for that page passes the same
-  // object on, so Root applies them once, also when React skips to the later answer before committing this one
-  const isOtherPage = pageContext.pageId !== shared.shown!.pageContext.pageId;
+  // Another page's tree, e.g. a throw render()'s, applies its whole head, as a navigation's page does
+  if (pageContext.pageId !== shared.shown!.pageContext.pageId) shared.head = undefined;
   // As on a navigation, its components' useConfig() values wait for Root to apply the head
-  if (isOtherPage) (pageContext as PageContextInternal)._headAlreadySet = false;
-  show({ ...shared.shown, pageContext, root, fromAction, ...(isOtherPage && { headSettings }) });
+  (pageContext as PageContextInternal)._headAlreadySet = false;
+  show({ pageContext, root, fromAction, headSettings });
 }
 
 export function setReactRoot(reactRoot: ReactRoot): void {
@@ -95,13 +97,12 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
   }, []);
-  // Once React has committed another page's answer: a navigation applies its own head, and an answer for the page on
-  // screen brings none
+  // Once React has committed an answer's tree: a navigation applies its own head
   useEffect(() => {
     if (!state.headSettings) return;
     const pageContext = state.pageContext as PageContextClient & PageContextInternal;
     pageContext._headAlreadySet = true;
-    applyHead(state.headSettings, pageContext);
+    applyHead(state.headSettings, pageContext, shared.head);
   }, [state.headSettings]);
   useEffect(() => {
     if (state === shared.shown) endNavigation();
@@ -114,8 +115,18 @@ export function Root({ page }: { page: Shown }): ReactElement {
   });
 }
 
-// What the page's components gave useConfig() while rendering wins, as getHeadSetting() does
-export function applyHead([title, lang, description]: HeadSettings, { _configViaHook }: PageContextInternal): void {
+// What the page's components gave useConfig() while rendering wins, as getHeadSetting() does. A value the same as in
+// `lastHead` stays as the tab has it, so a title the page set in the browser stays.
+export function applyHead([title, lang, description]: HeadSettings, { _configViaHook }: PageContextInternal, lastHead?: HeadSettings): void {
   const pick = <T,>(viaHook: T | undefined, configured: T) => (viaHook !== undefined ? viaHook : configured);
-  applyHeadSettings(pick(_configViaHook?.title, title), pick(_configViaHook?.lang, lang), pick(_configViaHook?.description, description));
+  const head: HeadSettings = [pick(_configViaHook?.title, title), pick(_configViaHook?.lang, lang), pick(_configViaHook?.description, description)];
+  const [newTitle, newLang, newDescription] = head.map((value, i) => (value === lastHead?.[i] ? undefined : value));
+  applyHeadSettings(newTitle, newLang, newDescription);
+  shared.head = head;
+}
+
+// The head the HTML has, as getHeadSettings() values: the server writes no tag for null, so a missing one reads as null
+function readHtmlHead(): HeadSettings {
+  const description = document.head.querySelector<HTMLMetaElement>('meta[name="description"]');
+  return [document.head.querySelector("title")?.text ?? null, document.documentElement.getAttribute("lang"), description?.content ?? null];
 }

@@ -1234,6 +1234,15 @@ function testHeadSettingsRerender() {
     });
     expect(await page.title()).to.equal("Set in the browser");
   });
+  test("Head settings: rerender() applies a title computed from the data it sent, and keeps a description the page set in the browser", async () => {
+    await page.goto(getServerUrl() + "/head-settings-rerender");
+    await waitForHydration("Bump the data title");
+    const bumps = Number((await page.title()).match(/^Data title, bumped (\d+) times$/)![1]);
+    await page.evaluate(() => document.querySelector('meta[name="description"]')!.setAttribute("content", "Set in the browser"));
+    await page.click('button:has-text("Bump the data title")');
+    await autoRetry(async () => expect(await page.title()).to.equal(`Data title, bumped ${bumps + 1} times`));
+    expect(await page.getAttribute('meta[name="description"]', "content")).to.equal("Set in the browser");
+  });
 }
 
 function testConfigFirstRender() {
