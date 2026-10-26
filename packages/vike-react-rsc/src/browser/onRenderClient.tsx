@@ -29,11 +29,11 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   const page = { pageContext, root, headSettings };
   setCurrentPageContext(pageContext);
   show(page);
-  // As vike-react's: Vike ends the navigation once React shows the page, and renders the error page if React throws on
-  // it. Not on hydration, whose onHydrationEnd() may navigate before React commits.
   if (!pageContext.isHydration) {
-    await rendered();
     pageContext.root = getReactRoot();
+    // As vike-react's: Vike ends the navigation once React shows the page, and renders the error page if React throws on
+    // it. Not on hydration, whose onHydrationEnd() may navigate before React commits.
+    await rendered();
     // Use cases:
     // - Custom user settings: https://vike.dev/head-tags#custom-settings
     // - Testing tools: https://github.com/vikejs/vike-react/issues/95
