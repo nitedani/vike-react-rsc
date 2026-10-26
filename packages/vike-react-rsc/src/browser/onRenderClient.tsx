@@ -6,11 +6,11 @@ import { getHeadSettings } from "../integration/getHeadSettings";
 import { getPageElement } from "../integration/getPageElement";
 import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { findServerComponent } from "../rendersFlight";
-import type { PagePayload } from "../types";
+import type { PageContextInternal, PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { onCaughtError } from "./AbortBoundary";
 import { callServer } from "./callServer";
-import { onUncaughtError, rendered, Root, setCurrentPageContext, setReactRoot, show } from "./page";
+import { applyHead, onUncaughtError, rendered, Root, setCurrentPageContext, setReactRoot, show } from "./page";
 import { markRscOutputsStale } from "./rsc";
 
 // Whether a page can render without a Flight, as in vike-react: under components: 'client', and always in dev
@@ -18,20 +18,23 @@ declare const __VIKE_REACT_RSC_CLIENT_DEFAULT__: boolean;
 
 setServerCallback(callServer);
 
-export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
+export const onRenderClient: OnRenderClientAsync = async (pageContext: PageContextClient & PageContextInternal) => {
+  pageContext._headAlreadySet = pageContext.isHydration;
   // Use case:
   // - Store hydration https://github.com/vikejs/vike-react/issues/110
   await callCumulativeHooks(pageContext.config.onBeforeRenderClient, pageContext);
   const { root, formState } = await getPagePayload(pageContext);
   // Evaluated before the page shows, so a setting that throws reaches Vike; the HTML has the hydrated page's
   const headSettings = pageContext.isHydration ? undefined : getHeadSettings(pageContext);
-  const page = { pageContext, root, headSettings };
+  const page = { pageContext, root };
   setCurrentPageContext(pageContext);
   show(page);
   // As vike-react's: Vike ends the navigation once React shows the page, and renders the error page if React throws on
   // it. Not on hydration, whose onHydrationEnd() may navigate before React commits.
   if (!pageContext.isHydration) {
     await rendered();
+    pageContext._headAlreadySet = true;
+    applyHead(headSettings!, pageContext);
     // Use cases:
     // - Custom user settings: https://vike.dev/head-tags#custom-settings
     // - Testing tools: https://github.com/vikejs/vike-react/issues/95

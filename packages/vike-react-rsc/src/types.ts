@@ -6,6 +6,7 @@ import type { ImportString, PageContext, PageContextClient, PageContextServer } 
 import type { HeadSettings } from "./integration/getHeadSettings";
 import type { ActionCall } from "./ssr/action";
 import type { Cookies } from "./ssr/cookies";
+import type { ConfigsCumulative } from "./hooks/useConfig/configsCumulative";
 import type { HtmlInjection, Viewport } from "./ssr/onRenderHtml";
 import type { TagAttributes } from "./utils/getTagAttributesString";
 
@@ -84,6 +85,21 @@ type LoadingValue = {
   layout?: ComponentType;
   /** The fallback of a component that rsc() made, until it loads */
   component?: ComponentType;
+};
+
+// JSDocs are preserved
+type PickWithoutGetter<T, K extends keyof T> = {
+  [P in K]: Exclude<T[P], Function>;
+};
+export type ConfigViaHook = PickWithoutGetter<
+  Vike.Config,
+  "Head" | "title" | "description" | "image" | "favicon" | "lang" | "viewport" | "bodyAttributes" | "htmlAttributes" | "rootAttributes"
+>;
+export type ConfigViaHookResolved = Omit<ConfigViaHook, ConfigsCumulative> & Pick<Vike.ConfigResolved, ConfigsCumulative>;
+// Internal pageContext properties
+export type PageContextInternal = {
+  _configViaHook?: ConfigViaHookResolved;
+  _headAlreadySet?: boolean;
 };
 
 declare global {

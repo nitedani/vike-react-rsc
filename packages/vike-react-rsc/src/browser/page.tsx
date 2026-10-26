@@ -6,6 +6,7 @@ import { applyHeadSettings } from "../integration/applyHeadSettings";
 import type { HeadSettings } from "../integration/getHeadSettings";
 import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
+import type { PageContextInternal } from "../types";
 import { AbortBoundary } from "./AbortBoundary";
 
 // `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()
@@ -62,6 +63,8 @@ export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys:
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
   // Another page's tree, e.g. a throw render()'s, applies its head settings; the page's own keeps the shown ones
   const isOtherPage = pageContext.pageId !== shared.shown!.pageContext.pageId;
+  // As on a navigation, its components' useConfig() values wait for Root to apply the head
+  if (isOtherPage) (pageContext as PageContextInternal)._headAlreadySet = false;
   show({ ...shared.shown, pageContext, root, fromAction, ...(isOtherPage && { headSettings }) });
 }
 
@@ -91,9 +94,12 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
   }, []);
-  // Once React has committed the next page; rerender() keeps its head settings
+  // Once React has committed another page's tree; rerender() keeps its head settings
   useEffect(() => {
-    if (state.headSettings) applyHeadSettings(...state.headSettings);
+    if (!state.headSettings) return;
+    const pageContext = state.pageContext as PageContextClient & PageContextInternal;
+    pageContext._headAlreadySet = true;
+    applyHead(state.headSettings, pageContext);
   }, [state.headSettings]);
   useEffect(() => {
     if (state === shared.shown) endNavigation();
@@ -104,4 +110,10 @@ export function Root({ page }: { page: Shown }): ReactElement {
     pageContext: state.pageContext,
     children: <AbortBoundary keepsPage={!!state.fromAction}>{state.root}</AbortBoundary>,
   });
+}
+
+// What the page's components gave useConfig() while rendering wins, as getHeadSetting() does
+export function applyHead([title, lang, description]: HeadSettings, { _configViaHook }: PageContextInternal): void {
+  const pick = <T,>(viaHook: T | undefined, configured: T) => (viaHook !== undefined ? viaHook : configured);
+  applyHeadSettings(pick(_configViaHook?.title, title), pick(_configViaHook?.lang, lang), pick(_configViaHook?.description, description));
 }
