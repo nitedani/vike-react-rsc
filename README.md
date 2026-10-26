@@ -25,7 +25,7 @@ React RSC integration for [Vike](https://vike.dev).
     ```json
     "vike-react": "npm:vike-react-rsc@^1"
     ```
-    A vike-react extension whose `+config` requires `vike-react`, e.g. `vike-react-query`, still makes every page fail; once [vikejs/vike#3664](https://github.com/vikejs/vike/pull/3664) is released, `vike-react-rsc` can meet that requirement.
+    A vike-react extension whose `+config` requires `vike-react`, e.g. `vike-react-query`, works too: `vike-react-rsc` [provides](https://vike.dev/require#provide) `vike-react` 0.6.31.
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
   - An action reads **`getRequestContext()`** (from `vike-react-rsc/server`): the request's `headers` and `cookies`, and what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `user`). It leaves out what Vike and your app compute for a page: `routeParams`, the page's config, `data`, and what your `+onCreatePageContext` sets.

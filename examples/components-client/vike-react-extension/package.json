@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "exports": {
+    "./config": {
+      "types": "./config.d.ts",
+      "default": "./config.js"
+    },
     "./Wrapper": {
       "types": "./Wrapper.d.ts",
       "default": "./Wrapper.js"
@@ -11,6 +15,7 @@
   },
   "peerDependencies": {
     "react": "*",
+    "vike": "*",
     "vike-react": ">=0.6.8"
   }
 }

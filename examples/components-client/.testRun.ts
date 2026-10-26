@@ -463,7 +463,7 @@ function testVikeReactImports() {
     expectLog(USE_CONFIG_IN_SERVER_COMPONENT_ERROR);
   });
 
-  test("components: 'client': with vike-react aliased to vike-react-rsc in package.json, a vike-react extension's +Wrapper and a server component get the page from vike-react/usePageContext and vike-react/useData, on the first load and after a client navigation", async () => {
+  test("components: 'client': with vike-react aliased to vike-react-rsc in package.json, a vike-react extension whose +config requires vike-react adds its Wrapper, and the Wrapper and a server component get the page from vike-react/usePageContext and vike-react/useData, on the first load and after a client navigation", async () => {
     const expectPageInfo = async () => {
       for (const id of ["#wrapper", "#server"]) {
         expect(await page.textContent(id), id).to.equal("/vike-react-imports: Data from +data");
