@@ -61,7 +61,8 @@ export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys:
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
   const pageContext = createPageContextFromServer_experimentalRSC(shared.current!, passed);
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
-  // Another page's tree, e.g. a throw render()'s, applies its head settings; the page's own keeps the shown ones
+  // Another page's tree, e.g. a throw render()'s, brings its head settings. A later answer for that page passes the same
+  // object on, so Root applies them once, also when React skips to the later answer before committing this one
   const isOtherPage = pageContext.pageId !== shared.shown!.pageContext.pageId;
   // As on a navigation, its components' useConfig() values wait for Root to apply the head
   if (isOtherPage) (pageContext as PageContextInternal)._headAlreadySet = false;
@@ -94,7 +95,8 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
   }, []);
-  // Once React has committed another page's tree; rerender() keeps its head settings
+  // Once React has committed another page's answer: a navigation applies its own head, and an answer for the page on
+  // screen brings none
   useEffect(() => {
     if (!state.headSettings) return;
     const pageContext = state.pageContext as PageContextClient & PageContextInternal;

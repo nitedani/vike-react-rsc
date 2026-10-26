@@ -436,7 +436,7 @@ function testSession() {
     await autoRetry(async () => {
       expect(await page.textContent("#account-user")).to.equal("Logged in as alice");
     });
-    // The head is the answer's page's, not the login page's the browser shows
+    // The head is the Account page's, not the login page's the browser showed before
     await autoRetry(async () => expect(await page.title()).to.equal("Account"));
     const session = async () =>
       (await page.context().cookies()).find((c) => c.name === "session")?.value;
