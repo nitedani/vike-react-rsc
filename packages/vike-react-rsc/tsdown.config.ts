@@ -21,9 +21,9 @@ export default defineConfig({
     "src/hooks/useHydrated.ts",
     "src/components/ClientOnly.tsx",
     "src/components/ClientOnly.rsc.ts",
+    "src/integration/Loading.tsx",
     // A client reference in the rsc env, so it stays a module of its own
     "src/components/LoadingBoundary.tsx",
-    "src/integration/Loading.tsx",
   ],
   format: ["esm"],
   // A client reference in the rsc env, so getPageElement() imports its module
