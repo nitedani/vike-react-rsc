@@ -13,7 +13,11 @@ async function callCumulativeHooks<T>(
     if (isCallable(val)) {
       providePageContext(pageContext)
       // Hook
-      return val(pageContext)
+      try {
+        return val(pageContext)
+      } finally {
+        providePageContext(null)
+      }
     } else {
       // Plain value
       return val
