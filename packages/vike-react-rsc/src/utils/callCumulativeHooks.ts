@@ -13,12 +13,7 @@ async function callCumulativeHooks<T>(
     if (isCallable(val)) {
       providePageContext(pageContext)
       // Hook
-      try {
-        return val(pageContext)
-      } finally {
-        // Only the hook gets it from getPageContext(): Vike would keep it one more microtask, where a component's useConfig() would take it
-        providePageContext(null)
-      }
+      return val(pageContext)
     } else {
       // Plain value
       return val
