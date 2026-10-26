@@ -16,6 +16,9 @@ const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes i
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
 const EXPORT_ALL_ERROR = "doesn't name its Page";
+// Logged by /use-config-server
+const USE_CONFIG_IN_SERVER_COMPONENT_ERROR =
+  'useConfig() in a server component only sets the HTML <head> of a full page load. Render <Config title={…} /> (vike-react-rsc/Config) instead, or start this file with "use client".';
 
 function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   const isDev = cmd === "pnpm run dev";
@@ -441,6 +444,23 @@ function testVikeReactImports() {
     await clickLink("/server-hooks");
     await page.waitForSelector("#pathname:text-is('/server-hooks') ~ main #async-server");
     await expectPageInfo();
+  });
+
+  test("components: 'client': vike-react's useConfig() and <Head> in a client component set the HTML head, and useConfig() the title on a client navigation", async () => {
+    const html = await fetchHtml("/use-config");
+    const head = html.slice(0, html.indexOf("</head>"));
+    expect(head).to.include("<title>useConfig() in a client component</title>");
+    expect(head).to.include('<meta name="use-config" content="Head in a client component"/>');
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/use-config");
+    await autoRetry(async () => expect(await page.title()).to.equal("useConfig() in a client component"));
+  });
+
+  test("components: 'client': useConfig() in a server component sets the HTML head, and logs how to fix it", async () => {
+    const html = await fetchHtml("/use-config-server");
+    expect(html.slice(0, html.indexOf("</head>"))).to.include("<title>useConfig() in a server component</title>");
+    expectLog(USE_CONFIG_IN_SERVER_COMPONENT_ERROR);
   });
 
   test("components: 'client': a server component renders <ClientOnly> through a client component, and calls useHydrated()", async () => {
