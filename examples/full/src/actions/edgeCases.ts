@@ -47,7 +47,7 @@ export async function redirectToScript(): Promise<string> {
 }
 
 // As when the session is missing: the caller shows the login page, at the same URL
-export async function requireLogin(): Promise<string> {
+export async function requireLogin(): Promise<never> {
   throw render("/login");
 }
 

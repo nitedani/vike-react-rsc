@@ -1,5 +1,14 @@
+import { requireLogin } from "../../actions/edgeCases";
+
 // Slow, so a navigation keeps the previous page on screen for a while
 export default async function Page() {
   await new Promise((resolve) => setTimeout(resolve, 500));
-  return <h1>Head settings</h1>;
+  return (
+    <>
+      <h1>Head settings</h1>
+      <form action={requireLogin}>
+        <button type="submit">Require a login</button>
+      </form>
+    </>
+  );
 }

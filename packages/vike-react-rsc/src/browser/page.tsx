@@ -3,12 +3,11 @@ import type { Root as ReactRoot } from "react-dom/client";
 import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import type { PageContextClient } from "vike/types";
 import { applyHeadSettings } from "../integration/applyHeadSettings";
+import type { HeadSettings } from "../integration/getHeadSettings";
 import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
 import { AbortBoundary } from "./AbortBoundary";
 
-// A navigation's title, lang and description, applied once React has committed its page
-export type HeadSettings = Parameters<typeof applyHeadSettings>;
 // `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()
 type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings; fromAction?: boolean };
 
@@ -57,11 +56,13 @@ export function endNavigation(error?: unknown): void {
 }
 
 /** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent and none of the passToClient `keys` it didn't */
-export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys: string[], fromAction: boolean): void {
+export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys: string[], fromAction: boolean, headSettings: HeadSettings): void {
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
   const pageContext = createPageContextFromServer_experimentalRSC(shared.current!, passed);
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
-  show({ ...shared.shown, pageContext, root, fromAction });
+  // Another page's tree, e.g. a throw render()'s, applies its head settings; the page's own keeps the shown ones
+  const isOtherPage = pageContext.pageId !== shared.current!.pageId;
+  show({ ...shared.shown, pageContext, root, fromAction, ...(isOtherPage && { headSettings }) });
 }
 
 export function setReactRoot(reactRoot: ReactRoot): void {
