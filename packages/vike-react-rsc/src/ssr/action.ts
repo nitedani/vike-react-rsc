@@ -117,7 +117,7 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
     .map((prop: string | { prop: string }) => (typeof prop === "string" ? prop : prop.prop))
     // The top-level key: 'user' for 'user.id', and '\\.' is a dot in a key
     .map((prop) => prop.split(/(?<!\\)\./)[0]!.replace(/\\\./g, "."));
-  // The browser has the config of the page it shows, which may be another one, e.g. after a throw render()
+  // The browser has only the config of the page Vike showed, and an answer may render another page, e.g. after a throw render()
   return { json: getPageContextJson(pageContext), keys, headSettings: getHeadSettings(pageContext) };
 }
 
