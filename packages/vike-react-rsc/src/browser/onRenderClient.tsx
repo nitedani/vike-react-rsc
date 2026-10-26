@@ -35,7 +35,7 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
   if (!pageContext.isHydration) {
     await rendered();
     pageContext._headAlreadySet = true;
-    applyHeadSettings(...withConfigViaHook(headSettings!, pageContext));
+    applyHead(headSettings!, pageContext);
     // Use cases:
     // - Custom user settings: https://vike.dev/head-tags#custom-settings
     // - Testing tools: https://github.com/vikejs/vike-react/issues/95
@@ -101,9 +101,9 @@ function getHeadSettings(pageContext: PageContextClient): HeadSettings {
 }
 
 // What the page's components gave useConfig() while rendering wins, as getHeadSetting() does
-function withConfigViaHook([title, lang, description]: HeadSettings, { _configViaHook }: PageContextInternal): HeadSettings {
+function applyHead([title, lang, description]: HeadSettings, { _configViaHook }: PageContextInternal): void {
   const pick = <T,>(viaHook: T | undefined, configured: T) => (viaHook !== undefined ? viaHook : configured);
-  return [pick(_configViaHook?.title, title), pick(_configViaHook?.lang, lang), pick(_configViaHook?.description, description)];
+  applyHeadSettings(pick(_configViaHook?.title, title), pick(_configViaHook?.lang, lang), pick(_configViaHook?.description, description));
 }
 
 if (import.meta.hot) {
