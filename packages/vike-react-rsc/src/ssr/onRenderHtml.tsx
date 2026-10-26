@@ -21,7 +21,6 @@ import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { getTagAttributesString, type TagAttributes } from "../utils/getTagAttributesString";
 import { includes } from "../utils/includes";
 import { objectKeys } from "../utils/objectKeys";
-import { runHtmlRender } from "./htmlRender";
 
 addEcosystemStamp();
 
@@ -130,7 +129,7 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   forkPageContext(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
-  const flight = ssr && pageContext.rscPayload ? await runHtmlRender(() => decodeFlight(pageContext, htmlRender.signal)) : undefined;
+  const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, htmlRender.signal) : undefined;
   // The root from the Flight, else the element of the client Page, else none
   const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
   if (root !== null) pageContext.page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
@@ -138,7 +137,7 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
   // Stop if the client left while +onBeforeRenderHtml ran
   htmlRender.signal.throwIfAborted();
-  await runHtmlRender(() => renderRootToHtml(pageContext, deps, htmlRender, flight?.formState));
+  await renderRootToHtml(pageContext, deps, htmlRender, flight?.formState);
   // https://github.com/vikejs/vike/discussions/1804#discussioncomment-10394481
   await callCumulativeHooks(pageContext.config.onAfterRenderHtml, pageContext);
 }

@@ -7,7 +7,6 @@ import { useStreamOptional } from 'react-streaming'
 import { assert } from '../../utils/assert.js'
 import { escapeJavaScriptExpression } from '../../utils/escapeJavaScriptExpression.js'
 import { setPageContextConfigViaHook } from './setPageContextConfigViaHook.js'
-import { isInHtmlRender } from '../../ssr/htmlRender.js'
 
 /**
  * Set configurations inside components and Vike hooks.
@@ -17,9 +16,7 @@ import { isInHtmlRender } from '../../ssr/htmlRender.js'
 function useConfig(): (config: ConfigViaHook) => void {
   // Vike hook
   let pageContext = getPageContext({ asyncHook: false }) as PageContext & PageContextInternal
-  // Not while React renders the HTML: React can resume a waiting component from the server components stream's
-  // callbacks while a Vike hook's pageContext is still set, so getPageContext() returns it to that component too
-  if (pageContext && !isInHtmlRender()) return (config: ConfigViaHook) => setPageContextConfigViaHook(config, pageContext)
+  if (pageContext) return (config: ConfigViaHook) => setPageContextConfigViaHook(config, pageContext)
 
   // Component
   pageContext = usePageContext()
