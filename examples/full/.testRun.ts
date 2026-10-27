@@ -1220,6 +1220,15 @@ function testHeadSettingsRerender() {
     // The next tests start logged out
     await page.context().clearCookies({ name: "session" });
   });
+  test("Head settings: an action's throw render() applies that page's title, also one the same as the previous page's", async () => {
+    // /actions and /login both have the default title
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.evaluate(() => (document.title = "Set in the browser"));
+    await page.click('button:has-text("Require a login")');
+    await autoRetry(async () => expect(await page.textContent("h1")).to.equal("Log in"));
+    await autoRetry(async () => expect(await page.title()).to.equal("Vike RSC demo"));
+  });
   test("Head settings: rerender() keeps a title the page set in the browser", async () => {
     // A navigation, so the page isn't the hydrated one, whose settings the HTML has
     await page.goto(getServerUrl() + "/");
