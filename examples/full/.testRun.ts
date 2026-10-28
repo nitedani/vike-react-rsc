@@ -1862,6 +1862,8 @@ function testPendingPage() {
     });
     // A client navigation, not a page load
     expect(await page.evaluate(() => (window as { navigatedDuringHydration?: boolean }).navigatedDuringHydration)).to.equal(true);
+    // Hydration's +onAfterRenderClient still runs, as testing tools wait for it
+    expect(await page.evaluate(() => (window as { afterRenders?: string[] }).afterRenders)).to.deep.equal(["/hydration (hydration)", "/"]);
     await page.unroute("**/*");
   });
 }
@@ -1898,6 +1900,8 @@ function testNavigationKeepsPage() {
     held.release();
     await sleep(500);
     expect(await page.textContent("h1")).to.include("Task Manager");
+    // Nor does its +onAfterRenderClient run
+    expect(await page.evaluate(() => (window as { afterRenders?: string[] }).afterRenders)).to.deep.equal(["/ (hydration)", "/todos"]);
     await page.unroute("**/*");
   });
 }
