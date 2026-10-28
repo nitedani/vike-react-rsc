@@ -25,10 +25,11 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
   // - Store hydration https://github.com/vikejs/vike-react/issues/110
   await callCumulativeHooks(pageContext.config.onBeforeRenderClient, pageContext);
   const { root, formState } = await getPagePayload(pageContext);
-  pageContext.page = root;
+  const page = { pageContext, root };
+  const rootElement = getRootElement(page);
+  pageContext.page = rootElement;
   // Evaluated before the page shows, so a setting that throws reaches Vike; the HTML has the hydrated page's
   const headSettings = pageContext.isHydration ? undefined : getHeadSettings(pageContext);
-  const page = { pageContext, root };
   setCurrentPageContext(pageContext);
   show(page);
   if (!pageContext.isHydration) {
@@ -49,11 +50,11 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
   // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
   if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") {
     const options = { ...hydrateRootOptions, ...withOurErrorCallbacks(hydrateRootOptions), formState: formState ?? hydrateRootOptions?.formState };
-    setReactRoot(hydrateRoot(container, getRootElement(page), options));
+    setReactRoot(hydrateRoot(container, rootElement, options));
   } else {
     const reactRoot = createRoot(container, { ...createRootOptions, ...withOurErrorCallbacks(createRootOptions) });
     setReactRoot(reactRoot);
-    reactRoot.render(getRootElement(page));
+    reactRoot.render(rootElement);
   }
   pageContext.root = getReactRoot();
   // Once React hydrates, which onRenderClient() doesn't wait for: so after +onHydrationEnd, and a hook's error is an unhandled

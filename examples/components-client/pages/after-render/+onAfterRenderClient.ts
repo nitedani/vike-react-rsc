@@ -10,4 +10,6 @@ export function onAfterRenderClient(pageContext: PageContextClient) {
     hasRoot: typeof pageContext.root?.render === "function",
     hasPage: isValidElement(pageContext.page),
   });
+  // E.g. a tool that renders the page again
+  pageContext.root!.render(pageContext.page);
 }
