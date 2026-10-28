@@ -12,4 +12,5 @@ export function onAfterRenderClient(pageContext: PageContextClient) {
   });
   // E.g. a tool that renders the page again
   pageContext.root!.render(pageContext.page);
+  (window as { afterRenderRoot?: unknown }).afterRenderRoot = pageContext.root;
 }

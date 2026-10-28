@@ -225,7 +225,7 @@ function testVikeReactRendering() {
     }
   });
 
-  test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, with pageContext.root and pageContext.page, which it can render again, as in vike-react", async () => {
+  test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, with pageContext.root and pageContext.page, which it can render again or replace, as in vike-react", async () => {
     const shown = { isHydration: false, shown: "A page with +onAfterRenderClient", hasRoot: true, hasPage: true };
     await page.goto(getServerUrl() + "/after-render");
     await autoRetry(async () => {
@@ -237,6 +237,10 @@ function testVikeReactRendering() {
     await autoRetry(async () => {
       expect(await page.evaluate(() => (window as { afterRenders?: unknown[] }).afterRenders)).to.deep.equal([{ ...shown, isHydration: true }, shown]);
     });
+    // E.g. a testing tool that clears the page between tests: the next client navigation shows its page
+    await page.evaluate(() => (window as { afterRenderRoot?: { render(children: null): void } }).afterRenderRoot!.render(null));
+    await clickLink("/");
+    await page.waitForSelector("h1:text-is('A client page')");
   });
 
   test('components: \'client\': a "use server component" Layout from a package renders its react-server file on the server, around a server page and a client page', async () => {
