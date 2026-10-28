@@ -164,6 +164,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testConfigRerender();
     testSession();
     testGonePassToClientValue();
+    testActionStreamedValues();
     testConcurrentRerender();
     testActionOnce();
     testActionSkipsData();
@@ -1482,6 +1483,28 @@ function testGonePassToClientValue() {
     await autoRetry(async () => {
       expect(await page.textContent("[data-visitor]")).to.equal("none");
     });
+  });
+}
+
+function testActionStreamedValues() {
+  test("Server action: the streamed values of rerender()'s pageContext stop once the user navigates away", async () => {
+    await page.goto(getServerUrl() + "/streamed-values");
+    await waitForHydration("Render again");
+    await page.click('button:has-text("Render again")');
+    // The ticks of rerender()'s ticker, the page's second
+    const actionTicks = () =>
+      page.evaluate(() => ((window as { ticks?: { render: number; at: number }[] }).ticks ?? []).filter((tick) => tick.render === 2));
+    await autoRetry(async () => {
+      expect((await actionTicks()).length).to.be.at.least(2);
+    });
+    const clickedAt = await page.evaluate(() => Date.now());
+    await clickNewLink("/todos");
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include("Task Manager");
+    });
+    await sleep(1000);
+    // A tick may still arrive while the click starts the navigation
+    expect((await actionTicks()).filter((tick) => tick.at > clickedAt + 300)).to.deep.equal([]);
   });
 }
 
