@@ -2,20 +2,22 @@ import { useDeferredValue, useEffect, useState, type ReactElement, type ReactNod
 import type { Root as ReactRoot } from "react-dom/client";
 import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import type { PageContextClient } from "vike/types";
+import { applyHeadSettings } from "../integration/applyHeadSettings";
+import type { HeadSettings } from "../integration/getHeadSettings";
 import { isStrictMode, withStrictMode } from "../integration/withStrictMode";
 import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
+import type { PageContextInternal } from "../types";
 import { AbortBoundary } from "./AbortBoundary";
 
 // `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()
-type Shown = { pageContext: PageContextClient; root: ReactNode; fromAction?: boolean };
+type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings; fromAction?: boolean };
 
 // One for every copy of this file: after an edit, Vite can load the next page's entry with a new copy
 const shared = getShared(
   "page",
   (): {
-    // Vike's pageContext of the page shown, which rerender() doesn't replace: actions call its URL, and their answers apply
-    // only while it stays current
+    // The pageContext of the page Vike showed, which actions' answers don't replace: actions call its URL, and their answers apply only while it's current
     current?: PageContextClient;
     // What Root shows, and how to change it once Root has mounted
     shown?: Shown;
@@ -57,12 +59,16 @@ export function endNavigation(error?: unknown): void {
   else rendering?.reject(error);
 }
 
-/** Shows a new tree for the page shown, e.g. the one an action's rerender() sent, with the pageContext values it sent and none of the passToClient `keys` it didn't */
-export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys: string[], fromAction: boolean): void {
+/** Shows the tree an action's answer sent, after rerender() or as a throw render()'s page, with the pageContext values it sent and none of the passToClient `keys` it didn't */
+export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys: string[], fromAction: boolean, headSettings: HeadSettings): void {
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
   const pageContext = createPageContextFromServer_experimentalRSC(shared.current!, passed);
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
-  show({ ...shared.shown, pageContext, root, fromAction });
+  // Another page's tree, e.g. a throw render()'s, brings its head settings; that page's later answers keep the object, so Root applies it once even if React commits only the last
+  const isOtherPage = pageContext.pageId !== shared.shown!.pageContext.pageId;
+  // As on a navigation, its components' useConfig() values wait for Root to apply the head
+  if (isOtherPage) (pageContext as PageContextInternal)._headAlreadySet = false;
+  show({ ...shared.shown, pageContext, root, fromAction, ...(isOtherPage && { headSettings }) });
 }
 
 export function setReactRoot(reactRoot: ReactRoot): void {
@@ -100,6 +106,13 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
   }, []);
+  // Once React commits an answer for another page, applies its head; onRenderClient() applies a navigation's
+  useEffect(() => {
+    if (!state.headSettings) return;
+    const pageContext = state.pageContext as PageContextClient & PageContextInternal;
+    pageContext._headAlreadySet = true;
+    applyHead(state.headSettings, pageContext);
+  }, [state.headSettings]);
   useEffect(() => {
     if (state === shared.shown) endNavigation();
   }, [state]);
@@ -109,4 +122,10 @@ export function Root({ page }: { page: Shown }): ReactElement {
     pageContext: state.pageContext,
     children: <AbortBoundary keepsPage={!!state.fromAction}>{state.root}</AbortBoundary>,
   });
+}
+
+// What the page's components gave useConfig() while rendering wins, as getHeadSetting() does
+export function applyHead([title, lang, description]: HeadSettings, { _configViaHook }: PageContextInternal): void {
+  const pick = <T,>(viaHook: T | undefined, configured: T) => (viaHook !== undefined ? viaHook : configured);
+  applyHeadSettings(pick(_configViaHook?.title, title), pick(_configViaHook?.lang, lang), pick(_configViaHook?.description, description));
 }

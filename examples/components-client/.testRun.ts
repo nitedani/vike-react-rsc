@@ -464,7 +464,24 @@ function testVikeReactImports() {
     expectLog(USE_CONFIG_IN_SERVER_COMPONENT_ERROR);
   });
 
-  test("components: 'client': a server component renders <ClientOnly> through a client component, and calls useHydrated()", async () => {
+  test("components: 'client': with vike-react aliased to vike-react-rsc in package.json, a vike-react extension whose +config requires vike-react adds its Wrapper, and the Wrapper and a server component get the page from vike-react/usePageContext and vike-react/useData, and the server component calls vike-react/useHydrated, on the first load and after a client navigation", async () => {
+    const expectPageInfo = async () => {
+      for (const id of ["#wrapper", "#server"]) {
+        expect(await page.textContent(id), id).to.equal("/vike-react-imports: Data from +data");
+      }
+      expect(await page.textContent("#hydrated")).to.equal("Not hydrated");
+    };
+    await page.goto(getServerUrl() + "/vike-react-imports");
+    await waitForHydration("#layout-counter");
+    await expectPageInfo();
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/vike-react-imports");
+    await page.waitForSelector("#pathname:text-is('/vike-react-imports') ~ main #server");
+    await expectPageInfo();
+  });
+
+  test("components: 'client': a server component renders <ClientOnly>, imported from vike-react, through a client component, and calls useHydrated()", async () => {
     // The child reads window when its module loads, so loading it on the server would fail the render
     const html = await fetchHtml("/client-only");
     expect(html).to.include("Loading in the browser");
@@ -889,8 +906,9 @@ function testServerComponentImports() {
     editFile("./pages/js-page/+Page.js", importPackageServerComponent);
     try {
       await page.goto(getServerUrl() + "/js-page");
-      // Vite reloads the page once it has pre-bundled the package, and the reload would interrupt leaving the page
-      const reloaded = page.waitForEvent("load");
+      // Vite reloads the page once it has pre-bundled the package, and the reload would interrupt leaving the page.
+      // The revert of the previous test can reload the page first, so only a load after Vite says it reloads counts
+      const reloaded = page.waitForEvent("load", { predicate: () => isLogged("optimized dependencies changed. reloading") });
       await autoRetry(async () => {
         expectLog(packageServerComponentInBrowser, { filter: ({ logSource }) => logSource === "stderr" });
       });
@@ -993,6 +1011,16 @@ async function getBuildError(file: string, edit: (source: string) => string): Pr
   const { isSuccess, output } = await build(file, edit);
   if (isSuccess) throw new Error("The build succeeded");
   return output;
+}
+
+// Whether `log` was logged during the current test
+function isLogged(log: string) {
+  try {
+    expectLog(log);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Until React has attached the button's handlers, a click doesn't do what a user's would

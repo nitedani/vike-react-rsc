@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  vike-react: link:./packages/vike-react-rsc/
   vike-react-rsc: link:./packages/vike-react-rsc/
 
 importers:
@@ -60,8 +61,14 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
       vike:
-        specifier: 0.4.268-commit-344615d
-        version: 0.4.268-commit-344615d(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+        specifier: 0.4.268-commit-57a213e
+        version: 0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+      vike-react:
+        specifier: link:../../packages/vike-react-rsc
+        version: link:../../packages/vike-react-rsc
+      vike-react-extension:
+        specifier: file:./vike-react-extension
+        version: file:examples/components-client/vike-react-extension(react@19.3.1)(vike-react@packages+vike-react-rsc)(vike@0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)))
       vike-react-rsc:
         specifier: link:../../packages/vike-react-rsc
         version: link:../../packages/vike-react-rsc
@@ -118,8 +125,8 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
       vike:
-        specifier: 0.4.268-commit-344615d
-        version: 0.4.268-commit-344615d(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+        specifier: 0.4.268-commit-57a213e
+        version: 0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       vike-react-rsc:
         specifier: link:../../packages/vike-react-rsc
         version: link:../../packages/vike-react-rsc
@@ -167,8 +174,8 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
       vike:
-        specifier: 0.4.268-commit-344615d
-        version: 0.4.268-commit-344615d(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+        specifier: 0.4.268-commit-57a213e
+        version: 0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       vite:
         specifier: ^8.2.0
         version: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
@@ -2743,8 +2750,15 @@ packages:
   vfile@6.0.3:
     resolution: {integrity: sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==}
 
-  vike@0.4.268-commit-344615d:
-    resolution: {integrity: sha512-dzXYWdhEPmHBeEGHk8mJamWH4cLKaoQDgAoVVXFAf7Fo5VMvji1L24zRabqKo7FWYhKbPt8EneUJYGGcGGmtbQ==}
+  vike-react-extension@file:examples/components-client/vike-react-extension:
+    resolution: {directory: examples/components-client/vike-react-extension, type: directory}
+    peerDependencies:
+      react: '*'
+      vike: '*'
+      vike-react: '>=0.6.8'
+
+  vike@0.4.268-commit-57a213e:
+    resolution: {integrity: sha512-Z25FOElun/v5d+UVAWSMsFf7LNFl7MQN6lLkaaZS/Kxv3vXVED+jkSpMjdTaO781pCAtSQoxsI8115dsCIVhLA==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -5640,7 +5654,13 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vike@0.4.268-commit-344615d(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
+  vike-react-extension@file:examples/components-client/vike-react-extension(react@19.3.1)(vike-react@packages+vike-react-rsc)(vike@0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))):
+    dependencies:
+      react: 19.3.1
+      vike: 0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+      vike-react: link:packages/vike-react-rsc
+
+  vike@0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/types': 7.29.8
@@ -5679,7 +5699,7 @@ snapshots:
       - srvx
       - supports-color
 
-  vike@0.4.268-commit-344615d(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
+  vike@0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/types': 7.29.8
@@ -5718,7 +5738,7 @@ snapshots:
       - srvx
       - supports-color
 
-  vike@0.4.268-commit-344615d(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
+  vike@0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/types': 7.29.8

@@ -2,8 +2,7 @@ import { createFromReadableStream, setServerCallback } from "@vitejs/plugin-rsc/
 import { createRoot, hydrateRoot, type RootOptions } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
-import { applyHeadSettings } from "../integration/applyHeadSettings";
-import { getHeadSetting } from "../integration/getHeadSetting";
+import { getHeadSettings } from "../integration/getHeadSettings";
 import { getPageElement } from "../integration/getPageElement";
 import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { findServerComponent } from "../rendersFlight";
@@ -11,7 +10,7 @@ import type { PageContextInternal, PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { onCaughtError } from "./AbortBoundary";
 import { callServer } from "./callServer";
-import { getReactRoot, getRootElement, onUncaughtError, rendered, setCurrentPageContext, setReactRoot, show } from "./page";
+import { applyHead, getReactRoot, getRootElement, onUncaughtError, rendered, setCurrentPageContext, setReactRoot, show } from "./page";
 import { markRscOutputsStale } from "./rsc";
 
 // Whether a page can render without a Flight, as in vike-react: under components: 'client', and always in dev
@@ -91,23 +90,6 @@ async function getPagePayload(pageContext: PageContextClient): Promise<PagePaylo
 
 function cannotRenderInBrowser(pageContext: PageContextClient, cause: string): Error {
   return new Error(`[vike-react-rsc] The page ${pageContext.pageId} has to render in the browser, e.g. the error page after an error there, but ${cause}, which renders only on the server`);
-}
-
-// A navigation's title, lang and description
-type HeadSettings = Parameters<typeof applyHeadSettings>;
-
-function getHeadSettings(pageContext: PageContextClient): HeadSettings {
-  return [
-    getHeadSetting<string | null>("title", pageContext),
-    getHeadSetting<string | null>("lang", pageContext),
-    getHeadSetting<string | null>("description", pageContext),
-  ];
-}
-
-// What the page's components gave useConfig() while rendering wins, as getHeadSetting() does
-function applyHead([title, lang, description]: HeadSettings, { _configViaHook }: PageContextInternal): void {
-  const pick = <T,>(viaHook: T | undefined, configured: T) => (viaHook !== undefined ? viaHook : configured);
-  applyHeadSettings(pick(_configViaHook?.title, title), pick(_configViaHook?.lang, lang), pick(_configViaHook?.description, description));
 }
 
 if (import.meta.hot) {

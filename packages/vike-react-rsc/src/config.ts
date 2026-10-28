@@ -7,6 +7,8 @@ import { vikeReactRscPlugins } from "./vite";
 const vikeReactRsc: Config = {
   name: "vike-react-rsc",
   require: { vike: ">=0.4.268" },
+  // Meets the require of vike-react extensions, e.g. vike-react-query: vike-react-rsc implements vike-react 0.6.31's API
+  provide: { "vike-react": "0.6.31" },
 
   Loading: "import:vike-react-rsc/__internal/Loading:default",
 
@@ -28,33 +30,33 @@ const vikeReactRsc: Config = {
   hydrationCanBeAborted: true,
   components: "server",
 
-  // Remove <ClientOnly> children on server
-  staticReplace: [
+  // Remove <ClientOnly> children on server, imported by either name, as users alias vike-react to vike-react-rsc
+  staticReplace: ["vike-react-rsc", "vike-react"].flatMap((packageName) => [
     {
       env: "server",
-      filter: "vike-react-rsc/ClientOnly",
+      filter: `${packageName}/ClientOnly`,
       type: "call",
       match: {
         function: ["import:react/jsx-runtime:jsx", "import:react/jsx-runtime:jsxs", "import:react/jsx-dev-runtime:jsxDEV"],
-        args: { 0: "import:vike-react-rsc/ClientOnly:ClientOnly" },
+        args: { 0: `import:${packageName}/ClientOnly:ClientOnly` },
       },
       remove: { arg: 1, prop: "children" },
     },
     {
       env: "server",
-      filter: "vike-react-rsc/ClientOnly",
+      filter: `${packageName}/ClientOnly`,
       type: "call",
-      match: { function: "import:react:createElement", args: { 0: "import:vike-react-rsc/ClientOnly:ClientOnly" } },
+      match: { function: "import:react:createElement", args: { 0: `import:${packageName}/ClientOnly:ClientOnly` } },
       remove: { argsFrom: 2 },
     },
     {
       env: "server",
-      filter: "vike-react-rsc/useHydrated",
+      filter: `${packageName}/useHydrated`,
       type: "call",
-      match: { function: "import:vike-react-rsc/useHydrated:useHydrated" },
+      match: { function: `import:${packageName}/useHydrated:useHydrated` },
       replace: { with: false },
     },
-  ],
+  ]),
 
   meta: {
     // Before components, whose effect overrides Page, Layout and Wrapper's env under components: 'server'. The server
