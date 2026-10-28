@@ -3,4 +3,6 @@ import { ConfigLoading } from "../../components/ConfigLoading";
 
 export default {
   Loading: { layout: ConfigLoading },
+  // testLoading(): the Loading streams before the page
+  stream: true,
 } satisfies Config;

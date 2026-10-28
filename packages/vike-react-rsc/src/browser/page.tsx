@@ -2,15 +2,12 @@ import { useDeferredValue, useEffect, useState, type ReactElement, type ReactNod
 import type { Root as ReactRoot } from "react-dom/client";
 import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import type { PageContextClient } from "vike/types";
-import { applyHeadSettings } from "../integration/applyHeadSettings";
 import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
 import { AbortBoundary } from "./AbortBoundary";
 
-// A navigation's title, lang and description, applied once React has committed its page
-export type HeadSettings = Parameters<typeof applyHeadSettings>;
 // `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()
-type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings; fromAction?: boolean };
+type Shown = { pageContext: PageContextClient; root: ReactNode; fromAction?: boolean };
 
 // One for every copy of this file: after an edit, Vite can load the next page's entry with a new copy
 const shared = getShared(
@@ -101,10 +98,6 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
   }, []);
-  // Once React has committed the next page; rerender() keeps its head settings
-  useEffect(() => {
-    if (state.headSettings) applyHeadSettings(...state.headSettings);
-  }, [state.headSettings]);
   useEffect(() => {
     if (state === shared.shown) endNavigation();
   }, [state]);

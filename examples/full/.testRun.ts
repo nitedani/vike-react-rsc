@@ -40,8 +40,8 @@ const REACT_DEV_EVAL_CSP_ERROR =
 // https://github.com/react/react/pull/37572 is released.
 const REACT_DEV_PERF_TRACK_ERROR = "cannot have a negative time stamp";
 
-// Thrown by /actions' data() after saveThenFailData()
-const DATA_ERROR = "data() failed on demand";
+// Thrown by +onCreatePageContext while testActionValueSurvivesHookError() sets its cookie
+const ON_CREATE_PAGE_CONTEXT_ERROR = "+onCreatePageContext failed on demand";
 
 // Thrown by /actions' FailingComponent(), then logged by rsc() in the browser
 const RSC_LOAD_ERROR = "FailingComponent failed on demand";
@@ -87,11 +87,16 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testActionBodyLimit()
       (logSource === "stderr" &&
         (logText.includes("HTTP response ← /todos 413") || logText.includes("HTTP response ← /actions 413"))) ||
-      // testActionValueSurvivesDataError()
+      // testActionValueSurvivesHookError()
       (logSource === "stderr" &&
-        (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
+        (logText.includes(ON_CREATE_PAGE_CONTEXT_ERROR) || logText.includes("HTTP response ← /actions 500"))) ||
       // testActionPageFailure()
       (logSource === "Browser Error" && logText.includes("status of 404")) ||
+      // testClientDisconnect()
+      (logSource === "stderr" &&
+        (logText.includes("HTTP response ← /slow-hook-throws 500") ||
+          logText.includes("HTTP response ← /slow-after-hook-throws 500") ||
+          logText.includes("HTTP response ← /slow-after-hook-pipes 500"))) ||
       // testRscLoadError(): in dev, Vite also forwards the browser's log to the server's stderr
       (logSource === "stderr" && logText.includes(RSC_LOAD_ERROR)) ||
       logText.includes(RSC_LOAD_ERROR_LOG) ||
@@ -123,6 +128,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
         logText.includes("[PLUGIN_TIMINGS]")),
   });
 
+  // The first request after the server starts
+  testConfigFirstRender();
   testPages();
   testCssProp();
   testEnvironments();
@@ -133,7 +140,11 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testUsePageContext();
   testWrapper();
   testHead();
+  testOnAfterRenderHtml();
+  testUseStream();
+  testLargeSuspense();
   testHeadSettings(isStatic);
+  testConfig(isStatic);
   // plugin-rsc has no client JS to preload in dev
   if (!isDev) testClientJsPreload();
   testClientCss();
@@ -150,11 +161,14 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testCounter();
     testTodoForm();
     testHeadSettingsRerender();
+    testConfigRerender();
     testSession();
     testGonePassToClientValue();
     testConcurrentRerender();
     testActionOnce();
-    testActionValueSurvivesDataError();
+    testActionSkipsData();
+    testActionRequestContext();
+    testActionValueSurvivesHookError();
     testActionPageFailure();
     testStaleAction();
     testActionAbort();
@@ -166,6 +180,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscPropsChange();
     testRscLoadError();
     testRscLoadRedirect();
+    testRscLoadReadsData();
     testServerComponentAbort();
     testRscCache();
     testRscCacheInvalidation();
@@ -425,8 +440,8 @@ function testSession() {
       (await page.context().cookies()).find((c) => c.name === "session")?.value;
     expect(await session()).to.equal("alice");
 
-    // The action's pageContext, which its re-render shows, has the context of the +middleware ordered after the action
-    // middleware, which ran once, like a page request's
+    // The page its re-render shows has the context of the +middleware ordered after the action middleware, which ran
+    // once, like a page request's
     expect(await getServerCount("middleware /account")).to.equal(middlewareRuns + 1);
     expect(await page.textContent("#account-mw")).to.equal("POST");
     await page.goto(getServerUrl() + "/account");
@@ -468,6 +483,19 @@ function testSession() {
       expect(await page.textContent("#account-user")).to.equal("Logged in as alice");
     });
     await page.context().clearCookies();
+  });
+
+  test("Server action: a +middleware ordered before the action middleware redirects it", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    // The app's auth middleware answers with a 302
+    await page.context().addCookies([{ name: "expired", value: "1", url: getServerUrl() }]);
+    await page.click('button:text-is("Save")');
+    await autoRetry(async () => {
+      expect(new URL(page.url()).pathname).to.equal("/login");
+      expect(await page.textContent("h1")).to.equal("Log in");
+    });
+    await page.context().clearCookies({ name: "expired" });
   });
 }
 
@@ -552,6 +580,17 @@ function testRscLoadRedirect() {
     await page.click('button:has-text("Load a redirecting server component")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-rsc-redirecting]")).to.equal("Loaded");
+    });
+  });
+}
+
+function testRscLoadReadsData() {
+  test("rsc(): the server components a load returns read the page's data()", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Load a server component that reads data()")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-rsc-page-data]")).to.equal('{"from":"data()"}');
     });
   });
 }
@@ -764,7 +803,7 @@ function testStaticHostAction() {
   test("Server action: a static host's answer rejects the call with its status", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
-    await page.click('button:has-text("Save, then data() throws")');
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] Server action failed: HTTP 404");
     });
@@ -819,13 +858,13 @@ function testUnknownAction() {
     await waitForHydration("Slow save");
     await callUnknownId(unknownId);
     const timeOrigin = await page.evaluate(() => performance.timeOrigin);
-    await page.click('button:has-text("Save, then data() throws")');
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.evaluate(() => performance.timeOrigin)).to.not.equal(timeOrigin);
     });
     await waitForHydration("Slow save");
     await callUnknownId(unknownId);
-    await page.click('button:has-text("Save, then data() throws")');
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal("Rejected: [vike-react-rsc] Server action failed: HTTP 404");
     });
@@ -1034,6 +1073,31 @@ function testHead() {
   });
 }
 
+function testOnAfterRenderHtml() {
+  test("+onAfterRenderHtml gets pageContext.pageHtmlStream on a page with stream: true, for a crawler and pre-rendered too, as in vike-react", async () => {
+    expect(await fetchHtml("/render-html"))
+      .to.include('<div id="root" data-root=""><!-- Streamed through +onAfterRenderHtml -->')
+      .and.include("<!-- Injected by +onAfterRenderHtml -->");
+    // A crawler gets the page whole, from a stream that has ended before the hook injects
+    const crawled = await fetch(getServerUrl() + "/render-html", { headers: { "user-agent": "Googlebot/2.1" } });
+    expect(await crawled.text()).to.include("<!-- Injected by +onAfterRenderHtml -->");
+  });
+}
+
+function testUseStream() {
+  test("A client component gets react-streaming's useStream() on a page with stream: true, pre-rendered too, as in vike-react", async () => {
+    expect(await fetchHtml("/use-stream")).to.include("<!-- Injected by useStream() -->");
+  });
+}
+
+function testLargeSuspense() {
+  test("A page without +stream has a large Suspense boundary's content in place, pre-rendered too, as in vike-react", async () => {
+    const html = await fetchHtml("/large-suspense");
+    expect(/<main[^>]*>([\s\S]*?)<\/main>/.exec(html)?.[1]).to.include('<p id="large">Large content ');
+    expect(html).to.not.match(/<div hidden id="S:/).and.not.include("$RC");
+  });
+}
+
 function testHeadSettings(isStatic: boolean) {
   test("Head settings: the HTML has their tags and attributes, the defaults, and none for null", async () => {
     const html = await fetchHtml("/");
@@ -1152,6 +1216,59 @@ function testHeadSettingsRerender() {
   });
 }
 
+function testConfigFirstRender() {
+  test("<Config> and <Head> in a server component set the HTML head on a page that streams, on the first request after the server starts", async () => {
+    // The first request loads the modules of <Config> and <Head>
+    const html = await fetchHtml("/config");
+    const head = html.slice(0, html.indexOf("</head>"));
+    expect(head).to.match(/<title>Config in a server component, bumped \d+ times<\/title>/);
+    expect(head).to.include('<meta name="use-config" content="Head in a server component"/>');
+  });
+}
+
+function testConfig(isStatic: boolean) {
+  test("<Config> in a server component sets the title on a client navigation", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await clickNewLink("/config");
+    await autoRetry(async () => expect(await page.title()).to.match(/^Config in a server component, bumped \d+ times$/));
+  });
+
+  test("useConfig() in +data sets the title, on the first load and on a client navigation", async () => {
+    const title = "Environments: Hello from the rsc environment";
+    const html = await fetchHtml("/environments");
+    expect(html.slice(0, html.indexOf("</head>"))).to.include(`<title>${title}</title>`);
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await clickNewLink("/environments");
+    await autoRetry(async () => expect(await page.title()).to.equal(title));
+  });
+
+  test("<Config> behind Suspense in a server component sets the title once it renders, on the first load and on a client navigation", async () => {
+    const title = "Config behind Suspense";
+    const html = await fetchHtml("/config-suspense");
+    // A pre-rendered page waits for every Suspense boundary before its <head>
+    if (isStatic) expect(html.slice(0, html.indexOf("</head>"))).to.include(`<title>${title}</title>`);
+    else expect(html.slice(html.indexOf("</head>"))).to.include(`document.title = "${title}"`);
+    await page.goto(getServerUrl() + "/config-suspense");
+    await autoRetry(async () => expect(await page.title()).to.equal(title));
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    await clickNewLink("/config-suspense");
+    await autoRetry(async () => expect(await page.title()).to.equal(title));
+  });
+}
+
+function testConfigRerender() {
+  test("<Config> in a server component sets the title after rerender()", async () => {
+    await page.goto(getServerUrl() + "/config");
+    await waitForHydration("Bump the title");
+    const bumps = Number((await page.title()).match(/bumped (\d+) times/)![1]);
+    await page.click('button:has-text("Bump the title")');
+    await autoRetry(async () => expect(await page.title()).to.equal(`Config in a server component, bumped ${bumps + 1} times`));
+  });
+}
+
 function testClientJsPreload() {
   // The first render of a client component, as after a server start, and in every pre-rendered page
   test("The head preloads the JS of the client components a page renders", async () => {
@@ -1205,7 +1322,7 @@ function testMisuse() {
     const html = await fetchHtml("/misuse");
     const error = (call: string) => new RegExp(`data-misuse="${call}">([^<]*)<`).exec(html)?.[1];
     expect(error("getPageContext")).to.equal(
-      "[vike-react-rsc] getPageContext() needs a server component render or a server action, and neither runs here"
+      "[vike-react-rsc] getPageContext() needs a server component render, and none runs here"
     );
     expect(error("rerender")).to.equal("[vike-react-rsc] rerender() needs a running server action, and none runs here");
     // The same message from data(), which runs outside the rsc env
@@ -1292,6 +1409,66 @@ function testClientDisconnect() {
     await sleep(2500);
     expect(await getServerCount("slow")).to.equal(before + 1);
   });
+
+  test("A client leaving a page that renders whole, which sends nothing before it has rendered, stops the render of its server and client components, also while its +onBeforeRenderHtml, +onAfterRenderHtml or +headHtmlBegin runs, and isn't logged as an error", async () => {
+    // A server component waits in /slow-whole, a client component waits for its own data in /slow-client and in
+    // /slow-required-disabled (stream: false where streaming is required), and the client leaves /slow-before-hook while
+    // its +onBeforeRenderHtml runs, the streamed /slow-after-hook while its +onAfterRenderHtml runs, and the streamed
+    // /slow-head-html while its +headHtmlBegin runs
+    for (const [path, key] of [
+      ["/slow-whole", "slow"],
+      ["/slow-client", "slow-client"],
+      ["/slow-required-disabled", "slow-client"],
+      ["/slow-before-hook", "slow"],
+      ["/slow-after-hook", "slow-client"],
+      ["/slow-head-html", "slow-client"],
+    ] as const) {
+      const before = await getServerCount(key);
+      await fetchHtml(path);
+      expect(await getServerCount(key)).to.equal(before + 1);
+
+      // Leaving once the render has started, before the Suspense boundary resolves
+      const controller = new AbortController();
+      const response = fetch(getServerUrl() + path, { signal: controller.signal }).catch(() => {});
+      await sleep(500);
+      controller.abort();
+      await response;
+      await sleep(2500);
+      expect(await getServerCount(key), path).to.equal(before + 1);
+    }
+  });
+
+  test("An HTML hook that throws stops the page's render, of its server and client components", async () => {
+    // A server component waits in /slow-hook-throws, a client component waits for its own data in the streamed
+    // /slow-after-hook-throws, and in /slow-after-hook-pipes, whose hook has piped the HTML
+    for (const [path, key, hook] of [
+      ["/slow-hook-throws", "slow", "+onBeforeRenderHtml"],
+      ["/slow-after-hook-throws", "slow-client", "+onAfterRenderHtml"],
+      ["/slow-after-hook-pipes", "slow-client", "+onAfterRenderHtml"],
+    ] as const) {
+      const before = await getServerCount(key);
+      expect((await fetch(getServerUrl() + path)).status, path).to.equal(500);
+      expectLog(`Thrown by ${path}'s ${hook}`, { filter: ({ logSource }) => logSource === "stderr" });
+      await sleep(2500);
+      expect(await getServerCount(key), path).to.equal(before);
+    }
+  });
+
+  test("A render that times out calls renderToStreamOptions.onTimeout once", async () => {
+    const before = await getServerCount("slow-required-timeout");
+    for (let i = 1; i <= 10; i++) {
+      expect(await fetchHtml("/slow-required-timeout")).to.include("<p>Loading</p>").and.not.include("<p>Resolved</p>");
+      expect(await getServerCount("slow-required-timeout")).to.equal(before + i);
+    }
+  });
+
+  test("+react's renderToStreamOptions.signal stops the render, as in vike-react", async () => {
+    expect(await fetchHtml("/slow-user-signal")).to.include("<p>Loading</p>").and.not.include("<p>Resolved</p>");
+  });
+
+  test("+react's streamOptions.nonce is on React's scripts when Vike sets no cspNonce, as in vike-react", async () => {
+    expect(await fetchHtml("/slow-user-signal")).to.include('<script nonce="app-nonce">').and.not.match(/<script>(\$R|requestAnimationFrame)/);
+  });
 }
 
 function testGonePassToClientValue() {
@@ -1338,15 +1515,81 @@ function testActionOnce() {
   });
 }
 
-function testActionValueSurvivesDataError() {
-  test("Server action: without rerender(), its value survives a data() error", async () => {
+function testActionSkipsData() {
+  test("Server action: without rerender(), the page's data() doesn't run", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
-    await page.click('button:has-text("Save, then data() throws")');
+    const before = await getServerCount("data /actions");
+    await page.click('button:text-is("Save")');
     await autoRetry(async () => {
       expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
     });
+    expect(await getServerCount("data /actions")).to.equal(before);
   });
+}
+
+const actionNoPageError =
+  "[vike-react-rsc] getPageContext() needs a page, and a server action or a component passed to rsc() has none: call getRequestContext() from vike-react-rsc/server";
+const usePageContextInActionError =
+  "[vike-react-rsc] usePageContext() needs a page, and a server action or a component passed to rsc() has none: call getRequestContext() from vike-react-rsc/server";
+const returnedNoPageError =
+  "[vike-react-rsc] getPageContext() needs a page, and the server components a server action returns without rerender() have none: load them with rsc(), or call getRequestContext() from vike-react-rsc/server";
+
+function testActionRequestContext() {
+  test("Server component: getRequestContext() has what every +middleware adds", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    expect(await page.textContent("[data-page-request-context]")).to.equal("GET");
+  });
+  test("Server action: getRequestContext() has what every +middleware adds, and getPageContext() and usePageContext() throw", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Read the request context")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.equal(`Returned: POST | ${actionNoPageError} | ${usePageContextInActionError}`);
+    });
+  });
+  test("Server action: getPageContext() throws in the server components it returns without rerender()", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Return a server component that calls getPageContext()")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-returned-page-context]")).to.equal(returnedNoPageError);
+    });
+  });
+  test("rsc(): getPageContext() throws in the component passed to it", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Load a server component that calls getPageContext()")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-rsc-page-context]")).to.equal(actionNoPageError);
+    });
+  });
+}
+
+function testActionValueSurvivesHookError() {
+  test("Server action: without rerender(), its value survives an error in +onCreatePageContext", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.context().addCookies([{ name: "failOnCreatePageContext", value: "1", url: getServerUrl() }]);
+    await page.click('button:text-is("Save")');
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
+    });
+    await page.context().clearCookies({ name: "failOnCreatePageContext" });
+  });
+  for (const abort of ["render", "redirect"]) {
+    test(`Server action: without rerender(), its value survives +onCreatePageContext throwing ${abort}() while it runs`, async () => {
+      await page.goto(getServerUrl() + "/actions");
+      await waitForHydration("Slow save");
+      await page.context().addCookies([{ name: "abortOnCreatePageContext", value: `${abort}-${Math.random()}`, url: getServerUrl() }]);
+      await page.click('button:has-text("Save slowly, without rerender()")');
+      await autoRetry(async () => {
+        expect(await page.textContent("[data-result]")).to.equal("Returned: saved");
+      });
+      expect(new URL(page.url()).pathname).to.equal("/actions");
+      await page.context().clearCookies({ name: "abortOnCreatePageContext" });
+    });
+  }
 }
 
 function testActionPageFailure() {

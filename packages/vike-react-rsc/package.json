@@ -30,6 +30,24 @@
       "default": "./dist/hooks/useData.js"
     },
     "./useHydrated": "./dist/hooks/useHydrated.js",
+    "./useConfig": {
+      "react-server": "./dist/hooks/useConfig/useConfig.rsc.js",
+      "worker": "./dist/hooks/useConfig/useConfig-server.js",
+      "browser": "./dist/hooks/useConfig/useConfig-client.js",
+      "default": "./dist/hooks/useConfig/useConfig-server.js"
+    },
+    "./Config": {
+      "react-server": "./dist/components/Config/Config.rsc.js",
+      "worker": "./dist/components/Config/Config-server.js",
+      "browser": "./dist/components/Config/Config-client.js",
+      "default": "./dist/components/Config/Config-server.js"
+    },
+    "./Head": {
+      "react-server": "./dist/components/Head/Head.rsc.js",
+      "worker": "./dist/components/Head/Head-server.js",
+      "browser": "./dist/components/Head/Head-client.js",
+      "default": "./dist/components/Head/Head-server.js"
+    },
     "./ClientOnly": {
       "react-server": "./dist/components/ClientOnly.rsc.js",
       "default": "./dist/components/ClientOnly.js"
@@ -62,7 +80,8 @@
   },
   "dependencies": {
     "@brillout/json-serializer": "^0.5.27",
-    "react-streaming": "^0.4.21"
+    "@universal-middleware/core": "^0.7.1",
+    "react-streaming": "^0.4.22"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

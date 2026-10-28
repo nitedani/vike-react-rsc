@@ -27,6 +27,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-server-dom-webpack": "19.3.1",
+    "react-streaming": "^0.4.22",
     "server-only": "0.0.1",
     "typescript": "^7.0.2",
     "vike": "0.4.268-commit-bba2caa",

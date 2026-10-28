@@ -19,14 +19,24 @@ export default defineConfig({
     "src/hooks/useData.tsx",
     "src/hooks/useData.rsc.ts",
     "src/hooks/useHydrated.ts",
+    "src/hooks/useConfig/useConfig-server.ts",
+    "src/hooks/useConfig/useConfig-client.ts",
+    "src/hooks/useConfig/useConfig.rsc.ts",
     "src/components/ClientOnly.tsx",
     "src/components/ClientOnly.rsc.ts",
+    "src/components/Config/Config-server.ts",
+    "src/components/Config/Config-client.ts",
+    "src/components/Config/Config.rsc.ts",
+    "src/components/Head/Head-server.ts",
+    "src/components/Head/Head-client.ts",
+    "src/components/Head/Head.rsc.ts",
     // A client reference in the rsc env, so it stays a module of its own
     "src/components/LoadingBoundary.tsx",
   ],
   format: ["esm"],
-  // A client reference in the rsc env, so getPageElement() imports its module
-  deps: { neverBundle: ["vike-react-rsc/__internal/LoadingBoundary"] },
+  // Kept as imports. getPageElement() imports LoadingBoundary, a client reference in the rsc env. Config.rsc.ts and
+  // Head.rsc.ts re-export vike-react-rsc/Config and /Head, which the HTML render and the browser resolve to their own file.
+  deps: { neverBundle: ["vike-react-rsc/__internal/LoadingBoundary", "vike-react-rsc/Config", "vike-react-rsc/Head"] },
   // The exports map resolves to dist/*.js, so output extensions must stay .js.
   fixedExtension: false,
   dts: {

@@ -14,9 +14,12 @@ const vikeReactRsc: Config = {
   onError: "import:vike-react-rsc/__internal/onError:onError",
   // Vike's type doesn't list import strings, which it accepts
   // TODO: remove the cast once https://github.com/vikejs/vike/pull/3627 is released
-  middleware: "import:vike-react-rsc/__internal/middleware:actionMiddleware" as never,
+  middleware: [
+    "import:vike-react-rsc/__internal/middleware:actionRedirectMiddleware",
+    "import:vike-react-rsc/__internal/middleware:rscMiddleware",
+  ] as never,
   rscRuntime: "import:vike-react-rsc/__internal/rsc:rscRuntime",
-  passToClient: ["rscPayload"],
+  passToClient: ["rscPayload", "_configViaHook"],
   clientRouting: true,
   // Under components: 'server', the browser has no Page to load: its onRenderClient decodes the Flight
   clientHooks: true,
@@ -71,8 +74,12 @@ const vikeReactRsc: Config = {
     // rsc() renders `component` in the browser and the HTML, and `layout` renders where the +Loading file runs
     Loading: { env: { rsc: true, server: true, client: true } },
     Head: { env: { server: true }, cumulative: true },
+    stream: { env: { server: true }, cumulative: true },
+    onBeforeRenderHtml: { env: { server: true }, cumulative: true },
+    onAfterRenderHtml: { env: { server: true }, cumulative: true },
     onBeforeRenderClient: { env: { client: true }, cumulative: true },
     onAfterRenderClient: { env: { client: true }, cumulative: true },
+    react: { cumulative: true, env: {} },
     // vike-react's head settings; title, description and lang also apply on client navigation
     title: { env: { server: true, client: true } },
     description: { env: { server: true, client: true } },

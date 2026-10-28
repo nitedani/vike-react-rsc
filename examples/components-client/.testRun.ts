@@ -16,6 +16,9 @@ const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes i
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
 const EXPORT_ALL_ERROR = "doesn't name its Page";
+// Logged by /use-config-server
+const USE_CONFIG_IN_SERVER_COMPONENT_ERROR =
+  'useConfig() in a server component only sets the HTML <head> of a full page load. Render <Config title={…} /> (vike-react-rsc/Config) instead, or start this file with "use client".';
 
 function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   const isDev = cmd === "pnpm run dev";
@@ -52,6 +55,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testVikeReactRendering();
   testVikeReactImports();
   testFormBeforeHydration();
+  testRestoredFormState();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
   if (isDev) testComponentsConfig();
@@ -255,6 +259,103 @@ function testVikeReactRendering() {
     await clickCounter("#counter", "Counter 1");
   });
 
+  test("components: 'client': +onBeforeRenderHtml runs before +Head renders to HTML, as in vike-react", async () => {
+    expect(await fetchHtml("/render-html")).to.include('<meta name="store-greeting" content="A store +onBeforeRenderHtml created"/>');
+  });
+
+  test("components: 'client': +onBeforeRenderHtml gets pageContext.page and can replace it, e.g. to wrap it, as in vike-react", async () => {
+    expect(await fetchHtml("/wrap-page")).to.match(/<section id="wrapper">.*<p id="wrapped-child">.*<\/section>/s);
+  });
+
+  test("components: 'client': on a full load, server components get the pageContext a client navigation gives them: no value the HTML hooks assign on pageContext reaches them, and their writes stay theirs", async () => {
+    const store = "A store a server component created";
+    for (const [pathname, expected] of [
+      ["/render-html", { "#server-store": store, "#same-store": "true", "#locale": "Locale en", "#components": "Components undefined", "#has-user": "false", "#deferred-store": store, "#deferred-write": "Written by a server component", "#deferred-getter": "Written by a server component" }],
+      ["/render-html/spa", { "#spa-store": store }],
+    ] as const) {
+      const expectServerComponents = async () => {
+        for (const [selector, text] of Object.entries(expected)) {
+          await page.waitForSelector(selector, { state: "attached" });
+          expect(await page.textContent(selector), `${pathname} ${selector}`).to.equal(text);
+        }
+      };
+      await page.goto(getServerUrl() + pathname);
+      await expectServerComponents();
+      await waitForHydration("#layout-counter");
+      await clickLink("/");
+      await page.waitForSelector("h1:text-is('A client page')");
+      await clickLink(pathname);
+      await expectServerComponents();
+    }
+  });
+
+  test("components: 'client': +onAfterRenderHtml runs once the page rendered to HTML, with pageContext.pageHtmlString, every Suspense boundary resolved, on a page whose +stream neither enables nor requires streaming, else pageHtmlStream, and the HTML it sets is sent, as in vike-react", async () => {
+    expect(await fetchHtml("/render-html")).to.include('<div id="root"><!-- Streamed through +onAfterRenderHtml -->');
+    expect(await fetchHtml("/stream-off")).to.include("<!-- Rendered to a string by +onAfterRenderHtml --></div>");
+    expect(await fetchHtml("/minify-html")).to.include('<p id="minified">Several spaces</p>');
+    const minified = await fetchHtml("/minify-html-default");
+    expect(minified).to.include('<p id="minified">Several spaces</p>');
+    expect(minified).to.not.include("<p>Waiting for the delay</p>");
+  });
+
+  test("components: 'client': stream: { require: true, enable: false } sends the HTML at once, every Suspense boundary resolved, as in vike-react", async () => {
+    const html = await fetchHtml("/stream-off");
+    expect(html).to.include('<p id="delayed">Rendered after a delay</p>');
+    expect(html).to.not.include("<p>Waiting for the delay</p>");
+  });
+
+  test("components: 'client': a page without +stream sends the HTML at once, every Suspense boundary resolved, as in vike-react", async () => {
+    const reader = (await fetch(getServerUrl() + "/stream-default")).body!.getReader();
+    const firstChunk = new TextDecoder().decode((await reader.read()).value);
+    await reader.cancel();
+    expect(firstChunk).to.include('<p id="delayed">Rendered after a delay</p>');
+    expect(firstChunk).to.not.include("<p>Waiting for the delay</p>");
+  });
+
+  test("components: 'client': a stream: false page sends its HTML before its Flight ends, then the Flight's rows the HTML doesn't wait for", async () => {
+    const response = await fetch(getServerUrl() + "/stream-off-promise");
+    // With a content-length, Vike would have waited for the promise's row
+    expect(response.headers.get("transfer-encoding")).to.equal("chunked");
+    expect(await response.text()).to.match(/Show the answer.*Answered after a delay/s);
+  });
+
+  test("components: 'client': +react sets the options of a stream: true page's render and of hydrateRoot(), as in vike-react", async () => {
+    const response = await fetch(getServerUrl() + "/react-options");
+    expect(response.status).to.equal(200);
+    const id = /<p id="use-id">([^<]*)<\/p>/.exec(await response.text())?.[1];
+    expect(id).to.include("vrr-");
+    await page.goto(getServerUrl() + "/react-options");
+    await waitForHydration("#use-id");
+    expect(await page.textContent("#use-id")).to.equal(id);
+  });
+
+  test("components: 'client': a +react onCaughtError replaces the logging of what an error boundary catches, as in vike-react", async () => {
+    await page.goto(getServerUrl() + "/caught-error");
+    await waitForHydration("#fail");
+    await page.click("#fail");
+    await page.waitForSelector("#caught");
+    // Nothing is logged: test-e2e fails a test on a browser error it doesn't tolerate
+    await autoRetry(async () => {
+      expect(await page.getAttribute("body", "data-reported")).to.equal("Error: A client component failed on a click");
+    });
+  });
+
+  test("components: 'client': +react's renderToStreamOptions don't apply to a page without +stream, which hydrates, as in vike-react", async () => {
+    const id = /<p id="use-id">([^<]*)<\/p>/.exec(await fetchHtml("/stream-only-options"))?.[1];
+    expect(id).to.not.include("vrr-stream-");
+    await page.goto(getServerUrl() + "/stream-only-options");
+    await waitForHydration("#use-id");
+    expect(await page.textContent("#use-id")).to.equal(id);
+  });
+
+  test("components: 'client': +react's renderToStringOptions set the options of a stream: false page's render, as in vike-react", async () => {
+    const id = /<p id="use-id">([^<]*)<\/p>/.exec(await fetchHtml("/render-to-string-options"))?.[1];
+    expect(id).to.include("vrr-string-");
+    await page.goto(getServerUrl() + "/render-to-string-options");
+    await waitForHydration("#use-id");
+    expect(await page.textContent("#use-id")).to.equal(id);
+  });
+
   test("components: 'client': ssr: false renders the page in the browser only, after +onBeforeRenderClient", async () => {
     expect(await fetchHtml("/spa")).to.not.include("Rendered in the browser");
     await page.goto(getServerUrl() + "/spa");
@@ -306,6 +407,13 @@ function testVikeReactRendering() {
     await page.waitForSelector("#spa-rerender");
     expect(await page.textContent("#spa-rendered-on")).to.equal("Rendered on the server");
   });
+
+  test("components: 'client': ssr: false on a page with a server component: the browser renders it before its Flight ends", async () => {
+    // The page's load event waits for its Flight, which ends only once the page asks
+    await page.goto(getServerUrl() + "/spa-promise", { waitUntil: "commit" });
+    await page.click("button:text-is('Ask')");
+    await page.waitForSelector("#answer:text-is('Answered once asked')");
+  });
 }
 
 function testVikeReactImports() {
@@ -320,6 +428,39 @@ function testVikeReactImports() {
     expect(await page.textContent("#hydrated")).to.equal("Hydrated");
     expect(await page.textContent("#data")).to.equal("Data from +data");
     expect(await page.$("#lazy-wrapper")).to.not.equal(null);
+  });
+
+  test('components: \'client\': usePageContext() and useData() in an async server component and in a file that a server component and a "use client" file import, on the first load and after a client navigation', async () => {
+    const expectPageInfo = async () => {
+      for (const id of ["#async-server", "#shared-server", "#shared-client"]) {
+        expect(await page.textContent(id), id).to.equal("/server-hooks: Data from +data");
+      }
+    };
+    await page.goto(getServerUrl() + "/server-hooks");
+    await waitForHydration("#layout-counter");
+    await expectPageInfo();
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/server-hooks");
+    await page.waitForSelector("#pathname:text-is('/server-hooks') ~ main #async-server");
+    await expectPageInfo();
+  });
+
+  test("components: 'client': vike-react's useConfig() and <Head> in a client component set the HTML head, and useConfig() the title on a client navigation", async () => {
+    const html = await fetchHtml("/use-config");
+    const head = html.slice(0, html.indexOf("</head>"));
+    expect(head).to.include("<title>useConfig() in a client component</title>");
+    expect(head).to.include('<meta name="use-config" content="Head in a client component"/>');
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/use-config");
+    await autoRetry(async () => expect(await page.title()).to.equal("useConfig() in a client component"));
+  });
+
+  test("components: 'client': useConfig() in a server component sets the HTML head, and logs how to fix it", async () => {
+    const html = await fetchHtml("/use-config-server");
+    expect(html.slice(0, html.indexOf("</head>"))).to.include("<title>useConfig() in a server component</title>");
+    expectLog(USE_CONFIG_IN_SERVER_COMPONENT_ERROR);
   });
 
   test("components: 'client': a server component renders <ClientOnly> through a client component, and calls useHydrated()", async () => {
@@ -355,6 +496,23 @@ function testFormBeforeHydration() {
     await autoRetry(async () => {
       expect(await page.textContent("#submits")).to.equal("Submitted 2 times");
     });
+  });
+}
+
+function testRestoredFormState() {
+  test("components: 'client': +react's formState renders and hydrates a request without a form submit, as in vike-react", async () => {
+    // The submit's state, which the page saves in a cookie
+    await withoutScripts(async (noJs) => {
+      await noJs.goto(getServerUrl() + "/form-restored");
+      await noJs.click('button:has-text("Count a submit")');
+      await noJs.waitForSelector("#submits:has-text('Submitted 1 times')");
+      await page.context().addCookies(await noJs.context().cookies());
+    });
+    const response = await page.goto(getServerUrl() + "/form-restored");
+    expect(await response!.text()).to.include("Submitted <!-- -->1<!-- --> times");
+    await waitForHydration("button");
+    expect(await page.textContent("#submits")).to.equal("Submitted 1 times");
+    await page.context().clearCookies({ name: "restored-form" });
   });
 }
 
@@ -430,18 +588,6 @@ function testServerFunctionComponents() {
 }
 
 function testClientHooks() {
-  test("Dev: usePageContext() and useData() in a server component throw, naming what to call instead", async () => {
-    for (const [hook, fix] of [
-      ["usePageContext", "call getPageContext() in a server component or a server action"],
-      ["useData", "read getPageContext().data in a server component"],
-    ]) {
-      await expectHelperPageError(
-        `"use server component";\nimport { ${hook} } from "vike-react-rsc/${hook}";\nexport default function Page() {\n  ${hook}();\n  return null;\n}\n`,
-        `${hook}() ${CLIENT_HOOK_ERROR}: ${fix}`
-      );
-    }
-  });
-
   test('Dev: <ClientOnly> in a server component throws, saying to render it in a "use client" file', async () => {
     await expectHelperPageError(
       `"use server component";\nimport { ClientOnly } from "vike-react-rsc/ClientOnly";\nexport default function Page() {\n  return <ClientOnly><p>Rendered in the browser</p></ClientOnly>;\n}\n`,
@@ -607,6 +753,36 @@ function testClientComponentHmr() {
 }
 
 function testServerComponentImports() {
+  test('Build: a Page without a directive importing a server component with import() fails the build, saying to show it through rsc() or start the Page with "use server component"', async () => {
+    const output = await getBuildError(
+      "./pages/js-page/+Page.js",
+      () =>
+        'import { createElement, lazy } from "react";\n' +
+        'const Markdown = lazy(() => import("../../components/Markdown").then(({ Markdown }) => ({ default: Markdown })));\n' +
+        'export default function Page() {\n  return createElement(Markdown, { source: "**A** page" });\n}\n'
+    );
+    expect(output).to.include(
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/js-page/+Page.js imports it. ' +
+        'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
+        'or, if pages/js-page/+Page.js needs nothing from the browser (no hooks, no event handlers), start it with "use server component"; ' +
+        "or, if pages/js-page/+Page.js imports only its types, write `import type`"
+    );
+  });
+
+  test("Build: a client hook importing a server component fails the build, saying to show it through rsc() or import it only from server components", async () => {
+    // The dev server sees the edit too, and renders nothing with it while no page is open
+    await page.goto("about:blank");
+    const output = await getBuildError(
+      "./pages/after-render/+onAfterRenderClient.ts",
+      () => 'import { Markdown } from "../../components/Markdown";\n\nexport function onAfterRenderClient() {\n  console.log(Markdown);\n}\n'
+    );
+    expect(output).to.include(
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: pages/after-render/+onAfterRenderClient.ts imports it. ' +
+        'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
+        "or, import it only from server components; or, if pages/after-render/+onAfterRenderClient.ts imports only its types, write `import type`"
+    );
+  });
+
   test('Build: a "use client" file importing a server component fails the build, saying to show it through rsc() or remove "use client"', async () => {
     const output = await getBuildError(
       "./pages/js-page/+Page.js",
@@ -646,23 +822,46 @@ function testServerComponentImports() {
     );
   });
 
-  test('Build: a "use client" file importing a package\'s server component with import() fails the build, naming the file', async () => {
+  test('Build: a "use client" file importing a package\'s server component with import() fails the build, saying to show it through rsc() or replace "use client" with "use server component"', async () => {
     const output = await getBuildError(
       "./pages/js-page/+Page.js",
       () =>
         '"use client";\nimport { createElement, lazy } from "react";\nconst ServerBadge = lazy(() => import("server-component-package/ServerBadge"));\n' +
         'export default function Page() {\n  return createElement(ServerBadge, { label: "A badge" });\n}\n'
     );
-    expect(output).to.include(packageServerComponentInBrowser);
+    expect(output).to.include(
+      `${packageServerComponentInBrowser} ` +
+        'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
+        'or, replace "use client" in pages/js-page/+Page.js with "use server component", and move its hooks and event handlers into their own "use client" component; ' +
+        "or, if pages/js-page/+Page.js imports only its types, write `import type`"
+    );
+  });
+
+  test('Build: a "use client" component importing a server component fails the build, saying to show it through rsc() or pass it in as children or a prop', async () => {
+    // The dev server sees the edit too, and renders nothing with it while no page is open
+    await page.goto("about:blank");
+    const output = await getBuildError("./components/Counter.tsx", (source) =>
+      source
+        .replace('import { useState } from "react";', '$&\nimport { Markdown } from "./Markdown";')
+        .replace("export function Counter() {", "$&\n  console.log(Markdown);")
+    );
+    expect(output).to.include(
+      'components/Markdown.tsx starts with "use server component", but the browser loads it: components/Counter.tsx starts with "use client" and imports it. ' +
+        'To show it in the browser, return it from a function in a "use server" file and render that function through rsc() from vike-react-rsc/client; ' +
+        "or, render it in a server component and pass it to components/Counter.tsx as children or a prop; or, if components/Counter.tsx imports only its types, write `import type`"
+    );
   });
 
   test('Dev: a "use client" file importing a package\'s server component, which the browser loads pre-bundled, gets the error', async () => {
     editFile("./pages/js-page/+Page.js", importPackageServerComponent);
     try {
       await page.goto(getServerUrl() + "/js-page");
+      // Vite reloads the page once it has pre-bundled the package, and the reload would interrupt leaving the page
+      const reloaded = page.waitForEvent("load");
       await autoRetry(async () => {
         expectLog(packageServerComponentInBrowser, { filter: ({ logSource }) => logSource === "stderr" });
       });
+      await reloaded;
     } finally {
       await page.goto("about:blank");
       editFileRevert();
@@ -712,6 +911,8 @@ function testServerComponentImports() {
       `import { MARKDOWN_ID } from "../../components/Markdown";\n${source.replace('greeting: "Data from +data"', '$&, id: MARKDOWN_ID')}`
     );
     expect(isSuccess).to.equal(true);
+    // Vike reloads the user files after the revert, and the lane's server stopping during that reload logs an error
+    await sleep(1000);
   });
 }
 
