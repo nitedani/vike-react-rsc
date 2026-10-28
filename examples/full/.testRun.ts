@@ -1609,7 +1609,7 @@ function testPendingPage() {
       await route.fulfill({ response });
     });
 
-    // /hydration's onHydrationEnd() navigates to /
+    // /hydration's +onBeforeRenderClient navigates to /
     await page.goto(getServerUrl() + "/hydration", { waitUntil: "commit" });
     await page.waitForURL((url) => url.pathname === "/");
     await sleep(500);
@@ -1617,6 +1617,8 @@ function testPendingPage() {
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("Vike React Server Components");
     });
+    // A client navigation, not a page load
+    expect(await page.evaluate(() => (window as { navigatedDuringHydration?: boolean }).navigatedDuringHydration)).to.equal(true);
     await page.unroute("**/*");
   });
 }

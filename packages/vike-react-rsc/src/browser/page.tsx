@@ -43,18 +43,18 @@ export function show(next: Shown): void {
 }
 
 /** Resolves once React shows what show() was last given or `abortSignal` aborts, or rejects with the error React throws while rendering it */
-export async function rendered(abortSignal?: AbortSignal): Promise<void> {
+export async function rendered(abortSignal: AbortSignal): Promise<void> {
   let end!: () => void;
   const rendering = new Promise<void>((resolve, reject) => {
     shared.rendering = { resolve, reject };
     end = resolve;
   });
-  abortSignal?.addEventListener("abort", end);
-  if (abortSignal?.aborted) end();
+  abortSignal.addEventListener("abort", end);
+  if (abortSignal.aborted) end();
   try {
     await rendering;
   } finally {
-    abortSignal?.removeEventListener("abort", end);
+    abortSignal.removeEventListener("abort", end);
   }
 }
 

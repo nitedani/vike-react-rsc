@@ -27,31 +27,26 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   const page = { pageContext, root, headSettings };
   setCurrentPageContext(pageContext);
   show(page);
+  if (pageContext.isHydration) {
+    const container = document.getElementById("root")!;
+    // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
+    if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") {
+      setReactRoot(hydrateRoot(container, <Root page={page} />, { formState, onCaughtError, onUncaughtError }));
+    } else {
+      const reactRoot = createRoot(container, { onCaughtError, onUncaughtError });
+      setReactRoot(reactRoot);
+      reactRoot.render(<Root page={page} />);
+    }
+  }
   // As vike-react's: Vike ends the navigation once React shows the page, and renders the error page if React throws on
-  // it. Not on hydration, whose onHydrationEnd() may navigate before React commits.
-  if (!pageContext.isHydration) {
-    // Or until the user navigates elsewhere: Vike runs the next page's onRenderClient() only once this one ends
-    await rendered(pageContext.abortSignal);
-    if (pageContext.abortSignal.aborted) return;
-    // Use cases:
-    // - Custom user settings: https://vike.dev/head-tags#custom-settings
-    // - Testing tools: https://github.com/vikejs/vike-react/issues/95
-    await callCumulativeHooks(pageContext.config.onAfterRenderClient, pageContext);
-    return;
-  }
-  const container = document.getElementById("root")!;
-  // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
-  if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") {
-    setReactRoot(hydrateRoot(container, <Root page={page} />, { formState, onCaughtError, onUncaughtError }));
-  } else {
-    const reactRoot = createRoot(container, { onCaughtError, onUncaughtError });
-    setReactRoot(reactRoot);
-    reactRoot.render(<Root page={page} />);
-  }
-  // Once React hydrates, which onRenderClient() doesn't wait for: so after +onHydrationEnd, and a hook's error is an unhandled
-  // rejection, not the error page. onUncaughtError() logs an error React throws instead.
-  // TODO: await it, as vike-react does, once https://github.com/vikejs/vike/pull/3641 is released
-  void rendered().then(() => callCumulativeHooks(pageContext.config.onAfterRenderClient, pageContext), () => {});
+  // it. Or once the user navigates elsewhere: Vike runs the next page's onRenderClient() only once this one ends.
+  await rendered(pageContext.abortSignal);
+  // The user navigated elsewhere: skip the page's +onAfterRenderClient, but keep hydration's, which testing tools wait for
+  if (pageContext.abortSignal.aborted && !pageContext.isHydration) return;
+  // Use cases:
+  // - Custom user settings: https://vike.dev/head-tags#custom-settings
+  // - Testing tools: https://github.com/vikejs/vike-react/issues/95
+  await callCumulativeHooks(pageContext.config.onAfterRenderClient, pageContext);
 };
 
 async function getPagePayload(pageContext: PageContextClient): Promise<PagePayload> {
