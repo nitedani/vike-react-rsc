@@ -1220,6 +1220,15 @@ function testHeadSettingsRerender() {
     // The next tests start logged out
     await page.context().clearCookies({ name: "session" });
   });
+  test("Head settings: an action's throw render() applies that page's title, also one the same as the previous page's", async () => {
+    // /actions and /login both have the default title
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.evaluate(() => (document.title = "Set in the browser"));
+    await page.click('button:has-text("Require a login")');
+    await autoRetry(async () => expect(await page.textContent("h1")).to.equal("Log in"));
+    await autoRetry(async () => expect(await page.title()).to.equal("Vike RSC demo"));
+  });
   test("Head settings: rerender() keeps a title the page set in the browser", async () => {
     // A navigation, so the page isn't the hydrated one, whose settings the HTML has
     await page.goto(getServerUrl() + "/");
@@ -1233,6 +1242,29 @@ function testHeadSettingsRerender() {
       expect(await page.textContent("body")).to.include("Head settings todo");
     });
     expect(await page.title()).to.equal("Set in the browser");
+  });
+  test("Head settings: rerender() applies a title computed from the data it sent, and keeps a description the page set in the browser", async () => {
+    await page.goto(getServerUrl() + "/head-settings-rerender");
+    await waitForHydration("Bump the data title");
+    const bumps = Number((await page.title()).match(/^Data title, bumped (\d+) times$/)![1]);
+    await page.evaluate(() => document.querySelector('meta[name="description"]')!.setAttribute("content", "Set in the browser"));
+    await page.click('button:has-text("Bump the data title")');
+    await autoRetry(async () => expect(await page.title()).to.equal(`Data title, bumped ${bumps + 1} times`));
+    expect(await page.getAttribute('meta[name="description"]', "content")).to.equal("Set in the browser");
+  });
+  test('Head settings: rerender() keeps a title and description the page set in the browser, where its settings are ""', async () => {
+    // The HTML has no title or description for "", as for null
+    await page.goto(getServerUrl() + "/head-settings-empty");
+    await waitForHydration("Render again");
+    const renders = Number((await page.textContent("[data-render-count]"))!.match(/^Rendered (\d+) times$/)![1]);
+    await page.evaluate(() => {
+      document.title = "Set in the browser";
+      document.head.append(Object.assign(document.createElement("meta"), { name: "description", content: "Set in the browser" }));
+    });
+    await page.click('button:has-text("Render again")');
+    await autoRetry(async () => expect(await page.textContent("[data-render-count]")).to.equal(`Rendered ${renders + 1} times`));
+    expect(await page.title()).to.equal("Set in the browser");
+    expect(await page.getAttribute('meta[name="description"]', "content")).to.equal("Set in the browser");
   });
 }
 

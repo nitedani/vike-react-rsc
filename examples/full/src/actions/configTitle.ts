@@ -7,3 +7,8 @@ export async function bumpConfigTitle() {
   increment("configTitle");
   rerender();
 }
+
+export async function bumpDataTitle() {
+  increment("dataTitle");
+  rerender();
+}
