@@ -1841,7 +1841,7 @@ function testUnserializableData(isStatic: boolean) {
 }
 
 function testPendingPage() {
-  test("A navigation that ends before React commits the hydration shows its page", async () => {
+  test("A navigation started before React commits the hydration shows its page", async () => {
     // /hydration has no Loading.layout, so React commits its hydration only once its client component has loaded
     let release!: () => void;
     const released = new Promise<void>((resolve) => (release = resolve));
