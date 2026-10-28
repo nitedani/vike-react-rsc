@@ -856,8 +856,9 @@ function testServerComponentImports() {
     editFile("./pages/js-page/+Page.js", importPackageServerComponent);
     try {
       await page.goto(getServerUrl() + "/js-page");
-      // Vite reloads the page once it has pre-bundled the package, and the reload would interrupt leaving the page
-      const reloaded = page.waitForEvent("load");
+      // Vite reloads the page once it has pre-bundled the package, and the reload would interrupt leaving the page.
+      // The revert of the previous test can reload the page first, so only a load after Vite says it reloads counts
+      const reloaded = page.waitForEvent("load", { predicate: () => isLogged("optimized dependencies changed. reloading") });
       await autoRetry(async () => {
         expectLog(packageServerComponentInBrowser, { filter: ({ logSource }) => logSource === "stderr" });
       });
@@ -960,6 +961,16 @@ async function getBuildError(file: string, edit: (source: string) => string): Pr
   const { isSuccess, output } = await build(file, edit);
   if (isSuccess) throw new Error("The build succeeded");
   return output;
+}
+
+// Whether `log` was logged during the current test
+function isLogged(log: string) {
+  try {
+    expectLog(log);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Until React has attached the button's handlers, a click doesn't do what a user's would
