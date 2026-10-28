@@ -3,6 +3,7 @@ import { enhance } from "@universal-middleware/core";
 import { getPageContextJson } from "vike/__internal";
 import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
+import { getHeadSettings } from "../integration/getHeadSettings";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import type { ActionOutcome, PassedToClient } from "../types";
 import { getRsc } from "./bridge";
@@ -116,7 +117,8 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
     .map((prop: string | { prop: string }) => (typeof prop === "string" ? prop : prop.prop))
     // The top-level key: 'user' for 'user.id', and '\\.' is a dot in a key
     .map((prop) => prop.split(/(?<!\\)\./)[0]!.replace(/\\\./g, "."));
-  return { json: getPageContextJson(pageContext), keys };
+  // The browser has only the config of the page Vike showed, and an answer may render another page, e.g. after a throw render()
+  return { json: getPageContextJson(pageContext), keys, headSettings: getHeadSettings(pageContext) };
 }
 
 // Vike's +middleware, which sets up every page request. When the request calls a server action, it hands the action to

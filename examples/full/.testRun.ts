@@ -436,6 +436,8 @@ function testSession() {
     await autoRetry(async () => {
       expect(await page.textContent("#account-user")).to.equal("Logged in as alice");
     });
+    // The head is the Account page's, not the login page's the browser showed before
+    await autoRetry(async () => expect(await page.title()).to.equal("Account"));
     const session = async () =>
       (await page.context().cookies()).find((c) => c.name === "session")?.value;
     expect(await session()).to.equal("alice");
@@ -1200,6 +1202,24 @@ function testHeadSettings(isStatic: boolean) {
 }
 
 function testHeadSettingsRerender() {
+  test("Head settings: an action's throw render() applies that page's title and description", async () => {
+    await page.goto(getServerUrl() + "/head-settings");
+    await waitForHydration("Require a login");
+    await page.click('button:has-text("Require a login")');
+    await autoRetry(async () => expect(await page.textContent("h1")).to.equal("Log in"));
+    await autoRetry(async () => expect(await page.title()).to.equal("Vike RSC demo"));
+    expect(await page.getAttribute('meta[name="description"]', "content")).to.equal("A demo of Vike with React Server Components");
+
+    // Logging in renders /head-settings again, under its own head
+    await page.click('button:has-text("Log in")');
+    await autoRetry(async () => expect(await page.title()).to.equal("Head settings from +data"));
+    expect(await page.getAttribute('meta[name="description"]', "content")).to.equal("Set by +description");
+    // As on a navigation, the title that page's <Config> sets wins
+    await page.click('button:has-text("Show the Config page")');
+    await autoRetry(async () => expect(await page.title()).to.match(/^Config in a server component, bumped \d+ times$/));
+    // The next tests start logged out
+    await page.context().clearCookies({ name: "session" });
+  });
   test("Head settings: rerender() keeps a title the page set in the browser", async () => {
     // A navigation, so the page isn't the hydrated one, whose settings the HTML has
     await page.goto(getServerUrl() + "/");
