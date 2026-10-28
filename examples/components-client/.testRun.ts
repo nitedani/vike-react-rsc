@@ -463,7 +463,24 @@ function testVikeReactImports() {
     expectLog(USE_CONFIG_IN_SERVER_COMPONENT_ERROR);
   });
 
-  test("components: 'client': a server component renders <ClientOnly> through a client component, and calls useHydrated()", async () => {
+  test("components: 'client': with vike-react aliased to vike-react-rsc in package.json, a vike-react extension whose +config requires vike-react adds its Wrapper, and the Wrapper and a server component get the page from vike-react/usePageContext and vike-react/useData, and the server component calls vike-react/useHydrated, on the first load and after a client navigation", async () => {
+    const expectPageInfo = async () => {
+      for (const id of ["#wrapper", "#server"]) {
+        expect(await page.textContent(id), id).to.equal("/vike-react-imports: Data from +data");
+      }
+      expect(await page.textContent("#hydrated")).to.equal("Not hydrated");
+    };
+    await page.goto(getServerUrl() + "/vike-react-imports");
+    await waitForHydration("#layout-counter");
+    await expectPageInfo();
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/vike-react-imports");
+    await page.waitForSelector("#pathname:text-is('/vike-react-imports') ~ main #server");
+    await expectPageInfo();
+  });
+
+  test("components: 'client': a server component renders <ClientOnly>, imported from vike-react, through a client component, and calls useHydrated()", async () => {
     // The child reads window when its module loads, so loading it on the server would fail the render
     const html = await fetchHtml("/client-only");
     expect(html).to.include("Loading in the browser");

@@ -21,6 +21,11 @@ React RSC integration for [Vike](https://vike.dev).
   - [`+onBeforeRenderHtml`](https://vike.dev/onBeforeRenderHtml) runs only for the first load's HTML, as in `vike-react`. What it assigns on `pageContext` reaches that HTML's client components and `+Head`, not server components: set what they need in [`+onCreatePageContext.server.js`](https://vike.dev/onCreatePageContext), which runs on a client navigation too.
   - A component that calls a hook such as `useState()` starts with `"use client"` when a server component imports it. A file that imports a server component can't, so its hooks move into their own `"use client"` component.
   - `vike-react`'s `useData()`, `useHydrated()`, `usePageContext()`, `useConfig()`, `<ClientOnly>`, `<Config>` and `<Head>` are at `vike-react-rsc/useData`, `/useHydrated`, `/usePageContext`, `/useConfig`, `/ClientOnly`, `/Config` and `/Head`. `useData()`, `usePageContext()`, `<Config>` and `<Head>` work in server components too. There, `useConfig()` sets only the HTML `<head>` of a full page load: render `<Config>` instead.
+  - Alias `vike-react` to `vike-react-rsc` in your `package.json`, so that `vike-react/*` imports, in your files and in your dependencies, get `vike-react-rsc`'s, types included:
+    ```json
+    "vike-react": "npm:vike-react-rsc@^1"
+    ```
+    A vike-react extension whose `+config` requires `vike-react`, e.g. `vike-react-query`, works too: `vike-react-rsc` [provides](https://vike.dev/require#provide) `vike-react` 0.6.31.
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
   - An action reads **`getRequestContext()`** (from `vike-react-rsc/server`): the request's `headers` and `cookies`, and what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `user`). It leaves out what Vike and your app compute for a page: `routeParams`, the page's config, `data`, and what your `+onCreatePageContext` sets.
