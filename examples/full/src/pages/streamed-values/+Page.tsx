@@ -4,14 +4,15 @@ import { useEffect } from "react";
 import { usePageContext } from "vike-react-rsc/pageContext";
 import { rerenderPage } from "../../actions/rerenderPage";
 
-let renders = 0;
+// In dev, StrictMode runs an effect twice on mount: one loop per ticker
+const tickers: AsyncIterable<number>[] = [];
 
-// testActionStreamedValues(): when each tick arrived, and from which render's ticker
+// testActionStreamedValues(): when each tick arrived, and from which ticker, in the order they came
 export const Page = () => {
   const { ticker } = usePageContext() as { ticker?: AsyncIterable<number> };
   useEffect(() => {
-    if (!ticker) return;
-    const render = ++renders;
+    if (!ticker || tickers.includes(ticker)) return;
+    const render = tickers.push(ticker);
     const ticks = ((window as { ticks?: { render: number; at: number }[] }).ticks ??= []);
     void (async () => {
       for await (const _ of ticker) ticks.push({ render, at: Date.now() });
