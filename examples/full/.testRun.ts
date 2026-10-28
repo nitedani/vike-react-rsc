@@ -1252,6 +1252,20 @@ function testHeadSettingsRerender() {
     await autoRetry(async () => expect(await page.title()).to.equal(`Data title, bumped ${bumps + 1} times`));
     expect(await page.getAttribute('meta[name="description"]', "content")).to.equal("Set in the browser");
   });
+  test('Head settings: rerender() keeps a title and description the page set in the browser, where its settings are ""', async () => {
+    // The HTML has no title or description for "", as for null
+    await page.goto(getServerUrl() + "/head-settings-empty");
+    await waitForHydration("Render again");
+    const renders = Number((await page.textContent("[data-render-count]"))!.match(/^Rendered (\d+) times$/)![1]);
+    await page.evaluate(() => {
+      document.title = "Set in the browser";
+      document.head.append(Object.assign(document.createElement("meta"), { name: "description", content: "Set in the browser" }));
+    });
+    await page.click('button:has-text("Render again")');
+    await autoRetry(async () => expect(await page.textContent("[data-render-count]")).to.equal(`Rendered ${renders + 1} times`));
+    expect(await page.title()).to.equal("Set in the browser");
+    expect(await page.getAttribute('meta[name="description"]', "content")).to.equal("Set in the browser");
+  });
 }
 
 function testConfigFirstRender() {

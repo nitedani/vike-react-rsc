@@ -118,13 +118,15 @@ export function Root({ page }: { page: Shown }): ReactElement {
 // `lastHead` stays as the tab has it, so a title the page set in the browser stays.
 export function applyHead([title, lang, description]: HeadSettings, { _configViaHook }: PageContextInternal, lastHead?: HeadSettings): void {
   const pick = <T,>(viaHook: T | undefined, configured: T) => (viaHook !== undefined ? viaHook : configured);
-  const head: HeadSettings = [pick(_configViaHook?.title, title), pick(_configViaHook?.lang, lang), pick(_configViaHook?.description, description)];
+  // As null, "" shows no title or description, and readHtmlHead() reads their missing tags as null
+  const tagValue = (value: string | null | undefined) => (value === "" ? null : value);
+  const head: HeadSettings = [tagValue(pick(_configViaHook?.title, title)), pick(_configViaHook?.lang, lang), tagValue(pick(_configViaHook?.description, description))];
   const [newTitle, newLang, newDescription] = head.map((value, i) => (value === lastHead?.[i] ? undefined : value));
   applyHeadSettings(newTitle, newLang, newDescription);
   shared.head = head;
 }
 
-// The head the HTML has, as getHeadSettings() values: the server writes no tag for null, so a missing one reads as null
+// The head the HTML has: the server writes no title or description tag for null or "", so a missing one reads as null
 function readHtmlHead(): HeadSettings {
   const description = document.head.querySelector<HTMLMetaElement>('meta[name="description"]');
   return [document.head.querySelector("title")?.text ?? null, document.documentElement.getAttribute("lang"), description?.content ?? null];
