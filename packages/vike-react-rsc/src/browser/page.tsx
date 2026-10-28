@@ -108,6 +108,10 @@ export function Root({ page }: { page: Shown }): ReactElement {
     shared.setRootState = setState;
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
+    // Once Root unmounts, e.g. as code renders something else into pageContext.root, the next page mounts it again
+    return () => {
+      shared.setRootState = (shown) => shared.reactRoot!.render(getRootElement(shown));
+    };
   }, []);
   // Once React commits an answer's tree, applies its head; onRenderClient() applies a navigation's
   useEffect(() => {
