@@ -1918,20 +1918,13 @@ function testUnserializableData(isStatic: boolean) {
 function testPendingPage() {
   test("A navigation started before React commits the hydration shows its page", async () => {
     // /hydration has no Loading.layout, so React commits its hydration only once its client component has loaded
-    let release!: () => void;
-    const released = new Promise<void>((resolve) => (release = resolve));
-    await page.route("**/*", async (route) => {
-      if (route.request().resourceType() !== "script") return route.continue();
-      const response = await route.fetch();
-      if ((await response.text()).includes("data-hydration-client")) await released;
-      await route.fulfill({ response });
-    });
+    const held = await holdScript("data-hydration-client");
 
     // /hydration's +onBeforeRenderClient navigates to /
     await page.goto(getServerUrl() + "/hydration", { waitUntil: "commit" });
     await page.waitForURL((url) => url.pathname === "/");
     await sleep(500);
-    release();
+    held.release();
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("Vike React Server Components");
     });
@@ -1947,7 +1940,8 @@ function testNavigationKeepsPage() {
   test("A navigation keeps the current page until the next page's client components have loaded", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    const held = await holdClientPage();
+    // /client's Page, a client component
+    const held = await holdScript("data-url-pathname");
     await clickNewLink("/client");
     await autoRetry(() => expect(held.isHeld).to.equal(true));
     await sleep(500);
@@ -1964,7 +1958,8 @@ function testNavigationKeepsPage() {
   test("A click on another link while the next page's client components load shows that page at once", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    const held = await holdClientPage();
+    // /client's Page, a client component
+    const held = await holdScript("data-url-pathname");
     await clickNewLink("/client");
     await autoRetry(() => expect(held.isHeld).to.equal(true));
     await page.click('a[href="/todos"]');
@@ -1981,15 +1976,15 @@ function testNavigationKeepsPage() {
   });
 }
 
-// Holds the module of /client's Page, a client component, until release()
-async function holdClientPage() {
+// Holds the script whose source includes `marker` until release()
+async function holdScript(marker: string) {
   let release!: () => void;
   const released = new Promise<void>((resolve) => (release = resolve));
   const held = { isHeld: false, release };
   await page.route("**/*", async (route) => {
     if (route.request().resourceType() !== "script") return route.continue();
     const response = await route.fetch();
-    if ((await response.text()).includes("data-url-pathname")) {
+    if ((await response.text()).includes(marker)) {
       held.isHeld = true;
       await released;
     }
