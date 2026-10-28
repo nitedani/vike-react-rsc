@@ -24,6 +24,7 @@ export default defineConfig({
     "src/hooks/useConfig/useConfig.rsc.ts",
     "src/components/ClientOnly.tsx",
     "src/components/ClientOnly.rsc.ts",
+    "src/integration/Loading.tsx",
     "src/components/Config/Config-server.ts",
     "src/components/Config/Config-client.ts",
     "src/components/Config/Config.rsc.ts",

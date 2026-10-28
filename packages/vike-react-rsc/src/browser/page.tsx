@@ -4,6 +4,7 @@ import { createPageContextFromServer_experimentalRSC } from "vike/__internal/cli
 import type { PageContextClient } from "vike/types";
 import { applyHeadSettings } from "../integration/applyHeadSettings";
 import type { HeadSettings } from "../integration/getHeadSettings";
+import { isStrictMode, withStrictMode } from "../integration/withStrictMode";
 import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
 import type { PageContextInternal } from "../types";
@@ -40,8 +41,11 @@ export function getCurrentPageContext(): PageContextClient {
 }
 
 export function show(next: Shown): void {
+  const previous = shared.shown;
   shared.shown = next;
-  shared.setRootState?.(next);
+  // As in vike-react, a navigation that turns +reactStrictMode on or off mounts the page again, its layouts included
+  if (previous && isStrictMode(previous.pageContext) !== isStrictMode(next.pageContext)) shared.reactRoot!.render(getRootElement(next));
+  else shared.setRootState?.(next);
 }
 
 /** Resolves once React shows what show() was last given, or rejects with the error React throws while rendering it */
@@ -74,14 +78,23 @@ export function setReactRoot(reactRoot: ReactRoot): void {
   shared.reactRoot = reactRoot;
 }
 
+export function getReactRoot(): ReactRoot {
+  return shared.reactRoot!;
+}
+
 /** The React root's: an error React throws while rendering goes to the navigation showing the page, as in vike-react */
 export function onUncaughtError(error: unknown, errorInfo: { componentStack?: string }): void {
   console.error(error, errorInfo.componentStack);
   // Vike renders the error page, and doesn't log the error again
   if (error instanceof Error) Object.assign(error, { isAlreadyLogged: true });
   // React unmounted Root, or never mounted it when hydrating threw: the next page, e.g. the error page, mounts it again
-  shared.setRootState = (shown) => shared.reactRoot!.render(<Root page={shown} />);
+  shared.setRootState = (shown) => shared.reactRoot!.render(getRootElement(shown));
   endNavigation(error);
+}
+
+// Around Root, not inside it: on hydration, React runs effects twice only under a <StrictMode> at the root
+export function getRootElement(page: Shown): ReactElement {
+  return withStrictMode(page.pageContext, <Root page={page} />);
 }
 
 /** Hydrates `page`, then shows what show() shows */
@@ -95,6 +108,10 @@ export function Root({ page }: { page: Shown }): ReactElement {
     shared.setRootState = setState;
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
+    // Once Root unmounts, e.g. as code renders something else into pageContext.root, the next page mounts it again
+    return () => {
+      shared.setRootState = (shown) => shared.reactRoot!.render(getRootElement(shown));
+    };
   }, []);
   // Once React commits an answer's tree, applies its head; onRenderClient() applies a navigation's
   useEffect(() => {

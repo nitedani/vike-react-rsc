@@ -10,6 +10,8 @@ const vikeReactRsc: Config = {
   // Meets the require of vike-react extensions, e.g. vike-react-query: vike-react-rsc implements vike-react 0.6.31's API
   provide: { "vike-react": "0.6.31" },
 
+  Loading: "import:vike-react-rsc/__internal/Loading:default",
+
   onCreatePageContext: "import:vike-react-rsc/__internal/ssr:onCreatePageContext",
   onRenderHtml: "import:vike-react-rsc/__internal/ssr:onRenderHtml",
   onRenderClient: "import:vike-react-rsc/__internal/browser:onRenderClient",
@@ -81,6 +83,7 @@ const vikeReactRsc: Config = {
     onAfterRenderHtml: { env: { server: true }, cumulative: true },
     onBeforeRenderClient: { env: { client: true }, cumulative: true },
     onAfterRenderClient: { env: { client: true }, cumulative: true },
+    reactStrictMode: { env: { client: true, server: true } },
     react: { cumulative: true, env: {} },
     // vike-react's head settings; title, description and lang also apply on client navigation
     title: { env: { server: true, client: true } },

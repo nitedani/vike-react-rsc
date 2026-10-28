@@ -10,7 +10,7 @@ import type { PageContextInternal, PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { onCaughtError } from "./AbortBoundary";
 import { callServer } from "./callServer";
-import { applyHead, onUncaughtError, rendered, Root, setCurrentPageContext, setReactRoot, show } from "./page";
+import { applyHead, getReactRoot, getRootElement, onUncaughtError, rendered, setCurrentPageContext, setReactRoot, show } from "./page";
 import { markRscOutputsStale } from "./rsc";
 
 // Whether a page can render without a Flight, as in vike-react: under components: 'client', and always in dev
@@ -24,14 +24,17 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
   // - Store hydration https://github.com/vikejs/vike-react/issues/110
   await callCumulativeHooks(pageContext.config.onBeforeRenderClient, pageContext);
   const { root, formState } = await getPagePayload(pageContext);
+  const page = { pageContext, root };
+  const rootElement = getRootElement(page);
+  pageContext.page = rootElement;
   // Evaluated before the page shows, so a setting that throws reaches Vike; the HTML has the hydrated page's
   const headSettings = pageContext.isHydration ? undefined : getHeadSettings(pageContext);
-  const page = { pageContext, root };
   setCurrentPageContext(pageContext);
   show(page);
-  // As vike-react's: Vike ends the navigation once React shows the page, and renders the error page if React throws on
-  // it. Not on hydration, whose onHydrationEnd() may navigate before React commits.
   if (!pageContext.isHydration) {
+    pageContext.root = getReactRoot();
+    // As vike-react's: Vike ends the navigation once React shows the page, and renders the error page if React throws on
+    // it. Not on hydration, whose onHydrationEnd() may navigate before React commits.
     await rendered();
     pageContext._headAlreadySet = true;
     applyHead(headSettings!, pageContext);
@@ -46,12 +49,13 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
   // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
   if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") {
     const options = { ...hydrateRootOptions, ...withOurErrorCallbacks(hydrateRootOptions), formState: formState ?? hydrateRootOptions?.formState };
-    setReactRoot(hydrateRoot(container, <Root page={page} />, options));
+    setReactRoot(hydrateRoot(container, rootElement, options));
   } else {
     const reactRoot = createRoot(container, { ...createRootOptions, ...withOurErrorCallbacks(createRootOptions) });
     setReactRoot(reactRoot);
-    reactRoot.render(<Root page={page} />);
+    reactRoot.render(rootElement);
   }
+  pageContext.root = getReactRoot();
   // Once React hydrates, which onRenderClient() doesn't wait for: so after +onHydrationEnd, and a hook's error is an unhandled
   // rejection, not the error page. onUncaughtError() logs an error React throws instead.
   // TODO: await it, as vike-react does, once https://github.com/vikejs/vike/pull/3641 is released

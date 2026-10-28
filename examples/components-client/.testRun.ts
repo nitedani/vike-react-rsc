@@ -56,6 +56,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testVikeReactImports();
   testFormBeforeHydration();
   testRestoredFormState();
+  if (isDev) testReactStrictMode();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
   if (isDev) testComponentsConfig();
@@ -224,8 +225,8 @@ function testVikeReactRendering() {
     }
   });
 
-  test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, as in vike-react", async () => {
-    const shown = { isHydration: false, shown: "A page with +onAfterRenderClient" };
+  test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, with pageContext.root and pageContext.page, which it can render again or replace, as in vike-react", async () => {
+    const shown = { isHydration: false, shown: "A page with +onAfterRenderClient", hasRoot: true, hasPage: true };
     await page.goto(getServerUrl() + "/after-render");
     await autoRetry(async () => {
       expect(await page.evaluate(() => (window as { afterRenders?: unknown[] }).afterRenders)).to.deep.equal([{ ...shown, isHydration: true }]);
@@ -236,6 +237,10 @@ function testVikeReactRendering() {
     await autoRetry(async () => {
       expect(await page.evaluate(() => (window as { afterRenders?: unknown[] }).afterRenders)).to.deep.equal([{ ...shown, isHydration: true }, shown]);
     });
+    // E.g. a testing tool that clears the page between tests: the next client navigation shows its page
+    await page.evaluate(() => (window as { afterRenderRoot?: { render(children: null): void } }).afterRenderRoot!.render(null));
+    await clickLink("/");
+    await page.waitForSelector("h1:text-is('A client page')");
   });
 
   test('components: \'client\': a "use server component" Layout from a package renders its react-server file on the server, around a server page and a client page', async () => {
@@ -543,6 +548,30 @@ async function withoutScripts(run: (noJs: typeof page) => Promise<void>) {
   }
 }
 
+function testReactStrictMode() {
+  test("Dev: components: 'client': a page renders in <StrictMode> unless +reactStrictMode is false, on the first load and after a client navigation that turns it on or off, as in vike-react", async () => {
+    const pages = [
+      ["/react-strict-mode", "Effect runs: 2"],
+      ["/react-strict-mode/off", "Effect runs: 1"],
+    ];
+    const expectRuns = (pathname: string, runs: string) =>
+      autoRetry(async () => {
+        expect(await page.textContent("#effect-runs"), pathname).to.equal(runs);
+      });
+    for (const [pathname, runs] of pages) {
+      await page.goto(getServerUrl() + pathname);
+      await expectRuns(pathname, runs);
+    }
+    // From the page without it: a client navigation that turns it on, then one that turns it off
+    await waitForHydration("#layout-counter");
+    for (const [pathname, runs] of pages) {
+      await clickLink(pathname);
+      await page.waitForSelector(`#pathname:text-is('${pathname}')`);
+      await expectRuns(pathname, runs);
+    }
+  });
+}
+
 function testLoading() {
   test("components: 'client': +Loading.tsx, or a Loading whose layout a +config file imports, streams before the server page it waits for", async () => {
     for (const [pathname, id] of [
@@ -570,6 +599,14 @@ function testLoading() {
     await waitForHydration("#layout-counter");
     await clickLink("/react-server-loading-marked");
     await page.waitForSelector("#pathname:text-is('/react-server-loading-marked') ~ main #loaded");
+  });
+
+  test("components: 'client': without a +Loading, Loading.component is vike-react's, on the server and in the browser, as vike-react-query's fallback reads it", async () => {
+    expect(await fetchHtml("/default-loading")).to.include("@keyframes vike-react-loading");
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/default-loading");
+    await page.waitForSelector('#default-loading > div[style*="vike-react-loading"]');
   });
 
   test("components: 'client': a +Loading without layout adds no Suspense boundary, as in vike-react", async () => {

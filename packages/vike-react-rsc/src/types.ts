@@ -1,5 +1,5 @@
 import type { ComponentType, JSX, ReactNode } from "react";
-import type { HydrationOptions, ReactFormState, RootOptions } from "react-dom/client";
+import type { HydrationOptions, ReactFormState, Root as ReactRoot, RootOptions } from "react-dom/client";
 import type { ServerOptions } from "react-dom/server";
 import type { renderToStream, RenderToStreamOptions } from "react-streaming/server.web";
 import type { ImportString, PageContext, PageContextClient, PageContextServer } from "vike/types";
@@ -122,6 +122,13 @@ declare global {
       pageHtmlString?: string;
       /** The +Page.jsx component rendered to an HTML stream. +onAfterRenderHtml can replace it. */
       pageHtmlStream?: PageHtmlStream;
+    }
+
+    interface PageContextClient {
+      /** The root React element of the page */
+      page?: ReactNode;
+      /** The React root DOM container */
+      root?: ReactRoot;
     }
 
     interface Config {
@@ -290,6 +297,14 @@ declare global {
        * https://vike.dev/stream
        */
       stream?: StreamSetting;
+      /**
+       * Whether to use `<StrictMode>`.
+       *
+       * @default true
+       *
+       * https://vike.dev/reactStrictMode
+       */
+      reactStrictMode?: boolean;
       /**
        * Hook called right before rendering the page's root React component to HTML.
        *
