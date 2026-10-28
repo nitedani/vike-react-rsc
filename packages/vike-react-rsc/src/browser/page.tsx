@@ -16,8 +16,7 @@ type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: H
 const shared = getShared(
   "page",
   (): {
-    // Vike's pageContext of the page Vike showed, which an action's answer doesn't replace: actions call its URL, and their answers apply
-    // only while it stays current
+    // The pageContext of the page Vike showed, which actions' answers don't replace: actions call its URL, and their answers apply only while it's current
     current?: PageContextClient;
     // What Root shows, and how to change it once Root has mounted
     shown?: Shown;
@@ -61,8 +60,7 @@ export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys:
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
   const pageContext = createPageContextFromServer_experimentalRSC(shared.current!, passed);
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
-  // Another page's tree, e.g. a throw render()'s, brings its head settings. A later answer for that page passes the same
-  // object on, so Root applies them once, also when React skips to the later answer before committing this one
+  // Another page's tree, e.g. a throw render()'s, brings its head settings; that page's later answers keep the object, so Root applies it once even if React commits only the last
   const isOtherPage = pageContext.pageId !== shared.shown!.pageContext.pageId;
   // As on a navigation, its components' useConfig() values wait for Root to apply the head
   if (isOtherPage) (pageContext as PageContextInternal)._headAlreadySet = false;
@@ -95,8 +93,7 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
   }, []);
-  // Once React has committed another page's answer: a navigation applies its own head, and an answer for the page on
-  // screen brings none
+  // Once React commits an answer for another page, applies its head; onRenderClient() applies a navigation's
   useEffect(() => {
     if (!state.headSettings) return;
     const pageContext = state.pageContext as PageContextClient & PageContextInternal;
