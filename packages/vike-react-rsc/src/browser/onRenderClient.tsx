@@ -31,7 +31,6 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext) => {
   // it. Not on hydration, whose onHydrationEnd() may navigate before React commits.
   if (!pageContext.isHydration) {
     // Or until the user navigates elsewhere: Vike runs the next page's onRenderClient() only once this one ends
-    // TODO: require the Vike release that includes https://github.com/vikejs/vike/pull/3641, which adds pageContext.abortSignal
     await rendered(pageContext.abortSignal);
     if (pageContext.abortSignal.aborted) return;
     // Use cases:
