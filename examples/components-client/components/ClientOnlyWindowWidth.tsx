@@ -1,5 +1,5 @@
 "use client";
-import { ClientOnly } from "vike-react-rsc/ClientOnly";
+import { ClientOnly } from "vike-react/ClientOnly";
 import { WindowWidth } from "./WindowWidth";
 
 export function ClientOnlyWindowWidth() {

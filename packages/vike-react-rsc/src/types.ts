@@ -1,8 +1,9 @@
 import type { ComponentType, JSX, ReactNode } from "react";
-import type { HydrationOptions, ReactFormState, RootOptions } from "react-dom/client";
+import type { HydrationOptions, ReactFormState, Root as ReactRoot, RootOptions } from "react-dom/client";
 import type { ServerOptions } from "react-dom/server";
 import type { renderToStream, RenderToStreamOptions } from "react-streaming/server.web";
 import type { ImportString, PageContext, PageContextClient, PageContextServer } from "vike/types";
+import type { HeadSettings } from "./integration/getHeadSettings";
 import type { ActionCall } from "./ssr/action";
 import type { Cookies } from "./ssr/cookies";
 import type { ConfigsCumulative } from "./hooks/useConfig/configsCumulative";
@@ -13,8 +14,8 @@ import type { TagAttributes } from "./utils/getTagAttributesString";
 export type PagePayload = { root: ReactNode; formState?: ReactFormState };
 /** A server action's Flight decodes to it; `root` is the page, after rerender(), with the browser's new pageContext values */
 export type ActionPayload = { returnValue: unknown } & ({} | { root: ReactNode; passedToClient: PassedToClient });
-/** pageContext values for the browser, serialized as Vike serializes them for a navigation, and the key of every passToClient value */
-export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[] };
+/** pageContext values for the browser, serialized as Vike serializes them for a navigation, the key of every passToClient value, and the page's head settings */
+export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[]; headSettings: HeadSettings };
 /** getRequestContext()'s value. TypeScript doesn't know what a +middleware adds, so it is `unknown` */
 export type RequestContext = Pick<PageContextServer, "headers" | "cookies"> & Record<string, unknown>;
 export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
@@ -121,6 +122,13 @@ declare global {
       pageHtmlString?: string;
       /** The +Page.jsx component rendered to an HTML stream. +onAfterRenderHtml can replace it. */
       pageHtmlStream?: PageHtmlStream;
+    }
+
+    interface PageContextClient {
+      /** The root React element of the page */
+      page?: ReactNode;
+      /** The React root DOM container */
+      root?: ReactRoot;
     }
 
     interface Config {
@@ -289,6 +297,14 @@ declare global {
        * https://vike.dev/stream
        */
       stream?: StreamSetting;
+      /**
+       * Whether to use `<StrictMode>`.
+       *
+       * @default true
+       *
+       * https://vike.dev/reactStrictMode
+       */
+      reactStrictMode?: boolean;
       /**
        * Hook called right before rendering the page's root React component to HTML.
        *

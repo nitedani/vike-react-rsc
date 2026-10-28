@@ -59,6 +59,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testVikeReactImports();
   testFormBeforeHydration();
   testRestoredFormState();
+  if (isDev) testReactStrictMode();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
   if (isDev) testComponentsConfig();
@@ -227,8 +228,8 @@ function testVikeReactRendering() {
     }
   });
 
-  test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, and its error on hydration shows the error page, as in vike-react", async () => {
-    const shown = { isHydration: false, shown: "A page with +onAfterRenderClient" };
+  test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, with pageContext.root and pageContext.page, which it can render again or replace, and its error on hydration shows the error page, as in vike-react", async () => {
+    const shown = { isHydration: false, shown: "A page with +onAfterRenderClient", hasRoot: true, hasPage: true };
     await page.goto(getServerUrl() + "/after-render");
     await autoRetry(async () => {
       expect(await page.evaluate(() => (window as { afterRenders?: unknown[] }).afterRenders)).to.deep.equal([{ ...shown, isHydration: true }]);
@@ -239,6 +240,10 @@ function testVikeReactRendering() {
     await autoRetry(async () => {
       expect(await page.evaluate(() => (window as { afterRenders?: unknown[] }).afterRenders)).to.deep.equal([{ ...shown, isHydration: true }, shown]);
     });
+    // E.g. a testing tool that clears the page between tests: the next client navigation shows its page
+    await page.evaluate(() => (window as { afterRenderRoot?: { render(children: null): void } }).afterRenderRoot!.render(null));
+    await clickLink("/");
+    await page.waitForSelector("h1:text-is('A client page')");
     await page.goto(getServerUrl() + "/after-render-throws");
     await autoRetry(async () => {
       expect(await page.textContent("#error-page")).to.equal("Something went wrong");
@@ -470,7 +475,24 @@ function testVikeReactImports() {
     expectLog(USE_CONFIG_IN_SERVER_COMPONENT_ERROR);
   });
 
-  test("components: 'client': a server component renders <ClientOnly> through a client component, and calls useHydrated()", async () => {
+  test("components: 'client': with vike-react aliased to vike-react-rsc in package.json, a vike-react extension whose +config requires vike-react adds its Wrapper, and the Wrapper and a server component get the page from vike-react/usePageContext and vike-react/useData, and the server component calls vike-react/useHydrated, on the first load and after a client navigation", async () => {
+    const expectPageInfo = async () => {
+      for (const id of ["#wrapper", "#server"]) {
+        expect(await page.textContent(id), id).to.equal("/vike-react-imports: Data from +data");
+      }
+      expect(await page.textContent("#hydrated")).to.equal("Not hydrated");
+    };
+    await page.goto(getServerUrl() + "/vike-react-imports");
+    await waitForHydration("#layout-counter");
+    await expectPageInfo();
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/vike-react-imports");
+    await page.waitForSelector("#pathname:text-is('/vike-react-imports') ~ main #server");
+    await expectPageInfo();
+  });
+
+  test("components: 'client': a server component renders <ClientOnly>, imported from vike-react, through a client component, and calls useHydrated()", async () => {
     // The child reads window when its module loads, so loading it on the server would fail the render
     const html = await fetchHtml("/client-only");
     expect(html).to.include("Loading in the browser");
@@ -533,6 +555,30 @@ async function withoutScripts(run: (noJs: typeof page) => Promise<void>) {
   }
 }
 
+function testReactStrictMode() {
+  test("Dev: components: 'client': a page renders in <StrictMode> unless +reactStrictMode is false, on the first load and after a client navigation that turns it on or off, as in vike-react", async () => {
+    const pages = [
+      ["/react-strict-mode", "Effect runs: 2"],
+      ["/react-strict-mode/off", "Effect runs: 1"],
+    ];
+    const expectRuns = (pathname: string, runs: string) =>
+      autoRetry(async () => {
+        expect(await page.textContent("#effect-runs"), pathname).to.equal(runs);
+      });
+    for (const [pathname, runs] of pages) {
+      await page.goto(getServerUrl() + pathname);
+      await expectRuns(pathname, runs);
+    }
+    // From the page without it: a client navigation that turns it on, then one that turns it off
+    await waitForHydration("#layout-counter");
+    for (const [pathname, runs] of pages) {
+      await clickLink(pathname);
+      await page.waitForSelector(`#pathname:text-is('${pathname}')`);
+      await expectRuns(pathname, runs);
+    }
+  });
+}
+
 function testLoading() {
   test("components: 'client': +Loading.tsx, or a Loading whose layout a +config file imports, streams before the server page it waits for", async () => {
     for (const [pathname, id] of [
@@ -560,6 +606,14 @@ function testLoading() {
     await waitForHydration("#layout-counter");
     await clickLink("/react-server-loading-marked");
     await page.waitForSelector("#pathname:text-is('/react-server-loading-marked') ~ main #loaded");
+  });
+
+  test("components: 'client': without a +Loading, Loading.component is vike-react's, on the server and in the browser, as vike-react-query's fallback reads it", async () => {
+    expect(await fetchHtml("/default-loading")).to.include("@keyframes vike-react-loading");
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/default-loading");
+    await page.waitForSelector('#default-loading > div[style*="vike-react-loading"]');
   });
 
   test("components: 'client': a +Loading without layout adds no Suspense boundary, as in vike-react", async () => {
@@ -863,8 +917,9 @@ function testServerComponentImports() {
     editFile("./pages/js-page/+Page.js", importPackageServerComponent);
     try {
       await page.goto(getServerUrl() + "/js-page");
-      // Vite reloads the page once it has pre-bundled the package, and the reload would interrupt leaving the page
-      const reloaded = page.waitForEvent("load");
+      // Vite reloads the page once it has pre-bundled the package, and the reload would interrupt leaving the page.
+      // The revert of the previous test can reload the page first, so only a load after Vite says it reloads counts
+      const reloaded = page.waitForEvent("load", { predicate: () => isLogged("optimized dependencies changed. reloading") });
       await autoRetry(async () => {
         expectLog(packageServerComponentInBrowser, { filter: ({ logSource }) => logSource === "stderr" });
       });
@@ -967,6 +1022,16 @@ async function getBuildError(file: string, edit: (source: string) => string): Pr
   const { isSuccess, output } = await build(file, edit);
   if (isSuccess) throw new Error("The build succeeded");
   return output;
+}
+
+// Whether `log` was logged during the current test
+function isLogged(log: string) {
+  try {
+    expectLog(log);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Until React has attached the button's handlers, a click doesn't do what a user's would

@@ -2,8 +2,7 @@ import { createFromReadableStream, setServerCallback } from "@vitejs/plugin-rsc/
 import { createRoot, hydrateRoot, type RootOptions } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
-import { applyHeadSettings } from "../integration/applyHeadSettings";
-import { getHeadSetting } from "../integration/getHeadSetting";
+import { getHeadSettings } from "../integration/getHeadSettings";
 import { getPageElement } from "../integration/getPageElement";
 import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { findServerComponent } from "../rendersFlight";
@@ -11,7 +10,7 @@ import type { PageContextInternal, PagePayload } from "../types";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { onCaughtError } from "./AbortBoundary";
 import { callServer } from "./callServer";
-import { onUncaughtError, rendered, Root, setCurrentPageContext, setReactRoot, show } from "./page";
+import { applyHead, getReactRoot, getRootElement, onUncaughtError, rendered, setCurrentPageContext, setReactRoot, show } from "./page";
 import { markRscOutputsStale } from "./rsc";
 
 // Whether a page can render without a Flight, as in vike-react: under components: 'client', and always in dev
@@ -25,9 +24,11 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
   // - Store hydration https://github.com/vikejs/vike-react/issues/110
   await callCumulativeHooks(pageContext.config.onBeforeRenderClient, pageContext);
   const { root, formState } = await getPagePayload(pageContext);
+  const page = { pageContext, root };
+  const rootElement = getRootElement(page);
+  pageContext.page = rootElement;
   // Evaluated before the page shows, so a setting that throws reaches Vike; the HTML has the hydrated page's
   const headSettings = pageContext.isHydration ? undefined : getHeadSettings(pageContext);
-  const page = { pageContext, root };
   setCurrentPageContext(pageContext);
   show(page);
   if (pageContext.isHydration) {
@@ -36,13 +37,14 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
     // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
     if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") {
       const options = { ...hydrateRootOptions, ...withOurErrorCallbacks(hydrateRootOptions), formState: formState ?? hydrateRootOptions?.formState };
-      setReactRoot(hydrateRoot(container, <Root page={page} />, options));
+      setReactRoot(hydrateRoot(container, rootElement, options));
     } else {
       const reactRoot = createRoot(container, { ...createRootOptions, ...withOurErrorCallbacks(createRootOptions) });
       setReactRoot(reactRoot);
-      reactRoot.render(<Root page={page} />);
+      reactRoot.render(rootElement);
     }
   }
+  pageContext.root = getReactRoot();
   // As vike-react's: Vike ends the navigation once React shows the page, and renders the error page if React throws on
   // it. Or once the user navigates elsewhere: Vike runs the next page's onRenderClient() only once this one ends.
   await rendered(pageContext.abortSignal);
@@ -86,23 +88,6 @@ async function getPagePayload(pageContext: PageContextClient): Promise<PagePaylo
 
 function cannotRenderInBrowser(pageContext: PageContextClient, cause: string): Error {
   return new Error(`[vike-react-rsc] The page ${pageContext.pageId} has to render in the browser, e.g. the error page after an error there, but ${cause}, which renders only on the server`);
-}
-
-// A navigation's title, lang and description
-type HeadSettings = Parameters<typeof applyHeadSettings>;
-
-function getHeadSettings(pageContext: PageContextClient): HeadSettings {
-  return [
-    getHeadSetting<string | null>("title", pageContext),
-    getHeadSetting<string | null>("lang", pageContext),
-    getHeadSetting<string | null>("description", pageContext),
-  ];
-}
-
-// What the page's components gave useConfig() while rendering wins, as getHeadSetting() does
-function applyHead([title, lang, description]: HeadSettings, { _configViaHook }: PageContextInternal): void {
-  const pick = <T,>(viaHook: T | undefined, configured: T) => (viaHook !== undefined ? viaHook : configured);
-  applyHeadSettings(pick(_configViaHook?.title, title), pick(_configViaHook?.lang, lang), pick(_configViaHook?.description, description));
 }
 
 if (import.meta.hot) {

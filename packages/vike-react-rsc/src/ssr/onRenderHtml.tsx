@@ -13,6 +13,7 @@ import { configsClientSide } from "../hooks/useConfig/configsClientSide";
 import { getHeadSetting } from "../integration/getHeadSetting";
 import { getPageElement } from "../integration/getPageElement";
 import { resolveReactOptions } from "../integration/resolveReactOptions";
+import { withStrictMode } from "../integration/withStrictMode";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import { getRedirectUrl } from "../redirect";
@@ -153,7 +154,7 @@ async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps
   const flight = ssr && pageContext.rscPayload ? await decodeFlight(pageContext, deps, htmlRender.signal) : undefined;
   // The root from the Flight, else the element of the client Page, else none
   const root = ssr ? (flight?.root ?? (pageContext.config.Page ? getPageElement(pageContext) : null)) : null;
-  if (root !== null) pageContext.page = <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>;
+  if (root !== null) pageContext.page = withStrictMode(pageContext, <PageContextProvider pageContext={pageContext}>{root}</PageContextProvider>);
   // https://github.com/vikejs/vike-react/issues/87#issuecomment-2488742744
   await callCumulativeHooks(pageContext.config.onBeforeRenderHtml, pageContext);
   // Stop if the client left while +onBeforeRenderHtml ran
