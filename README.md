@@ -45,6 +45,13 @@ React RSC integration for [Vike](https://vike.dev).
   - `get()`, `getAll()` and `has()` see a cookie set earlier in the same request.
   - `set()` and `delete()` throw while server components render: on a page that streams and on a client navigation, a component inside `<Suspense>` renders after the response's headers are sent.
   - Your own `+onCreatePageContext` runs before vike-react-rsc's, so `pageContext.cookies` isn't there yet: read `pageContext.headers.cookie` in it.
+- **[`pageContext.abortSignal`](https://vike.dev/pageContext#abortSignal)** is aborted once the client leaves: as `getPageContext().abortSignal` in a server component, and as `getRequestContext().abortSignal` in a server action. Pass it on, so that what they wait for stops too:
+  ```ts
+  // In a server component
+  const movies = await fetch(url, { signal: getPageContext().abortSignal }).then((res) => res.json());
+  // In a server action
+  await fetch(url, { method: "POST", body, signal: getRequestContext().abortSignal });
+  ```
 - **Head settings**: vike-react's [`+title`](https://vike.dev/title), [`+description`](https://vike.dev/description), [`+lang`](https://vike.dev/lang), [`+image`](https://vike.dev/image), [`+viewport`](https://vike.dev/viewport), [`+favicon`](https://vike.dev/favicon), [`+htmlAttributes`](https://vike.dev/htmlAttributes), [`+bodyAttributes`](https://vike.dev/bodyAttributes), [`+rootAttributes`](https://vike.dev/rootAttributes), [`+headHtmlBegin`](https://vike.dev/headHtmlBegin), [`+headHtmlEnd`](https://vike.dev/headHtmlEnd), [`+bodyHtmlBegin`](https://vike.dev/bodyHtmlBegin) and [`+bodyHtmlEnd`](https://vike.dev/bodyHtmlEnd), as in vike-react.
   - On a client navigation, `title`, `description` and `lang` change once the new page shows. A page that doesn't set one of them keeps the previous page's, so give each a default in your root `+config`. Their functions also run in the browser, so they read what reaches the client, such as `pageContext.data`.
   - Every page gets `<html lang="en">` and `<meta name="viewport" content="width=device-width,initial-scale=1">` unless `+lang` or `+viewport` says otherwise (`null` removes it from the HTML, but a client navigation sets `lang` to `"en"`). If your `+Head` has a viewport tag, remove it, or the page gets two.
