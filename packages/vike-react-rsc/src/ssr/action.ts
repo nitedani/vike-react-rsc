@@ -121,9 +121,9 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
   return { json: getPageContextJson(pageContext), keys, headSettings: getHeadSettings(pageContext) };
 }
 
-// Vike's +middleware. When the request calls a server action, it hands the action to
-// the page that Vike renders after every middleware. onCreatePageContext runs the action there, before guard() and
-// data(), so they see what the action changed, and the action sees the context that every middleware set.
+// Vike's +middleware. When the request calls a server action, it hands the action to the page that Vike renders after
+// every middleware. onCreatePageContext runs the action there, before guard() and data(), so they see what the action
+// changed, and the action sees the context that every middleware set.
 export async function rscMiddleware(
   request: Request,
   context: object
