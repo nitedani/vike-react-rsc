@@ -1,6 +1,13 @@
 {
   "name": "vike-react-rsc",
   "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nitedani/vike-react-rsc",
+    "directory": "packages/vike-react-rsc"
+  },
+  "homepage": "https://github.com/nitedani/vike-react-rsc#readme",
+  "bugs": "https://github.com/nitedani/vike-react-rsc/issues",
   "description": "",
   "type": "module",
   "scripts": {
