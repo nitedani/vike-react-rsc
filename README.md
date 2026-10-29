@@ -45,7 +45,7 @@ React RSC integration for [Vike](https://vike.dev).
   - `get()`, `getAll()` and `has()` see a cookie set earlier in the same request.
   - `set()` and `delete()` throw while server components render: on a page that streams and on a client navigation, a component inside `<Suspense>` renders after the response's headers are sent.
   - Your own `+onCreatePageContext` runs before vike-react-rsc's, so `pageContext.cookies` isn't there yet: read `pageContext.headers.cookie` in it.
-- **[`pageContext.abortSignal`](https://vike.dev/pageContext#abortSignal)** is aborted once the client leaves: as `getPageContext().abortSignal` in a server component, and as `getRequestContext().abortSignal` in a server action. Pass it on, so that what they wait for stops too:
+- **[`pageContext.abortSignal`](https://vike.dev/pageContext#abortSignal)** is aborted once the client leaves: as `getPageContext().abortSignal` (from `vike-react-rsc/pageContext`) in a server component, and as `getRequestContext().abortSignal` (from `vike-react-rsc/server`) in a server action. Pass it on, so that what they wait for stops too:
   ```ts
   // In a server component
   const movies = await fetch(url, { signal: getPageContext().abortSignal }).then((res) => res.json());
