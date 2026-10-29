@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "tsdown --watch --sourcemap",
     "build": "tsdown",
-    "prepack": "cp ../../README.md ../../LICENSE.md ."
+    "prepack": "pnpm run build && cp ../../README.md ../../LICENSE.md ."
   },
   "exports": {
     "./config": "./dist/config.js",
