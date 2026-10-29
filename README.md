@@ -63,7 +63,7 @@ React RSC integration for [Vike](https://vike.dev).
 
 ## Demo
 
-Example: [examples/full/](examples/full/)
+Example: [examples/full/](https://github.com/nitedani/vike-react-rsc/tree/main/examples/full)
 
 It demonstrates local development (`pnpm dev`) and a production build served by Node.js (`pnpm preview`, via [`@universal-deploy/node`](https://github.com/photon-js/universal-deploy)).
 
