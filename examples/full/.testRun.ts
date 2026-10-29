@@ -1491,6 +1491,23 @@ function testClientDisconnect() {
     }
   });
 
+  test("A server component waiting on getPageContext().abortSignal stops once the client leaves, on a page load and a client navigation", async () => {
+    for (const path of ["/slow-signal", "/slow-signal/index.pageContext.json"]) {
+      const before = await getServerCount("slow-signal");
+      await (await fetch(getServerUrl() + path)).text();
+      expect(await getServerCount("slow-signal"), path).to.equal(before + 1);
+
+      // Leaving once the render has started, before the wait ends
+      const controller = new AbortController();
+      const response = fetch(getServerUrl() + path, { signal: controller.signal }).catch(() => {});
+      await sleep(500);
+      controller.abort();
+      await response;
+      await sleep(2500);
+      expect(await getServerCount("slow-signal"), path).to.equal(before + 1);
+    }
+  });
+
   test("An HTML hook that throws stops the page's render, of its server and client components", async () => {
     // A server component waits in /slow-hook-throws, a client component waits for its own data in the streamed
     // /slow-after-hook-throws, and in /slow-after-hook-pipes, whose hook has piped the HTML
