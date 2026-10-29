@@ -14,9 +14,9 @@ export function vikeReactRscPlugins(): Plugin[] {
       config: ({ build }) => ({
         environments: {
           // vike-react-rsc ships "use client" modules, which Vite's scan finds only on the first request, so plugin-rsc
-          // asks to exclude it: an installed app can reload its first page with "Invalid hook call". A linked copy would
-          // also load the page store and rsc()'s cache twice
-          client: { optimizeDeps: { exclude: ["vike-react-rsc"] } },
+          // asks to exclude it, under its vike-react alias too: an installed app can reload a page with "Invalid hook
+          // call". A linked copy would also load the page store and rsc()'s cache twice
+          client: { optimizeDeps: { exclude: ["vike-react-rsc", "vike-react"] } },
           // Vike deploys dist/server, rsc included
           rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
         },
