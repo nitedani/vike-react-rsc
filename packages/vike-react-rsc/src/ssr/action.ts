@@ -121,16 +121,13 @@ function getPassedToClient(pageContext: PageContextServer): PassedToClient {
   return { json: getPageContextJson(pageContext), keys, headSettings: getHeadSettings(pageContext) };
 }
 
-// Vike's +middleware, which sets up every page request. When the request calls a server action, it hands the action to
-// the page that Vike renders after every middleware. onCreatePageContext runs the action there, before guard() and
-// data(), so they see what the action changed, and the action sees the context that every middleware set.
+// Vike's +middleware. When the request calls a server action, it hands the action to the page that Vike renders after
+// every middleware. onCreatePageContext runs the action there, before guard() and data(), so they see what the action
+// changed, and the action sees the context that every middleware set.
 export async function rscMiddleware(
   request: Request,
   context: object
 ): Promise<Response | ((response: Response) => Promise<Response>) | undefined> {
-  // For every page: onRenderHtml() uses this signal to stop the HTML's render once the client leaves, before Vike has a
-  // response it could cancel
-  Object.assign(context, { rscRequestSignal: request.signal });
   if (request.method !== "POST") return;
   const id = request.headers.get(ACTION_HEADER) ?? undefined;
   const limit = (await getGlobalContext()).config.rsc?.bodySizeLimit ?? 1024 * 1024;

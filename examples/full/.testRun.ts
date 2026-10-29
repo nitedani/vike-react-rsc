@@ -1475,20 +1475,11 @@ function testClientDisconnect() {
       ["/slow-before-hook", "slow"],
       ["/slow-after-hook", "slow-client"],
       ["/slow-head-html", "slow-client"],
-    ] as const) {
-      const before = await getServerCount(key);
-      await fetchHtml(path);
-      expect(await getServerCount(key)).to.equal(before + 1);
+    ] as const) await expectLeavingStopsRender(path, key);
+  });
 
-      // Leaving once the render has started, before the Suspense boundary resolves
-      const controller = new AbortController();
-      const response = fetch(getServerUrl() + path, { signal: controller.signal }).catch(() => {});
-      await sleep(500);
-      controller.abort();
-      await response;
-      await sleep(2500);
-      expect(await getServerCount(key), path).to.equal(before + 1);
-    }
+  test("A server component waiting on getPageContext().abortSignal stops once the client leaves, on a page load and a client navigation", async () => {
+    for (const path of ["/slow-signal", "/slow-signal/index.pageContext.json"]) await expectLeavingStopsRender(path, "slow-signal");
   });
 
   test("An HTML hook that throws stops the page's render, of its server and client components", async () => {
@@ -1522,6 +1513,21 @@ function testClientDisconnect() {
   test("+react's streamOptions.nonce is on React's scripts when Vike sets no cspNonce, as in vike-react", async () => {
     expect(await fetchHtml("/slow-user-signal")).to.include('<script nonce="app-nonce">').and.not.match(/<script>(\$R|requestAnimationFrame)/);
   });
+}
+
+// Staying renders `path` once, counted under `key`; leaving once its render has started, before it resolves, adds nothing
+async function expectLeavingStopsRender(path: string, key: string) {
+  const before = await getServerCount(key);
+  await fetchHtml(path);
+  expect(await getServerCount(key), path).to.equal(before + 1);
+
+  const controller = new AbortController();
+  const response = fetch(getServerUrl() + path, { signal: controller.signal }).catch(() => {});
+  await sleep(500);
+  controller.abort();
+  await response;
+  await sleep(2500);
+  expect(await getServerCount(key), path).to.equal(before + 1);
 }
 
 function testGonePassToClientValue() {

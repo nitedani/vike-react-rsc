@@ -49,11 +49,10 @@ export function readHtmlPageContext(caller: string): PageContextServer {
 export function getRequestContext(): RequestContext {
   const scope = storage.getStore();
   if (!scope) throw noRequestContext();
-  const pageContext = scope.pageContext as PageContextServer & { _pageContextInit: { rscAction?: unknown; rscRequestSignal?: unknown } };
-  // What renderPage() got from the server and every middleware, without rscAction and rscRequestSignal, which
-  // vike-react-rsc sets for itself
-  const { rscAction: _, rscRequestSignal: __, ...init } = pageContext._pageContextInit;
-  return { ...init, headers: pageContext.headers, cookies: pageContext.cookies };
+  const pageContext = scope.pageContext as PageContextServer & { _pageContextInit: { rscAction?: unknown } };
+  // What renderPage() got from the server and every middleware, without rscAction, which vike-react-rsc sets for itself
+  const { rscAction: _, ...init } = pageContext._pageContextInit;
+  return { ...init, headers: pageContext.headers, cookies: pageContext.cookies, abortSignal: pageContext.abortSignal };
 }
 
 /** Whether server components render here, e.g. a page's, outside a server action */

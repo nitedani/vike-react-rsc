@@ -17,7 +17,7 @@ export type ActionPayload = { returnValue: unknown } & ({} | { root: ReactNode; 
 /** pageContext values for the browser, serialized as Vike serializes them for a navigation, the key of every passToClient value, and the page's head settings */
 export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[]; headSettings: HeadSettings };
 /** getRequestContext()'s value. TypeScript doesn't know what a +middleware adds, so it is `unknown` */
-export type RequestContext = Pick<PageContextServer, "headers" | "cookies"> & Record<string, unknown>;
+export type RequestContext = Pick<PageContextServer, "headers" | "cookies" | "abortSignal"> & Record<string, unknown>;
 export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
 
 export type ReactOptions = {
@@ -114,8 +114,6 @@ declare global {
     interface PageContextServer {
       /** The request's cookies: `get()`, `getAll()` and `has()`, and `set()` and `delete()`, which add a `Set-Cookie` header to the response. Not yet in your own `+onCreatePageContext`, which runs before vike-react-rsc's. */
       cookies: Cookies;
-      /** The request's signal, which aborts once the client leaves */
-      rscRequestSignal?: AbortSignal;
       /** The root React element of the page. */
       page?: JSX.Element;
       /** The +Page.jsx component rendered to the HTML string, as from vike-react's renderToString(), on a page whose `+stream` neither enables nor requires streaming. +onAfterRenderHtml can replace it. */

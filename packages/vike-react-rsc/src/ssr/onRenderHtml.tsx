@@ -77,23 +77,23 @@ async function renderDocument(pageContext: PageContextServer, deps: ClientDeps) 
   // the Flight that the HTML reads.
   const htmlRender = new AbortController();
   // Vike cancels the HTML once the client leaves, which stops the Flight too, but only after onRenderHtml() has returned
-  // the HTML. Until then, we listen to the request's abort signal ourselves.
-  const left = pageContext.rscRequestSignal;
+  // the HTML. Until then, we listen to pageContext.abortSignal ourselves.
+  const left = pageContext.abortSignal;
   const onLeave = () => cancelRender(pageContext, htmlRender);
-  left?.addEventListener("abort", onLeave);
+  left.addEventListener("abort", onLeave);
   try {
-    left?.throwIfAborted();
+    left.throwIfAborted();
     await renderPageToHtml(pageContext, deps, htmlRender);
     return await buildDocument(pageContext, deps);
   } catch (error) {
     // Vike gets no HTML, so nothing will read the Flight, nor any HTML stream the hooks left: stop both renders
     cancelRender(pageContext, htmlRender);
-    if (!left?.aborted) throw error;
+    if (!left.aborted) throw error;
     // The client left, so nobody gets the HTML, nor the error that cancelling it caused. Vike sends this instead of a
     // document.
     pageContext.content = "";
   } finally {
-    left?.removeEventListener("abort", onLeave);
+    left.removeEventListener("abort", onLeave);
   }
 }
 
