@@ -17,7 +17,7 @@ export type ActionPayload = { returnValue: unknown } & ({} | { root: ReactNode; 
 /** pageContext values for the browser, serialized as Vike serializes them for a navigation, the key of every passToClient value, and the page's head settings */
 export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[]; headSettings: HeadSettings };
 /** getRequestContext()'s value. TypeScript doesn't know what a +middleware adds, so it is `unknown` */
-export type RequestContext = Pick<PageContextServer, "headers" | "cookies"> & Record<string, unknown>;
+export type RequestContext = Pick<PageContextServer, "headers" | "cookies" | "abortSignal"> & Record<string, unknown>;
 export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
 
 export type ReactOptions = {

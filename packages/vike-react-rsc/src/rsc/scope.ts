@@ -53,7 +53,7 @@ export function getRequestContext(): RequestContext {
   // What renderPage() got from the server and every middleware, without rscAction and rscRequestSignal, which
   // vike-react-rsc sets for itself
   const { rscAction: _, rscRequestSignal: __, ...init } = pageContext._pageContextInit;
-  return { ...init, headers: pageContext.headers, cookies: pageContext.cookies };
+  return { ...init, headers: pageContext.headers, cookies: pageContext.cookies, abortSignal: pageContext.abortSignal };
 }
 
 /** Whether server components render here, e.g. a page's, outside a server action */
