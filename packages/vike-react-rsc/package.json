@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsdown --watch --sourcemap",
-    "build": "tsdown"
+    "build": "tsdown",
+    "prepack": "cp ../../README.md ../../LICENSE.md ."
   },
   "exports": {
     "./config": "./dist/config.js",
