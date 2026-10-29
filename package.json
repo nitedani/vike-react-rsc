@@ -5,6 +5,7 @@
   "type": "module",
   "pnpm": {
     "overrides": {
+      "vike-react": "link:./packages/vike-react-rsc/",
       "vike-react-rsc": "link:./packages/vike-react-rsc/"
     }
   },

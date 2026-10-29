@@ -9,12 +9,12 @@ export function PageContextProvider({ pageContext, children }: { pageContext: Pa
   return <Context value={pageContext}>{children}</Context>;
 }
 
-/** The pageContext, in a client component */
+/** The pageContext, in any component */
 export function usePageContext(): PageContext {
   return useContext(Context);
 }
 
-/** The pageContext, in a server component or a server action */
+/** The pageContext, in a server component */
 export function getPageContext(): PageContextServer {
-  throw new Error("[vike-react-rsc] getPageContext() is for server components and server actions: call usePageContext() in a client component");
+  throw new Error("[vike-react-rsc] getPageContext() is for server components: call usePageContext() in a client component");
 }

@@ -30,6 +30,24 @@
       "default": "./dist/hooks/useData.js"
     },
     "./useHydrated": "./dist/hooks/useHydrated.js",
+    "./useConfig": {
+      "react-server": "./dist/hooks/useConfig/useConfig.rsc.js",
+      "worker": "./dist/hooks/useConfig/useConfig-server.js",
+      "browser": "./dist/hooks/useConfig/useConfig-client.js",
+      "default": "./dist/hooks/useConfig/useConfig-server.js"
+    },
+    "./Config": {
+      "react-server": "./dist/components/Config/Config.rsc.js",
+      "worker": "./dist/components/Config/Config-server.js",
+      "browser": "./dist/components/Config/Config-client.js",
+      "default": "./dist/components/Config/Config-server.js"
+    },
+    "./Head": {
+      "react-server": "./dist/components/Head/Head.rsc.js",
+      "worker": "./dist/components/Head/Head-server.js",
+      "browser": "./dist/components/Head/Head-client.js",
+      "default": "./dist/components/Head/Head-server.js"
+    },
     "./ClientOnly": {
       "react-server": "./dist/components/ClientOnly.rsc.js",
       "default": "./dist/components/ClientOnly.js"
@@ -39,7 +57,8 @@
     "./__internal/rsc": "./dist/__internal/rsc.js",
     "./__internal/middleware": "./dist/__internal/middleware.js",
     "./__internal/onError": "./dist/__internal/onError.js",
-    "./__internal/LoadingBoundary": "./dist/components/LoadingBoundary.js"
+    "./__internal/LoadingBoundary": "./dist/components/LoadingBoundary.js",
+    "./__internal/Loading": "./dist/integration/Loading.js"
   },
   "files": [
     "dist"
@@ -52,7 +71,7 @@
     "react": ">=19.3.1 <20",
     "react-dom": ">=19.3.1 <20",
     "react-server-dom-webpack": ">=19.3.1 <20",
-    "vike": "0.4.268-commit-ca58695 || >=0.4.269",
+    "vike": "0.4.268-commit-57a213e || >=0.4.269",
     "vite": ">=8.0.0"
   },
   "peerDependenciesMeta": {
@@ -62,7 +81,8 @@
   },
   "dependencies": {
     "@brillout/json-serializer": "^0.5.27",
-    "react-streaming": "^0.4.21"
+    "@universal-middleware/core": "^0.7.1",
+    "react-streaming": "^0.4.22"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
@@ -71,7 +91,7 @@
     "react-dom": "^19.3.1",
     "tsdown": "^0.22.14",
     "typescript": "^7.0.2",
-    "vike": "0.4.268-commit-ca58695",
+    "vike": "0.4.268-commit-57a213e",
     "vite": "^8.2.0",
     "@vitejs/plugin-rsc": "^0.5.36"
   }

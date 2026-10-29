@@ -1,7 +1,7 @@
-// Throws once after saveThenFailData()
+import { increment } from "../../serverCounts";
+
+// Counted, so the e2e can tell which server actions run it, and read by the server components an rsc() load returns
 export function data() {
-  const failNext = (globalThis as { __failNext?: { data?: boolean } }).__failNext;
-  if (!failNext?.data) return;
-  failNext.data = false;
-  throw new Error("data() failed on demand");
+  increment("data /actions");
+  return { from: "data()" };
 }

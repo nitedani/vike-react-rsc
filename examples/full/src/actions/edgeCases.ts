@@ -2,15 +2,15 @@
 
 import type { ReactElement } from "react";
 import { redirect, render } from "vike/abort";
-import { getPageContext } from "vike-react-rsc/pageContext";
-import { rerender } from "vike-react-rsc/server";
+import { getPageContext, usePageContext } from "vike-react-rsc/pageContext";
+import { getRequestContext, rerender } from "vike-react-rsc/server";
+import { getError } from "../pages/misuse/getError";
 
 // Read by the hooks of /actions, which run in another environment
-const failNext = ((globalThis as { __failNext?: { data?: boolean; guard?: boolean; page?: boolean } }).__failNext ??= {});
+const failNext = ((globalThis as { __failNext?: { guard?: boolean; page?: boolean } }).__failNext ??= {});
 
-// Without rerender(), the caller gets the return value even though data() throws after the action
-export async function saveThenFailData() {
-  failNext.data = true;
+// Without rerender(), the page's data() doesn't run
+export async function save() {
   return "saved";
 }
 
@@ -35,20 +35,36 @@ export async function slowSave() {
   return "saved";
 }
 
+// Without rerender(): still running when +onCreatePageContext throws
+export async function slowPlainSave() {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  return "saved";
+}
+
 // As if the target came from user input, e.g. ?next=: the browser must not run it
 export async function redirectToScript(): Promise<string> {
   throw redirect("javascript:void(window.__redirected=1)");
 }
 
 // As when the session is missing: the caller shows the login page, at the same URL
-export async function requireLogin(): Promise<string> {
+export async function requireLogin(): Promise<never> {
   throw render("/login");
+}
+
+// A page whose title its <Config> sets
+export async function showConfigPage(): Promise<never> {
+  throw render("/config");
 }
 
 // Its cookie reaches the guard of the page it renders
 export async function loginThenRender(): Promise<string> {
-  getPageContext().cookies.set("session", "bob", { path: "/" });
+  getRequestContext().cookies.set("session", "bob", { path: "/" });
   throw render("/account");
+}
+
+// What the +middleware ordered after vike-react-rsc's adds, and what getPageContext() and usePageContext() throw, as an action has no page
+export async function readRequestContext(): Promise<string> {
+  return `${getRequestContext().mwMethod} | ${getError(getPageContext)} | ${getError(usePageContext)}`;
 }
 
 // With useActionState(): its count survives a submit without JavaScript
