@@ -164,6 +164,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testConfigRerender();
     testSession();
     testGonePassToClientValue();
+    testActionStreamedValues();
     testConcurrentRerender();
     testActionOnce();
     testActionSkipsData();
@@ -1537,6 +1538,28 @@ function testGonePassToClientValue() {
   });
 }
 
+function testActionStreamedValues() {
+  test("Server action: the streamed values of rerender()'s pageContext stop once the user navigates away", async () => {
+    await page.goto(getServerUrl() + "/streamed-values");
+    await waitForHydration("Render again");
+    await page.click('button:has-text("Render again")');
+    // The ticks of rerender()'s ticker, the page's second
+    const actionTicks = () =>
+      page.evaluate(() => ((window as { ticks?: { render: number; at: number }[] }).ticks ?? []).filter((tick) => tick.render === 2));
+    await autoRetry(async () => {
+      expect((await actionTicks()).length).to.be.at.least(2);
+    });
+    const clickedAt = await page.evaluate(() => Date.now());
+    await clickNewLink("/todos");
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include("Task Manager");
+    });
+    await sleep(1000);
+    // A tick may still arrive while the click starts the navigation
+    expect((await actionTicks()).filter((tick) => tick.at > clickedAt + 300)).to.deep.equal([]);
+  });
+}
+
 function testConcurrentRerender() {
   test("Server action: two rerender() calls in flight at once on one page both apply", async () => {
     await page.goto(getServerUrl() + "/unserializable");
@@ -1893,25 +1916,22 @@ function testUnserializableData(isStatic: boolean) {
 }
 
 function testPendingPage() {
-  test("A navigation that ends before React commits the hydration shows its page", async () => {
+  test("A navigation started before React commits the hydration shows its page", async () => {
     // /hydration has no Loading.layout, so React commits its hydration only once its client component has loaded
-    let release!: () => void;
-    const released = new Promise<void>((resolve) => (release = resolve));
-    await page.route("**/*", async (route) => {
-      if (route.request().resourceType() !== "script") return route.continue();
-      const response = await route.fetch();
-      if ((await response.text()).includes("data-hydration-client")) await released;
-      await route.fulfill({ response });
-    });
+    const held = await holdScript("data-hydration-client");
 
-    // /hydration's onHydrationEnd() navigates to /
+    // /hydration's +onBeforeRenderClient navigates to /
     await page.goto(getServerUrl() + "/hydration", { waitUntil: "commit" });
     await page.waitForURL((url) => url.pathname === "/");
     await sleep(500);
-    release();
+    held.release();
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("Vike React Server Components");
     });
+    // A client navigation, not a page load
+    expect(await page.evaluate(() => (window as { navigatedDuringHydration?: boolean }).navigatedDuringHydration)).to.equal(true);
+    // Hydration's +onAfterRenderClient still runs, as testing tools wait for it
+    expect(await page.evaluate(() => (window as { afterRenders?: string[] }).afterRenders)).to.deep.equal(["/hydration (hydration)", "/"]);
     await page.unroute("**/*");
   });
 }
@@ -1920,25 +1940,14 @@ function testNavigationKeepsPage() {
   test("A navigation keeps the current page until the next page's client components have loaded", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
-    let release!: () => void;
-    const released = new Promise<void>((resolve) => (release = resolve));
-    let isHeld = false;
-    await page.route("**/*", async (route) => {
-      if (route.request().resourceType() !== "script") return route.continue();
-      const response = await route.fetch();
-      if ((await response.text()).includes("data-url-pathname")) {
-        isHeld = true;
-        await released;
-      }
-      await route.fulfill({ response });
-    });
+    // /client's Page, a client component
+    const held = await holdScript("data-url-pathname");
     await clickNewLink("/client");
-    // /client's Page is a client component: its module is held
-    await autoRetry(() => expect(isHeld).to.equal(true));
+    await autoRetry(() => expect(held.isHeld).to.equal(true));
     await sleep(500);
     expect(await page.locator("[data-loading-layout]").count()).to.equal(0);
     expect(await page.textContent("h1")).to.include("Vike React Server Components");
-    release();
+    held.release();
     await autoRetry(async () => {
       expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
     });
@@ -1946,6 +1955,42 @@ function testNavigationKeepsPage() {
     expect(await page.evaluate(() => (window as { shownAtTransitionEnd?: string | null }).shownAtTransitionEnd)).to.equal("/client");
     await page.unroute("**/*");
   });
+  test("A click on another link while the next page's client components load shows that page at once", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration();
+    // /client's Page, a client component
+    const held = await holdScript("data-url-pathname");
+    await clickNewLink("/client");
+    await autoRetry(() => expect(held.isHeld).to.equal(true));
+    await page.click('a[href="/todos"]');
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include("Task Manager");
+    });
+    // The page left doesn't show once its client components load
+    held.release();
+    await sleep(500);
+    expect(await page.textContent("h1")).to.include("Task Manager");
+    // Nor does its +onAfterRenderClient run
+    expect(await page.evaluate(() => (window as { afterRenders?: string[] }).afterRenders)).to.deep.equal(["/ (hydration)", "/todos"]);
+    await page.unroute("**/*");
+  });
+}
+
+// Holds the script whose source includes `marker` until release()
+async function holdScript(marker: string) {
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => (release = resolve));
+  const held = { isHeld: false, release };
+  await page.route("**/*", async (route) => {
+    if (route.request().resourceType() !== "script") return route.continue();
+    const response = await route.fetch();
+    if ((await response.text()).includes(marker)) {
+      held.isHeld = true;
+      await released;
+    }
+    await route.fulfill({ response });
+  });
+  return held;
 }
 
 function testErrorOverlay() {

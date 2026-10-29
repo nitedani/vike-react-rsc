@@ -61,14 +61,14 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
       vike:
-        specifier: 0.4.268-commit-57a213e
-        version: 0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+        specifier: 0.4.268-commit-bba2caa
+        version: 0.4.268-commit-bba2caa(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       vike-react:
         specifier: link:../../packages/vike-react-rsc
         version: link:../../packages/vike-react-rsc
       vike-react-extension:
         specifier: file:./vike-react-extension
-        version: file:examples/components-client/vike-react-extension(react@19.3.1)(vike-react@packages+vike-react-rsc)(vike@0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)))
+        version: file:examples/components-client/vike-react-extension(react@19.3.1)(vike-react@packages+vike-react-rsc)(vike@0.4.268-commit-bba2caa(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)))
       vike-react-rsc:
         specifier: link:../../packages/vike-react-rsc
         version: link:../../packages/vike-react-rsc
@@ -125,8 +125,8 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
       vike:
-        specifier: 0.4.268-commit-57a213e
-        version: 0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+        specifier: 0.4.268-commit-bba2caa
+        version: 0.4.268-commit-bba2caa(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       vike-react-rsc:
         specifier: link:../../packages/vike-react-rsc
         version: link:../../packages/vike-react-rsc
@@ -174,8 +174,8 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
       vike:
-        specifier: 0.4.268-commit-57a213e
-        version: 0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+        specifier: 0.4.268-commit-bba2caa
+        version: 0.4.268-commit-bba2caa(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       vite:
         specifier: ^8.2.0
         version: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
@@ -1101,6 +1101,39 @@ packages:
 
   '@universal-middleware/core@0.7.1':
     resolution: {integrity: sha512-SVxKEjycCfibZnVnr9voo9AMTeAOVBt0V/T2QaiDQVzBVFlgfwMBtz74jrr8CABmc1hVOUCwzTFkpa+OqbC95A==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@cloudflare/workers-types': ^4 || ^5
+      '@hattip/core': ^0.0.49
+      '@types/express': ^4 || ^5
+      '@webroute/route': ^0.8
+      elysia: ^1
+      fastify: ^5
+      h3: ^1 || ^2
+      hono: ^4
+      srvx: '>=0.8'
+    peerDependenciesMeta:
+      '@cloudflare/workers-types':
+        optional: true
+      '@hattip/core':
+        optional: true
+      '@types/express':
+        optional: true
+      '@webroute/route':
+        optional: true
+      elysia:
+        optional: true
+      fastify:
+        optional: true
+      h3:
+        optional: true
+      hono:
+        optional: true
+      srvx:
+        optional: true
+
+  '@universal-middleware/core@0.7.2':
+    resolution: {integrity: sha512-MFcAC/EzmgzkBZy+CK5I/ViKWHGLC048BHcm9KxTrAUy3czwRY2/oquNZrwvUGBiJLN+PjzoeIMQfYSub+Vefg==}
     engines: {node: '>=22'}
     peerDependencies:
       '@cloudflare/workers-types': ^4 || ^5
@@ -2757,8 +2790,8 @@ packages:
       vike: '*'
       vike-react: '>=0.6.8'
 
-  vike@0.4.268-commit-57a213e:
-    resolution: {integrity: sha512-Z25FOElun/v5d+UVAWSMsFf7LNFl7MQN6lLkaaZS/Kxv3vXVED+jkSpMjdTaO781pCAtSQoxsI8115dsCIVhLA==}
+  vike@0.4.268-commit-bba2caa:
+    resolution: {integrity: sha512-hggBV95kH6OpIc3d818nGHcNmm0cp9SdUEpDeHZBnoJoLu6wsJZIbJWoec7vC8ANqxj1fkKxEwSwRdhEuaGmHQ==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -3756,7 +3789,17 @@ snapshots:
       hono: 4.13.0
       srvx: 1.0.5
 
-  '@universal-middleware/core@0.7.1(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)':
+  '@universal-middleware/core@0.7.1(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)':
+    dependencies:
+      regexparam: 3.0.0
+      tough-cookie: 6.0.2
+    optionalDependencies:
+      '@hattip/core': 0.0.49
+      '@types/express': 4.17.25
+      hono: 4.13.0
+      srvx: 1.0.5
+
+  '@universal-middleware/core@0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)':
     dependencies:
       regexparam: 3.0.0
       tough-cookie: 6.0.2
@@ -3766,7 +3809,7 @@ snapshots:
       hono: 4.13.0
       srvx: 0.11.22
 
-  '@universal-middleware/core@0.7.1(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)':
+  '@universal-middleware/core@0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)':
     dependencies:
       regexparam: 3.0.0
       tough-cookie: 6.0.2
@@ -3776,7 +3819,7 @@ snapshots:
       hono: 4.13.0
       srvx: 0.12.5
 
-  '@universal-middleware/core@0.7.1(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)':
+  '@universal-middleware/core@0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)':
     dependencies:
       regexparam: 3.0.0
       tough-cookie: 6.0.2
@@ -3833,7 +3876,7 @@ snapshots:
 
   '@universal-middleware/node@0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)':
     dependencies:
-      '@universal-middleware/core': 0.7.1(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
+      '@universal-middleware/core': 0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
       - '@hattip/core'
@@ -3847,7 +3890,7 @@ snapshots:
 
   '@universal-middleware/node@0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)':
     dependencies:
-      '@universal-middleware/core': 0.7.1(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
+      '@universal-middleware/core': 0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
       - '@hattip/core'
@@ -3861,7 +3904,7 @@ snapshots:
 
   '@universal-middleware/node@0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)':
     dependencies:
-      '@universal-middleware/core': 0.7.1(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)
+      '@universal-middleware/core': 0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
       - '@hattip/core'
@@ -5654,13 +5697,13 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vike-react-extension@file:examples/components-client/vike-react-extension(react@19.3.1)(vike-react@packages+vike-react-rsc)(vike@0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))):
+  vike-react-extension@file:examples/components-client/vike-react-extension(react@19.3.1)(vike-react@packages+vike-react-rsc)(vike@0.4.268-commit-bba2caa(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))):
     dependencies:
       react: 19.3.1
-      vike: 0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+      vike: 0.4.268-commit-bba2caa(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       vike-react: link:packages/vike-react-rsc
 
-  vike@0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
+  vike@0.4.268-commit-bba2caa(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/types': 7.29.8
@@ -5670,7 +5713,7 @@ snapshots:
       '@brillout/vite-plugin-server-entry': 0.7.23
       '@universal-deploy/store': 0.3.0(srvx@0.11.22)
       '@universal-deploy/vite': 0.2.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-      '@universal-middleware/core': 0.7.1(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
+      '@universal-middleware/core': 0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
       '@universal-middleware/node': 0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
       cac: 6.7.14
       convert-route: 2.0.0
@@ -5699,7 +5742,7 @@ snapshots:
       - srvx
       - supports-color
 
-  vike@0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
+  vike@0.4.268-commit-bba2caa(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/types': 7.29.8
@@ -5709,7 +5752,7 @@ snapshots:
       '@brillout/vite-plugin-server-entry': 0.7.23
       '@universal-deploy/store': 0.3.0(srvx@0.12.5)
       '@universal-deploy/vite': 0.2.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-      '@universal-middleware/core': 0.7.1(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
+      '@universal-middleware/core': 0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
       '@universal-middleware/node': 0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
       cac: 6.7.14
       convert-route: 2.0.0
@@ -5738,7 +5781,7 @@ snapshots:
       - srvx
       - supports-color
 
-  vike@0.4.268-commit-57a213e(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
+  vike@0.4.268-commit-bba2caa(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.22(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/types': 7.29.8
@@ -5748,7 +5791,7 @@ snapshots:
       '@brillout/vite-plugin-server-entry': 0.7.23
       '@universal-deploy/store': 0.3.0(srvx@1.0.5)
       '@universal-deploy/vite': 0.2.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-      '@universal-middleware/core': 0.7.1(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)
+      '@universal-middleware/core': 0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)
       '@universal-middleware/node': 0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)
       cac: 6.7.14
       convert-route: 2.0.0
