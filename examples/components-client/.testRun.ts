@@ -12,6 +12,8 @@ const SERVER_COMPONENT_IN_BROWSER_ERROR = 'starts with "use server component", b
 const THROWS_ERROR = "A client component failed on demand";
 // Thrown by /hydration-error in the browser only, so its hydration fails
 const HYDRATION_ERROR = "A page failed to hydrate on demand";
+// Thrown by /after-render-throws's +onAfterRenderClient on hydration
+const AFTER_RENDER_ERROR = "A page's +onAfterRenderClient failed on demand";
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
@@ -43,6 +45,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
       logText.includes("Failed to fetch dynamically imported module") ||
       logText.includes(THROWS_ERROR) ||
       logText.includes(HYDRATION_ERROR) ||
+      logText.includes(AFTER_RENDER_ERROR) ||
       // Vike takes the alias of /aliased-layout for an npm package to pre-bundle
       logText.includes("Cannot optimize dependency: @app/components/AliasedLayout") ||
       // The export * of /export-all also re-exports a function
@@ -225,7 +228,7 @@ function testVikeReactRendering() {
     }
   });
 
-  test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, with pageContext.root and pageContext.page, which it can render again or replace, as in vike-react", async () => {
+  test("components: 'client': +onAfterRenderClient runs once the page shows, after hydration and after a client navigation, with pageContext.root and pageContext.page, which it can render again or replace, and its error on hydration shows the error page, as in vike-react", async () => {
     const shown = { isHydration: false, shown: "A page with +onAfterRenderClient", hasRoot: true, hasPage: true };
     await page.goto(getServerUrl() + "/after-render");
     await autoRetry(async () => {
@@ -241,6 +244,10 @@ function testVikeReactRendering() {
     await page.evaluate(() => (window as { afterRenderRoot?: { render(children: null): void } }).afterRenderRoot!.render(null));
     await clickLink("/");
     await page.waitForSelector("h1:text-is('A client page')");
+    await page.goto(getServerUrl() + "/after-render-throws");
+    await autoRetry(async () => {
+      expect(await page.textContent("#error-page")).to.equal("Something went wrong");
+    });
   });
 
   test('components: \'client\': a "use server component" Layout from a package renders its react-server file on the server, around a server page and a client page', async () => {
