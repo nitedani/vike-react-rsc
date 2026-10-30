@@ -275,8 +275,9 @@ function testVikeReactRendering() {
     expect(await fetchHtml("/render-html")).to.include('<meta name="store-greeting" content="A store +onBeforeRenderHtml created"/>');
   });
 
-  test("components: 'client': a React.memo +Head renders as a component, as in vike-react", async () => {
+  test("components: 'client': a React.memo +Head renders as a component, and a +Head that is false or an iterable as a node", async () => {
     expect(await fetchHtml("/head-memo")).to.include('<meta name="memo-head" content="/head-memo"/>');
+    expect(await fetchHtml("/head-nodes/conditional")).to.include('<meta name="iterable-head" content="An iterable +Head"/>');
   });
 
   test("components: 'client': +onBeforeRenderHtml gets pageContext.page and can replace it, e.g. to wrap it, as in vike-react", async () => {
