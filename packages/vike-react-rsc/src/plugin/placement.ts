@@ -6,6 +6,7 @@ import { resolveForBrowser, setBrowserEnvironment } from "./browserResolver";
 import { getComponentConfigs, isClientDefault, resolveComponentConfigs, type Part } from "./componentConfigs";
 import { getDirectives, getFile, getFileName, isAppFile, parse, type Directive } from "./parse";
 import { findServerComponentImport, getModule, invalidateModules, type Context } from "./serverComponentImports";
+import { isPageEntry } from "./vikeParts";
 
 // A client component's import, with the exports Vike reads and the file that imports it, which plugin-rsc's client reference
 // imports in each env
@@ -34,7 +35,7 @@ export function placement(): Plugin {
       order: "pre",
       async handler(source, importer) {
         if (source.startsWith(`\0${CLIENT_IMPORT}`)) return source;
-        if (this.environment.name !== "rsc" || !importer?.startsWith("\0virtual:vike:page-entry:") || !isClientDefault()) return;
+        if (this.environment.name !== "rsc" || !isPageEntry(importer) || !isClientDefault()) return;
         // A client component that the rsc env resolves to another file than the browser: its client reference is the import
         const clientImport = (await resolveComponentConfigs(this)).clientImports.get(source);
         if (!clientImport) return;

@@ -19,6 +19,11 @@ function readPartImports(pageConfigs: PageConfigs): PartImport[] {
   );
 }
 
+/** Whether `importer` is the virtual module Vike loads a page's + files from */
+export function isPageEntry(importer: string | undefined): boolean {
+  return !!importer?.startsWith("\0virtual:vike:page-entry:");
+}
+
 /** Each import Vike loads a component from: the value's own, or each import string in the value, e.g. Loading: { layout }.
  * Either the app's own file, or an import of a package or through a path alias */
 function getImports(source: ConfigValueSource): Omit<PartImport, "configName">[] {

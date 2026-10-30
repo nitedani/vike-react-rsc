@@ -25,6 +25,7 @@ export function getForkedPageContext<T extends object>(pageContext: T): T {
 }
 
 function createView(pageContext: object): object {
+  // The rsc env's pageContext is Vike's view of the server's, which reads every key but the config's from it, forkKey too
   const getTarget = () => (pageContext as Forked)[forkKey] ?? pageContext;
   // The fork holds pageContext's keys as they were before the HTML hooks ran. A key with the same value on both is read
   // from the rsc env's pageContext, so `config` is the rsc env's own. Any other key is read from the fork, and a getter
