@@ -169,9 +169,7 @@ async function getActionForm(request: Request, limit: number): Promise<FormData 
   if (request.headers.get("sec-fetch-mode") !== "navigate") return null;
   const contentType = request.headers.get("content-type");
   if (!contentType?.startsWith("multipart/form-data")) return null;
-  // @vikejs/express hands the next handler a body only if a middleware read at most 1 MiB of it, the default limit
-  // TODO: a bigger limit loses such a body: the next handler gets it empty, or a 413 once
-  // https://github.com/magne4000/universal-middleware/pull/457 is released
+  // Under @vikejs/express, the next handler gets an empty body if this reads more than 1 MiB of it, the default limit
   const length = request.headers.get("content-length");
   if (length === null || Number(length) > limit) {
     return (await startsWithActionField(request.clone(), contentType)) ? undefined : null;
