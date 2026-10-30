@@ -10,6 +10,8 @@ import { findServerComponent } from "../rendersFlight";
 import type { PagePayload } from "../rsc/runtime";
 import type { PageContextInternal } from "../types/PageContext";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
+import { getBetterErrorLight } from "../utils/getBetterErrorLight";
+import { isObject } from "../utils/isObject";
 import { getHeadSettings } from "./getHeadSettings";
 import { getPageElement } from "./getPageElement";
 import { resolveReactOptions } from "./resolveReactOptions";
@@ -64,12 +66,62 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
 // Our error callbacks run first, then the user's, as in vike-react
 function withOurErrorCallbacks(options: RootOptions | undefined): Pick<RootOptions, "onCaughtError" | "onUncaughtError"> {
   return {
-    onCaughtError: (error, errorInfo) => onCaughtError(error, errorInfo, options?.onCaughtError),
-    onUncaughtError: (error, errorInfo) => {
-      onUncaughtError(error, errorInfo);
-      options?.onUncaughtError?.(error, errorInfo);
+    onCaughtError: (errorOriginal, errorInfo) => {
+      const { error, componentStackToLog } = getErrorWithComponentStack(errorOriginal, errorInfo);
+      onCaughtError(error, componentStackToLog, errorInfo, options?.onCaughtError);
+    },
+    onUncaughtError: (errorOriginal, errorInfo) => {
+      const { error: errorEnhanced, componentStackToLog } = getErrorWithComponentStack(errorOriginal, errorInfo);
+      onUncaughtError(errorEnhanced, componentStackToLog);
+      options?.onUncaughtError?.(errorEnhanced, errorInfo);
     },
   };
+}
+type OnUncaughtErrorInfo = Parameters<NonNullable<RootOptions["onUncaughtError"]>>[1];
+
+// The stack each error had before we injected a component stack, so that an error React reports twice, e.g. a rejected
+// Promise that two components read with use(), gets one component stack, not also the one of the first report
+const stacksOriginal = new WeakMap<object, string>();
+
+// Inject componentStack to the error's stack trace, or else return it as componentStackToLog, to log beside the error
+// - Server counterpart: https://github.com/brillout/react-streaming/blob/e0a6210957e65dad2c92877ad075ebac4713d8fa/src/server/renderToStream/common.ts#L93
+function getErrorWithComponentStack(errorOriginal: unknown, errorInfo?: OnUncaughtErrorInfo): { error: unknown; componentStackToLog?: string } {
+  if (!errorInfo?.componentStack) return { error: errorOriginal };
+  // A thrown value without a stack, e.g. a string
+  if (!isObject(errorOriginal) || typeof errorOriginal.stack !== "string") return { error: errorOriginal, componentStackToLog: errorInfo.componentStack };
+  const stackOriginal = stacksOriginal.get(errorOriginal) ?? errorOriginal.stack;
+  stacksOriginal.set(errorOriginal, stackOriginal);
+  const errorStackLines = stackOriginal.split("\n");
+
+  // Inject the component stack right before the React stack trace (potentially *after* some vike-react-rsc or react-streaming strack trace, e.g. if react-streaming's useAsync() throws an error).
+  // Perfect cutoff (as of react@19.2.0), but can easily break upon React internal refactoring
+  let cutoff = errorStackLines.findIndex((l) => l.includes("react_stack_bottom_frame"));
+  if (cutoff === -1) {
+    // Ideally, we should inject the component stack right before the React stack trace, and *after* any vike-react-rsc or react-streaming strack trace.
+    // But we cannot (easily) do that on the client-side, because the URLs of vike-react-rsc's and react-streaming's files also include node_modules and react
+    cutoff = errorStackLines.findIndex((l) => l.includes("node_modules") && l.includes("react"));
+  }
+  // Neither cutoff found (e.g. in a production build): the component stack goes at the end
+  if (cutoff === -1) cutoff = errorStackLines.length;
+
+  const errorStackLinesBegin = errorStackLines.slice(0, cutoff);
+  const errorStackLinesEnd = errorStackLines.slice(cutoff);
+  const componentStackLines = errorInfo.componentStack.split("\n").filter(Boolean);
+  if (componentStackLines[0] === errorStackLinesBegin.at(-1)) componentStackLines.shift();
+  const stackEnhanced = [
+    //
+    ...errorStackLinesBegin,
+    ...componentStackLines,
+    ...errorStackLinesEnd,
+  ].join("\n");
+
+  try {
+    const errorBetter = getBetterErrorLight(errorOriginal, { stack: stackEnhanced });
+    return { error: errorBetter };
+  } catch {
+    // A stack that can't be set, e.g. a getter's
+    return { error: errorOriginal, componentStackToLog: errorInfo.componentStack };
+  }
 }
 
 async function getPagePayload(pageContext: PageContextClient): Promise<PagePayload> {

@@ -59,6 +59,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testVikeReactImports();
   testFormBeforeHydration();
   testRestoredFormState();
+  testErrorComponentStack();
   if (isDev) testReactStrictMode();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
@@ -581,6 +582,16 @@ function testReactStrictMode() {
       await page.waitForSelector(`#pathname:text-is('${pathname}')`);
       await expectRuns(pathname, runs);
     }
+  });
+}
+
+function testErrorComponentStack() {
+  test("components: 'client': the stack of an error a client component throws has its component stack, as in vike-react", async () => {
+    await page.goto(getServerUrl() + "/hydration-error");
+    await autoRetry(async () => {
+      // Only the component stack has the frame of the layout's <main>, around the page
+      expect(await page.getAttribute("body", "data-reported")).to.match(/^Error: A page failed to hydrate on demand\n[\s\S]*\n\s+at main \(<anonymous>\)/);
+    });
   });
 }
 

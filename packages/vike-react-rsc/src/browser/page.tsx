@@ -95,10 +95,10 @@ export function getReactRoot(): ReactRoot {
 }
 
 /** The React root's: an error React throws while rendering goes to the navigation showing the page, as in vike-react */
-export function onUncaughtError(error: unknown, errorInfo: { componentStack?: string }): void {
-  console.error(error, errorInfo.componentStack);
+export function onUncaughtError(error: unknown, componentStackToLog: string | undefined): void {
+  console.error(...(componentStackToLog ? [error, componentStackToLog] : [error]));
   // Vike renders the error page, and doesn't log the error again
-  if (error instanceof Error) Object.assign(error, { isAlreadyLogged: true });
+  if (error instanceof Error && Object.isExtensible(error)) Object.assign(error, { isAlreadyLogged: true });
   // React unmounted Root, or never mounted it when hydrating threw: the next page, e.g. the error page, mounts it again
   shared.setRootState = (shown) => shared.reactRoot!.render(getRootElement(shown));
   endNavigation(error);
