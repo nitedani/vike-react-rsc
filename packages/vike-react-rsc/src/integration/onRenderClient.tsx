@@ -79,7 +79,7 @@ type OnUncaughtErrorInfo = Parameters<NonNullable<RootOptions["onUncaughtError"]
 // Inject componentStack to the error's stack trace
 // - Server counterpart: https://github.com/brillout/react-streaming/blob/e0a6210957e65dad2c92877ad075ebac4713d8fa/src/server/renderToStream/common.ts#L93
 function getErrorWithComponentStack(errorOriginal: unknown, errorInfo?: OnUncaughtErrorInfo) {
-  if (!errorInfo?.componentStack || !isObject(errorOriginal)) return errorOriginal;
+  if (!errorInfo?.componentStack || !isObject(errorOriginal) || typeof errorOriginal.stack !== "string") return errorOriginal;
   const errorStackLines = String(errorOriginal.stack).split("\n");
 
   // Inject the component stack right before the React stack trace (potentially *after* some vike-react-rsc or react-streaming strack trace, e.g. if react-streaming's useAsync() throws an error).
@@ -90,7 +90,8 @@ function getErrorWithComponentStack(errorOriginal: unknown, errorInfo?: OnUncaug
     // But we cannot (easily) do that on the client-side, because the URLs of vike-react-rsc's and react-streaming's files also include node_modules and react
     cutoff = errorStackLines.findIndex((l) => l.includes("node_modules") && l.includes("react"));
   }
-  if (cutoff === -1) return errorOriginal;
+  // A production build has neither: the component stack goes at the end
+  if (cutoff === -1) cutoff = errorStackLines.length;
 
   const errorStackLinesBegin = errorStackLines.slice(0, cutoff);
   const errorStackLinesEnd = errorStackLines.slice(cutoff);

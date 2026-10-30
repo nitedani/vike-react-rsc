@@ -59,7 +59,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testVikeReactImports();
   testFormBeforeHydration();
   testRestoredFormState();
-  if (isDev) testErrorComponentStack();
+  testErrorComponentStack();
   if (isDev) testReactStrictMode();
   // The dev server serves the sources, so a build can run beside it
   if (isDev) testServerFunctionComponents();
@@ -586,13 +586,13 @@ function testReactStrictMode() {
 }
 
 function testErrorComponentStack() {
-  test("Dev: components: 'client': the stack of an error a client component throws has its component stack, before React's frames, as in vike-react", async () => {
+  test("components: 'client': the stack of an error a client component throws has its component stack, before React's frames, as in vike-react", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration("#counter");
     await clickLink("/throws");
     await autoRetry(async () => {
-      // Page renders Thrower, so only the component stack has its frame
-      expectLog(/A client component failed on demand\n(?:\s+at (?!.*react_stack_bottom_frame).*\n)*\s+at Page .*\n[\s\S]*react_stack_bottom_frame/, {
+      // Only the component stack has the frame of the layout's <main>, around Thrower
+      expectLog(/A client component failed on demand\n(?:\s+at (?!.*react_stack_bottom_frame).*\n)*\s+at main \(<anonymous>\)/, {
         filter: ({ logSource }) => logSource === "Browser Error",
       });
     });
