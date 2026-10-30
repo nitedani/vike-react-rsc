@@ -1,5 +1,6 @@
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
+import { componentConfigNames } from "../rendersFlight";
 
 /** Each import Vike loads a Page, Layout, Wrapper or Loading from, the same array until Vike replaces its page configs on a change.
  * Vike's public config names a value's file only as a display string, so this reads its internal page configs */
@@ -12,7 +13,7 @@ export function getPartImports(): PartImport[] {
 
 function readPartImports(pageConfigs: PageConfigs): PartImport[] {
   return pageConfigs.flatMap(({ configValueSources }) =>
-    ["Page", "Layout", "Wrapper", "Loading"].flatMap((configName) =>
+    componentConfigNames.flatMap((configName) =>
       (configValueSources[configName] ?? []).flatMap((source) => getImports(source).map((part) => ({ ...part, configName })))
     )
   );
