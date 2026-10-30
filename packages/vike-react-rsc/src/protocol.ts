@@ -1,7 +1,8 @@
 // How the browser and the server talk, besides Vike's page loads and navigations:
 // - a server action: a POST to the page's URL with ACTION_HEADER, answered with Flight, REDIRECT_HEADER or UNKNOWN_ACTION_HEADER
 // - an rsc() load: a server action that also sends RSC_LOAD_HEADER
-// - a redirect a server component throws once the HTML has started: a refresh <meta> with REDIRECT_META_ATTRIBUTE
+// - a redirect a server component throws once the HTML has started: a refresh <meta> with REDIRECT_META_ATTRIBUTE,
+//   written only for an http(s) URL
 
 export const ACTION_HEADER = "x-rsc-action";
 export const REDIRECT_HEADER = "x-rsc-redirect";

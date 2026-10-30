@@ -1,6 +1,6 @@
 import type { PageContext } from "vike/types";
 
-/** Vike's configs whose value is a component, in the order they wrap the page */
+/** Vike's configs whose value is a component: the page, what wraps it from the inside out, then its Loading fallback */
 export const componentConfigNames = ["Page", "Layout", "Wrapper", "Loading"] as const;
 
 /** What the plugin puts on a Page, Layout, Wrapper or Loading that is a server component: on the component in the rsc env, on its

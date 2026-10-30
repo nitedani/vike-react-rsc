@@ -49,7 +49,8 @@ export class ActionCall {
     return this.id === undefined;
   }
 
-  /** Called by JavaScript: the answer is Flight, which renderAnswer() renders */
+  /** Called by JavaScript: the answer is Flight, which renderAnswer() renders, but a redirect or an unknown action is
+   * answered by a header alone */
   get answersWithFlight(): boolean {
     return !this.isForm;
   }
