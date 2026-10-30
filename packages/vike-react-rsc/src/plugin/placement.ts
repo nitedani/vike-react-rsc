@@ -118,7 +118,7 @@ async function decideIsServerComponent(
   context: Context
 ): Promise<{ isServerComponent: boolean; serverComponentImport?: string[]; read: Set<string> }> {
   // By its directive, or as the file the env loads for a package's server component
-  if (directives.includes("use server component") || components.some((c) => c.isServerComponentImport)) {
+  if (directives.includes("use server component") || components.some((c) => c.isPackageServerComponent)) {
     return { isServerComponent: true, read: new Set([file]) };
   }
   if (directives.length > 0 || !isClientDefault() || !isAppFile(file)) return { isServerComponent: false, read: new Set([file]) };
