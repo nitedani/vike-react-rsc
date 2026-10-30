@@ -156,7 +156,7 @@ function getHeadHtml(pageContext: PageContextServer & PageContextInternal) {
 }
 function getHeadElementHtml(Head: NonNullable<HeadValue>, pageContext: PageContextServer): string {
   return renderToStaticMarkup(
-    <PageContextProvider pageContext={pageContext}>{isReactElement(Head) ? Head : <Head />}</PageContextProvider>
+    withStrictMode(pageContext, <PageContextProvider pageContext={pageContext}>{isReactElement(Head) ? Head : <Head />}</PageContextProvider>)
   );
 }
 
