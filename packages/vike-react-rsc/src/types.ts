@@ -7,7 +7,7 @@ import type { HeadSettings } from "./integration/getHeadSettings";
 import type { ActionCall } from "./ssr/action";
 import type { Cookies } from "./ssr/cookies";
 import type { ConfigsCumulative } from "./hooks/useConfig/configsCumulative";
-import type { HtmlInjection, Viewport } from "./ssr/onRenderHtml";
+import type { HtmlInjection, Viewport } from "./integration/onRenderHtml";
 import type { TagAttributes } from "./utils/getTagAttributesString";
 
 /** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */
