@@ -587,14 +587,10 @@ function testReactStrictMode() {
 
 function testErrorComponentStack() {
   test("components: 'client': the stack of an error a client component throws has its component stack, as in vike-react", async () => {
-    await page.goto(getServerUrl() + "/");
-    await waitForHydration("#counter");
-    await clickLink("/throws");
+    await page.goto(getServerUrl() + "/hydration-error");
     await autoRetry(async () => {
-      // Only the component stack has the frame of the layout's <main>, around Thrower
-      expectLog(/A client component failed on demand\n(?:\s+at (?!.*react_stack_bottom_frame).*\n)*\s+at main \(<anonymous>\)/, {
-        filter: ({ logSource }) => logSource === "Browser Error",
-      });
+      // Only the component stack has the frame of the layout's <main>, around the page
+      expect(await page.getAttribute("body", "data-reported")).to.match(/^Error: A page failed to hydrate on demand\n[\s\S]*\n\s+at main \(<anonymous>\)/);
     });
   });
 }
