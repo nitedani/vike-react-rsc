@@ -1,6 +1,6 @@
 // vike-react-rsc/server outside the rsc env, e.g. imported by a client component or by data()
 import { noRequestContext, notInServerAction } from "./errors";
-import type { RequestContext } from "./types";
+import type { RequestContext } from "./rsc/scope";
 
 /** Makes the server action's answer include the page, rendered again once the action returned. Without it, the answer is only the return value. */
 export function rerender(): void {

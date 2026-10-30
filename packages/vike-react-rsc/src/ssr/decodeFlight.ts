@@ -1,6 +1,6 @@
 import { createFromReadableStream } from "@vitejs/plugin-rsc/ssr";
 import type { PageContextServer } from "vike/types";
-import type { PagePayload } from "../types";
+import type { PagePayload } from "../rsc/runtime";
 import type { ClientDeps } from "./clientDeps";
 
 /** Runs `render`, which gets an AbortController to abort once the HTML has rendered, or once nobody will read it. Aborting

@@ -7,7 +7,7 @@ import type { HeadSettings } from "../integration/getHeadSettings";
 import { isStrictMode, withStrictMode } from "../integration/withStrictMode";
 import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
-import type { PageContextInternal } from "../types";
+import type { PageContextInternal } from "../types/PageContext";
 import { AbortBoundary } from "./AbortBoundary";
 
 // `fromAction`: a server action's answer sent `root`, after rerender() or as the page of a throw render()

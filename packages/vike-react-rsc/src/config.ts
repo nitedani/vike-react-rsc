@@ -1,5 +1,6 @@
 import type { Config } from "vike/types";
-import "./types.js";
+import "./types/Config.js";
+import "./types/PageContext.js";
 import { ssrEffect } from "./integration/ssrEffect";
 import { vikeReactRscPlugins } from "./vite";
 

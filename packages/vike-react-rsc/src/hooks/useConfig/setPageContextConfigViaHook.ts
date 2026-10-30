@@ -1,7 +1,8 @@
 export { setPageContextConfigViaHook }
 
 import type { PageContext } from 'vike/types'
-import type { ConfigViaHook, PageContextInternal } from '../../types.js'
+import type { PageContextInternal } from '../../types/PageContext.js'
+import type { ConfigViaHook } from '../../types/Config.js'
 import { objectKeys } from '../../utils/objectKeys.js'
 import { includes } from '../../utils/includes.js'
 import { configsCumulative } from './configsCumulative.js'

@@ -5,7 +5,7 @@ import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
 import { getHeadSettings } from "../integration/getHeadSettings";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
-import type { ActionOutcome, PassedToClient } from "../types";
+import type { ActionOutcome, PassedToClient } from "../rsc/runtime";
 import { getRsc } from "./bridge";
 
 /** One action request. The rsc env runs it with `id` and `body`; without `id`, `body` is a form submitted before
