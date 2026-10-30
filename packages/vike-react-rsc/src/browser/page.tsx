@@ -23,7 +23,7 @@ const shared = getShared(
     current?: PageContextClient;
     // What Root shows, and how to change it once Root has mounted
     shown?: Shown;
-    // The head the tab last got, the HTML's at first: an answer applies only the values that differ from it
+    // The head we last applied, the HTML's at first, not what useConfig() set since: an answer applies only the values that differ from it
     head?: HeadSettings;
     setRootState?: (shown: Shown) => void;
     // The React root Root renders in, to mount Root again after an error unmounted it or kept it from mounting
