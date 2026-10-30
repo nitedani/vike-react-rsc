@@ -2,7 +2,7 @@ import { transformModuleExportEffect } from "@vitejs/plugin-rsc/transforms";
 import path from "node:path";
 import type { ESTree, Plugin } from "vite";
 import type { ServerComponentFlags } from "../rendersFlight";
-import { resolveForBrowser, setBrowserEnvironment } from "./browserResolver";
+import { resolveForBrowser } from "./browserResolver";
 import { getComponentConfigs, isClientDefault, resolveComponentConfigs, type Part } from "./componentConfigs";
 import { getDirectives, getFile, getFileName, isAppFile, parse, type Directive } from "./parse";
 import { findServerComponentImport, getModule, invalidateModules, type Context } from "./serverComponentImports";
@@ -27,9 +27,6 @@ export function placement(): Plugin {
     name: "vike-react-rsc:placement",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
-    configureServer: (server) => setBrowserEnvironment(server.environments.client!),
-    // Before plugin-rsc's, which builds the envs
-    buildApp: { order: "pre", handler: async (builder) => setBrowserEnvironment(builder.environments.client!) },
     resolveId: {
       // Before plugin-rsc's, which resolves the import with the react-server condition
       order: "pre",
