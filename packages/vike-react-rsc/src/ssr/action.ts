@@ -8,8 +8,9 @@ import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, U
 import type { ActionOutcome, PassedToClient } from "../rsc/runtime";
 import { getRsc } from "./bridge";
 
-/** One action request. The rsc env runs it with `id` and `body`; without `id`, `body` is a form submitted before
- * hydration. `isRscLoad` when rsc() calls it to load a server component. */
+/** One action request, across Vike's phases: it runs in onCreatePageContext, and holds its answer until Vike's response is
+ * known. The rsc env runs it with `id` and `body`; without `id`, `body` is a form submitted before hydration. `isRscLoad`
+ * when rsc() calls it to load a server component. */
 export class ActionCall {
   /** The Set-Cookie lines the action appended to pageContext.headersResponse */
   #setCookies: string[] = [];
@@ -47,9 +48,14 @@ export class ActionCall {
     return this.id === undefined;
   }
 
+  /** Called by JavaScript: the answer is Flight, which renderAnswer() renders */
+  get answersWithFlight(): boolean {
+    return !this.isForm;
+  }
+
   /** Without rerender(), a plain action's answer is its return value alone, which reads nothing guard() and data() provide */
   get skipsGuardAndData(): boolean {
-    return !!this.outcome && !this.isForm && !this.isRscLoad && !this.outcome.rerender;
+    return !!this.outcome && this.answersWithFlight && !this.isRscLoad && !this.outcome.rerender;
   }
 
   /** The answer for the page Vike rendered: the return value, and the page after rerender() */
