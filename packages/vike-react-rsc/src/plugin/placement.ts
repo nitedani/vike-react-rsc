@@ -1,6 +1,7 @@
 import { transformModuleExportEffect } from "@vitejs/plugin-rsc/transforms";
 import path from "node:path";
 import type { ESTree, Plugin } from "vite";
+import type { ServerComponentFlags } from "../rendersFlight";
 import { resolveForBrowser, setBrowserEnvironment } from "./browserResolver";
 import { getComponentConfigs, isClientDefault, resolveComponentConfigs, type Part } from "./componentConfigs";
 import { getDirectives, getFile, getFileName, isAppFile, parse, type Directive } from "./parse";
@@ -73,7 +74,7 @@ export function placement(): Plugin {
       const file = path.relative(root, getFile(id));
       // For a file that is one because it imports a server component: the files from it to that server component
       const files = serverComponentImport?.map((imported) => getFileName(imported, root));
-      const flags = JSON.stringify({ isServerComponent: true, file, serverComponentImport: files });
+      const flags = JSON.stringify({ isServerComponent: true, file, serverComponentImport: files } satisfies ServerComponentFlags);
       return isRsc ? tagServerComponent(code, program, components, file, flags) : getServerComponentStub(components, flags);
     },
     async hotUpdate({ type, file, read }) {
