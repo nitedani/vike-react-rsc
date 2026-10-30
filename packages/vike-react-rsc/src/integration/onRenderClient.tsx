@@ -2,16 +2,17 @@ import { createFromReadableStream, setServerCallback } from "@vitejs/plugin-rsc/
 import { createRoot, hydrateRoot, type RootOptions } from "react-dom/client";
 import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
-import { getHeadSettings } from "../integration/getHeadSettings";
-import { getPageElement } from "../integration/getPageElement";
-import { resolveReactOptions } from "../integration/resolveReactOptions";
+import { onCaughtError } from "../browser/AbortBoundary";
+import { callServer } from "../browser/callServer";
+import { applyHead, getReactRoot, getRootElement, onUncaughtError, rendered, setCurrentPageContext, setReactRoot, show } from "../browser/page";
+import { markRscOutputsStale } from "../browser/rsc";
 import { findServerComponent } from "../rendersFlight";
-import type { PageContextInternal, PagePayload } from "../types";
+import type { PagePayload } from "../rsc/runtime";
+import type { PageContextInternal } from "../types/PageContext";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
-import { onCaughtError } from "./AbortBoundary";
-import { callServer } from "./callServer";
-import { applyHead, getReactRoot, getRootElement, onUncaughtError, rendered, setCurrentPageContext, setReactRoot, show } from "./page";
-import { markRscOutputsStale } from "./rsc";
+import { getHeadSettings } from "./getHeadSettings";
+import { getPageElement } from "./getPageElement";
+import { resolveReactOptions } from "./resolveReactOptions";
 
 // Whether a page can render without a Flight, as in vike-react: under components: 'client', and always in dev
 declare const __VIKE_REACT_RSC_CLIENT_DEFAULT__: boolean;

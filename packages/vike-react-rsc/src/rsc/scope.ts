@@ -3,7 +3,8 @@ import type { PageContext, PageContextServer } from "vike/types";
 import { noRequestContext, notInServerAction } from "../errors";
 import { getForkedPageContext } from "../forkPageContext";
 import { getShared } from "../shared";
-import type { ActionOutcome, RequestContext } from "../types";
+import "../types/PageContext";
+import type { ActionOutcome } from "./runtime";
 
 // React and user code call server components and server actions without a pageContext argument, so they find their
 // request here
@@ -14,6 +15,9 @@ export type Scope = {
   // Rendering what an action returns without rerender(), outside rsc(): the page's guard() and data() didn't run
   withoutPage?: boolean;
 };
+
+/** getRequestContext()'s value. TypeScript doesn't know what a +middleware adds, so it is `unknown` */
+export type RequestContext = Pick<PageContextServer, "headers" | "cookies" | "abortSignal"> & Record<string, unknown>;
 
 const storage = getShared("scope", () => new AsyncLocalStorage<Scope>());
 

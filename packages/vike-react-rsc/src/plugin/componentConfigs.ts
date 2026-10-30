@@ -46,7 +46,7 @@ async function readComponentConfigs(partImports: PartImport[], context: ResolveC
     // pre-bundled in dev: the directive of the browser's file says where the component runs
     if (!browserFile || !file || file === browserFile) imports.push({ file, config });
     else if (await startsWithDirective(await readFile(browserFile, "utf8"), browserFile, "use server component")) {
-      imports.push({ file, config: { ...config, isServerComponentImport: true } });
+      imports.push({ file, config: { ...config, isPackageServerComponent: true } });
     } else if (context.environment.name === "rsc") clientImports.add(importPath);
   }
   // A file can serve several, e.g. two named exports as the Layouts of two pages
@@ -66,7 +66,7 @@ export type Part = {
   /** The export of the import that Vike reads; none for a + file */
   exportName: string | undefined;
   /** The file the env loads for a server component, where the browser's file is another */
-  isServerComponentImport?: true;
+  isPackageServerComponent?: true;
 };
 type ComponentConfigs = {
   byFile: Map<string, Part[]>;

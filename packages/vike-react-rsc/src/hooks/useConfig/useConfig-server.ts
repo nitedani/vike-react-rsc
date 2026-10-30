@@ -1,6 +1,7 @@
 export { useConfig }
 import type { PageContext, PageContextServer } from 'vike/types'
-import type { ConfigViaHook, PageContextInternal } from '../../types.js'
+import type { PageContextInternal } from '../../types/PageContext.js'
+import type { ConfigViaHook } from '../../types/Config.js'
 import { usePageContext } from '../usePageContext.js'
 import { getPageContext } from 'vike/getPageContext'
 import { useStreamOptional } from 'react-streaming'

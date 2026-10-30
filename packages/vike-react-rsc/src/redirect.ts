@@ -10,3 +10,9 @@ export function getRedirectUrl(url: string, base: string): URL | undefined {
   }
   return target.protocol === "http:" || target.protocol === "https:" ? target : undefined;
 }
+
+/** Whether a redirect to `url` goes to an http(s) URL, from any page */
+export function isHttpUrl(url: string): boolean {
+  // A path keeps the page's own scheme, so any http(s) base tells the same
+  return getRedirectUrl(url, "http://localhost") !== undefined;
+}

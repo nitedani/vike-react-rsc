@@ -5,7 +5,7 @@ import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import { getRedirectUrl } from "../redirect";
-import type { ActionPayload } from "../types";
+import type { ActionPayload } from "../rsc/runtime";
 import { getCurrentPageContext, showRoot } from "./page";
 import { dropRscOutputs, isRscLoad, markRscOutputsStale } from "./rsc";
 

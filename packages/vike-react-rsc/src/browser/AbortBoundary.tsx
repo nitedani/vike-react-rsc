@@ -1,6 +1,7 @@
 import { Component, use, type ReactNode } from "react";
 import type { RootOptions } from "react-dom/client";
 import { getAbort } from "../abort";
+import { REDIRECT_META_ATTRIBUTE } from "../protocol";
 import { followRedirect } from "./callServer";
 import { endNavigation } from "./page";
 import { isThrownByRscOutput } from "./rsc";
@@ -69,7 +70,7 @@ function Redirect({ thrown, url, keepsPage }: { thrown: object; url: string; kee
 // The HTML's redirect meta makes the browser load the target itself
 function unlessHtmlRedirects(run: () => void): void {
   const check = () => {
-    if (!document.querySelector("meta[data-vike-react-rsc-redirect]")) run();
+    if (!document.querySelector(`meta[${REDIRECT_META_ATTRIBUTE}]`)) run();
   };
   // The meta comes after the error in the HTML
   if (document.readyState === "loading") {

@@ -5,11 +5,13 @@ import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
 import { getHeadSettings } from "../integration/getHeadSettings";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
-import type { ActionOutcome, PassedToClient } from "../types";
+import type { ActionOutcome, PassedToClient } from "../rsc/runtime";
+import "../types/PageContext";
 import { getRsc } from "./bridge";
 
-/** One action request. The rsc env runs it with `id` and `body`; without `id`, `body` is a form submitted before
- * hydration. `isRscLoad` when rsc() calls it to load a server component. */
+/** One action request, across Vike's phases: it runs in onCreatePageContext, and holds its answer until Vike's response is
+ * known. The rsc env runs it with `id` and `body`; without `id`, `body` is a form submitted before hydration. `isRscLoad`
+ * when rsc() calls it to load a server component. */
 export class ActionCall {
   /** The Set-Cookie lines the action appended to pageContext.headersResponse */
   #setCookies: string[] = [];

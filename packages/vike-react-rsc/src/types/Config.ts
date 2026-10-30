@@ -1,134 +1,16 @@
-import type { ComponentType, JSX, ReactNode } from "react";
-import type { HydrationOptions, ReactFormState, Root as ReactRoot, RootOptions } from "react-dom/client";
+import type { ComponentType, ReactNode } from "react";
+import type { HydrationOptions, RootOptions } from "react-dom/client";
 import type { ServerOptions } from "react-dom/server";
-import type { renderToStream, RenderToStreamOptions } from "react-streaming/server.web";
+import type { RenderToStreamOptions } from "react-streaming/server.web";
 import type { ImportString, PageContext, PageContextClient, PageContextServer } from "vike/types";
-import type { HeadSettings } from "./integration/getHeadSettings";
-import type { ActionCall } from "./ssr/action";
-import type { Cookies } from "./ssr/cookies";
-import type { ConfigsCumulative } from "./hooks/useConfig/configsCumulative";
-import type { HtmlInjection, Viewport } from "./ssr/onRenderHtml";
-import type { TagAttributes } from "./utils/getTagAttributesString";
-
-/** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */
-export type PagePayload = { root: ReactNode; formState?: ReactFormState };
-/** A server action's Flight decodes to it; `root` is the page, after rerender(), with the browser's new pageContext values */
-export type ActionPayload = { returnValue: unknown } & ({} | { root: ReactNode; passedToClient: PassedToClient });
-/** pageContext values for the browser, serialized as Vike serializes them for a navigation, the key of every passToClient value, and the page's head settings */
-export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[]; headSettings: HeadSettings };
-/** getRequestContext()'s value. TypeScript doesn't know what a +middleware adds, so it is `unknown` */
-export type RequestContext = Pick<PageContextServer, "headers" | "cookies" | "abortSignal"> & Record<string, unknown>;
-export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
-
-export type ReactOptions = {
-  /**
-   * Options passed to React's `hydrateRoot()`.
-   *
-   * https://react.dev/reference/react-dom/client/hydrateRoot
-   * https://vike.dev/react-setting
-   */
-  hydrateRootOptions?: HydrationOptions;
-  /**
-   * Options passed to React's `createRoot()`.
-   *
-   * https://react.dev/reference/react-dom/client/createRoot
-   * https://vike.dev/react-setting
-   */
-  createRootOptions?: RootOptions;
-  /**
-   * Options for a page whose `+stream` neither enables nor requires streaming (`false`, or not set), which vike-react
-   * renders with React's `renderToString()`. Server components can't render to a string, so these options go to React's
-   * stream render, in place of `renderToStreamOptions`.
-   *
-   * https://react.dev/reference/react-dom/server/renderToString
-   * https://vike.dev/react-setting
-   */
-  renderToStringOptions?: ServerOptions;
-  /**
-   * Options passed to `react-streaming`'s `renderToStream()`, which renders the HTML of a page whose `+stream` enables or
-   * requires streaming.
-   *
-   * https://github.com/brillout/react-streaming#options
-   * https://vike.dev/react-setting
-   */
-  renderToStreamOptions?: RenderToStreamOptions;
-};
-
-/** How the ssr env reaches the rsc env, the only one that can render server components and run server actions */
-export type RscRuntime = typeof import("./rsc/runtime");
-
-type PageHtmlStream = Awaited<ReturnType<typeof renderToStream>>;
-type StreamSetting =
-  | boolean
-  | {
-      /**
-       * Whether Server-Side Rendering (SSR) must use a stream. (Some tool integrations require it.)
-       *
-       * Setting +stream to `{ require: true, enable: false }` means that SSR is done using a stream but, from the user's perspective, HTML Streaming is disabled: the stream is awaited, converted to a string, and the full HTML is sent at once.
-       *
-       * https://vike.dev/stream
-       */
-      require?: boolean;
-      /**
-       * Setting +stream to `{ enable: null }` is the same as not setting +stream at all.
-       *
-       * https://vike.dev/stream
-       */
-      enable?: boolean | null;
-    };
-type RenderHtmlHook = (pageContext: PageContextServer) => void;
-type RenderClientHook = (pageContext: PageContextClient) => void;
-type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
-export type HeadValue = ReactNode | (() => ReactNode);
-type LoadingValue = {
-  /** Shown by Suspense while the page, or a Layout or Wrapper, waits for data */
-  layout?: ComponentType;
-  /** The fallback of a component that rsc() made, until it loads */
-  component?: ComponentType;
-};
-
-// JSDocs are preserved
-type PickWithoutGetter<T, K extends keyof T> = {
-  [P in K]: Exclude<T[P], Function>;
-};
-export type ConfigViaHook = PickWithoutGetter<
-  Vike.Config,
-  "Head" | "title" | "description" | "image" | "favicon" | "lang" | "viewport" | "bodyAttributes" | "htmlAttributes" | "rootAttributes"
->;
-export type ConfigViaHookResolved = Omit<ConfigViaHook, ConfigsCumulative> & Pick<Vike.ConfigResolved, ConfigsCumulative>;
-// Internal pageContext properties
-export type PageContextInternal = {
-  _configViaHook?: ConfigViaHookResolved;
-  _headAlreadySet?: boolean;
-};
+import type { ConfigsCumulative } from "../hooks/useConfig/configsCumulative";
+import type { HtmlInjection, Viewport } from "../integration/onRenderHtml";
+import type { RscRuntime } from "../ssr/bridge";
+import type { TagAttributes } from "../utils/getTagAttributesString";
+import "./PageContext";
 
 declare global {
   namespace Vike {
-    interface PageContext {
-      /** The page's Flight: inlined in the HTML, or streamed in the pageContext a navigation fetches. For a page that renders as in vike-react, only useActionState()'s state after a form submitted before hydration. */
-      rscPayload?: ReadableStream<Uint8Array>;
-      /** On the server, while it answers a server action */
-      rscAction?: ActionCall;
-    }
-
-    interface PageContextServer {
-      /** The request's cookies: `get()`, `getAll()` and `has()`, and `set()` and `delete()`, which add a `Set-Cookie` header to the response. Not yet in your own `+onCreatePageContext`, which runs before vike-react-rsc's. */
-      cookies: Cookies;
-      /** The root React element of the page. */
-      page?: JSX.Element;
-      /** The +Page.jsx component rendered to the HTML string, as from vike-react's renderToString(), on a page whose `+stream` neither enables nor requires streaming. +onAfterRenderHtml can replace it. */
-      pageHtmlString?: string;
-      /** The +Page.jsx component rendered to an HTML stream. +onAfterRenderHtml can replace it. */
-      pageHtmlStream?: PageHtmlStream;
-    }
-
-    interface PageContextClient {
-      /** The root React element of the page */
-      page?: ReactNode;
-      /** The React root DOM container */
-      root?: ReactRoot;
-    }
-
     interface Config {
       /** The page's component: a server component, or a client component. @see https://vike.dev/Page */
       Page?: (() => ReactNode | Promise<ReactNode>) | ImportString;
@@ -365,3 +247,76 @@ declare global {
 // - https://stackoverflow.com/questions/46559021/typescript-use-of-global-type-inside-namespace-with-same-type
 // - https://github.com/Microsoft/TypeScript/issues/983
 type PageContext_ = PageContext;
+
+type StreamSetting =
+  | boolean
+  | {
+      /**
+       * Whether Server-Side Rendering (SSR) must use a stream. (Some tool integrations require it.)
+       *
+       * Setting +stream to `{ require: true, enable: false }` means that SSR is done using a stream but, from the user's perspective, HTML Streaming is disabled: the stream is awaited, converted to a string, and the full HTML is sent at once.
+       *
+       * https://vike.dev/stream
+       */
+      require?: boolean;
+      /**
+       * Setting +stream to `{ enable: null }` is the same as not setting +stream at all.
+       *
+       * https://vike.dev/stream
+       */
+      enable?: boolean | null;
+    };
+type RenderHtmlHook = (pageContext: PageContextServer) => void;
+type RenderClientHook = (pageContext: PageContextClient) => void;
+type WrapperComponent = (props: { children: ReactNode }) => ReactNode | Promise<ReactNode>;
+export type HeadValue = ReactNode | (() => ReactNode);
+type LoadingValue = {
+  /** Shown by Suspense while the page, or a Layout or Wrapper, waits for data */
+  layout?: ComponentType;
+  /** The fallback of a component that rsc() made, until it loads */
+  component?: ComponentType;
+};
+
+// JSDocs are preserved
+type PickWithoutGetter<T, K extends keyof T> = {
+  [P in K]: Exclude<T[P], Function>;
+};
+export type ConfigViaHook = PickWithoutGetter<
+  Vike.Config,
+  "Head" | "title" | "description" | "image" | "favicon" | "lang" | "viewport" | "bodyAttributes" | "htmlAttributes" | "rootAttributes"
+>;
+export type ConfigViaHookResolved = Omit<ConfigViaHook, ConfigsCumulative> & Pick<Vike.ConfigResolved, ConfigsCumulative>;
+
+export type ReactOptions = {
+  /**
+   * Options passed to React's `hydrateRoot()`.
+   *
+   * https://react.dev/reference/react-dom/client/hydrateRoot
+   * https://vike.dev/react-setting
+   */
+  hydrateRootOptions?: HydrationOptions;
+  /**
+   * Options passed to React's `createRoot()`.
+   *
+   * https://react.dev/reference/react-dom/client/createRoot
+   * https://vike.dev/react-setting
+   */
+  createRootOptions?: RootOptions;
+  /**
+   * Options for a page whose `+stream` neither enables nor requires streaming (`false`, or not set), which vike-react
+   * renders with React's `renderToString()`. Server components can't render to a string, so these options go to React's
+   * stream render, in place of `renderToStreamOptions`.
+   *
+   * https://react.dev/reference/react-dom/server/renderToString
+   * https://vike.dev/react-setting
+   */
+  renderToStringOptions?: ServerOptions;
+  /**
+   * Options passed to `react-streaming`'s `renderToStream()`, which renders the HTML of a page whose `+stream` enables or
+   * requires streaming.
+   *
+   * https://github.com/brillout/react-streaming#options
+   * https://vike.dev/react-setting
+   */
+  renderToStreamOptions?: RenderToStreamOptions;
+};

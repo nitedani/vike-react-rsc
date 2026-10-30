@@ -2,7 +2,8 @@ export { getHeadSetting }
 
 import { isCallable } from '../utils/isCallable.js'
 import type { PageContext } from 'vike/types'
-import type { ConfigViaHookResolved, PageContextInternal } from '../types.js'
+import type { PageContextInternal } from '../types/PageContext.js'
+import type { ConfigViaHookResolved } from '../types/Config.js'
 import { configsCumulative } from '../hooks/useConfig/configsCumulative.js'
 import { includes } from '../utils/includes.js'
 

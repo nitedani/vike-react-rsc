@@ -1,10 +1,12 @@
 import { transformModuleExportEffect } from "@vitejs/plugin-rsc/transforms";
 import path from "node:path";
 import type { ESTree, Plugin } from "vite";
-import { resolveForBrowser, setBrowserEnvironment } from "./browserResolver";
+import type { ServerComponentFlags } from "../rendersFlight";
+import { resolveForBrowser } from "./browserResolver";
 import { getComponentConfigs, isClientDefault, resolveComponentConfigs, type Part } from "./componentConfigs";
 import { getDirectives, getFile, getFileName, isAppFile, parse, type Directive } from "./parse";
 import { findServerComponentImport, getModule, invalidateModules, type Context } from "./serverComponentImports";
+import { isPageEntry } from "./vikeParts";
 
 // A client component's import, with the exports Vike reads and the file that imports it, which plugin-rsc's client reference
 // imports in each env
@@ -25,15 +27,12 @@ export function placement(): Plugin {
     name: "vike-react-rsc:placement",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
-    configureServer: (server) => setBrowserEnvironment(server.environments.client!),
-    // Before plugin-rsc's, which builds the envs
-    buildApp: { order: "pre", handler: async (builder) => setBrowserEnvironment(builder.environments.client!) },
     resolveId: {
       // Before plugin-rsc's, which resolves the import with the react-server condition
       order: "pre",
       async handler(source, importer) {
         if (source.startsWith(`\0${CLIENT_IMPORT}`)) return source;
-        if (this.environment.name !== "rsc" || !importer?.startsWith("\0virtual:vike:page-entry:") || !isClientDefault()) return;
+        if (this.environment.name !== "rsc" || !isPageEntry(importer) || !isClientDefault()) return;
         // A client component that the rsc env resolves to another file than the browser: its client reference is the import
         const clientImport = (await resolveComponentConfigs(this)).clientImports.get(source);
         if (!clientImport) return;
@@ -73,7 +72,7 @@ export function placement(): Plugin {
       const file = path.relative(root, getFile(id));
       // For a file that is one because it imports a server component: the files from it to that server component
       const files = serverComponentImport?.map((imported) => getFileName(imported, root));
-      const flags = JSON.stringify({ isServerComponent: true, file, serverComponentImport: files });
+      const flags = JSON.stringify({ isServerComponent: true, file, serverComponentImport: files } satisfies ServerComponentFlags);
       return isRsc ? tagServerComponent(code, program, components, file, flags) : getServerComponentStub(components, flags);
     },
     async hotUpdate({ type, file, read }) {
@@ -118,7 +117,7 @@ async function decideIsServerComponent(
   context: Context
 ): Promise<{ isServerComponent: boolean; serverComponentImport?: string[]; read: Set<string> }> {
   // By its directive, or as the file the env loads for a package's server component
-  if (directives.includes("use server component") || components.some((c) => c.isServerComponentImport)) {
+  if (directives.includes("use server component") || components.some((c) => c.isPackageServerComponent)) {
     return { isServerComponent: true, read: new Set([file]) };
   }
   if (directives.length > 0 || !isClientDefault() || !isAppFile(file)) return { isServerComponent: false, read: new Set([file]) };

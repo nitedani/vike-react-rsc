@@ -6,8 +6,17 @@ import { getAbortDigest } from "../abort";
 import { getClientApiHint } from "../clientApiHint";
 import { getPageElement } from "../integration/getPageElement";
 import { getServerComponentImports } from "../rendersFlight";
-import type { ActionOutcome, ActionPayload, PagePayload, PassedToClient } from "../types";
+import type { HeadSettings } from "../integration/getHeadSettings";
+import "../types/PageContext";
 import { runInScope, type Scope } from "./scope";
+
+/** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */
+export type PagePayload = { root: ReactNode; formState?: ReactFormState };
+/** A server action's Flight decodes to it; `root` is the page, after rerender(), with the browser's new pageContext values */
+export type ActionPayload = { returnValue: unknown } & ({} | { root: ReactNode; passedToClient: PassedToClient });
+/** pageContext values for the browser, serialized as Vike serializes them for a navigation, the key of every passToClient value, and the page's head settings */
+export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[]; headSettings: HeadSettings };
+export type ActionOutcome = { returnValue: unknown; rerender: boolean; isUnknownAction?: boolean };
 
 // Per page render, after a form submitted before hydration
 const formStates = new WeakMap<PageContext, ReactFormState>();

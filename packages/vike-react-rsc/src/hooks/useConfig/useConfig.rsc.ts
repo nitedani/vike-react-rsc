@@ -1,7 +1,8 @@
 // vike-react-rsc/useConfig in the rsc env, e.g. imported by a server component
 import type { PageContextServer } from "vike/types";
 import { readHtmlPageContext } from "../../rsc/scope";
-import type { ConfigViaHook, PageContextInternal } from "../../types";
+import type { ConfigViaHook } from "../../types/Config";
+import type { PageContextInternal } from "../../types/PageContext";
 import { setPageContextConfigViaHook } from "./setPageContextConfigViaHook";
 
 const loggedCallSites = new Set<string | undefined>();

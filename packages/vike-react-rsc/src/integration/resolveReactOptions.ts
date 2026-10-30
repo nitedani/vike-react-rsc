@@ -1,7 +1,7 @@
 export { resolveReactOptions }
 
 import type { PageContext } from 'vike/types'
-import type { ReactOptions } from '../types.js'
+import type { ReactOptions } from '../types/Config.js'
 import { isCallable } from '../utils/isCallable.js'
 import { objectEntries } from '../utils/objectEntries.js'
 

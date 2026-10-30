@@ -1,5 +1,6 @@
 import type { Config } from "vike/types";
-import "./types.js";
+import "./types/Config.js";
+import "./types/PageContext.js";
 import { ssrEffect } from "./integration/ssrEffect";
 import { vikeReactRscPlugins } from "./vite";
 
@@ -16,12 +17,7 @@ const vikeReactRsc: Config = {
   onRenderHtml: "import:vike-react-rsc/__internal/ssr:onRenderHtml",
   onRenderClient: "import:vike-react-rsc/__internal/browser:onRenderClient",
   onError: "import:vike-react-rsc/__internal/onError:onError",
-  // Vike's type doesn't list import strings, which it accepts
-  // TODO: remove the cast once https://github.com/vikejs/vike/pull/3627 is released
-  middleware: [
-    "import:vike-react-rsc/__internal/middleware:actionRedirectMiddleware",
-    "import:vike-react-rsc/__internal/middleware:rscMiddleware",
-  ] as never,
+  middleware: ["import:vike-react-rsc/__internal/middleware:actionRedirectMiddleware", "import:vike-react-rsc/__internal/middleware:rscMiddleware"],
   rscRuntime: "import:vike-react-rsc/__internal/rsc:rscRuntime",
   passToClient: ["rscPayload", "_configViaHook"],
   clientRouting: true,
