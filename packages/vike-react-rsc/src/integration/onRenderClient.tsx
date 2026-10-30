@@ -66,20 +66,23 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
 // Our error callbacks run first, then the user's, as in vike-react
 function withOurErrorCallbacks(options: RootOptions | undefined): Pick<RootOptions, "onCaughtError" | "onUncaughtError"> {
   return {
-    onCaughtError: (error, errorInfo) => onCaughtError(getErrorWithComponentStack(error, errorInfo), errorInfo, options?.onCaughtError),
+    onCaughtError: (errorOriginal, errorInfo) => {
+      const { error, componentStackToLog } = getErrorWithComponentStack(errorOriginal, errorInfo);
+      onCaughtError(error, componentStackToLog, errorInfo, options?.onCaughtError);
+    },
     onUncaughtError: (errorOriginal, errorInfo) => {
-      const errorEnhanced = getErrorWithComponentStack(errorOriginal, errorInfo);
-      onUncaughtError(errorEnhanced);
+      const { error: errorEnhanced, componentStackToLog } = getErrorWithComponentStack(errorOriginal, errorInfo);
+      onUncaughtError(errorEnhanced, componentStackToLog);
       options?.onUncaughtError?.(errorEnhanced, errorInfo);
     },
   };
 }
 type OnUncaughtErrorInfo = Parameters<NonNullable<RootOptions["onUncaughtError"]>>[1];
 
-// Inject componentStack to the error's stack trace
+// Inject componentStack to the error's stack trace, or else return it as componentStackToLog, to log beside the error
 // - Server counterpart: https://github.com/brillout/react-streaming/blob/e0a6210957e65dad2c92877ad075ebac4713d8fa/src/server/renderToStream/common.ts#L93
-function getErrorWithComponentStack(errorOriginal: unknown, errorInfo?: OnUncaughtErrorInfo) {
-  if (!errorInfo?.componentStack || !isObject(errorOriginal) || typeof errorOriginal.stack !== "string") return errorOriginal;
+function getErrorWithComponentStack(errorOriginal: unknown, errorInfo?: OnUncaughtErrorInfo): { error: unknown; componentStackToLog?: string } {
+  if (!errorInfo?.componentStack || !isObject(errorOriginal) || typeof errorOriginal.stack !== "string") return { error: errorOriginal };
   const errorStackLines = String(errorOriginal.stack).split("\n");
 
   // Inject the component stack right before the React stack trace (potentially *after* some vike-react-rsc or react-streaming strack trace, e.g. if react-streaming's useAsync() throws an error).
@@ -104,8 +107,13 @@ function getErrorWithComponentStack(errorOriginal: unknown, errorInfo?: OnUncaug
     ...errorStackLinesEnd,
   ].join("\n");
 
-  const errorBetter = getBetterErrorLight(errorOriginal, { stack: stackEnhanced });
-  return errorBetter;
+  try {
+    const errorBetter = getBetterErrorLight(errorOriginal, { stack: stackEnhanced });
+    return { error: errorBetter };
+  } catch {
+    // A stack that can't be set, e.g. a getter's
+    return { error: errorOriginal, componentStackToLog: errorInfo.componentStack };
+  }
 }
 
 async function getPagePayload(pageContext: PageContextClient): Promise<PagePayload> {
