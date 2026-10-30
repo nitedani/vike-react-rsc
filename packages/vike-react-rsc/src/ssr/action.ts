@@ -49,15 +49,9 @@ export class ActionCall {
     return this.id === undefined;
   }
 
-  /** Called by JavaScript: the answer is Flight, which renderAnswer() renders, but a redirect or an unknown action is
-   * answered by a header alone */
-  get answersWithFlight(): boolean {
-    return !this.isForm;
-  }
-
   /** Without rerender(), a plain action's answer is its return value alone, which reads nothing guard() and data() provide */
   get skipsGuardAndData(): boolean {
-    return !!this.outcome && this.answersWithFlight && !this.isRscLoad && !this.outcome.rerender;
+    return !!this.outcome && !this.isForm && !this.isRscLoad && !this.outcome.rerender;
   }
 
   /** The answer for the page Vike rendered: the return value, and the page after rerender() */
