@@ -586,7 +586,7 @@ function testReactStrictMode() {
 }
 
 function testErrorComponentStack() {
-  test("components: 'client': the stack of an error a client component throws has its component stack, before React's frames, as in vike-react", async () => {
+  test("components: 'client': the stack of an error a client component throws has its component stack, as in vike-react", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration("#counter");
     await clickLink("/throws");
