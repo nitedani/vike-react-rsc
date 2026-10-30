@@ -44,9 +44,9 @@ export function onCaughtError(error: unknown, errorInfo: CaughtErrorInfo, userOn
     const abort = getAbort(error);
     if (abort && "redirect" in abort) {
       const hint = "[vike-react-rsc] An error boundary caught a throw redirect(), so the browser stays on the page: throw it outside that boundary, or in guard() or data()";
-      unlessHtmlRedirects(() => console.error(hint, error, errorInfo.componentStack));
+      unlessHtmlRedirects(() => console.error(hint, error));
     } else if (!userOnCaughtError) {
-      console.error(error, errorInfo.componentStack);
+      console.error(error);
     }
   }
   userOnCaughtError?.(error, errorInfo);

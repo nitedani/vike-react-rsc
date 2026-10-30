@@ -10,6 +10,8 @@ import { findServerComponent } from "../rendersFlight";
 import type { PagePayload } from "../rsc/runtime";
 import type { PageContextInternal } from "../types/PageContext";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
+import { getBetterErrorLight } from "../utils/getBetterErrorLight";
+import { isObject } from "../utils/isObject";
 import { getHeadSettings } from "./getHeadSettings";
 import { getPageElement } from "./getPageElement";
 import { resolveReactOptions } from "./resolveReactOptions";
@@ -64,12 +66,45 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
 // Our error callbacks run first, then the user's, as in vike-react
 function withOurErrorCallbacks(options: RootOptions | undefined): Pick<RootOptions, "onCaughtError" | "onUncaughtError"> {
   return {
-    onCaughtError: (error, errorInfo) => onCaughtError(error, errorInfo, options?.onCaughtError),
-    onUncaughtError: (error, errorInfo) => {
-      onUncaughtError(error, errorInfo);
-      options?.onUncaughtError?.(error, errorInfo);
+    onCaughtError: (error, errorInfo) => onCaughtError(getErrorWithComponentStack(error, errorInfo), errorInfo, options?.onCaughtError),
+    onUncaughtError: (errorOriginal, errorInfo) => {
+      const errorEnhanced = getErrorWithComponentStack(errorOriginal, errorInfo);
+      onUncaughtError(errorEnhanced);
+      options?.onUncaughtError?.(errorEnhanced, errorInfo);
     },
   };
+}
+type OnUncaughtErrorInfo = Parameters<NonNullable<RootOptions["onUncaughtError"]>>[1];
+
+// Inject componentStack to the error's stack trace
+// - Server counterpart: https://github.com/brillout/react-streaming/blob/e0a6210957e65dad2c92877ad075ebac4713d8fa/src/server/renderToStream/common.ts#L93
+function getErrorWithComponentStack(errorOriginal: unknown, errorInfo?: OnUncaughtErrorInfo) {
+  if (!errorInfo?.componentStack || !isObject(errorOriginal)) return errorOriginal;
+  const errorStackLines = String(errorOriginal.stack).split("\n");
+
+  // Inject the component stack right before the React stack trace (potentially *after* some vike-react-rsc or react-streaming strack trace, e.g. if react-streaming's useAsync() throws an error).
+  // Perfect cutoff (as of react@19.2.0), but can easily break upon React internal refactoring
+  let cutoff = errorStackLines.findIndex((l) => l.includes("react_stack_bottom_frame"));
+  if (cutoff === -1) {
+    // Ideally, we should inject the component stack right before the React stack trace, and *after* any vike-react-rsc or react-streaming strack trace.
+    // But we cannot (easily) do that on the client-side, because the URLs of vike-react-rsc's and react-streaming's files also include node_modules and react
+    cutoff = errorStackLines.findIndex((l) => l.includes("node_modules") && l.includes("react"));
+  }
+  if (cutoff === -1) return errorOriginal;
+
+  const errorStackLinesBegin = errorStackLines.slice(0, cutoff);
+  const errorStackLinesEnd = errorStackLines.slice(cutoff);
+  const componentStackLines = errorInfo.componentStack.split("\n").filter(Boolean);
+  if (componentStackLines[0] === errorStackLinesBegin.at(-1)) componentStackLines.shift();
+  const stackEnhanced = [
+    //
+    ...errorStackLinesBegin,
+    ...componentStackLines,
+    ...errorStackLinesEnd,
+  ].join("\n");
+
+  const errorBetter = getBetterErrorLight(errorOriginal, { stack: stackEnhanced });
+  return errorBetter;
 }
 
 async function getPagePayload(pageContext: PageContextClient): Promise<PagePayload> {
