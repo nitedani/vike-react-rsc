@@ -39,13 +39,11 @@ export async function renderRootToHtml(
   try {
     const { page } = pageContext;
     if (page) {
-      if (rendersToString && pageContext.isPrerendering) {
-        pageContext.pageHtmlString = await renderWhole(page, streamOptions, onAbort);
-      } else if (rendersToString) {
+      if (rendersToString) {
         // Rendered whole, as vike-react's renderToString() renders it, for a crawler too. As on a page that streams, the
-        // render stops once the client leaves, or after react-streaming's default timeout.
-        const render = getRenderSignal(htmlRender.signal);
-        pageContext.pageHtmlString = await renderWhole(page, { ...streamOptions, signal: render.signal }, onAbort).finally(render.clear);
+        // render stops once the client leaves, or after react-streaming's default timeout, unless it is pre-rendered.
+        const render = pageContext.isPrerendering ? undefined : getRenderSignal(htmlRender.signal);
+        pageContext.pageHtmlString = await renderWhole(page, { ...streamOptions, signal: render?.signal }, onAbort).finally(render?.clear);
         htmlRender.abort();
       } else {
         const stream = await renderToStream(page, {
