@@ -95,7 +95,7 @@ function getErrorWithComponentStack(errorOriginal: unknown, errorInfo?: OnUncaug
     // But we cannot (easily) do that on the client-side, because the URLs of vike-react-rsc's and react-streaming's files also include node_modules and react
     cutoff = errorStackLines.findIndex((l) => l.includes("node_modules") && l.includes("react"));
   }
-  // A production build has neither: the component stack goes at the end
+  // Neither cutoff found (e.g. in a production build): the component stack goes at the end
   if (cutoff === -1) cutoff = errorStackLines.length;
 
   const errorStackLinesBegin = errorStackLines.slice(0, cutoff);
