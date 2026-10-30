@@ -7,6 +7,7 @@ import { getClientApiHint } from "../clientApiHint";
 import { getPageElement } from "../integration/getPageElement";
 import { getServerComponentImports } from "../rendersFlight";
 import type { HeadSettings } from "../integration/getHeadSettings";
+import "../types/PageContext";
 import { runInScope, type Scope } from "./scope";
 
 /** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */

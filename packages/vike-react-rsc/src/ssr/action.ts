@@ -6,6 +6,7 @@ import type { PageContextServer } from "vike/types";
 import { getHeadSettings } from "../integration/getHeadSettings";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import type { ActionOutcome, PassedToClient } from "../rsc/runtime";
+import "../types/PageContext";
 import { getRsc } from "./bridge";
 
 /** One action request, across Vike's phases: it runs in onCreatePageContext, and holds its answer until Vike's response is

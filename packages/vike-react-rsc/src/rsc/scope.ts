@@ -3,6 +3,7 @@ import type { PageContext, PageContextServer } from "vike/types";
 import { noRequestContext, notInServerAction } from "../errors";
 import { getForkedPageContext } from "../forkPageContext";
 import { getShared } from "../shared";
+import "../types/PageContext";
 import type { ActionOutcome } from "./runtime";
 
 // React and user code call server components and server actions without a pageContext argument, so they find their

@@ -7,6 +7,7 @@ import type { ConfigsCumulative } from "../hooks/useConfig/configsCumulative";
 import type { HtmlInjection, Viewport } from "../integration/onRenderHtml";
 import type { RscRuntime } from "../ssr/bridge";
 import type { TagAttributes } from "../utils/getTagAttributesString";
+import "./PageContext";
 
 declare global {
   namespace Vike {
