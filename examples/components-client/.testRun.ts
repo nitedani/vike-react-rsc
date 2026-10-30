@@ -275,6 +275,10 @@ function testVikeReactRendering() {
     expect(await fetchHtml("/render-html")).to.include('<meta name="store-greeting" content="A store +onBeforeRenderHtml created"/>');
   });
 
+  test("components: 'client': a React.memo +Head renders as a component, as in vike-react", async () => {
+    expect(await fetchHtml("/head-memo")).to.include('<meta name="memo-head" content="/head-memo"/>');
+  });
+
   test("components: 'client': +onBeforeRenderHtml gets pageContext.page and can replace it, e.g. to wrap it, as in vike-react", async () => {
     expect(await fetchHtml("/wrap-page")).to.match(/<section id="wrapper">.*<p id="wrapped-child">.*<\/section>/s);
   });

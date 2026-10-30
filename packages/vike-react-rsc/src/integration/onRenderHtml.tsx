@@ -13,6 +13,7 @@ import type { PageContextInternal } from "../types/PageContext";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
 import { getTagAttributesString, type TagAttributes } from "../utils/getTagAttributesString";
 import { includes } from "../utils/includes";
+import { isReactElement } from "../utils/isReactElement";
 import { objectKeys } from "../utils/objectKeys";
 import { getHeadSetting } from "./getHeadSetting";
 import { getPageElement } from "./getPageElement";
@@ -155,7 +156,7 @@ function getHeadHtml(pageContext: PageContextServer & PageContextInternal) {
 }
 function getHeadElementHtml(Head: NonNullable<HeadValue>, pageContext: PageContextServer): string {
   return renderToStaticMarkup(
-    <PageContextProvider pageContext={pageContext}>{typeof Head === "function" ? <Head /> : Head}</PageContextProvider>
+    <PageContextProvider pageContext={pageContext}>{isReactElement(Head) ? Head : <Head />}</PageContextProvider>
   );
 }
 
