@@ -1,1 +1,1 @@
-export { onRenderClient } from "../browser/onRenderClient";
+export { onRenderClient } from "../integration/onRenderClient";
