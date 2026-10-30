@@ -82,7 +82,9 @@ type OnUncaughtErrorInfo = Parameters<NonNullable<RootOptions["onUncaughtError"]
 // Inject componentStack to the error's stack trace, or else return it as componentStackToLog, to log beside the error
 // - Server counterpart: https://github.com/brillout/react-streaming/blob/e0a6210957e65dad2c92877ad075ebac4713d8fa/src/server/renderToStream/common.ts#L93
 function getErrorWithComponentStack(errorOriginal: unknown, errorInfo?: OnUncaughtErrorInfo): { error: unknown; componentStackToLog?: string } {
-  if (!errorInfo?.componentStack || !isObject(errorOriginal) || typeof errorOriginal.stack !== "string") return { error: errorOriginal };
+  if (!errorInfo?.componentStack) return { error: errorOriginal };
+  // A thrown value without a stack, e.g. a string
+  if (!isObject(errorOriginal) || typeof errorOriginal.stack !== "string") return { error: errorOriginal, componentStackToLog: errorInfo.componentStack };
   const errorStackLines = String(errorOriginal.stack).split("\n");
 
   // Inject the component stack right before the React stack trace (potentially *after* some vike-react-rsc or react-streaming strack trace, e.g. if react-streaming's useAsync() throws an error).
