@@ -7,6 +7,7 @@ import type { PageContextServer } from "vike/types";
 import { getAbort, toVikeAbort, type Abort } from "../abort";
 import type { StreamSetting } from "../integration/onRenderHtml";
 import { resolveReactOptions } from "../integration/resolveReactOptions";
+import { REDIRECT_META_ATTRIBUTE } from "../protocol";
 import { getRedirectUrl } from "../redirect";
 import type { ClientDeps } from "./clientDeps";
 
@@ -154,7 +155,7 @@ function renderAbortMeta(abort: Abort) {
       <meta name="robots" content="noindex" />
       {/* A path keeps the page's own scheme, so any http(s) base tells the same */}
       {"redirect" in abort && getRedirectUrl(abort.redirect.url, "http://localhost") && (
-        <meta httpEquiv="refresh" content={`0;url=${abort.redirect.url}`} data-vike-react-rsc-redirect="" />
+        <meta httpEquiv="refresh" content={`0;url=${abort.redirect.url}`} {...{ [REDIRECT_META_ATTRIBUTE]: "" }} />
       )}
     </>
   );
