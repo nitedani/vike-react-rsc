@@ -23,7 +23,7 @@ addEcosystemStamp();
 export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
   // A server action: the answer is Flight, and the middleware (ssr/action.ts) sends it
   const call = pageContext.rscAction;
-  if (call?.answersWithFlight) {
+  if (call && !call.isForm) {
     pageContext.content = call.renderAnswer(pageContext);
     pageContext.headersResponse.set("content-type", FLIGHT_CONTENT_TYPE);
     return;
