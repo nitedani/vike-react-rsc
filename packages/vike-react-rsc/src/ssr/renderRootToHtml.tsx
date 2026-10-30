@@ -8,7 +8,7 @@ import { getAbort, toVikeAbort, type Abort } from "../abort";
 import type { StreamSetting } from "../integration/onRenderHtml";
 import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { REDIRECT_META_ATTRIBUTE } from "../protocol";
-import { getRedirectUrl } from "../redirect";
+import { isHttpUrl } from "../redirect";
 import type { ClientDeps } from "./clientDeps";
 
 // Renders pageContext.page, which +onBeforeRenderHtml may have replaced, to pageContext.pageHtmlString or pageHtmlStream
@@ -151,8 +151,7 @@ function renderAbortMeta(abort: Abort) {
   return renderToStaticMarkup(
     <>
       <meta name="robots" content="noindex" />
-      {/* A path keeps the page's own scheme, so any http(s) base tells the same */}
-      {"redirect" in abort && getRedirectUrl(abort.redirect.url, "http://localhost") && (
+      {"redirect" in abort && isHttpUrl(abort.redirect.url) && (
         <meta httpEquiv="refresh" content={`0;url=${abort.redirect.url}`} {...{ [REDIRECT_META_ATTRIBUTE]: "" }} />
       )}
     </>
