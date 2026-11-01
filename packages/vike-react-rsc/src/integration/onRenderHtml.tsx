@@ -195,8 +195,8 @@ function getViewportTag(viewport: Viewport | undefined): string {
   return "";
 }
 
-// As in vike-react. With this flag, react-streaming's and Vike's errors tell the user to set +stream rather than to
-// install react-streaming.
+// As in vike-react. With this flag, react-streaming's errors tell the user to set +stream, and Vike's to update
+// vike-react, rather than to install or update react-streaming.
 function addEcosystemStamp() {
   const g = globalThis as Record<string, unknown>;
   g._isVikeReactApp = {};
