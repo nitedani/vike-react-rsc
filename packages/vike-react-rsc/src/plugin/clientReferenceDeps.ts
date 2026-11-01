@@ -10,26 +10,27 @@ const HOLD = "virtual:vike-react-rsc/first-render";
 export function clientReferenceDeps(): Plugin {
   let client: DevEnvironment;
   // One per server: on a restart, Vite creates the new server before it closes the old one
-  const firstRenders = new WeakMap<Environment, PromiseWithResolvers<void>>();
+  const firstRenders = new WeakMap<Environment, Promise<void>>();
   return {
     name: "vike-react-rsc:client-reference-deps",
     apply: "serve",
     configureServer(server) {
       client = server.environments.client!;
-      const firstRender = Promise.withResolvers<void>();
+      let resolveFirstRender!: () => void;
+      const firstRender = new Promise<void>((resolve) => (resolveFirstRender = resolve));
       firstRenders.set(client, firstRender);
       // At the front: a middleware added before it, e.g. @hono/vite-dev-server's, may answer the page without calling next()
       server.middlewares.stack.unshift({
         route: "",
         handle: ((req, res, next) => {
-          if (req.headers.accept?.includes("text/html")) res.once("close", firstRender.resolve);
+          if (req.headers.accept?.includes("text/html")) res.once("close", resolveFirstRender);
           next();
         }) satisfies Connect.NextHandleFunction,
       });
       // Vite's close() waits for the client env's pending requests, which wait for the first batch, and cancels that batch
       const close = server.close;
       server.close = async () => {
-        firstRender.resolve();
+        resolveFirstRender();
         await server.environments.client!.waitForRequestsIdle();
         return close();
       };
@@ -43,7 +44,7 @@ export function clientReferenceDeps(): Plugin {
     },
     async load(id) {
       if (id !== `\0${HOLD}`) return;
-      await firstRenders.get(this.environment)?.promise;
+      await firstRenders.get(this.environment);
       return "export {}";
     },
     transform: {
