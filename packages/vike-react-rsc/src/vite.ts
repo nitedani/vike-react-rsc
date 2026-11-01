@@ -1,7 +1,7 @@
 import rsc from "@vitejs/plugin-rsc";
 import path from "node:path";
 import { normalizePath, type Plugin } from "vite";
-import { resolveForBrowser, setBrowserEnvironment } from "./plugin/browserResolver";
+import { setBrowserEnvironment } from "./plugin/browserResolver";
 import { findClientReferences } from "./plugin/clientReferences";
 import { isClientDefault } from "./plugin/componentConfigs";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
@@ -35,7 +35,7 @@ export function vikeReactRscPlugins(): Plugin[] {
         // before the optimizer starts: else Vite pre-bundles it late and reloads the page, with "Invalid hook call" until then
         const { root, build } = server.config;
         const { optimizeDeps } = client.config;
-        const { files, packageImports } = await findClientReferences(root, path.resolve(root, build.outDir), client.config, resolveForBrowser);
+        const { files, packageImports } = await findClientReferences(server.environments.rsc!, path.resolve(root, build.outDir));
         // Vite reads each entry as a glob, so a path's glob characters, as in a route group's (marketing), are escaped
         optimizeDeps.entries = [...[optimizeDeps.entries ?? []].flat(), ...files.map((file) => normalizePath(file).replace(/[()[\]{}*?|]/g, "\\$&"))];
         // Vite pre-bundles what include lists even when exclude lists it or its package
