@@ -1,6 +1,5 @@
 import { getPluginApi, type RscPluginManager } from "@vitejs/plugin-rsc";
 import type { Connect, DevEnvironment, Environment, Plugin } from "vite";
-import { getFile } from "./parse";
 
 const HOLD = "virtual:vike-react-rsc/first-render";
 
@@ -11,6 +10,7 @@ const HOLD = "virtual:vike-react-rsc/first-render";
 export function clientReferenceDeps(): Plugin {
   let client: DevEnvironment;
   let manager: RscPluginManager;
+  let warmed: Set<string>;
   // One per server: on a restart, Vite creates the new server before it closes the old one
   const firstRenders = new WeakMap<Environment, Promise<void>>();
   return {
@@ -19,6 +19,7 @@ export function clientReferenceDeps(): Plugin {
     configureServer(server) {
       const env = (client = server.environments.client!);
       manager = getPluginApi(server.config)!.manager;
+      warmed = new Set();
       let resolveFirstRender!: () => void;
       const firstRender = new Promise<void>((resolve) => (resolveFirstRender = resolve));
       firstRenders.set(env, firstRender);
@@ -52,11 +53,15 @@ export function clientReferenceDeps(): Plugin {
     },
     transform: {
       order: "post",
-      handler(_code, id) {
+      handler() {
         if (this.environment.name !== "rsc") return;
-        const meta = manager.clientReferenceMetaMap[getFile(id)];
-        // The browser's URL, unwrapped as Vite's middleware does before it transforms it
-        if (meta) void client.warmupRequest(meta.importId.replace(/^\/@id\/(__x00__)?/, (_, nul) => (nul ? "\0" : "")));
+        // Every client reference recorded so far: plugin-rsc keys some by their id with its query, some without
+        for (const { importId } of Object.values(manager.clientReferenceMetaMap)) {
+          if (warmed.has(importId)) continue;
+          warmed.add(importId);
+          // The browser's URL, unwrapped as Vite's middleware does before it transforms it
+          void client.warmupRequest(importId.replace(/^\/@id\/(__x00__)?/, (_, nul) => (nul ? "\0" : "")));
+        }
       },
     },
   };
