@@ -15,7 +15,7 @@ export function vikeReactRscPlugins(): Plugin[] {
       enforce: "pre",
       config: ({ build }) => ({
         environments: {
-          // These packages are served unbundled: a linked copy, pre-bundled, would load the page store and rsc()'s cache twice
+          // These packages are served unbundled: a linked copy's client references, e.g. LoadingBoundary, load unbundled anyway, and React remounts the Layout inside a second copy of one
           client: { optimizeDeps: { exclude: ["vike-react-rsc", "vike-react"] } },
           // Vike deploys dist/server, rsc included
           rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
