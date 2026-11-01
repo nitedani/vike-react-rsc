@@ -8,8 +8,8 @@ import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowse
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
 import { placement } from "./plugin/placement";
 
-// The scan doesn't reach vike-react-rsc's own "use client" files, or its vike-react alias's, so Vite serves these packages
-// unbundled. A linked copy would also load the page store and rsc()'s cache twice
+// These packages are served unbundled: the scan doesn't reach vike-react-rsc's own "use client" files, or its vike-react
+// alias's, so Vite would pre-bundle them late and reload the page. A linked copy would also load the page store and rsc()'s cache twice
 const exclude = ["vike-react-rsc", "vike-react"];
 
 export function vikeReactRscPlugins(): Plugin[] {
