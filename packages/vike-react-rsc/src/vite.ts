@@ -17,8 +17,7 @@ export function vikeReactRscPlugins(): Plugin[] {
       config: async (config, { command, isPreview }) => {
         const root = path.resolve(config.root ?? "");
         const outDir = config.build?.outDir ?? "dist";
-        // Only server components import a "use client" file, so Vite's scan starts from the app's ones too: else Vite would pre-bundle
-        // what they import when the browser first loads them, then reload the page, with "Invalid hook call" until the reload
+        // Vike's client entries don't reach "use client" files that only server components import, so the scan also starts from the app's ones: else Vite pre-bundles their imports late and reloads the page, with "Invalid hook call" until then
         const files = command === "serve" && !isPreview ? await findClientComponentFiles(root, path.resolve(root, outDir)) : [];
         // Vite reads each entry as a glob, so a path's glob characters, as in a route group's (marketing), are escaped
         const entries = files.map((file) => normalizePath(file).replace(/[()[\]{}*?|]/g, "\\$&"));
