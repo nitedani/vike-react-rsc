@@ -15,8 +15,7 @@ export function vikeReactRscPlugins(): Plugin[] {
       enforce: "pre",
       config: ({ build }) => ({
         environments: {
-          // These packages are served unbundled: the scan doesn't reach vike-react-rsc's own "use client" files, or its vike-react
-          // alias's, so Vite would pre-bundle them late and reload the page. A linked copy would also load the page store and rsc()'s cache twice
+          // These packages are served unbundled: a linked copy, pre-bundled, would load the page store and rsc()'s cache twice
           client: { optimizeDeps: { exclude: ["vike-react-rsc", "vike-react"] } },
           // Vike deploys dist/server, rsc included
           rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
