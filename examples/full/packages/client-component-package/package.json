@@ -1,0 +1,15 @@
+{
+  "name": "client-component-package",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./ClientCounter": {
+      "types": "./ClientCounter.d.ts",
+      "default": "./ClientCounter.js"
+    }
+  },
+  "peerDependencies": {
+    "react": "*"
+  }
+}

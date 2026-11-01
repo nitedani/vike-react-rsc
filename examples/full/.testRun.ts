@@ -1283,15 +1283,18 @@ function testConfigFirstRender() {
 }
 
 function testFirstDevLoad() {
-  test('Dev: on a cold Vite cache, a page whose "use client" file imports react-streaming loads once', async () => {
+  test('Dev: on a cold Vite cache, a page loads once whose "use client" files import react-streaming or come from an installed package', async () => {
     let loads = 0;
     const countLoad = () => loads++;
     page.on("load", countLoad);
+    // Its client-component-package is installed as a copy, as from npm, so plugin-rsc imports its client reference by package name
     await page.goto(getServerUrl() + "/use-stream");
     // Vite reloads the page right after it writes a dependency it pre-bundles only once the browser requests it, within a second
     const depsMetadata = new URL("./node_modules/.vite/deps/_metadata.json", import.meta.url);
     await autoRetry(async () => {
-      expect(readFileSync(depsMetadata, "utf8")).to.include('"react-streaming"');
+      const metadata = readFileSync(depsMetadata, "utf8");
+      expect(metadata).to.include('"react-streaming"');
+      expect(metadata).to.include('"client-component-package/ClientCounter"');
     });
     await sleep(1000);
     page.off("load", countLoad);
