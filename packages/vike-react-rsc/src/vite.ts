@@ -1,8 +1,7 @@
 import rsc from "@vitejs/plugin-rsc";
-import path from "node:path";
-import { normalizePath, type Plugin } from "vite";
+import type { Plugin } from "vite";
 import { setBrowserEnvironment } from "./plugin/browserResolver";
-import { findClientReferences } from "./plugin/clientReferences";
+import { clientReferenceDeps } from "./plugin/clientReferenceDeps";
 import { isClientDefault } from "./plugin/componentConfigs";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
@@ -27,32 +26,16 @@ export function vikeReactRscPlugins(): Plugin[] {
       configEnvironment: (name, _config, { command }) => {
         if (name === "client") return { define: { __VIKE_REACT_RSC_CLIENT_DEFAULT__: String(command === "serve" || isClientDefault()) } };
       },
-      configureServer: async (server) => {
-        const client = server.environments.client!;
-        // The plugins below resolve imports as the browser does
-        setBrowserEnvironment(client);
-        // Vike's client entries don't reach what the browser loads through server components' client references, so it is added
-        // before the optimizer starts: else Vite pre-bundles it late and reloads the page, with "Invalid hook call" until then
-        const { root, build } = server.config;
-        const { optimizeDeps } = client.config;
-        const { files, packageImports } = await findClientReferences(server.environments.rsc!, path.resolve(root, build.outDir));
-        // Vite reads each entry as a glob, so a path's glob characters, as in a route group's (marketing), are escaped
-        optimizeDeps.entries = [...[optimizeDeps.entries ?? []].flat(), ...files.map((file) => normalizePath(file).replace(/[()[\]{}*?|]/g, "\\$&"))];
-        // Vite pre-bundles what include lists even when exclude lists it or its package
-        const isExcluded = (source: string) => [source, getPackageName(source)].some((id) => optimizeDeps.exclude?.includes(id));
-        optimizeDeps.include = [...(optimizeDeps.include ?? []), ...packageImports.filter((source) => !isExcluded(source))];
-      },
+      // The plugins below resolve imports as the browser does
+      configureServer: (server) => setBrowserEnvironment(server.environments.client!),
       // Before plugin-rsc's, which builds the envs
       buildApp: { order: "pre", handler: async (builder) => setBrowserEnvironment(builder.environments.client!) },
     },
+    clientReferenceDeps(),
     noServerFunctionComponents(),
     noServerComponentsInBrowser(),
     placement(),
     // Vike handles the requests and the client entry
     ...rsc({ serverHandler: false, customClientEntry: true }),
   ];
-}
-
-function getPackageName(source: string): string {
-  return source.split("/").slice(0, source.startsWith("@") ? 2 : 1).join("/");
 }
