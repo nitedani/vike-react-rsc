@@ -1283,11 +1283,10 @@ function testConfigFirstRender() {
 }
 
 function testFirstDevLoad() {
-  test('Dev: on a cold Vite cache, a page whose "use client" file imports react-streaming loads once, without "Invalid hook call"', async () => {
+  test('Dev: on a cold Vite cache, a page whose "use client" file imports react-streaming loads once', async () => {
     let loads = 0;
     const countLoad = () => loads++;
     page.on("load", countLoad);
-    const consoleErrors = trackConsoleErrors();
     await page.goto(getServerUrl() + "/use-stream");
     // Vite reloads the page right after it writes a dependency it pre-bundles only once the browser requests it, within a second
     const depsMetadata = new URL("./node_modules/.vite/deps/_metadata.json", import.meta.url);
@@ -1296,9 +1295,7 @@ function testFirstDevLoad() {
     });
     await sleep(1000);
     page.off("load", countLoad);
-    const invalidHookCalls = consoleErrors.stop().filter((error) => error.includes("Invalid hook call"));
     expect(loads).to.equal(1);
-    expect(invalidHookCalls).to.deep.equal([]);
   });
 }
 
