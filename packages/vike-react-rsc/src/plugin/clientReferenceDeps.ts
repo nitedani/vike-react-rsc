@@ -1,5 +1,5 @@
 import { getPluginApi } from "@vitejs/plugin-rsc";
-import type { DevEnvironment, Environment, Plugin } from "vite";
+import type { Connect, DevEnvironment, Environment, Plugin } from "vite";
 
 const HOLD = "virtual:vike-react-rsc/first-render";
 
@@ -18,9 +18,13 @@ export function clientReferenceDeps(): Plugin {
       client = server.environments.client!;
       const firstRender = Promise.withResolvers<void>();
       firstRenders.set(client, firstRender);
-      server.middlewares.use((req, res, next) => {
-        if (req.headers.accept?.includes("text/html")) res.once("close", firstRender.resolve);
-        next();
+      // At the front: a middleware added before it, e.g. @hono/vite-dev-server's, may answer the page without calling next()
+      server.middlewares.stack.unshift({
+        route: "",
+        handle: ((req, res, next) => {
+          if (req.headers.accept?.includes("text/html")) res.once("close", firstRender.resolve);
+          next();
+        }) satisfies Connect.NextHandleFunction,
       });
       // Vite's close() waits for the client env's pending requests, which wait for the first batch, and cancels that batch
       const close = server.close;
