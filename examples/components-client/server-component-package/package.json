@@ -7,6 +7,10 @@
     "./ServerBadge": {
       "types": "./ServerBadge.d.ts",
       "default": "./ServerBadge.js"
+    },
+    "./ClientCounter": {
+      "types": "./ClientCounter.d.ts",
+      "default": "./ClientCounter.js"
     }
   },
   "peerDependencies": {
