@@ -9,8 +9,9 @@ import { getDirectives, getImportSources, isModuleFile, parseCompiled, startsWit
  * starts with `"use client"`, the same file as from the app's root */
 export async function findClientReferences(rsc: Environment, outDir: string): Promise<{ files: string[]; packageImports: string[] }> {
   const { root } = rsc.config;
-  const resolveId = createIdResolver(rsc.getTopLevelConfig());
-  const resolve = (source: string, importer: string) => resolveId(rsc, source, importer).catch(() => undefined);
+  const resolve = createResolver(rsc);
+  const clientFiles = new Map<string, Promise<boolean>>();
+  const isClientFile = (file: string) => clientFiles.get(file) ?? clientFiles.set(file, isPackageClientFile(file)).get(file)!;
   const modules = await readAppModules(root, outDir, rsc.config);
   const files = modules.flatMap(({ file, directives }) => (directives.includes("use client") ? [file] : []));
   const read = new Set(modules.map(({ file }) => file));
@@ -25,7 +26,7 @@ export async function findClientReferences(rsc: Environment, outDir: string): Pr
         if (!resolved || !path.isAbsolute(resolved)) return;
         if (resolved.includes("/node_modules/")) {
           // plugin-rsc imports by name only a file in node_modules that resolves alike from the app's root
-          if (isBare && (await resolve(source, path.join(root, "index.html"))) === resolved && (await isPackageClientFile(resolved))) packageImports.add(source);
+          if (isBare && (await resolve(source, path.join(root, "index.html"))) === resolved && (await isClientFile(resolved))) packageImports.add(source);
         } else if (isOutside(resolved, root) && isModuleFile(resolved) && !read.has(resolved)) {
           // A linked package, such as a workspace one, is served from its files, so its server components' imports count too
           read.add(resolved);
@@ -41,6 +42,16 @@ export async function findClientReferences(rsc: Environment, outDir: string): Pr
 
 // A package's name, e.g. "@mui/material/Button", not a path, "node:fs" or an alias such as "@/components"
 const bareImport = /^(?!\.)(?:@[\w.-]+\/)?[\w.-]+(?:\/[^:]*)?$/;
+
+function createResolver(environment: Environment): (source: string, importer: string) => Promise<string | undefined> {
+  const resolveId = createIdResolver(environment.getTopLevelConfig());
+  const resolved = new Map<string, Promise<string | undefined>>();
+  return (source, importer) => {
+    // An import resolves alike from every file of a folder, e.g. "react" from a folder of 2,000 components
+    const key = `${path.dirname(importer)}\0${source}`;
+    return resolved.get(key) ?? resolved.set(key, resolveId(environment, source, importer).catch(() => undefined)).get(key)!;
+  };
+}
 
 async function isPackageClientFile(file: string): Promise<boolean> {
   if (!isModuleFile(file)) return false;
