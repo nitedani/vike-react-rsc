@@ -1,6 +1,8 @@
 import rsc from "@vitejs/plugin-rsc";
+import path from "node:path";
 import type { Plugin } from "vite";
 import { setBrowserEnvironment } from "./plugin/browserResolver";
+import { findClientComponentFiles } from "./plugin/clientComponentFiles";
 import { isClientDefault } from "./plugin/componentConfigs";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
@@ -12,16 +14,22 @@ export function vikeReactRscPlugins(): Plugin[] {
       name: "vike-react-rsc:environments",
       // plugin-rsc's config hook reads the rsc outDir
       enforce: "pre",
-      config: ({ build }) => ({
-        environments: {
-          // Vite's scan doesn't reach "use client" modules, vike-react-rsc's or the app's, before a request does, so it
-          // would pre-bundle vike-react-rsc, or its vike-react alias, late and reload the page with "Invalid hook call".
-          // A linked copy would also load the page store and rsc()'s cache twice
-          client: { optimizeDeps: { exclude: ["vike-react-rsc", "vike-react"] } },
-          // Vike deploys dist/server, rsc included
-          rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
-        },
-      }),
+      config: async (config, { command, isPreview }) => {
+        const root = path.resolve(config.root ?? "");
+        const outDir = config.build?.outDir ?? "dist";
+        // Only server components import a "use client" file, so Vite's scan starts from the app's ones too: else Vite would pre-bundle
+        // what they import when the browser first loads them, then reload the page, with "Invalid hook call" until the reload
+        const entries = command === "serve" && !isPreview ? await findClientComponentFiles(root, path.resolve(root, outDir)) : [];
+        return {
+          environments: {
+            // The scan doesn't reach vike-react-rsc's own "use client" files, or its vike-react alias's, so Vite serves these packages
+            // unbundled. A linked copy would also load the page store and rsc()'s cache twice
+            client: { optimizeDeps: { entries, exclude: ["vike-react-rsc", "vike-react"] } },
+            // Vike deploys dist/server, rsc included
+            rsc: { build: { outDir: `${outDir}/server/rsc` } },
+          },
+        };
+      },
       // The client build leaves out what renders a page without a Flight, unless components is 'client'
       configEnvironment: (name, _config, { command }) => {
         if (name === "client") return { define: { __VIKE_REACT_RSC_CLIENT_DEFAULT__: String(command === "serve" || isClientDefault()) } };
