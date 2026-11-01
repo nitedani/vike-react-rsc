@@ -1299,6 +1299,8 @@ function testFirstDevLoad() {
     await sleep(1000);
     page.off("load", countLoad);
     expect(loads).to.equal(1);
+    // Vite may log the reload while the browser still loads the page once
+    expect(() => expectLog("optimized dependencies changed. reloading")).to.throw();
   });
 }
 
