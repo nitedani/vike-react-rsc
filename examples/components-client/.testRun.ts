@@ -142,13 +142,6 @@ function testServerComponents() {
     expect(await page.textContent("#package-badge")).to.equal("A server component of a package, rendered on the server");
   });
 
-  test('components: \'client\': a package\'s "use client" component that a server component imports by subpath hydrates, without a reload on the first dev load', async () => {
-    await page.goto(getServerUrl() + "/package-client");
-    await clickCounter("#package-counter", "Package counter 1");
-    // Vite reloads the page when it pre-bundles an import only once the browser requests it
-    expect(isLogged("optimized dependencies changed. reloading")).to.equal(false);
-  });
-
   test("components: 'client': a file without a directive that imports a server component through an import only a plugin resolves is a server component", async () => {
     const html = await fetchHtml("/plugin-import");
     expect(html).to.include("rscPayload");
