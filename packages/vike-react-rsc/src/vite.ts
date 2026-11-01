@@ -2,11 +2,15 @@ import rsc from "@vitejs/plugin-rsc";
 import path from "node:path";
 import { normalizePath, type Plugin } from "vite";
 import { setBrowserEnvironment } from "./plugin/browserResolver";
-import { findClientComponentFiles } from "./plugin/clientComponentFiles";
+import { findClientComponentFiles, findClientPackages } from "./plugin/clientComponentFiles";
 import { isClientDefault } from "./plugin/componentConfigs";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
 import { placement } from "./plugin/placement";
+
+// The scan doesn't reach vike-react-rsc's own "use client" files, or its vike-react alias's, so Vite serves these packages
+// unbundled. A linked copy would also load the page store and rsc()'s cache twice
+const exclude = ["vike-react-rsc", "vike-react"];
 
 export function vikeReactRscPlugins(): Plugin[] {
   return [
@@ -18,14 +22,15 @@ export function vikeReactRscPlugins(): Plugin[] {
         const root = path.resolve(config.root ?? "");
         const outDir = config.build?.outDir ?? "dist";
         // Vike's client entries don't reach "use client" files that only server components import, so the scan also starts from the app's ones: else Vite pre-bundles their imports late and reloads the page, with "Invalid hook call" until then
-        const files = command === "serve" && !isPreview ? await findClientComponentFiles(root, path.resolve(root, outDir)) : [];
+        const isDev = command === "serve" && !isPreview;
+        const files = isDev ? await findClientComponentFiles(root, path.resolve(root, outDir)) : [];
         // Vite reads each entry as a glob, so a path's glob characters, as in a route group's (marketing), are escaped
         const entries = files.map((file) => normalizePath(file).replace(/[()[\]{}*?|]/g, "\\$&"));
+        // The scan doesn't reach a package's "use client" files either, as only server components import them
+        const include = isDev ? (await findClientPackages(root)).filter((name) => !exclude.includes(name)) : [];
         return {
           environments: {
-            // The scan doesn't reach vike-react-rsc's own "use client" files, or its vike-react alias's, so Vite serves these packages
-            // unbundled. A linked copy would also load the page store and rsc()'s cache twice
-            client: { optimizeDeps: { entries, exclude: ["vike-react-rsc", "vike-react"] } },
+            client: { optimizeDeps: { entries, include, exclude } },
             // Vike deploys dist/server, rsc included
             rsc: { build: { outDir: `${outDir}/server/rsc` } },
           },

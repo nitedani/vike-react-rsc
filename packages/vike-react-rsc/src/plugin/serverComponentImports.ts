@@ -119,7 +119,7 @@ async function readPackage(dir: string): Promise<Package> {
 }
 
 // As Node finds it: in the node_modules of the package's directory or of the nearest parent that has it
-async function findPackage(name: string, from: string): Promise<string | undefined> {
+export async function findPackage(name: string, from: string): Promise<string | undefined> {
   for (let dir = from; dir !== path.dirname(dir); dir = path.dirname(dir)) {
     if (path.basename(dir) === "node_modules") continue;
     const found = await realpath(path.join(dir, "node_modules", name)).catch(() => undefined);
