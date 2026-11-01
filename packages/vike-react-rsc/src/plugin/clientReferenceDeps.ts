@@ -1,5 +1,6 @@
-import { getPluginApi } from "@vitejs/plugin-rsc";
+import { getPluginApi, type RscPluginManager } from "@vitejs/plugin-rsc";
 import type { Connect, DevEnvironment, Environment, Plugin } from "vite";
+import { getFile } from "./parse";
 
 const HOLD = "virtual:vike-react-rsc/first-render";
 
@@ -9,16 +10,18 @@ const HOLD = "virtual:vike-react-rsc/first-render";
  * first batch waits until the first page's response ends */
 export function clientReferenceDeps(): Plugin {
   let client: DevEnvironment;
+  let manager: RscPluginManager;
   // One per server: on a restart, Vite creates the new server before it closes the old one
   const firstRenders = new WeakMap<Environment, Promise<void>>();
   return {
     name: "vike-react-rsc:client-reference-deps",
     apply: "serve",
     configureServer(server) {
-      client = server.environments.client!;
+      const env = (client = server.environments.client!);
+      manager = getPluginApi(server.config)!.manager;
       let resolveFirstRender!: () => void;
       const firstRender = new Promise<void>((resolve) => (resolveFirstRender = resolve));
-      firstRenders.set(client, firstRender);
+      firstRenders.set(env, firstRender);
       // At the front: a middleware added before it, e.g. @hono/vite-dev-server's, may answer the page without calling next()
       server.middlewares.stack.unshift({
         route: "",
@@ -31,11 +34,11 @@ export function clientReferenceDeps(): Plugin {
       const close = server.close;
       server.close = async () => {
         resolveFirstRender();
-        await server.environments.client!.waitForRequestsIdle();
+        await env.waitForRequestsIdle();
         return close();
       };
     },
-    // Vite's first batch waits until the client env has no pending request, so this one holds it
+    // On a cold cache, Vite's first batch waits until the client env has no pending request, so this one holds it
     buildStart() {
       if (this.environment.name === "client") void (this.environment as DevEnvironment).warmupRequest(HOLD);
     },
@@ -51,7 +54,7 @@ export function clientReferenceDeps(): Plugin {
       order: "post",
       handler(_code, id) {
         if (this.environment.name !== "rsc") return;
-        const meta = getPluginApi(this.environment.getTopLevelConfig())!.manager.clientReferenceMetaMap[id.split("?")[0]!];
+        const meta = manager.clientReferenceMetaMap[getFile(id)];
         // The browser's URL, unwrapped as Vite's middleware does before it transforms it
         if (meta) void client.warmupRequest(meta.importId.replace(/^\/@id\/(__x00__)?/, (_, nul) => (nul ? "\0" : "")));
       },
