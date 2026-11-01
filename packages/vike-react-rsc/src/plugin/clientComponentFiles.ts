@@ -4,7 +4,8 @@ import { isModuleFile, startsWithDirective } from "./parse";
 
 /** The app's files that start with `"use client"`, outside node_modules, hidden directories and the build output */
 export async function findClientComponentFiles(dir: string, outDir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true });
+  // A folder the user can't read, such as a database's Docker volume, is skipped
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
   const files = await Promise.all(
     entries.map(async (entry) => {
       const file = path.join(dir, entry.name);
