@@ -13,8 +13,8 @@ export async function findClientComponentFiles(dir: string, outDir: string): Pro
         return entry.name === "node_modules" || entry.name.startsWith(".") || file === outDir ? [] : findClientComponentFiles(file, outDir);
       }
       if (!isModuleFile(file)) return [];
-      // A file that doesn't parse is left to Vite, which shows its error once the file loads
-      const isClientComponent = await startsWithDirective(await readFile(file, "utf8"), file, "use client").catch(() => false);
+      // A file that can't be read, such as an editor's lock file, is skipped, and one that doesn't parse is left to Vite, which shows its error once the file loads
+      const isClientComponent = await readFile(file, "utf8").then((code) => startsWithDirective(code, file, "use client")).catch(() => false);
       return isClientComponent ? [file] : [];
     })
   );
