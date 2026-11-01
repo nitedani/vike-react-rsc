@@ -1,6 +1,6 @@
 import rsc from "@vitejs/plugin-rsc";
 import path from "node:path";
-import type { Plugin } from "vite";
+import { normalizePath, type Plugin } from "vite";
 import { setBrowserEnvironment } from "./plugin/browserResolver";
 import { findClientComponentFiles } from "./plugin/clientComponentFiles";
 import { isClientDefault } from "./plugin/componentConfigs";
@@ -19,7 +19,9 @@ export function vikeReactRscPlugins(): Plugin[] {
         const outDir = config.build?.outDir ?? "dist";
         // Only server components import a "use client" file, so Vite's scan starts from the app's ones too: else Vite would pre-bundle
         // what they import when the browser first loads them, then reload the page, with "Invalid hook call" until the reload
-        const entries = command === "serve" && !isPreview ? await findClientComponentFiles(root, path.resolve(root, outDir)) : [];
+        const files = command === "serve" && !isPreview ? await findClientComponentFiles(root, path.resolve(root, outDir)) : [];
+        // Vite reads each entry as a glob, so a path's glob characters, as in a route group's (marketing), are escaped
+        const entries = files.map((file) => normalizePath(file).replace(/[()[\]{}*?|]/g, "\\$&"));
         return {
           environments: {
             // The scan doesn't reach vike-react-rsc's own "use client" files, or its vike-react alias's, so Vite serves these packages
