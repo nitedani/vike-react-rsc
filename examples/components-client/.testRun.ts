@@ -132,7 +132,7 @@ function testServerComponents() {
     });
   });
 
-  test("components: 'client': a file without a directive that imports a package's server component is a server component", async () => {
+  test("components: 'client': a file without a directive that imports a package's server component is a server component, also when the package has a directory named like a module, as next's compiled/ipaddr.js", async () => {
     const html = await fetchHtml("/package-import");
     expect(html).to.include("rscPayload");
     expect(html).to.include("A server component of a package, rendered on the server");
