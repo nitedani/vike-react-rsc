@@ -992,6 +992,15 @@ function testServerComponentImports() {
     }
   });
 
+  test('Build: a "use server" file importing a Node built-in builds, without a warning that the browser can\'t load it', async () => {
+    // The form page, a client component, imports countSubmit()
+    const { isSuccess, output } = await build("./actions/countSubmit.ts", (source) =>
+      source.replace('"use server";', '$&\nimport { setTimeout } from "node:timers/promises";').replace("return submits + 1;", "await setTimeout(0);\n  $&")
+    );
+    expect(isSuccess).to.equal(true);
+    expect(output).to.not.include("externalized for browser compatibility");
+  });
+
   test("Build: a barrel or +data.ts importing from a server component file builds", async () => {
     // The server page imports Counter from components/index.ts, which re-exports Markdown too
     editFile("./components/Markdown.tsx", (source) => `${source}\nexport const MARKDOWN_ID = "markdown";\n`);
