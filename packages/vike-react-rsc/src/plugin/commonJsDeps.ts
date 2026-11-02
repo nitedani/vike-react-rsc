@@ -1,9 +1,10 @@
 import type { EnvironmentOptions, Plugin } from "vite";
 import { crawlFrameworkPkgs, isDepExcluded } from "vitefu";
 
-/** In dev, plugin-rsc keeps every package with a react peer out of the ssr and rsc envs' pre-bundles, so the module runner runs its files
- * as they are, and Node loads the CommonJS packages they import, where a named import or a require() of them fails, e.g. react-focus-lock's
- * prop-types and react-device-detect's ua-parser-js. So both envs pre-bundle those CommonJS packages, unless the user excludes them.
+/** In dev, plugin-rsc keeps the packages with a react peer, except react-dom and react-server-dom-webpack, out of the ssr and rsc envs'
+ * pre-bundles, so the module runner runs their files as they are, and Node loads the CommonJS packages they import, where a named import
+ * or a require() of them fails, e.g. react-focus-lock's prop-types and react-device-detect's ua-parser-js. So both envs pre-bundle those
+ * CommonJS packages, unless the user excludes them.
  * TODO: remove once plugin-rsc pre-bundles the CommonJS deps its crawl finds */
 export function commonJsDeps(): Plugin {
   return {
