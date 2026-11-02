@@ -47,8 +47,8 @@ async function findCommonJsDeps(): Promise<string[]> {
       return { dep, pkgJson: pkgJsonPath && (await readJson(pkgJsonPath)) };
     }),
   );
-  // The module runner can't run a CommonJS react package, which has neither module nor exports
-  const commonJsReactDeps = appDeps.filter(({ pkgJson }) => pkgJson && isReactPkg(pkgJson) && !pkgJson.module && !pkgJson.exports);
+  // The module runner can't run a CommonJS react package: one without module, exports or "type": "module"
+  const commonJsReactDeps = appDeps.filter(({ pkgJson }) => pkgJson && isReactPkg(pkgJson) && !pkgJson.module && !pkgJson.exports && pkgJson.type !== "module");
   return [...optimizeDeps.include, ...commonJsReactDeps.map(({ dep }) => dep)];
 }
 
