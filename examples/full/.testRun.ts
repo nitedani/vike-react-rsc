@@ -1,4 +1,5 @@
 export { testRun };
+import { readFileSync } from "node:fs";
 import {
   test,
   expect,
@@ -130,6 +131,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
 
   // The first request after the server starts
   testConfigFirstRender();
+  // The first page load: the dev lane starts from a cold Vite cache
+  if (isDev) testFirstDevLoad();
   testPages();
   testCssProp();
   testEnvironments();
@@ -1276,6 +1279,28 @@ function testConfigFirstRender() {
     const head = html.slice(0, html.indexOf("</head>"));
     expect(head).to.match(/<title>Config in a server component, bumped \d+ times<\/title>/);
     expect(head).to.include('<meta name="use-config" content="Head in a server component"/>');
+  });
+}
+
+function testFirstDevLoad() {
+  test('Dev: on a cold Vite cache, a page loads once whose "use client" files import react-streaming or come from an installed package', async () => {
+    let loads = 0;
+    const countLoad = () => loads++;
+    page.on("load", countLoad);
+    // Its client-component-package is installed as a copy, as from npm, so plugin-rsc imports its client reference by package name
+    await page.goto(getServerUrl() + "/use-stream");
+    // Vite reloads the page right after it writes a dependency it pre-bundles only once the browser requests it, within a second
+    const depsMetadata = new URL("./node_modules/.vite/deps/_metadata.json", import.meta.url);
+    await autoRetry(async () => {
+      const metadata = readFileSync(depsMetadata, "utf8");
+      expect(metadata).to.include('"react-streaming"');
+      expect(metadata).to.include('"client-component-package/ClientCounter"');
+    });
+    await sleep(1000);
+    page.off("load", countLoad);
+    expect(loads).to.equal(1);
+    // Vite may log the reload while the browser still loads the page once
+    expect(() => expectLog("optimized dependencies changed. reloading")).to.throw();
   });
 }
 

@@ -1,6 +1,7 @@
 import rsc from "@vitejs/plugin-rsc";
 import type { Plugin } from "vite";
 import { setBrowserEnvironment } from "./plugin/browserResolver";
+import { clientReferenceDeps } from "./plugin/clientReferenceDeps";
 import { isClientDefault } from "./plugin/componentConfigs";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
@@ -14,9 +15,7 @@ export function vikeReactRscPlugins(): Plugin[] {
       enforce: "pre",
       config: ({ build }) => ({
         environments: {
-          // Vite's scan doesn't reach "use client" modules, vike-react-rsc's or the app's, before a request does, so it
-          // would pre-bundle vike-react-rsc, or its vike-react alias, late and reload the page with "Invalid hook call".
-          // A linked copy would also load the page store and rsc()'s cache twice
+          // Pre-bundled, a linked copy would load twice and React would remount the Layout: plugin-rsc still loads its client components, e.g. LoadingBoundary, from their own files
           client: { optimizeDeps: { exclude: ["vike-react-rsc", "vike-react"] } },
           // Vike deploys dist/server, rsc included
           rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
@@ -31,6 +30,7 @@ export function vikeReactRscPlugins(): Plugin[] {
       // Before plugin-rsc's, which builds the envs
       buildApp: { order: "pre", handler: async (builder) => setBrowserEnvironment(builder.environments.client!) },
     },
+    clientReferenceDeps(),
     noServerFunctionComponents(),
     noServerComponentsInBrowser(),
     placement(),
