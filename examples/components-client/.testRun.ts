@@ -162,6 +162,16 @@ function testServerComponents() {
   test("components: 'client': a server component calls a function from a component file, on the server", async () => {
     expect(await fetchHtml("/helper")).to.include("A FUNCTION OF A COMPONENT FILE, CALLED ON THE SERVER!");
   });
+
+  test("components: 'client': a client navigation to a page whose server component throws render(404) shows the error page as a 404, as a full load does", async () => {
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    await clickLink("/render-404");
+    await autoRetry(async () => {
+      expect(await page.textContent("#error-page")).to.equal("Page not found");
+    });
+    expect(new URL(page.url()).pathname).to.equal("/render-404");
+  });
 }
 
 function testVikeReactRendering() {
