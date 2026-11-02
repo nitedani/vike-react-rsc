@@ -133,6 +133,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testConfigFirstRender();
   // The first page load: the dev lane starts from a cold Vite cache
   if (isDev) testFirstDevLoad();
+  if (isDev) testCommonJsPackage();
   testPages();
   testCssProp();
   testEnvironments();
@@ -1290,6 +1291,13 @@ function testConfigFirstRender() {
     const head = html.slice(0, html.indexOf("</head>"));
     expect(head).to.match(/<title>Config in a server component, bumped \d+ times<\/title>/);
     expect(head).to.include('<meta name="use-config" content="Head in a server component"/>');
+  });
+}
+
+function testCommonJsPackage() {
+  test("Dev: a page renders an installed CommonJS package with a react peer", async () => {
+    const html = await fetchHtml("/commonjs");
+    expect(html).to.include("Hello from a CommonJS package in 1m");
   });
 }
 
