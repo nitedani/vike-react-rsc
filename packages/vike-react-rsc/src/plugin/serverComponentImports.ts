@@ -1,4 +1,4 @@
-import { readdir, readFile, realpath } from "node:fs/promises";
+import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import { isBuiltin } from "node:module";
 import path from "node:path";
 import type { Environment, ResolvedConfig } from "vite";
@@ -112,7 +112,10 @@ function getPackage(dir: string): Promise<Package> {
 
 async function readPackage(dir: string): Promise<Package> {
   // Its modules, without type declarations and the packages installed inside it
-  const files = (await readdir(dir, { recursive: true })).filter((file) => isModuleFile(file) && !/\.d\.[cm]?ts$/.test(file) && !file.includes("node_modules"));
+  const entries = (await readdir(dir, { recursive: true })).filter((file) => isModuleFile(file) && !/\.d\.[cm]?ts$/.test(file) && !file.includes("node_modules"));
+  // Only files: a directory (next/dist/compiled/ipaddr.js), a symlink to one or a broken symlink can be named like a module
+  const isFile = await Promise.all(entries.map((file) => stat(path.join(dir, file)).then((stats) => stats.isFile(), () => false)));
+  const files = entries.filter((_, i) => isFile[i]);
   const namesServerComponent = (await Promise.all(files.map(async (file) => (await readFile(path.join(dir, file), "utf8")).includes("use server component")))).includes(true);
   const { dependencies, optionalDependencies, peerDependencies } = JSON.parse(await readFile(path.join(dir, "package.json"), "utf8"));
   const names = Object.keys({ ...dependencies, ...optionalDependencies, ...peerDependencies }).filter((name) => !frameworkPackages.has(name));
