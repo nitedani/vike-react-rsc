@@ -4,7 +4,9 @@ import { crawlFrameworkPkgs, findClosestPkgJsonPath, findDepPkgJsonPath, isDepEx
 
 /** In dev, plugin-rsc keeps every package with a react peer out of the ssr and rsc envs' pre-bundles, so the module runner runs its files
  * as they are: the CommonJS packages it imports lack their named exports, e.g. react-focus-lock's prop-types, and a CommonJS one of its
- * own fails to run, e.g. react-device-detect. So both envs pre-bundle those CommonJS packages, unless the user excludes them. */
+ * own fails to run, e.g. react-device-detect. So both envs pre-bundle the CommonJS packages that react packages import, and the app's own
+ * CommonJS react packages, unless the user excludes them.
+ * TODO: remove once plugin-rsc pre-bundles the CommonJS deps its crawl finds */
 export function commonJsDeps(): Plugin {
   return {
     name: "vike-react-rsc:commonjs-deps",
