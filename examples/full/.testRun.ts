@@ -145,6 +145,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testHead();
   testOnAfterRenderHtml();
   testUseStream();
+  testUseAsync(isDev);
   testLargeSuspense();
   testHeadSettings(isStatic);
   testConfig(isStatic);
@@ -1093,6 +1094,19 @@ function testOnAfterRenderHtml() {
 function testUseStream() {
   test("A client component gets react-streaming's useStream() on a page with stream: true, pre-rendered too, as in vike-react", async () => {
     expect(await fetchHtml("/use-stream")).to.include("<!-- Injected by useStream() -->");
+  });
+}
+
+function testUseAsync(isDev: boolean) {
+  test("A client component gets react-streaming's useAsync() on a page without +stream, pre-rendered too, and the browser reuses its answer", async () => {
+    expect(await fetchHtml("/use-async")).to.include("Server<!-- -->: <!-- -->Answered on the server");
+    // In dev, Vite pre-bundles react-streaming only once a "use client" file imports it, and reloads the page
+    // TODO: remove once https://github.com/nitedani/vike-react-rsc/pull/46 is merged
+    if (isDev) return;
+    await page.goto(getServerUrl() + "/use-async");
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-answer]")).to.equal("Hydrated: Answered on the server");
+    });
   });
 }
 

@@ -90,7 +90,7 @@
   "dependencies": {
     "@brillout/json-serializer": "^0.5.27",
     "@universal-middleware/core": "^0.7.1",
-    "react-streaming": "^0.4.22"
+    "react-streaming": "^0.4.24"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
