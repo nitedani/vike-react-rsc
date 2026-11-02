@@ -3,6 +3,7 @@ import type { Plugin } from "vite";
 import { setBrowserEnvironment } from "./plugin/browserResolver";
 import { clientInServerPackageDeps } from "./plugin/clientInServerPackageDeps";
 import { clientReferenceDeps } from "./plugin/clientReferenceDeps";
+import { commonJsDeps } from "./plugin/commonJsDeps";
 import { isClientDefault } from "./plugin/componentConfigs";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
@@ -33,6 +34,7 @@ export function vikeReactRscPlugins(): Plugin[] {
     },
     clientReferenceDeps(),
     clientInServerPackageDeps(),
+    commonJsDeps(),
     noServerFunctionComponents(),
     noServerComponentsInBrowser(),
     placement(),

@@ -1,0 +1,13 @@
+{
+  "name": "commonjs-package",
+  "private": true,
+  "version": "1.0.0",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "peerDependencies": {
+    "react": "*"
+  },
+  "dependencies": {
+    "ms": "^2.1.3"
+  }
+}

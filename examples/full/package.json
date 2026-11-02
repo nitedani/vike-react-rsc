@@ -25,6 +25,7 @@
     "@vitejs/plugin-rsc": "^0.5.36",
     "client-component-package": "file:./packages/client-component-package",
     "client-only": "0.0.1",
+    "commonjs-package": "file:./packages/commonjs-package",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-server-dom-webpack": "19.3.1",
