@@ -1,4 +1,5 @@
 import { readdir, readFile, realpath } from "node:fs/promises";
+import { isBuiltin } from "node:module";
 import path from "node:path";
 import type { Environment, ResolvedConfig } from "vite";
 import packageJson from "../../package.json";
@@ -80,7 +81,8 @@ async function readModule(
     .then((code) => parseCompiled(code, file, config))
     .catch(() => undefined);
   if (!program) return { directives: [], imports: [] };
-  const imports = await Promise.all(getImportSources(program).map(resolve));
+  // A Node built-in, e.g. node:fs in a "use server" file, leads to no server component, and resolving it for the browser warns
+  const imports = await Promise.all(getImportSources(program).filter((source) => !isBuiltin(source)).map(resolve));
   // An import with a query, e.g. ?raw, ?url or ?worker, gives something else than the module
   return { directives: getDirectives(program), imports: imports.flatMap((id) => (id && isModuleFile(id) && !id.includes("?") ? [id] : [])) };
 }

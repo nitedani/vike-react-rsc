@@ -1002,6 +1002,15 @@ function testServerComponentImports() {
     // Vike reloads the user files after the revert, and the lane's server stopping during that reload logs an error
     await sleep(1000);
   });
+
+  test('Build: a "use server" file importing a Node built-in builds, without a warning that the browser can\'t load it', async () => {
+    // The form page, a client component, imports countSubmit()
+    const { isSuccess, output } = await build("./actions/countSubmit.ts", (source) =>
+      source.replace('"use server";', '$&\nimport { setTimeout } from "node:timers/promises";').replace("return submits + 1;", "await setTimeout(0);\n  $&")
+    );
+    expect(isSuccess).to.equal(true);
+    expect(output).to.not.include("externalized for browser compatibility");
+  });
 }
 
 function testComponentsConfig() {
