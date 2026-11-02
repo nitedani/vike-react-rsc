@@ -6,7 +6,7 @@ const PROXY = "\0virtual:vite-rsc/client-in-server-package-proxy/";
  * re-exports ./Button.js. Vite pre-bundles neither that file nor what it imports, so the browser loads them as they are, and a CommonJS
  * one fails to link: the page stays blank. So the client env pre-bundles that file, as it pre-bundles a package import.
  * A package in the client env's optimizeDeps.exclude stays as it is, as Vite leaves it, so the browser still loads one copy of it.
- * TODO: remove once plugin-rsc imports such a file through the client env's pre-bundle */
+ * TODO: remove once plugin-rsc imports such a file through the client env's pre-bundle: https://github.com/vitejs/vite-plugin-react/issues/1538 */
 export function clientInServerPackageDeps(): Plugin {
   return {
     name: "vike-react-rsc:client-in-server-package-deps",
