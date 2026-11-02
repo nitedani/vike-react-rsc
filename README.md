@@ -62,6 +62,7 @@ React RSC integration for [Vike](https://vike.dev).
 - **Automatic server integration**
   - Works with any server: Express.js, Hono, etc. (powered by [universal-middleware](https://github.com/magne4000/universal-middleware))
   - Fully automatic (zero-config) if you use Vike's built-in [`+server`](https://vike.dev/server)
+  - [vike-photon](https://github.com/vikejs/vike-photon) isn't supported, as Vike [deprecated](https://vike.dev/blog/universal-deploy) it: use Vike's built-in [`+server`](https://vike.dev/server) instead.
 
 ## Goal
 
