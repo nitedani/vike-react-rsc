@@ -109,8 +109,10 @@ function getPackage(dir: string): Promise<Package> {
 }
 
 async function readPackage(dir: string): Promise<Package> {
-  // Its modules, without type declarations and the packages installed inside it
-  const files = (await readdir(dir, { recursive: true })).filter((file) => isModuleFile(file) && !/\.d\.[cm]?ts$/.test(file) && !file.includes("node_modules"));
+  // Its modules, without directories named like one (next/dist/compiled/ipaddr.js), type declarations and the packages installed inside it
+  const files = (await readdir(dir, { recursive: true, withFileTypes: true }))
+    .flatMap((entry) => (entry.isDirectory() ? [] : [path.relative(dir, path.join(entry.parentPath, entry.name))]))
+    .filter((file) => isModuleFile(file) && !/\.d\.[cm]?ts$/.test(file) && !file.includes("node_modules"));
   const namesServerComponent = (await Promise.all(files.map(async (file) => (await readFile(path.join(dir, file), "utf8")).includes("use server component")))).includes(true);
   const { dependencies, optionalDependencies, peerDependencies } = JSON.parse(await readFile(path.join(dir, "package.json"), "utf8"));
   const names = Object.keys({ ...dependencies, ...optionalDependencies, ...peerDependencies }).filter((name) => !frameworkPackages.has(name));
