@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
     "./ClientCounter": {
       "types": "./ClientCounter.d.ts",
       "default": "./ClientCounter.js"
@@ -11,5 +15,8 @@
   },
   "peerDependencies": {
     "react": "*"
+  },
+  "dependencies": {
+    "react-is": "^19.3.1"
   }
 }

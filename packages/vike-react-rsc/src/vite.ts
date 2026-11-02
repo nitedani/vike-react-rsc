@@ -1,6 +1,7 @@
 import rsc from "@vitejs/plugin-rsc";
 import type { Plugin } from "vite";
 import { setBrowserEnvironment } from "./plugin/browserResolver";
+import { clientInServerPackageDeps } from "./plugin/clientInServerPackageDeps";
 import { clientReferenceDeps } from "./plugin/clientReferenceDeps";
 import { isClientDefault } from "./plugin/componentConfigs";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
@@ -31,6 +32,7 @@ export function vikeReactRscPlugins(): Plugin[] {
       buildApp: { order: "pre", handler: async (builder) => setBrowserEnvironment(builder.environments.client!) },
     },
     clientReferenceDeps(),
+    clientInServerPackageDeps(),
     noServerFunctionComponents(),
     noServerComponentsInBrowser(),
     placement(),

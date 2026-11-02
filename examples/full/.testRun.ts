@@ -1294,7 +1294,7 @@ function testConfigFirstRender() {
 }
 
 function testFirstDevLoad() {
-  test('Dev: on a cold Vite cache, a page loads once whose "use client" files import react-streaming or come from an installed package', async () => {
+  test('Dev: on a cold Vite cache, a page loads once and hydrates whose "use client" files import react-streaming or come from an installed package, by name or through its entry', async () => {
     let loads = 0;
     const countLoad = () => loads++;
     page.on("load", countLoad);
@@ -1312,6 +1312,8 @@ function testFirstDevLoad() {
     expect(loads).to.equal(1);
     // Vite may log the reload while the browser still loads the page once
     expect(() => expectLog("optimized dependencies changed. reloading")).to.throw();
+    // Its entry re-exports a "use client" file that imports a CommonJS package
+    await waitForHydration("Inner counter");
   });
 }
 
