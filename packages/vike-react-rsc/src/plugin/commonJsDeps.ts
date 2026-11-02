@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { EnvironmentOptions, Plugin } from "vite";
-import { crawlFrameworkPkgs, findClosestPkgJsonPath, isDepExcluded } from "vitefu";
+import { crawlFrameworkPkgs, findClosestPkgJsonPath, findDepPkgJsonPath, isDepExcluded } from "vitefu";
 
 /** In dev, plugin-rsc keeps every package with a react peer out of the ssr and rsc envs' pre-bundles, so the module runner runs its files
  * as they are: the CommonJS packages it imports lack their named exports, e.g. react-focus-lock's prop-types, and a CommonJS one of its
@@ -35,25 +35,29 @@ function preBundle(include: string[]): EnvironmentOptions {
 
 /** The packages as optimizeDeps.include names them, e.g. "react-focus-lock > prop-types" and "react-device-detect" */
 async function findCommonJsDeps(): Promise<string[]> {
-  const commonJsReactPkgs = new Set<string>();
-  // plugin-rsc's crawl, with a CommonJS react package counted as a plain dependency, which the crawl includes when a react package imports it
-  const { optimizeDeps } = await crawlFrameworkPkgs({
-    root: process.cwd(),
-    isBuild: false,
-    isFrameworkPkgByJson(pkgJson) {
-      // plugin-rsc's crawl skips itself and react-dom, and plugin-rsc pre-bundles react-server-dom-webpack
-      if (["@vitejs/plugin-rsc", "react-dom", "react-server-dom-webpack"].includes(pkgJson.name)) return false;
-      if (!pkgJson.peerDependencies || !("react" in pkgJson.peerDependencies)) return false;
-      // vitefu's pkgNeedsOptimization() check, without the entry file it reads when there's no main field
-      if (pkgJson.module || pkgJson.exports) return true;
-      commonJsReactPkgs.add(pkgJson.name);
-      return false;
-    },
-  });
+  // plugin-rsc's crawl, whose include list names the CommonJS packages that its react packages import
+  const { optimizeDeps } = await crawlFrameworkPkgs({ root: process.cwd(), isBuild: false, isFrameworkPkgByJson: isReactPkg });
   // The crawl includes no dependency of the app itself
   const appPkgJsonPath = await findClosestPkgJsonPath(process.cwd());
   if (!appPkgJsonPath) return optimizeDeps.include;
-  const { dependencies, devDependencies } = JSON.parse(await readFile(appPkgJsonPath, "utf8"));
-  const appDeps = Object.keys({ ...dependencies, ...devDependencies });
-  return [...optimizeDeps.include, ...appDeps.filter((dep) => commonJsReactPkgs.has(dep))];
+  const { dependencies, devDependencies } = await readJson(appPkgJsonPath);
+  const appDeps = await Promise.all(
+    Object.keys({ ...dependencies, ...devDependencies }).map(async (dep) => {
+      const pkgJsonPath = await findDepPkgJsonPath(dep, appPkgJsonPath);
+      return { dep, pkgJson: pkgJsonPath && (await readJson(pkgJsonPath)) };
+    }),
+  );
+  // The module runner can't run a CommonJS react package, which has neither module nor exports
+  const commonJsReactDeps = appDeps.filter(({ pkgJson }) => pkgJson && isReactPkg(pkgJson) && !pkgJson.module && !pkgJson.exports);
+  return [...optimizeDeps.include, ...commonJsReactDeps.map(({ dep }) => dep)];
+}
+
+function isReactPkg(pkgJson: Record<string, any>): boolean {
+  // plugin-rsc's crawl skips itself and react-dom, and plugin-rsc pre-bundles react-server-dom-webpack
+  if (["@vitejs/plugin-rsc", "react-dom", "react-server-dom-webpack"].includes(pkgJson.name)) return false;
+  return !!pkgJson.peerDependencies && "react" in pkgJson.peerDependencies;
+}
+
+async function readJson(path: string): Promise<Record<string, any>> {
+  return JSON.parse(await readFile(path, "utf8"));
 }
