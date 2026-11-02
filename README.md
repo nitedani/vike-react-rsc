@@ -28,6 +28,13 @@ React RSC integration for [Vike](https://vike.dev).
     "vike-react": "npm:vike-react-rsc@^1"
     ```
     A vike-react extension whose `+config` requires `vike-react`, e.g. `vike-react-query`, works too: `vike-react-rsc` [provides](https://vike.dev/require#provide) `vike-react` 0.6.31.
+  - In `vike dev`, a page that uses a package with a `react` peer dependency and CommonJS code, e.g. `react-focus-lock` (used by Chakra UI v2) or `react-device-detect`, answers 500 with an error such as `Named export 'func' not found` or `UAParser is not a constructor`, as `@vitejs/plugin-rsc` [leaves such packages out](https://github.com/vitejs/vite-plugin-react/blob/304a92a9e6fb0374bf7e0bca363984c5d5c73590/packages/plugin-rsc/src/plugin.ts#L512-L536) of Vite's pre-bundling. List the package in your `vite.config.js`, under `ssr` when a client component imports it and under `rsc` when a server component does:
+    ```js
+    environments: {
+      ssr: { optimizeDeps: { include: ["react-focus-lock"] } },
+      rsc: { optimizeDeps: { include: ["react-device-detect"] } },
+    },
+    ```
 - **Server actions**
   - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
   - An action reads **`getRequestContext()`** (from `vike-react-rsc/server`): the request's `headers`, `cookies` and `abortSignal`, and what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `user`). It leaves out what Vike and your app compute for a page: `routeParams`, the page's config, `data`, and what your `+onCreatePageContext` sets.
