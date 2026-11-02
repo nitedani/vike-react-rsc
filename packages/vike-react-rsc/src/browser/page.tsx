@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useState, type ReactElement, type ReactNod
 import type { Root as ReactRoot } from "react-dom/client";
 import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import type { PageContextClient } from "vike/types";
+import { getAbort, toVikeAbort } from "../abort";
 import { applyHeadSettings } from "../integration/applyHeadSettings";
 import type { HeadSettings } from "../integration/getHeadSettings";
 import { isStrictMode, withStrictMode } from "../integration/withStrictMode";
@@ -96,11 +97,14 @@ export function getReactRoot(): ReactRoot {
 
 /** The React root's: an error React throws while rendering goes to the navigation showing the page, as in vike-react */
 export function onUncaughtError(error: unknown, componentStackToLog: string | undefined): void {
+  // React unmounted Root, or never mounted it when hydrating threw: the next page, e.g. the error page, mounts it again
+  shared.setRootState = (shown) => shared.reactRoot!.render(getRootElement(shown));
+  const abort = getAbort(error);
+  // A server component's `throw render()` while a navigation waits for the page: Vike answers it, unlogged, as on the server
+  if (abort && shared.rendering) return endNavigation(toVikeAbort(abort));
   console.error(...(componentStackToLog ? [error, componentStackToLog] : [error]));
   // Vike renders the error page, and doesn't log the error again
   if (error instanceof Error && Object.isExtensible(error)) Object.assign(error, { isAlreadyLogged: true });
-  // React unmounted Root, or never mounted it when hydrating threw: the next page, e.g. the error page, mounts it again
-  shared.setRootState = (shown) => shared.reactRoot!.render(getRootElement(shown));
   endNavigation(error);
 }
 

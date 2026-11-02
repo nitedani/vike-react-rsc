@@ -25,7 +25,7 @@ export function getAbort(error: unknown): Abort | undefined {
   return parse(digest.slice(DIGEST_PREFIX.length)) as Abort;
 }
 
-/** The ssr env: the same abort, for a hook to throw so that Vike answers it */
+/** The ssr env and the browser: the same abort, for Vike to answer as one of its own */
 export function toVikeAbort(abort: Abort): Error {
   if ("redirect" in abort) return redirect(abort.redirect.url, abort.redirect.statusCode);
   if ("rewrite" in abort) return render(abort.rewrite, abort.reason as string);
