@@ -34,11 +34,12 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
   const headSettings = pageContext.isHydration ? undefined : getHeadSettings(pageContext);
   setCurrentPageContext(pageContext);
   show(page);
-  if (pageContext.isHydration) {
+  // Not only when hydrating: a client guard() that throws or redirects stops the first render before this point, so the next page is the first to get here
+  if (!getReactRoot()) {
     const container = document.getElementById("root")!;
     const { hydrateRootOptions, createRootOptions } = resolveReactOptions(pageContext);
     // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
-    if ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "") {
+    if (pageContext.isHydration && ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "")) {
       const options = { ...hydrateRootOptions, ...withOurErrorCallbacks(hydrateRootOptions), formState: formState ?? hydrateRootOptions?.formState };
       setReactRoot(hydrateRoot(container, rootElement, options));
     } else {
