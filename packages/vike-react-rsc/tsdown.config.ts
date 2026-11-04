@@ -8,6 +8,7 @@ export default defineConfig({
     "src/client.ts",
     "src/client.rsc.ts",
     "src/__internal/browser.ts",
+    "src/__internal/browserHooks.client.ts",
     "src/__internal/ssr.server.ts",
     "src/__internal/rsc.ts",
     "src/__internal/middleware.ts",
