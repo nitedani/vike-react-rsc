@@ -1921,6 +1921,18 @@ function testErrorPageInBrowser() {
     });
     expect(await page.textContent("h1")).to.include("Vike React Server Components");
   });
+
+  test("A first load whose guard() throws in the browser: a link shows the next page, without a page load", async () => {
+    const logged = page.waitForEvent("console", (message) => message.text().includes(ERROR_PAGE_IN_BROWSER_ERROR));
+    await page.goto(getServerUrl() + "/browser-error");
+    await logged;
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    await page.click('a[href="/todos"]');
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include("Task Manager");
+    });
+    expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
+  });
 }
 
 function testServerComponentThrows() {
