@@ -129,7 +129,7 @@ async function getPagePayload(pageContext: PageContextClient): Promise<PagePaylo
   const flight = pageContext.rscPayload && (await createFromReadableStream<PagePayload>(pageContext.rscPayload));
   if (flight?.root) return flight;
   // A page that renders as in vike-react has no Flight, or only what a form submitted before hydration returned. So has
-  // the error page after an error in the browser, whatever its components.
+  // the error page after an error in the browser on a fully pre-rendered site, where Vike doesn't ask a server for it.
   if (!__VIKE_REACT_RSC_CLIENT_DEFAULT__ || !pageContext.config.Page) throw cannotRenderInBrowser(pageContext, "components: 'server' makes it a server component");
   const serverComponent = findServerComponent(pageContext);
   if (serverComponent) {
