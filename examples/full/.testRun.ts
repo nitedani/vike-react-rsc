@@ -62,6 +62,9 @@ const ERROR_PAGE_REQUEST_FAILED = /index\.server\.pageContext\.json\S* couldn't 
 // Thrown by /late-browser-error's component in the browser, inside <Suspense>, so after the first render ended
 const LATE_BROWSER_ERROR = "A component failed in the browser after its page rendered";
 
+// Thrown by /throws-on-click's component in the browser, while it renders after a click
+const CLICK_ERROR = "A component failed in the browser on a click";
+
 // Thrown by /throws on the server, then logged there, and by React in the browser: in production as its error #441
 const THROWS_ERROR = "A server component failed on demand";
 
@@ -111,6 +114,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       // testErrorPageInBrowser(): in dev, Vite also forwards the browser's log to the server's stderr
       logText.includes(BROWSER_GUARD_ERROR) ||
       logText.includes(LATE_BROWSER_ERROR) ||
+      logText.includes(CLICK_ERROR) ||
       // React's report that hydrating it failed and that it rendered the boundary in the browser, as in vike-react. In
       // dev, Vite also forwards it to the server's stderr.
       logText.includes("There was an error while hydrating") ||
@@ -1960,6 +1964,31 @@ function testErrorPageInBrowser(isStatic: boolean) {
     await sleep(1500);
     page.off("request", onRequest);
     expect(documents).to.have.length(1);
+  });
+
+  test("A component that throws while a client navigation waits for its answer leaves that navigation to show its page", async () => {
+    await page.goto(getServerUrl() + "/throws-on-click");
+    await waitForHydration("Fail now");
+    const answer = getServerUrl() + "/client/index.pageContext.json";
+    let release!: () => void;
+    const thrown = new Promise<void>((resolve) => (release = resolve));
+    const requested = new Promise<void>((resolve) => {
+      void page.route(answer, async (route) => {
+        resolve();
+        await thrown;
+        await route.continue();
+      });
+    });
+    await clickNewLink("/client");
+    await requested;
+    const logged = page.waitForEvent("console", (message) => message.text().includes(CLICK_ERROR));
+    await page.click('button:has-text("Fail now")');
+    await logged;
+    release();
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-url-pathname]", { timeout: 1000 })).to.equal("/client");
+    });
+    await page.unroute(answer);
   });
 
   test("A first load whose guard() throws in the browser shows the error page, or on a static host the page's HTML, and a link shows the next page", async () => {

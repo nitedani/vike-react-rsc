@@ -117,8 +117,9 @@ export function onUncaughtError(error: unknown, componentStackToLog: string | un
 // the page again. Stops at the error page's own error.
 // TODO: replace with Vike's API, once Vike can show its error page from a component
 function showErrorPage(thrown: unknown): void {
-  const { urlPathname, isErrorPage, isHydration } = shared.current!;
-  if (isErrorPage) return;
+  const { urlPathname, isErrorPage, isHydration, abortSignal } = shared.current!;
+  // Vike aborts the shown page's signal once the next navigation commits: that navigation's page mounts Root again
+  if (isErrorPage || abortSignal.aborted) return;
   shared.lateError = { urlPathname, thrown };
   // A static host has no error page, so Vike reloads a client navigation: after the first render's error, that would loop
   void navigate(location.href, { keepScrollPosition: true, pageContext: isHydration ? { isClientSideNavigation: false } : undefined });
