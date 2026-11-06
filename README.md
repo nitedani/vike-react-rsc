@@ -8,7 +8,7 @@ for new apps and for [`vike-react`](https://vike.dev/vike-react) apps moving to 
 ## Getting started
 
 ```sh
-npm install vike-react-rsc vike react react-dom vite @vitejs/plugin-rsc
+npm install vike-react-rsc vike react react-dom react-server-dom-webpack vite @vitejs/plugin-rsc
 ```
 
 ```ts
