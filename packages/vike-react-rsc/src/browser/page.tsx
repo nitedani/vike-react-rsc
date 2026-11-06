@@ -122,7 +122,8 @@ function showErrorPage(thrown: unknown): void {
   if (isErrorPage || abortSignal.aborted) return;
   shared.lateError = { urlPathname, thrown };
   // A static host has no error page, so Vike reloads a client navigation: after the first render's error, that would loop
-  void navigate(location.href, { keepScrollPosition: true, pageContext: isHydration ? { isClientSideNavigation: false } : undefined });
+  // A new history entry would trap Back: going back reruns the page, which throws and pushes another
+  void navigate(location.href, { keepScrollPosition: true, overwriteLastHistoryEntry: true, pageContext: isHydration ? { isClientSideNavigation: false } : undefined });
 }
 
 /** Throws what React threw on this page once no navigation was waiting. Vike's hook, in the browser. */

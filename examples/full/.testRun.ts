@@ -2030,6 +2030,19 @@ function testServerComponentThrows() {
       expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
     });
   });
+
+  test("Back from a first load of a page whose server component throws inside <Suspense> shows the previous page", async () => {
+    await page.goto(getServerUrl() + "/");
+    await page.goto(getServerUrl() + "/throws");
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.equal("Something went wrong");
+    });
+    await page.goBack();
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.equal("Vike React Server Components");
+    });
+    expect(new URL(page.url()).pathname).to.equal("/");
+  });
 }
 
 function testUnserializableData(isStatic: boolean) {
