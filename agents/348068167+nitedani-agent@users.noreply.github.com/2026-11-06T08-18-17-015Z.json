@@ -7,7 +7,6 @@
   "title": "Importing open issue tickets",
   "driver": "claude-code",
   "model": "claude-sonnet-5-5",
-  "branch": "agent-2026-11-06T08-18-17-015Z",
   "cost": 0.1707041,
   "contextTokens": 43705,
   "caller": {
