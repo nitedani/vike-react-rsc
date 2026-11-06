@@ -1,18 +1,30 @@
 {
   "id": "2026-11-06T08-02-32-136Z",
   "startedAt": "2026-11-06T08:02:33.227Z",
-  "status": "running",
+  "endedAt": "2026-11-06T08:02:51.308Z",
+  "status": "done",
   "intent": "/update-tickets",
+  "title": "Ticket tracker check",
   "driver": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "branch": "agent-2026-11-06T08-02-32-136Z",
+  "cost": 0.0833764,
+  "contextTokens": 29513,
   "caller": {
     "runner": {
       "host": "experiment",
       "pid": 300506,
       "publish": "commit",
-      "gitAccount": "nitedani-agent"
+      "gitAccount": "nitedani-agent",
+      "baseCommit": "778d5495087bdca27c6e48209f42a35ec0083dd4"
     },
+    "pid": 300506,
     "host": "experiment",
     "gitAccount": "nitedani-agent",
-    "publish": "commit"
+    "baseCommit": "778d5495087bdca27c6e48209f42a35ec0083dd4",
+    "publish": "commit",
+    "kind": "prompt",
+    "workspace": "/home/oa-dani-7062f3b6/projects/vike-react-rsc/.branches/agent-2026-11-06T08-02-32-136Z",
+    "sessionId": "05d8896e-0e5e-4015-a08b-34516b332056"
   }
 }
