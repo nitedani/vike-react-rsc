@@ -7,7 +7,6 @@
   "title": "CI workflow ticket for tests",
   "driver": "claude-code",
   "model": "claude-sonnet-5-5",
-  "branch": "agent-2026-11-06T08-20-08-894Z",
   "cost": 0.1037472,
   "contextTokens": 33491,
   "caller": {
