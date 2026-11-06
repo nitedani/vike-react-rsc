@@ -4,12 +4,11 @@ import { rsc } from "vike-react-rsc/client";
 import { Details, sayHello } from "./actions";
 
 const DetailsRsc = rsc(Details);
-let count = 0;
 
 export function Counter() {
   return (
     <>
-      <button id="counter" onClick={(event) => (event.currentTarget.textContent = `Counter ${++count}`)}>
+      <button id="counter" onClick={({ currentTarget: button }) => (button.textContent = `Counter ${Number(button.textContent.replace("Counter ", "")) + 1}`)}>
         Counter 0
       </button>
       <button id="action" onClick={async () => (document.getElementById("hello")!.textContent = await sayHello())}>
