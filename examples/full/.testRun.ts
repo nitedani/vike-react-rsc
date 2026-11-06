@@ -1920,20 +1920,20 @@ function testRscCacheKey() {
     expect(await response.text()).to.not.include("Something went wrong");
   });
 
-  test("rsc(): components whose Map props differ show their own answers, and new Maps with the same entries stay cached", async () => {
+  test("rsc(): components whose Map or array props differ show their own answers, and new ones with the same entries stay cached", async () => {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
     const requests = trackRscRequests();
-    const toggle = 'button:has-text("Toggle server components with Map props")';
-    const readNames = () => page.locator("[data-rsc-map-prop]").allTextContents();
+    const toggle = 'button:has-text("Toggle server components with Map and array props")';
+    const readValues = () => page.locator("[data-rsc-values]").allTextContents();
     await page.click(toggle);
     await autoRetry(async () => {
-      expect(await readNames()).to.deep.equal(["Alice", "Bob"]);
+      expect(await readValues()).to.deep.equal(["Alice", "Bob", "0", "1"]);
     });
     await page.click(toggle);
     await page.click(toggle);
-    expect(await readNames()).to.deep.equal(["Alice", "Bob"]);
-    expect(requests).to.have.length(2);
+    expect(await readValues()).to.deep.equal(["Alice", "Bob", "0", "1"]);
+    expect(requests).to.have.length(4);
   });
 }
 

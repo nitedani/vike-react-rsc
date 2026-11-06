@@ -69,10 +69,13 @@ function keyOf(value: unknown, seen = new Map<object, number>()): string {
   const firstSeenAt = seen.get(value);
   if (firstSeenAt !== undefined) return `^${firstSeenAt}`;
   seen.set(value, seen.size);
-  if (Array.isArray(value)) return `[${value.map((item) => keyOf(item, seen)).join()}]`;
+  // The server gets a hole as undefined
+  if (Array.isArray(value)) return `[${Array.from(value, (item) => keyOf(item, seen)).join()}]`;
   if (value instanceof Map) return `Map${keyOf([...value], seen)}`;
   if (value instanceof Set) return `Set${keyOf([...value], seen)}`;
+  if (value instanceof FormData) return `FormData${keyOf([...value], seen)}`;
   if (value instanceof Date) return `Date(${value.getTime()})`;
+  if (value instanceof ArrayBuffer) return `ArrayBuffer[${new Uint8Array(value)}]`;
   if (ArrayBuffer.isView(value)) return `${value.constructor.name}[${new Uint8Array(value.buffer, value.byteOffset, value.byteLength)}]`;
   if (Object.getPrototypeOf(value) === Object.prototype) {
     return `{${Object.entries(value).map(([name, item]) => `${JSON.stringify(name)}:${keyOf(item, seen)}`).join()}}`;
