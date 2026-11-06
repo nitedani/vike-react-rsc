@@ -9,6 +9,8 @@ const outputs = new Map<string, Output>();
 const loads = new Map<string, Promise<ReactNode | undefined>>();
 // Production builds name every server function "action", so the key tells them apart by identity
 const serverComponentIds = new Map<Function, number>();
+const objectIds = new WeakMap<object, number>();
+let objectCount = 0;
 // callServer() comes from the app's copy of this package, and rsc() may come from a library's own
 const state = getShared("rsc", () => ({
   // Raised by every server action except rsc()'s loads: an output loaded before may show data the action changed
@@ -30,7 +32,7 @@ export function rsc<Props extends object>(
 
   return function RscComponent({ fallback, ...props }) {
     const pageContext = usePageContext();
-    const key = `${id}:${JSON.stringify(props)}`;
+    const key = `${id}:${keyOf(props)}`;
     const staleTime = pageContext.config.rsc?.staleTime ?? 60_000;
     // Shown until the next load arrives, even when out of date. Never set during SSR: loads start in effects.
     const output = outputs.get(key);
@@ -55,6 +57,32 @@ export function rsc<Props extends object>(
     const DefaultFallback = pageContext.config.Loading?.component;
     return fallback ?? (DefaultFallback && <DefaultFallback />);
   };
+}
+
+// Equal only for props the server function can't tell apart. Only strings hold user text, and they're quoted.
+function keyOf(value: unknown, seen = new Map<object, number>()): string {
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "bigint") return `${value}n`;
+  if (Object.is(value, -0)) return "-0";
+  if (value === null || (typeof value !== "object" && typeof value !== "function")) return String(value);
+  // The server gets one object for a repeat, and this ends a cycle
+  const firstSeenAt = seen.get(value);
+  if (firstSeenAt !== undefined) return `^${firstSeenAt}`;
+  seen.set(value, seen.size);
+  // The server gets a hole as undefined
+  if (Array.isArray(value)) return `[${Array.from(value, (item) => keyOf(item, seen)).join()}]`;
+  if (value instanceof Map) return `Map${keyOf([...value], seen)}`;
+  if (value instanceof Set) return `Set${keyOf([...value], seen)}`;
+  if (value instanceof FormData) return `FormData${keyOf([...value], seen)}`;
+  if (value instanceof Date) return `Date(${value.getTime()})`;
+  if (value instanceof ArrayBuffer) return `ArrayBuffer[${new Uint8Array(value)}]`;
+  if (ArrayBuffer.isView(value)) return `${value.constructor.name}[${new Uint8Array(value.buffer, value.byteOffset, value.byteLength)}]`;
+  if (Object.getPrototypeOf(value) === Object.prototype) {
+    return `{${Object.entries(value).map(([name, item]) => `${JSON.stringify(name)}:${keyOf(item, seen)}`).join()}}`;
+  }
+  // A function, a Blob, a promise, a class instance: only the same object is known to be equal
+  if (!objectIds.has(value)) objectIds.set(value, objectCount++);
+  return `#${objectIds.get(value)}`;
 }
 
 // Marks what the output throws, then leaves it to the error boundaries above
