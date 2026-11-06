@@ -48,15 +48,16 @@ const ON_CREATE_PAGE_CONTEXT_ERROR = "+onCreatePageContext failed on demand";
 const RSC_LOAD_ERROR = "FailingComponent failed on demand";
 const RSC_LOAD_ERROR_LOG = "[vike-react-rsc] rsc() couldn't load the server component";
 
-// Thrown by /head-settings-throw's +title in the browser, then Vike's error page logs ERROR_PAGE_IN_BROWSER_ERROR
+// Thrown by /head-settings-throw's +title in the browser
 const HEAD_SETTING_ERROR = "+title failed in the browser on demand";
 
 // Logged on the server by testUnknownAction()
 const UNKNOWN_ACTION_LOG = "[vike-react-rsc] Couldn't load the server action";
 
-// Thrown by /browser-error's guard() in the browser, then logged with why the error page can't render there
+// Thrown by /browser-error's guard() in the browser
 const BROWSER_GUARD_ERROR = "guard() failed in the browser on demand";
-const ERROR_PAGE_IN_BROWSER_ERROR = "has to render in the browser, e.g. the error page after an error there";
+// Logged by Vike in the browser on a static host, which has no error page to answer with, after a first render's error
+const ERROR_PAGE_REQUEST_FAILED = /index\.server\.pageContext\.json\S* couldn't be fetched/;
 
 // Thrown by /throws on the server, then logged there, and by React in the browser: in production as its error #441
 const THROWS_ERROR = "A server component failed on demand";
@@ -106,7 +107,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
       // testErrorPageInBrowser(): in dev, Vite also forwards the browser's log to the server's stderr
       logText.includes(BROWSER_GUARD_ERROR) ||
-      logText.includes(ERROR_PAGE_IN_BROWSER_ERROR) ||
+      (isStatic && logSource === "Browser Error" && ERROR_PAGE_REQUEST_FAILED.test(logText)) ||
       // testHeadSettings(): in dev, Vite also forwards the browser's console.error() to the server's stderr
       ((logSource === "Browser Error" || (isDev && logSource === "stderr")) && logText.includes(HEAD_SETTING_ERROR)) ||
       // testServerComponentThrows()
@@ -199,7 +200,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testPageNavigation();
   testPendingPage();
   testNavigationKeepsPage();
-  testErrorPageInBrowser();
+  testErrorPageInBrowser(isStatic);
   // /throws isn't pre-rendered: a static host has neither its HTML nor its pageContext
   if (!isStatic) testServerComponentThrows();
   if (isDev) testErrorOverlay();
@@ -1199,21 +1200,18 @@ function testHeadSettings(isStatic: boolean) {
     ]);
   });
 
-  test("Head settings: a setting that throws in the browser reaches Vike, and the previous page stays on screen with its actions", async () => {
+  test("Head settings: a setting that throws in the browser shows the error page, or on a static host the page's own HTML", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
     // Vike logs the errors it catches
     const logged = page.waitForEvent("console", (message) => message.type() === "error" && message.text().includes(HEAD_SETTING_ERROR));
     await clickNewLink("/head-settings-throw");
     await logged;
-    expect(await page.textContent("h1")).to.equal("Vike React Server Components");
-    expect(await page.title()).to.equal("Vike RSC demo");
-
-    // A static host can't run actions
-    if (isStatic) return;
-    const action = page.waitForRequest((request) => !!request.headers()["x-rsc-action"]);
-    await page.click('button:has-text("Increment")');
-    expect(new URL((await action).url()).pathname).to.equal("/");
+    // A static host has no error page to answer with, so Vike reloads the page, and hydration doesn't evaluate the setting
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.equal(isStatic ? "Head setting throws" : "Something went wrong");
+    });
+    expect(await page.title()).to.equal(isStatic ? "Head setting throws" : "Vike RSC demo");
   });
 }
 
@@ -1908,32 +1906,49 @@ function testRscCacheKey() {
   });
 }
 
-function testErrorPageInBrowser() {
-  test("The error page after an error in the browser: the console says why it can't render there, and the page stays", async () => {
+function testErrorPageInBrowser(isStatic: boolean) {
+  // A static host has no error page to answer with: Vike reloads a client navigation, and the page's HTML stays with the console saying so
+  const shown = isStatic ? "A page whose guard() throws in the browser" : "Something went wrong";
+
+  async function expectLinkShowsNextPage() {
+    const timeOrigin = await page.evaluate(() => performance.timeOrigin);
+    await page.click('a[href="/todos"]');
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.include("Task Manager");
+    });
+    expect(await page.evaluate(() => performance.timeOrigin)).to.equal(timeOrigin);
+  }
+
+  test("A client navigation whose guard() throws in the browser shows the error page, or on a static host the page's HTML, and a link shows the next page", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
+    const logged = isStatic && page.waitForEvent("console", (message) => ERROR_PAGE_REQUEST_FAILED.test(message.text()));
     await clickNewLink("/browser-error");
+    await logged;
     await autoRetry(async () => {
-      expectLog(
-        `[vike-react-rsc] The page /src/pages/_error ${ERROR_PAGE_IN_BROWSER_ERROR}, but components: 'server' makes it a server component, which renders only on the server`,
-        { filter: ({ logSource }) => logSource === "Browser Error" }
-      );
+      expect(await page.textContent("h1")).to.equal(shown);
     });
-    expect(await page.textContent("h1")).to.include("Vike React Server Components");
+    await expectLinkShowsNextPage();
+  });
+
+  test("A first load whose guard() throws in the browser shows the error page, or on a static host the page's HTML, and a link shows the next page", async () => {
+    const logged = isStatic && page.waitForEvent("console", (message) => ERROR_PAGE_REQUEST_FAILED.test(message.text()));
+    await page.goto(getServerUrl() + "/browser-error");
+    await logged;
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.equal(shown);
+    });
+    await expectLinkShowsNextPage();
   });
 }
 
 function testServerComponentThrows() {
-  test("A client navigation to a server component that throws: the console says why the error page can't render, and the next navigation shows its page", async () => {
+  test("A client navigation to a server component that throws shows the error page, and the next navigation shows its page", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
     await clickNewLink("/throws");
-    // components: 'server' makes the error page a server component, which can't render in the browser
     await autoRetry(async () => {
-      expectLog(
-        `[vike-react-rsc] The page /src/pages/_error ${ERROR_PAGE_IN_BROWSER_ERROR}, but components: 'server' makes it a server component, which renders only on the server`,
-        { filter: ({ logSource }) => logSource === "Browser Error" }
-      );
+      expect(await page.textContent("h1")).to.equal("Something went wrong");
     });
     await clickNewLink("/client");
     await autoRetry(async () => {

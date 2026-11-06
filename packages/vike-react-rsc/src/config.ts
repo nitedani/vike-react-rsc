@@ -7,7 +7,7 @@ import { vikeReactRscPlugins } from "./vite";
 // Users add it with `extends: [vikeReactRsc]`
 const vikeReactRsc: Config = {
   name: "vike-react-rsc",
-  require: { vike: ">=0.4.268" },
+  require: { vike: ">=0.4.269" },
   // Meets the require of vike-react extensions, e.g. vike-react-query: vike-react-rsc implements vike-react 0.6.31's API
   provide: { "vike-react": "0.6.31" },
 
