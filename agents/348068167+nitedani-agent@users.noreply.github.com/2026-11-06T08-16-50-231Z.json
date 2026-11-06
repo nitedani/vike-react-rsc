@@ -7,7 +7,6 @@
   "title": "Ticket sync check",
   "driver": "claude-code",
   "model": "claude-sonnet-5-5",
-  "branch": "agent-2026-11-06T08-16-50-231Z",
   "cost": 0.077529,
   "contextTokens": 29566,
   "caller": {
