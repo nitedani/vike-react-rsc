@@ -18,7 +18,8 @@ export function vikeReactRscPlugins(): Plugin[] {
       config: ({ build }) => ({
         environments: {
           // Pre-bundled, a linked copy would load twice and React would remount the Layout: plugin-rsc still loads its client components, e.g. LoadingBoundary, from their own files
-          client: { optimizeDeps: { exclude: ["vike-react-rsc", "vike-react"] } },
+          // Included, as Vite doesn't discover these imports of the excluded package once it's installed, and the browser can't load them as CommonJS
+          client: { optimizeDeps: { exclude: ["vike-react-rsc", "vike-react"], include: ["react", "react/jsx-runtime"] } },
           // Vike deploys dist/server, rsc included
           rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
         },
