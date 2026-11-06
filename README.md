@@ -1,80 +1,261 @@
+<!-- WARNING: keep links absolute in this file so they work on NPM too -->
+
 # `vike-react-rsc`
 
-React RSC integration for [Vike](https://vike.dev).
+[React Server Components](https://react.dev/reference/rsc/server-components) for [Vike](https://vike.dev),
+for new apps and for [`vike-react`](https://vike.dev/vike-react) apps moving to the server one file at a time.
 
-## Features
+## Getting started
 
-- **Server components**
-  - Progressive rendering
-  - Progressive hydration
-  - **`throw redirect()`** and **`throw render()`** inside a server component
-    - In the HTML, outside every `<Suspense>`, Vike answers them as in `guard()`: the redirect, `render(url)`'s page, or the error page and its status. A page that doesn't stream (see `+stream` below), and any page for a crawler, is rendered whole, so Vike answers them inside `<Suspense>` too.
-    - Inside `<Suspense>`, on a client navigation, in an `rsc()` load and after `rerender()`, the browser still goes to the redirect's target (from the HTML, without JavaScript too). `render()` shows `render(url)`'s page or your error page there. With `components: 'client'`, a client navigation to a page that throws `render()` outside `<Suspense>` gets what a `throw render()` in a client hook gets: `render(url)`'s page, or your error page with `is404`, `abortStatusCode` and `abortReason`.
-    - On a client navigation, in an `rsc()` load or after `rerender()`, an error boundary of yours around the throwing component catches the redirect first and shows its fallback, so the browser stays on the page (a class boundary in Next has the same limit). It catches `render()` the same way, and on a first load too, inside the `<Suspense>` of a page that streams.
-    - `Loading.layout` puts the page inside `<Suspense>`: on a page that streams, for a real 302 or 404 in a browser, throw in `guard()` or `data()`, or set `Loading = {}`.
-  - **When a component throws**: the nearest error boundary of yours shows its fallback. With none, your [error page](https://vike.dev/error-page) shows, inside your layouts. Error boundaries run only in the browser, so on a first load a throw outside every `<Suspense>` gets the error page from the server, with its status. To get your boundary there, put a `<Suspense>` inside it. Once the HTML has started, the status stays 200. An `rsc()` server function that fails isn't a render error: its fallback stays and the browser logs why. A static host can only show an error page that renders in the browser. With a server-component error page, the page goes blank and the browser logs why: give such a site an error boundary.
-- **Progressive adoption**: with `components: 'client'` in your root `+config.js`, the components of a `vike-react` app run as they do with `vike-react`. Then move a file to the server by starting it with `"use server component"`. It needs Vite 8, React 19.3.1+, `@vitejs/plugin-rsc` 0.5.36+ and Vike 0.4.269+.
-  - A file runs where the file that imports it runs. A `Page`, `Layout`, `Wrapper` or `Loading`'s `layout`, as a `+` file or imported by a `+config` file, runs where `components` says (default: `'server'`).
-  - A file without a directive that imports a `"use server component"` file, of the app or of a package, directly or through other such files, is a server component too, up to the `Page`, `Layout`, `Wrapper` or `Loading` that imports it. A `"use client"` file can't import one.
-  - [`ssr: false`](https://vike.dev/ssr) leaves the page out of the first load's HTML, under either `components` value: the browser renders it, and its server components still run on the server.
-  - [`+stream`](https://vike.dev/stream), as in `vike-react`: the first load's HTML streams with `stream: true`, or when an extension sets `stream.require` and the page doesn't set `stream: false`. Else it's sent at once, every `<Suspense>` resolved, and, unless an extension sets `stream.require`, [`+onAfterRenderHtml`](https://vike.dev/onAfterRenderHtml) gets `pageContext.pageHtmlString` instead of `pageContext.pageHtmlStream`.
-  - [`+reactStrictMode`](https://vike.dev/reactStrictMode), as in `vike-react`: pages render in `<StrictMode>` unless it's `false`.
-  - [`+react`](https://vike.dev/react-setting) takes `vike-react`'s options. `renderToStringOptions` apply where `vike-react` renders with `renderToString()`: on a page whose `+stream` neither enables nor requires streaming.
-  - [`+onBeforeRenderHtml`](https://vike.dev/onBeforeRenderHtml) runs only for the first load's HTML, as in `vike-react`. What it assigns on `pageContext` reaches that HTML's client components and `+Head`, not server components: set what they need in [`+onCreatePageContext.server.js`](https://vike.dev/onCreatePageContext), which runs on a client navigation too.
-  - A component that calls a hook such as `useState()` starts with `"use client"` when a server component imports it. A file that imports a server component can't, so its hooks move into their own `"use client"` component.
-  - `vike-react`'s `useData()`, `useHydrated()`, `usePageContext()`, `useConfig()`, `<ClientOnly>`, `<Config>` and `<Head>` are at `vike-react-rsc/useData`, `/useHydrated`, `/usePageContext`, `/useConfig`, `/ClientOnly`, `/Config` and `/Head`. `useData()`, `usePageContext()`, `<Config>` and `<Head>` work in server components too. There, `useConfig()` sets only the HTML `<head>` of a full page load: render `<Config>` instead.
-  - Install `vike-react-rsc` and also alias `vike-react` to it in your `package.json`, so that `vike-react/*` imports, in your files and in your dependencies, get `vike-react-rsc`'s, types included:
-    ```json
+```sh
+npm install vike-react-rsc vike react react-dom vite @vitejs/plugin-rsc
+```
+
+```ts
+// pages/+config.ts
+import type { Config } from "vike/types";
+import vikeReactRsc from "vike-react-rsc/config";
+
+export default {
+  extends: [vikeReactRsc],
+} satisfies Config;
+```
+
+A page is a server component, so it can be `async`:
+
+```tsx
+// pages/index/+Page.tsx
+import { Counter } from "./Counter";
+
+export default async function Page() {
+  const res = await fetch("https://brillout.github.io/star-wars/api/films/1.json");
+  const film = await res.json();
+  return (
+    <>
+      <h1>{film.title}</h1>
+      <Counter />
+    </>
+  );
+}
+```
+
+State and events go in a `"use client"` component:
+
+```tsx
+// pages/index/Counter.tsx
+"use client";
+import { useState } from "react";
+
+export function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + 1)}>Count: {count}</button>;
+}
+```
+
+Run `npx vike dev` and open http://localhost:3000. You don't need a `vite.config`.
+
+For Fast Refresh, install `@vitejs/plugin-react` and add `plugins: [react()]` to a `vite.config.ts`.
+For TypeScript, install `@types/react` and `@types/react-dom`.
+
+## Server actions
+
+An action is an async function exported from a `"use server"` file.
+Pass it to `<form action>`, or call it from a client component to get what it returns.
+
+```ts
+// pages/todos/todos.ts
+export const todos: string[] = [];
+```
+
+```ts
+// pages/todos/actions.ts
+"use server";
+import { rerender } from "vike-react-rsc/server";
+import { todos } from "./todos";
+
+export async function addTodo(formData: FormData) {
+  todos.push(String(formData.get("text")));
+  rerender();
+}
+```
+
+```tsx
+// pages/todos/+Page.tsx
+import { addTodo } from "./actions";
+import { todos } from "./todos";
+
+export default function Page() {
+  return (
+    <>
+      <ul>
+        {todos.map((todo, i) => (
+          <li key={i}>{todo}</li>
+        ))}
+      </ul>
+      <form action={addTodo}>
+        <input name="text" />
+        <button>Add</button>
+      </form>
+    </>
+  );
+}
+```
+
+`rerender()` renders the page again on the server after the action, running `guard()` and `data()`. Without it, the page stays as it is.
+
+> [!WARNING]
+> Any browser can call an action, and `guard()` doesn't protect it: check authorization in the action.
+
+A request body over 1 MB gets a 413: raise the limit with `rsc: { bodySizeLimit: 10_000_000 }` (bytes) in `pages/+config.ts`.
+Under `@vikejs/express`, a raised limit makes a plain `multipart/form-data` form over 1 MB, posted to your own route, arrive empty
+([details](https://github.com/magne4000/universal-middleware/issues/463)).
+
+## `rsc()`
+
+`rsc()` loads a server component from the browser, e.g. on a click, so heavy code stays on the server.
+It takes an export of a `"use server"` file and returns a client component:
+
+```tsx
+// pages/films/Details.tsx
+"use server";
+
+export async function Details({ id }: { id: number }) {
+  const res = await fetch(`https://brillout.github.io/star-wars/api/films/${id}.json`);
+  const film = await res.json();
+  return <p>{film.opening_crawl}</p>;
+}
+```
+
+```tsx
+// pages/films/ShowDetails.tsx
+"use client";
+import { useState } from "react";
+import { rsc } from "vike-react-rsc/client";
+import { Details } from "./Details";
+
+const DetailsRsc = rsc(Details);
+
+export function ShowDetails() {
+  const [shown, setShown] = useState(false);
+  if (!shown) return <button onClick={() => setShown(true)}>Show details</button>;
+  return <DetailsRsc id={1} fallback={<p>Loading…</p>} />;
+}
+```
+
+Props go to the server component, and `fallback` shows until it loads (default: your [`+Loading`](https://vike.dev/Loading)'s `component`).
+The browser reuses the result for `rsc: { staleTime }` ms (default 60 000), or until an action runs.
+Any browser can call it too: check authorization in it.
+
+## `getPageContext()` and `getRequestContext()`
+
+`getPageContext()` works in a page's server components.
+`getRequestContext()` also works in actions and `rsc()` components, which have no page.
+It has the request's `headers`, `cookies`, `abortSignal`, and what your [`+middleware`](https://vike.dev/middleware) adds, e.g. `user`.
+
+```tsx
+// pages/settings/+Page.tsx
+import { getPageContext } from "vike-react-rsc/pageContext";
+import { setTheme } from "./actions";
+
+export default function Page() {
+  return (
+    <form action={setTheme}>
+      <p>Theme: {getPageContext().cookies.get("theme")}</p>
+      <button name="theme" value="dark">Dark</button>
+      <button name="theme" value="light">Light</button>
+    </form>
+  );
+}
+```
+
+```ts
+// pages/settings/actions.ts
+"use server";
+import { getRequestContext, rerender } from "vike-react-rsc/server";
+
+export async function setTheme(formData: FormData) {
+  getRequestContext().cookies.set("theme", String(formData.get("theme")), { path: "/" });
+  rerender();
+}
+```
+
+## `pageContext.cookies`
+
+It has `get()`, `getAll()`, `has()`, `set()` and `delete()`. Hooks find it on `pageContext`:
+
+```ts
+// pages/account/+guard.ts
+import { render } from "vike/abort";
+import type { PageContextServer } from "vike/types";
+
+export function guard(pageContext: PageContextServer) {
+  if (!pageContext.cookies.has("session")) throw render("/login");
+}
+```
+
+`set()` and `delete()` throw while server components render: call them in an action or a hook.
+
+## Moving a `vike-react` app
+
+Install `vike-react-rsc` and `@vitejs/plugin-rsc`, and alias `vike-react` to it, so `vike-react/*` imports and extensions such as `vike-react-query` use it:
+
+```json
+{
+  "dependencies": {
     "vike-react-rsc": "^1",
     "vike-react": "npm:vike-react-rsc@^1"
-    ```
-    A vike-react extension whose `+config` requires `vike-react`, e.g. `vike-react-query`, works too: `vike-react-rsc` [provides](https://vike.dev/require#provide) `vike-react` 0.6.31.
-- **Server actions**
-  - You can call **`rerender()`** inside server actions to fully re-render & reload the full Server Component element tree. (Either you skip `rerender()` and you manage state changes on the client-side like classic React, or you use `rerender()` and you let the server-side re-render the new state.)
-  - An action reads **`getRequestContext()`** (from `vike-react-rsc/server`): the request's `headers`, `cookies` and `abortSignal`, and what your server and your [`+middleware`](https://vike.dev/middleware) add (e.g. `user`). It leaves out what Vike and your app compute for a page: `routeParams`, the page's config, `data`, and what your `+onCreatePageContext` sets.
-    ```ts
-    import { getRequestContext } from "vike-react-rsc/server";
-    const { user, cookies } = getRequestContext();
-    ```
-  - An action has no page, so `getPageContext()` and `usePageContext()` throw in it and in a component passed to `rsc()`, while the server components that component returns keep them, with the page's `data`. Without `rerender()`, server components that an action returns to JavaScript have no page either: to call `getPageContext()` in them, load them with `rsc()`.
-  - Server components can call `getRequestContext()` too.
-  - An action runs before `guard()` and `data()` of its request, so they see what it changed: `pageContext.cookies.get()` returns a cookie the action set. Without `rerender()`, an action called from JavaScript doesn't run them, as its answer is only what the action returned.
-  - `guard()` doesn't protect an action: check authorization in the action itself, with what your auth [`+middleware`](https://vike.dev/middleware) adds.
-  - An action's request body over the limit set by **`rsc: { bodySizeLimit }`** in your root `+config.js` (in bytes, default 1 MB) is refused with a 413, before it's buffered whole. Under `@vikejs/express`, if you raise it above 1 MB, a form the browser submits to your own route as a navigation (a plain `<form method="post" enctype="multipart/form-data">` submit) reaches it empty ([magne4000/universal-middleware#463](https://github.com/magne4000/universal-middleware/issues/463)) when its body is between 1 MB and your limit; a `fetch()` upload of the same form reaches it whole, as `vike-react-rsc` doesn't read it.
-  - [Telefunc](https://telefunc.com) works next to server actions.
-- **`pageContext.cookies`**: `get(name)`, `getAll()`, `has(name)`, `set(name, value, options)` and `delete(name, options)`.
-  - In hooks such as `guard()` and `data()`, as `getPageContext().cookies` (from `vike-react-rsc/pageContext`) in a server component, and as `getRequestContext().cookies` (from `vike-react-rsc/server`) in a server action.
-  - `get()`, `getAll()` and `has()` see a cookie set earlier in the same request.
-  - `set()` and `delete()` throw while server components render: on a page that streams and on a client navigation, a component inside `<Suspense>` renders after the response's headers are sent.
-  - Your own `+onCreatePageContext` runs before vike-react-rsc's, so `pageContext.cookies` isn't there yet: read `pageContext.headers.cookie` in it.
-- **[`pageContext.abortSignal`](https://vike.dev/pageContext#abortSignal)** is aborted once the client leaves: as `getPageContext().abortSignal` (from `vike-react-rsc/pageContext`) in a server component, and as `getRequestContext().abortSignal` (from `vike-react-rsc/server`) in a server action. Pass it on, so that what they wait for stops too:
-  ```ts
-  // In a server component
-  const movies = await fetch(url, { signal: getPageContext().abortSignal }).then((res) => res.json());
-  // In a server action
-  await fetch(url, { method: "POST", body, signal: getRequestContext().abortSignal });
-  ```
-- **Head settings**: vike-react's [`+title`](https://vike.dev/title), [`+description`](https://vike.dev/description), [`+lang`](https://vike.dev/lang), [`+image`](https://vike.dev/image), [`+viewport`](https://vike.dev/viewport), [`+favicon`](https://vike.dev/favicon), [`+htmlAttributes`](https://vike.dev/htmlAttributes), [`+bodyAttributes`](https://vike.dev/bodyAttributes), [`+rootAttributes`](https://vike.dev/rootAttributes), [`+headHtmlBegin`](https://vike.dev/headHtmlBegin), [`+headHtmlEnd`](https://vike.dev/headHtmlEnd), [`+bodyHtmlBegin`](https://vike.dev/bodyHtmlBegin) and [`+bodyHtmlEnd`](https://vike.dev/bodyHtmlEnd), as in vike-react.
-  - On a client navigation, `title`, `description` and `lang` change once the new page shows. A page that doesn't set one of them keeps the previous page's, so give each a default in your root `+config`. Their functions also run in the browser, so they read what reaches the client, such as `pageContext.data`.
-  - Every page gets `<html lang="en">` and `<meta name="viewport" content="width=device-width,initial-scale=1">` unless `+lang` or `+viewport` says otherwise (`null` removes it from the HTML, but a client navigation sets `lang` to `"en"`). If your `+Head` has a viewport tag, remove it, or the page gets two.
-- **RSC over RPC**: on the client-side upon user interaction (e.g. click on button "show details"), you can load Server Component elements instead of loading data. So that you don't have to load heavy Components (e.g. markdown) on the client-side — even if they are a part of a dynamic UI.
-- Built-in default **`<Loading>` fallback**, customizable globally, per page, or per component.
-- **Caching**: components loaded with `rsc()` are cached on the client for `rsc.staleTime` ms (default 1 minute, `0` disables). Page navigation always fetches a fresh payload.
-- **Automatic server integration**
-  - Works with any server: Express.js, Hono, etc. (powered by [universal-middleware](https://github.com/magne4000/universal-middleware))
-  - Fully automatic (zero-config) if you use Vike's built-in [`+server`](https://vike.dev/server)
-  - [vike-photon](https://github.com/vikejs/vike-photon) isn't supported, as Vike [deprecated](https://vike.dev/blog/universal-deploy) it: use Vike's built-in [`+server`](https://vike.dev/server) instead.
+  }
+}
+```
 
-## Goal
+With `components: "client"` in your root `+config`, your components run as they do with `vike-react`:
 
-- Feature parity with [`vike-react`](https://vike.dev/vike-react).
-- Progressive adoption for `vike-react` users: replace `vike-react` with `vike-react-rsc` then progressively start using RSC on a component-by-component basis. See [#6 - Setting `+components: 'client' | 'server'` => default component type](https://github.com/nitedani/vike-react-rsc/issues/6).
+```ts
+// pages/+config.ts
+import type { Config } from "vike/types";
+import vikeReact from "vike-react/config";
 
-## Demo
+export default {
+  extends: [vikeReact],
+  components: "client",
+} satisfies Config;
+```
 
-Example: [examples/full/](https://github.com/nitedani/vike-react-rsc/tree/main/examples/full)
+Then move a file to the server by starting it with `"use server component"`:
 
-It demonstrates local development (`pnpm dev`) and a production build served by Node.js (`pnpm preview`, via [`@universal-deploy/node`](https://github.com/photon-js/universal-deploy)).
+```tsx
+// pages/index/+Page.tsx
+"use server component";
 
-> [!NOTE]
-> Network requests are artificially slowed down to showcase RSC features such as progressive hydration.
+export default async function Page() {
+  const res = await fetch("https://brillout.github.io/star-wars/api/films/1.json");
+  const film = await res.json();
+  return <h1>{film.title}</h1>;
+}
+```
+
+A file without a directive that imports it becomes a server component too, so move that file's hooks into their own `"use client"` component.
+
+## Same as `vike-react`
+
+[Its settings](https://vike.dev/vike-react) work the same.
+Its hooks and components have the same paths under `vike-react-rsc/`, e.g. `vike-react-rsc/useData`.
+The HTML streams only with [`stream: true`](https://vike.dev/stream): without it, the first load waits for every `<Suspense>`.
+
+## Error handling
+
+A component that throws shows the nearest error boundary above it, else your [error page](https://vike.dev/error-page).
+Boundaries only run in the browser, so on a first load, one needs a `<Suspense>` inside it.
+[`throw redirect()`](https://vike.dev/redirect) and [`throw render()`](https://vike.dev/render) work in server components.
+
+## Requirements and status
+
+- Vite 8, React 19.3.1+, `@vitejs/plugin-rsc` 0.5.36+ and Vike 0.4.269+.
+- Vike's built-in server or your own, e.g. Hono or Express, through [`+server`](https://vike.dev/server).
+  [`vike-photon`](https://github.com/vikejs/vike-photon) isn't supported, as it's [deprecated](https://vike.dev/blog/universal-deploy).
+
+The goal is feature parity with `vike-react`: [open an issue](https://github.com/nitedani/vike-react-rsc/issues) for anything that works worse here.
+
+Examples: [examples/minimal](https://github.com/nitedani/vike-react-rsc/tree/main/examples/minimal),
+[examples/components-client](https://github.com/nitedani/vike-react-rsc/tree/main/examples/components-client),
+and [examples/full](https://github.com/nitedani/vike-react-rsc/tree/main/examples/full) (slowed down on purpose).
