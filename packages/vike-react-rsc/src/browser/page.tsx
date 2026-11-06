@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { Root as ReactRoot } from "react-dom/client";
 import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
+import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
 import { getAbort, toVikeAbort } from "../abort";
 import { applyHeadSettings } from "../integration/applyHeadSettings";
@@ -31,6 +32,8 @@ const shared = getShared(
     reactRoot?: ReactRoot;
     // The navigation waiting until React shows its page, or throws on it
     rendering?: { resolve: () => void; reject: (error: unknown) => void };
+    // What React threw on a page once no navigation was waiting, for showErrorPage()'s navigation to throw
+    lateError?: { urlPathname: string; thrown: unknown };
   } => ({ head: readHtmlHead() })
 );
 
@@ -95,7 +98,7 @@ export function getReactRoot(): ReactRoot | undefined {
   return shared.reactRoot;
 }
 
-/** The React root's: an error React throws while rendering goes to the navigation showing the page, as in vike-react */
+/** The React root's: an error React throws while rendering goes to the navigation showing the page, as in vike-react, or else to a new one */
 export function onUncaughtError(error: unknown, componentStackToLog: string | undefined): void {
   // React unmounted Root, or never mounted it when hydrating threw: the next page, e.g. the error page, mounts it again
   shared.setRootState = (shown) => shared.reactRoot!.render(getRootElement(shown));
@@ -105,7 +108,29 @@ export function onUncaughtError(error: unknown, componentStackToLog: string | un
   console.error(...(componentStackToLog ? [error, componentStackToLog] : [error]));
   // Vike renders the error page, and doesn't log the error again
   if (error instanceof Error && Object.isExtensible(error)) Object.assign(error, { isAlreadyLogged: true });
-  endNavigation(error);
+  if (shared.rendering) endNavigation(error);
+  else showErrorPage(abort ? toVikeAbort(abort) : error);
+}
+
+// The navigation ended before React threw, e.g. once a Suspense fallback showed, and React unmounted the page. Vike shows
+// the error page only for what a hook throws, so a new navigation's onCreatePageContext hook throws it, before Vike fetches
+// the page again. Stops at the error page's own error.
+// TODO: replace with Vike's API, once https://github.com/vikejs/vike/issues/3726 lets it show its error page from a component
+function showErrorPage(thrown: unknown): void {
+  const { urlPathname, isErrorPage, isHydration, abortSignal } = shared.current!;
+  // Vike aborts the shown page's signal once the next navigation commits: that navigation's page mounts Root again
+  if (isErrorPage || abortSignal.aborted) return;
+  shared.lateError = { urlPathname, thrown };
+  // A static host has no error page, so Vike reloads a client navigation: after the first render's error, that would loop
+  // A new history entry would trap Back: going back reruns the page, which throws and pushes another
+  void navigate(location.href, { keepScrollPosition: true, overwriteLastHistoryEntry: true, pageContext: isHydration ? { isClientSideNavigation: false } : undefined });
+}
+
+/** Throws what React threw on this page once no navigation was waiting. Vike's hook, in the browser. */
+export function throwLateError(pageContext: PageContextClient): void {
+  const { lateError } = shared;
+  shared.lateError = undefined;
+  if (lateError?.urlPathname === pageContext.urlPathname && !pageContext.isErrorPage) throw lateError.thrown;
 }
 
 // Around Root, not inside it: on hydration, React runs effects twice only under a <StrictMode> at the root

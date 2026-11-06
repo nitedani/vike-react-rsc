@@ -59,6 +59,12 @@ const BROWSER_GUARD_ERROR = "guard() failed in the browser on demand";
 // Logged by Vike in the browser on a static host, which has no error page to answer with, after a first render's error
 const ERROR_PAGE_REQUEST_FAILED = /index\.server\.pageContext\.json\S* couldn't be fetched/;
 
+// Thrown by /late-browser-error's component in the browser, inside <Suspense>, so after the first render ended
+const LATE_BROWSER_ERROR = "A component failed in the browser after its page rendered";
+
+// Thrown by /throws-on-click's component in the browser, while it renders after a click
+const CLICK_ERROR = "A component failed in the browser on a click";
+
 // Thrown by /throws on the server, then logged there, and by React in the browser: in production as its error #441
 const THROWS_ERROR = "A server component failed on demand";
 
@@ -107,12 +113,20 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       (logSource === "stderr" && logText.includes(UNKNOWN_ACTION_LOG)) ||
       // testErrorPageInBrowser(): in dev, Vite also forwards the browser's log to the server's stderr
       logText.includes(BROWSER_GUARD_ERROR) ||
+      logText.includes(LATE_BROWSER_ERROR) ||
+      logText.includes(CLICK_ERROR) ||
+      // React's report that hydrating it failed and that it rendered the boundary in the browser, as in vike-react. In
+      // dev, Vite also forwards it to the server's stderr.
+      logText.includes("There was an error while hydrating") ||
+      (logSource === "Browser Error" && logText.includes("Minified React error #422")) ||
       (isStatic && logSource === "Browser Error" && ERROR_PAGE_REQUEST_FAILED.test(logText)) ||
       // testHeadSettings(): in dev, Vite also forwards the browser's console.error() to the server's stderr
       ((logSource === "Browser Error" || (isDev && logSource === "stderr")) && logText.includes(HEAD_SETTING_ERROR)) ||
       // testServerComponentThrows()
       logText.includes(THROWS_ERROR) ||
       (logSource === "Browser Error" && logText.includes("react.dev/errors/441")) ||
+      // React's report that it renders the boundary in the browser, which shows once it commits the error page
+      (logSource === "Browser Error" && logText.includes("Minified React error #419")) ||
       // testUnserializableData()
       (logSource === "stderr" && logText.includes(UNSERIALIZABLE_LOG)) ||
       // testServerComponentAbort(): the redirect an app's error boundary caught, as React logs it in dev and in production
@@ -672,6 +686,7 @@ function testServerComponentAbort() {
     const logged = page.waitForEvent("console", (message) => message.type() === "error" && message.text().includes(getRefusedRedirectError(next)));
     await clickNewLink(href);
     await logged;
+    await page.waitForSelector("h1:text-is('Something went wrong')");
     expect(new URL(page.url()).pathname).to.equal("/abort/redirect-to-next");
   };
 
@@ -1931,6 +1946,51 @@ function testErrorPageInBrowser(isStatic: boolean) {
     await expectLinkShowsNextPage();
   });
 
+  test("A component that throws after its first render ended shows the error page, or on a static host, which has no error page, doesn't reload", async () => {
+    const documents: string[] = [];
+    const onRequest = (request: { resourceType(): string; url(): string }) => {
+      if (request.resourceType() === "document") documents.push(request.url());
+    };
+    page.on("request", onRequest);
+    const logged = isStatic && page.waitForEvent("console", (message) => ERROR_PAGE_REQUEST_FAILED.test(message.text()));
+    await page.goto(getServerUrl() + "/late-browser-error");
+    await logged;
+    if (!isStatic) {
+      await autoRetry(async () => {
+        expect(await page.textContent("h1")).to.equal("Something went wrong");
+      });
+    }
+    // Vike reloads within milliseconds of the failed request
+    await sleep(1500);
+    page.off("request", onRequest);
+    expect(documents).to.have.length(1);
+  });
+
+  test("A component that throws while a client navigation waits for its answer leaves that navigation to show its page", async () => {
+    await page.goto(getServerUrl() + "/throws-on-click");
+    await waitForHydration("Fail now");
+    const answer = getServerUrl() + "/client/index.pageContext.json";
+    let release!: () => void;
+    const thrown = new Promise<void>((resolve) => (release = resolve));
+    const requested = new Promise<void>((resolve) => {
+      void page.route(answer, async (route) => {
+        resolve();
+        await thrown;
+        await route.continue();
+      });
+    });
+    await clickNewLink("/client");
+    await requested;
+    const logged = page.waitForEvent("console", (message) => message.text().includes(CLICK_ERROR));
+    await page.click('button:has-text("Fail now")');
+    await logged;
+    release();
+    await autoRetry(async () => {
+      expect(await page.textContent("[data-url-pathname]", { timeout: 1000 })).to.equal("/client");
+    });
+    await page.unroute(answer);
+  });
+
   test("A first load whose guard() throws in the browser shows the error page, or on a static host the page's HTML, and a link shows the next page", async () => {
     const logged = isStatic && page.waitForEvent("console", (message) => ERROR_PAGE_REQUEST_FAILED.test(message.text()));
     await page.goto(getServerUrl() + "/browser-error");
@@ -1943,6 +2003,21 @@ function testErrorPageInBrowser(isStatic: boolean) {
 }
 
 function testServerComponentThrows() {
+  test("A first load and a reload of a page whose server component throws inside <Suspense> show the error page, without rendering the page again", async () => {
+    const before = await getServerCount("render /throws");
+    await page.goto(getServerUrl() + "/throws");
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.equal("Something went wrong");
+    });
+    // The Wrapper renders once in the page's HTML, and once around the error page
+    expect(await getServerCount("render /throws")).to.equal(before + 2);
+    await page.reload();
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.equal("Something went wrong");
+    });
+    expect(await getServerCount("render /throws")).to.equal(before + 4);
+  });
+
   test("A client navigation to a server component that throws shows the error page, and the next navigation shows its page", async () => {
     await page.goto(getServerUrl() + "/");
     await waitForHydration();
@@ -1954,6 +2029,19 @@ function testServerComponentThrows() {
     await autoRetry(async () => {
       expect(await page.textContent("[data-url-pathname]")).to.equal("/client");
     });
+  });
+
+  test("Back from a first load of a page whose server component throws inside <Suspense> shows the previous page", async () => {
+    await page.goto(getServerUrl() + "/");
+    await page.goto(getServerUrl() + "/throws");
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.equal("Something went wrong");
+    });
+    await page.goBack();
+    await autoRetry(async () => {
+      expect(await page.textContent("h1")).to.equal("Vike React Server Components");
+    });
+    expect(new URL(page.url()).pathname).to.equal("/");
   });
 }
 
