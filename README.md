@@ -222,15 +222,15 @@ With `components: "client"` in your root `+config`, your components run as they 
 ```ts
 // pages/+config.ts
 import type { Config } from "vike/types";
-import vikeReact from "vike-react/config";
+import vikeReactRsc from "vike-react-rsc/config";
 
 export default {
-  extends: [vikeReact],
+  extends: [vikeReactRsc],
   components: "client",
 } satisfies Config;
 ```
 
-Then move a file to the server by starting it with `"use server component"`:
+This replaces `vike-react` in `extends`. Then move a file to the server by starting it with `"use server component"`:
 
 ```tsx
 // pages/index/+Page.tsx
@@ -249,7 +249,7 @@ A file with no directive that imports this page's file becomes a server componen
 
 [Its settings](https://vike.dev/vike-react) work the same.
 Its hooks and components have the same paths under `vike-react-rsc/`, e.g. `vike-react-rsc/useData`.
-The HTML streams only with [`stream: true`](https://vike.dev/stream): without it, the first load waits for every `<Suspense>`.
+HTML streaming follows [`+stream`](https://vike.dev/stream). By default, the first load waits for every `<Suspense>`.
 
 ## Error handling
 
