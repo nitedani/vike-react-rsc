@@ -25,7 +25,6 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   });
 
   test("rsc() shows what the server renders", async () => {
-    await page.click("#load");
     await autoRetry(async () => {
       expect(await page.textContent("#details")).to.equal("Details from the server");
     });

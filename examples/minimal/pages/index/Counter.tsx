@@ -1,27 +1,22 @@
 "use client";
-import { useState } from "react";
+// Imports nothing from react, so the browser gets React only through what vike-react-rsc pre-bundles
 import { rsc } from "vike-react-rsc/client";
 import { Details, sayHello } from "./actions";
 
 const DetailsRsc = rsc(Details);
+let count = 0;
 
 export function Counter() {
-  const [count, setCount] = useState(0);
-  const [hello, setHello] = useState("");
-  const [showDetails, setShowDetails] = useState(false);
   return (
     <>
-      <button id="counter" onClick={() => setCount(count + 1)}>
-        Counter {count}
+      <button id="counter" onClick={(event) => (event.currentTarget.textContent = `Counter ${++count}`)}>
+        Counter 0
       </button>
-      <button id="action" onClick={async () => setHello(await sayHello())}>
+      <button id="action" onClick={async () => (document.getElementById("hello")!.textContent = await sayHello())}>
         Run the action
       </button>
-      <p id="hello">{hello}</p>
-      <button id="load" onClick={() => setShowDetails(true)}>
-        Load the details
-      </button>
-      {showDetails && <DetailsRsc fallback={<p>Loading</p>} />}
+      <p id="hello" />
+      <DetailsRsc fallback={<p>Loading</p>} />
     </>
   );
 }
