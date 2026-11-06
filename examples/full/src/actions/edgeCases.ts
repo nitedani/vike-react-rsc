@@ -82,6 +82,11 @@ export async function RedirectOnceComponent(): Promise<string> {
   return "Loaded";
 }
 
+// Loaded with rsc() with a Map, which JSON can't hold
+export async function MapPropComponent({ values }: { values: Map<string, string> }): Promise<string | undefined> {
+  return values.get("name");
+}
+
 // Loaded with rsc(): the client keeps showing the fallback
 export async function FailingComponent(): Promise<ReactElement> {
   throw new Error("FailingComponent failed on demand");
