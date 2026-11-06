@@ -115,7 +115,7 @@ export function onUncaughtError(error: unknown, componentStackToLog: string | un
 // The navigation ended before React threw, e.g. once a Suspense fallback showed, and React unmounted the page. Vike shows
 // the error page only for what a hook throws, so a new navigation's onCreatePageContext hook throws it, before Vike fetches
 // the page again. Stops at the error page's own error.
-// TODO: replace with Vike's API, once Vike can show its error page from a component
+// TODO: replace with Vike's API, once https://github.com/vikejs/vike/issues/3726 lets it show its error page from a component
 function showErrorPage(thrown: unknown): void {
   const { urlPathname, isErrorPage, isHydration, abortSignal } = shared.current!;
   // Vike aborts the shown page's signal once the next navigation commits: that navigation's page mounts Root again
