@@ -1,18 +1,30 @@
 {
   "id": "2026-11-06T08-20-08-894Z",
   "startedAt": "2026-11-06T08:20:10.855Z",
-  "status": "running",
+  "endedAt": "2026-11-06T08:20:31.060Z",
+  "status": "done",
   "intent": "/suggest-new-tickets",
+  "title": "CI workflow ticket for tests",
   "driver": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "branch": "agent-2026-11-06T08-20-08-894Z",
+  "cost": 0.1037472,
+  "contextTokens": 33491,
   "caller": {
     "runner": {
       "host": "experiment",
       "pid": 330534,
       "publish": "commit",
-      "gitAccount": "nitedani-agent"
+      "gitAccount": "nitedani-agent",
+      "baseCommit": "5a7b61b1d74d1b94ac217fab9f6da0f76ef2e2bb"
     },
+    "pid": 330534,
     "host": "experiment",
     "gitAccount": "nitedani-agent",
-    "publish": "commit"
+    "baseCommit": "5a7b61b1d74d1b94ac217fab9f6da0f76ef2e2bb",
+    "publish": "commit",
+    "kind": "prompt",
+    "workspace": "/home/oa-dani-7062f3b6/projects/vike-react-rsc/.branches/agent-2026-11-06T08-20-08-894Z",
+    "sessionId": "85dca5e1-276f-4413-bdc3-461e806cc3f3"
   }
 }
