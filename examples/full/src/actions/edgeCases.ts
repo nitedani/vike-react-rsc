@@ -82,6 +82,11 @@ export async function RedirectOnceComponent(): Promise<string> {
   return "Loaded";
 }
 
+// Loaded with rsc() with a Map, which JSON can't hold, or an array, whose holes the server gets as undefined
+export async function ValuesComponent({ values }: { values: Map<string, string> | unknown[] }): Promise<string | undefined> {
+  return values instanceof Map ? values.get("name") : String(values.length);
+}
+
 // Loaded with rsc(): the client keeps showing the fallback
 export async function FailingComponent(): Promise<ReactElement> {
   throw new Error("FailingComponent failed on demand");

@@ -2,7 +2,7 @@
 
 import { useActionState, useState, type ReactNode } from "react";
 import { rsc } from "vike-react-rsc/client";
-import { countSubmit, FailingComponent, loginThenRender, readRequestContext, RedirectOnceComponent, redirectToScript, requireLogin, save, saveThenGuard404, saveThenRedirectPage, slowPlainSave, slowSave } from "../../actions/edgeCases";
+import { countSubmit, FailingComponent, loginThenRender, readRequestContext, RedirectOnceComponent, redirectToScript, requireLogin, save, saveThenGuard404, saveThenRedirectPage, slowPlainSave, slowSave, ValuesComponent } from "../../actions/edgeCases";
 import { PageContextErrorComponent, PageDataComponent, returnPageContextError } from "../../actions/pageData";
 import { RedirectingChildComponent } from "../../actions/redirectingChild";
 
@@ -11,6 +11,7 @@ const RedirectOnceComponentRsc = rsc(RedirectOnceComponent);
 const RedirectingChildComponentRsc = rsc(RedirectingChildComponent);
 const PageDataComponentRsc = rsc(PageDataComponent);
 const PageContextErrorComponentRsc = rsc(PageContextErrorComponent);
+const ValuesComponentRsc = rsc(ValuesComponent);
 
 export default function ActionsClient() {
   const [result, setResult] = useState("");
@@ -18,6 +19,7 @@ export default function ActionsClient() {
   const [showRedirecting, setShowRedirecting] = useState(false);
   const [showPageData, setShowPageData] = useState(false);
   const [showPageContextError, setShowPageContextError] = useState(false);
+  const [showValues, setShowValues] = useState(false);
   const [returned, setReturned] = useState<ReactNode>(null);
   const [firstRedirect, setFirstRedirect] = useState<"child" | "server-function">();
   const [submits, countSubmitAction] = useActionState(countSubmit, 0);
@@ -52,6 +54,15 @@ export default function ActionsClient() {
       {showPageData && <PageDataComponentRsc />}
       <button onClick={() => setShowPageContextError(true)}>Load a server component that calls getPageContext()</button>
       {showPageContextError && <PageContextErrorComponentRsc />}
+      <button onClick={() => setShowValues(!showValues)}>Toggle server components with Map and array props</button>
+      {showValues && (
+        <>
+          <p data-rsc-values=""><ValuesComponentRsc values={new Map([["name", "Alice"]])} fallback="Not loaded" /></p>
+          <p data-rsc-values=""><ValuesComponentRsc values={new Map([["name", "Bob"]])} fallback="Not loaded" /></p>
+          <p data-rsc-values=""><ValuesComponentRsc values={[]} fallback="Not loaded" /></p>
+          <p data-rsc-values=""><ValuesComponentRsc values={Array(1)} fallback="Not loaded" /></p>
+        </>
+      )}
       <button onClick={async () => setReturned(await returnPageContextError())}>Return a server component that calls getPageContext()</button>
       {returned}
       <button onClick={() => setFirstRedirect("child")}>Load a server component whose child redirects</button>
