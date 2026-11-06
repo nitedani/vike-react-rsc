@@ -7,7 +7,6 @@
   "title": "Ticket tracker check",
   "driver": "claude-code",
   "model": "claude-sonnet-5-5",
-  "branch": "agent-2026-11-06T08-02-32-136Z",
   "cost": 0.0833764,
   "contextTokens": 29513,
   "caller": {
