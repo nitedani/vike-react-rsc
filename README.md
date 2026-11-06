@@ -54,7 +54,16 @@ export function Counter() {
 
 Run `npx vike dev` and open http://localhost:3000. You don't need a `vite.config`.
 
-For Fast Refresh, install `@vitejs/plugin-react` and add `plugins: [react()]` to a `vite.config.ts`.
+For Fast Refresh, install `@vitejs/plugin-react` and add a `vite.config.ts`:
+
+```ts
+// vite.config.ts
+import react from "@vitejs/plugin-react";
+import vike from "vike/plugin";
+
+export default { plugins: [react(), vike()] };
+```
+
 For TypeScript, install `@types/react` and `@types/react-dom`.
 
 ## Server actions
@@ -142,7 +151,7 @@ export function ShowDetails() {
 }
 ```
 
-Props go to the server component, and `fallback` shows until it loads (default: your [`+Loading`](https://vike.dev/Loading)'s `component`).
+Props go to the server component. `fallback` shows until it loads, and without one, your [`+Loading`](https://vike.dev/Loading) shows.
 The browser reuses the result for `rsc: { staleTime }` ms (default 60 000), or until an action runs.
 Any browser can call it too: check authorization in it.
 
@@ -197,7 +206,7 @@ export function guard(pageContext: PageContextServer) {
 
 ## Moving a `vike-react` app
 
-Install `vike-react-rsc` and `@vitejs/plugin-rsc`, and alias `vike-react` to it, so `vike-react/*` imports and extensions such as `vike-react-query` use it:
+Upgrade to the versions under [Requirements](#requirements-and-status). Install `vike-react-rsc`, `@vitejs/plugin-rsc` and `react-server-dom-webpack`, and alias `vike-react` to `vike-react-rsc`, so `vike-react/*` imports and extensions such as `vike-react-query` use it:
 
 ```json
 {
@@ -234,7 +243,7 @@ export default async function Page() {
 }
 ```
 
-A file without a directive that imports it becomes a server component too, so move that file's hooks into their own `"use client"` component.
+A file with no directive that imports this page's file becomes a server component too. If such a file calls hooks, move them into their own `"use client"` component.
 
 ## Same as `vike-react`
 
@@ -245,13 +254,22 @@ The HTML streams only with [`stream: true`](https://vike.dev/stream): without it
 ## Error handling
 
 A component that throws shows the nearest error boundary above it, else your [error page](https://vike.dev/error-page).
-Boundaries only run in the browser, so on a first load, one needs a `<Suspense>` inside it.
+Boundaries only run in the browser, so to catch a throw on a first load, put a `<Suspense>` inside the boundary:
+
+```tsx
+<ErrorBoundary>
+  <Suspense fallback={<p>Loading…</p>}>
+    <Comments />
+  </Suspense>
+</ErrorBoundary>
+```
+
 [`throw redirect()`](https://vike.dev/redirect) and [`throw render()`](https://vike.dev/render) work in server components.
 
 ## Requirements and status
 
 - Vite 8, React 19.3.1+, `@vitejs/plugin-rsc` 0.5.36+ and Vike 0.4.269+.
-- Vike's built-in server or your own, e.g. Hono or Express, through [`+server`](https://vike.dev/server).
+- Vike's built-in server, which needs no setup, or your own, e.g. Hono or Express: see [`+server`](https://vike.dev/server).
   [`vike-photon`](https://github.com/vikejs/vike-photon) isn't supported, as it's [deprecated](https://vike.dev/blog/universal-deploy).
 
 The goal is feature parity with `vike-react`: [open an issue](https://github.com/nitedani/vike-react-rsc/issues) for anything that works worse here.
