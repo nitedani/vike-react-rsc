@@ -1,18 +1,30 @@
 {
   "id": "2026-11-06T08-18-17-015Z",
   "startedAt": "2026-11-06T08:18:19.149Z",
-  "status": "running",
+  "endedAt": "2026-11-06T08:19:07.183Z",
+  "status": "done",
   "intent": "/update-tickets",
+  "title": "Importing open issue tickets",
   "driver": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "branch": "agent-2026-11-06T08-18-17-015Z",
+  "cost": 0.1707041,
+  "contextTokens": 43705,
   "caller": {
     "runner": {
       "host": "experiment",
       "pid": 324689,
       "publish": "commit",
-      "gitAccount": "nitedani-agent"
+      "gitAccount": "nitedani-agent",
+      "baseCommit": "5a7b61b1d74d1b94ac217fab9f6da0f76ef2e2bb"
     },
+    "pid": 324689,
     "host": "experiment",
     "gitAccount": "nitedani-agent",
-    "publish": "commit"
+    "baseCommit": "5a7b61b1d74d1b94ac217fab9f6da0f76ef2e2bb",
+    "publish": "commit",
+    "kind": "prompt",
+    "workspace": "/home/oa-dani-7062f3b6/projects/vike-react-rsc/.branches/agent-2026-11-06T08-18-17-015Z",
+    "sessionId": "19de85d4-3ded-4512-b249-3e3304ad1675"
   }
 }
