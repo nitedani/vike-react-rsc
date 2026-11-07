@@ -31,8 +31,8 @@ importers:
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
       '@universal-deploy/node':
-        specifier: ^0.1.9
-        version: 0.1.13(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+        specifier: ^0.1.14
+        version: 0.1.14(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       '@vitejs/plugin-react':
         specifier: ^6.0.5
         version: 6.0.5(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
@@ -62,13 +62,13 @@ importers:
         version: 7.0.2
       vike:
         specifier: 0.4.269
-        version: 0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+        version: 0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       vike-react:
         specifier: link:../../packages/vike-react-rsc
         version: link:../../packages/vike-react-rsc
       vike-react-extension:
         specifier: file:./vike-react-extension
-        version: file:examples/components-client/vike-react-extension(react@19.3.1)(vike-react@packages+vike-react-rsc)(vike@0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)))
+        version: file:examples/components-client/vike-react-extension(react@19.3.1)(vike-react@packages+vike-react-rsc)(vike@0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)))
       vike-react-rsc:
         specifier: link:../../packages/vike-react-rsc
         version: link:../../packages/vike-react-rsc
@@ -92,11 +92,11 @@ importers:
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
       '@universal-deploy/node':
-        specifier: ^0.1.9
-        version: 0.1.9(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+        specifier: ^0.1.14
+        version: 0.1.14(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       '@universal-middleware/core':
         specifier: ^0.6.2
-        version: 0.6.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
+        version: 0.6.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)
       '@vitejs/plugin-react':
         specifier: ^6.0.5
         version: 6.0.5(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
@@ -132,7 +132,7 @@ importers:
         version: 7.0.2
       vike:
         specifier: 0.4.269
-        version: 0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+        version: 0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       vike-react-rsc:
         specifier: link:../../packages/vike-react-rsc
         version: link:../../packages/vike-react-rsc
@@ -1035,28 +1035,12 @@ packages:
     peerDependencies:
       vite: '>=7.1'
 
-  '@universal-deploy/node@0.1.13':
-    resolution: {integrity: sha512-hXRcp0edSjuyDtSb1kK1/kHcthGEWRxy4d+pybTiBOMV4IHkO3z+poBvV8DxB03SSq2Y+FVH/Aj2GHxcf/9Rtg==}
+  '@universal-deploy/node@0.1.14':
+    resolution: {integrity: sha512-GMt3tyT3pT0D1FhvI/TKon5kcsaiOs0GajPTthchjSkxknShVA9TgfdwbQP63duMNr2SIWbNyik/SAi4lyW6/Q==}
     peerDependencies:
       vite: '>=7.1'
     peerDependenciesMeta:
       vite:
-        optional: true
-
-  '@universal-deploy/node@0.1.9':
-    resolution: {integrity: sha512-gSQOZ3w9oYB+6jRJELCgKOG+eTd5WJrWj2K0oxqBltK+TjIOuMt5pPd5vIpvW2AcZK6xk1XH0x0kGfC0cRri8Q==}
-    peerDependencies:
-      vite: '>=7.1'
-    peerDependenciesMeta:
-      vite:
-        optional: true
-
-  '@universal-deploy/store@0.2.1':
-    resolution: {integrity: sha512-9CYaStacvufXAaVmaf8dxEVptqpcX5m9+vz1PIlN4gjYKlXfOdbZTuhv2xLwp3mj4jBR2/8VYdF5Vviw9cBYEA==}
-    peerDependencies:
-      srvx: '*'
-    peerDependenciesMeta:
-      srvx:
         optional: true
 
   '@universal-deploy/store@0.3.0':
@@ -2553,9 +2537,6 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
-  rou3@0.8.1:
-    resolution: {integrity: sha512-ePa+XGk00/3HuCqrEnK3LxJW7I0SdNg6EFzKUJG73hMAdDcOUC/i/aSz7LSDwLrGr33kal/rqOGydzwl6U7zBA==}
-
   rou3@1.0.0:
     resolution: {integrity: sha512-ySeaQkSrua+ut9g+65I7FHqOFBaY8tV0FmccXItoq0q21se32Q3u4YiW7/RqXSosWgYJaaKwRHXy3BST9PeCNQ==}
     engines: {node: '>=20.19.0'}
@@ -2615,16 +2596,6 @@ packages:
 
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
-
-  srvx@0.11.22:
-    resolution: {integrity: sha512-LqZxxBDMKuMAZzFzJnDCkFOrs9MZQZr0LvHiO/SuSZVdQaXD7xQ5UWTUxheJrQPve1qk9MG2B/yttUvJxw8egQ==}
-    engines: {node: '>=20.16.0'}
-    hasBin: true
-
-  srvx@0.12.5:
-    resolution: {integrity: sha512-IuvtDNQg5EIwv3c6dleyau7u8hCyGQ7D6+V/QM799Aud07z0wCUcurKLTRfyG33C8oUY+UWcVBFkfHMcbtmRLA==}
-    engines: {node: '>=20.16.0'}
-    hasBin: true
 
   srvx@1.0.5:
     resolution: {integrity: sha512-KvSKRpgPG/oaq3cyT614OQ2bAa7DynuGamivCZeoZzIUULOdbQz6wUtnnVuC4+DCx2Zglzo8v5gBYmWIWYhDxA==}
@@ -3666,20 +3637,6 @@ snapshots:
 
   '@ungap/structured-clone@1.4.0': {}
 
-  '@universal-deploy/netlify@0.2.4(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
-    dependencies:
-      '@universal-deploy/store': 0.3.0(srvx@0.11.22)
-      vite: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
-    transitivePeerDependencies:
-      - srvx
-
-  '@universal-deploy/netlify@0.2.4(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
-    dependencies:
-      '@universal-deploy/store': 0.3.0(srvx@0.12.5)
-      vite: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
-    transitivePeerDependencies:
-      - srvx
-
   '@universal-deploy/netlify@0.2.4(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
     dependencies:
       '@universal-deploy/store': 0.3.0(srvx@1.0.5)
@@ -3687,86 +3644,22 @@ snapshots:
     transitivePeerDependencies:
       - srvx
 
-  '@universal-deploy/node@0.1.13(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
+  '@universal-deploy/node@0.1.14(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
     dependencies:
-      '@universal-deploy/store': 0.3.0(srvx@0.12.5)
+      '@universal-deploy/store': 0.3.0(srvx@1.0.5)
       magic-string: 0.30.21
-      srvx: 0.12.5
+      srvx: 1.0.5
     optionalDependencies:
       vite: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
-
-  '@universal-deploy/node@0.1.9(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
-    dependencies:
-      '@universal-deploy/store': 0.2.1(srvx@0.11.22)
-      magic-string: 0.30.21
-      srvx: 0.11.22
-    optionalDependencies:
-      vite: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
-
-  '@universal-deploy/store@0.2.1(srvx@0.11.22)':
-    dependencies:
-      rou3: 0.8.1
-    optionalDependencies:
-      srvx: 0.11.22
-
-  '@universal-deploy/store@0.3.0(srvx@0.11.22)':
-    optionalDependencies:
-      srvx: 0.11.22
-
-  '@universal-deploy/store@0.3.0(srvx@0.12.5)':
-    optionalDependencies:
-      srvx: 0.12.5
 
   '@universal-deploy/store@0.3.0(srvx@1.0.5)':
     optionalDependencies:
       srvx: 1.0.5
 
-  '@universal-deploy/vite@0.2.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
-    dependencies:
-      '@universal-deploy/netlify': 0.2.4(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-      '@universal-deploy/node': 0.1.13(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-      '@universal-deploy/store': 0.3.0(srvx@0.11.22)
-      '@universal-middleware/express': 0.5.3(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
-      magic-string: 0.30.21
-      rou3: 1.0.0
-    optionalDependencies:
-      vite: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
-    transitivePeerDependencies:
-      - '@cloudflare/workers-types'
-      - '@hattip/core'
-      - '@types/express'
-      - '@webroute/route'
-      - elysia
-      - fastify
-      - h3
-      - hono
-      - srvx
-
-  '@universal-deploy/vite@0.2.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
-    dependencies:
-      '@universal-deploy/netlify': 0.2.4(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-      '@universal-deploy/node': 0.1.13(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-      '@universal-deploy/store': 0.3.0(srvx@0.12.5)
-      '@universal-middleware/express': 0.5.3(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
-      magic-string: 0.30.21
-      rou3: 1.0.0
-    optionalDependencies:
-      vite: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
-    transitivePeerDependencies:
-      - '@cloudflare/workers-types'
-      - '@hattip/core'
-      - '@types/express'
-      - '@webroute/route'
-      - elysia
-      - fastify
-      - h3
-      - hono
-      - srvx
-
   '@universal-deploy/vite@0.2.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))':
     dependencies:
       '@universal-deploy/netlify': 0.2.4(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-      '@universal-deploy/node': 0.1.13(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+      '@universal-deploy/node': 0.1.14(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       '@universal-deploy/store': 0.3.0(srvx@1.0.5)
       '@universal-middleware/express': 0.5.3(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)
       magic-string: 0.30.21
@@ -3783,26 +3676,6 @@ snapshots:
       - h3
       - hono
       - srvx
-
-  '@universal-middleware/core@0.6.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)':
-    dependencies:
-      regexparam: 3.0.0
-      tough-cookie: 6.0.2
-    optionalDependencies:
-      '@hattip/core': 0.0.49
-      '@types/express': 4.17.25
-      hono: 4.13.0
-      srvx: 0.11.22
-
-  '@universal-middleware/core@0.6.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)':
-    dependencies:
-      regexparam: 3.0.0
-      tough-cookie: 6.0.2
-    optionalDependencies:
-      '@hattip/core': 0.0.49
-      '@types/express': 4.17.25
-      hono: 4.13.0
-      srvx: 0.12.5
 
   '@universal-middleware/core@0.6.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)':
     dependencies:
@@ -3824,26 +3697,6 @@ snapshots:
       hono: 4.13.0
       srvx: 1.0.5
 
-  '@universal-middleware/core@0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)':
-    dependencies:
-      regexparam: 3.0.0
-      tough-cookie: 6.0.2
-    optionalDependencies:
-      '@hattip/core': 0.0.49
-      '@types/express': 4.17.25
-      hono: 4.13.0
-      srvx: 0.11.22
-
-  '@universal-middleware/core@0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)':
-    dependencies:
-      regexparam: 3.0.0
-      tough-cookie: 6.0.2
-    optionalDependencies:
-      '@hattip/core': 0.0.49
-      '@types/express': 4.17.25
-      hono: 4.13.0
-      srvx: 0.12.5
-
   '@universal-middleware/core@0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)':
     dependencies:
       regexparam: 3.0.0
@@ -3854,68 +3707,10 @@ snapshots:
       hono: 4.13.0
       srvx: 1.0.5
 
-  '@universal-middleware/express@0.5.3(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)':
-    dependencies:
-      '@universal-middleware/core': 0.6.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
-      '@universal-middleware/node': 0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
-    transitivePeerDependencies:
-      - '@cloudflare/workers-types'
-      - '@hattip/core'
-      - '@types/express'
-      - '@webroute/route'
-      - elysia
-      - fastify
-      - h3
-      - hono
-      - srvx
-
-  '@universal-middleware/express@0.5.3(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)':
-    dependencies:
-      '@universal-middleware/core': 0.6.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
-      '@universal-middleware/node': 0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
-    transitivePeerDependencies:
-      - '@cloudflare/workers-types'
-      - '@hattip/core'
-      - '@types/express'
-      - '@webroute/route'
-      - elysia
-      - fastify
-      - h3
-      - hono
-      - srvx
-
   '@universal-middleware/express@0.5.3(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)':
     dependencies:
       '@universal-middleware/core': 0.6.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)
       '@universal-middleware/node': 0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@1.0.5)
-    transitivePeerDependencies:
-      - '@cloudflare/workers-types'
-      - '@hattip/core'
-      - '@types/express'
-      - '@webroute/route'
-      - elysia
-      - fastify
-      - h3
-      - hono
-      - srvx
-
-  '@universal-middleware/node@0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)':
-    dependencies:
-      '@universal-middleware/core': 0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
-    transitivePeerDependencies:
-      - '@cloudflare/workers-types'
-      - '@hattip/core'
-      - '@types/express'
-      - '@webroute/route'
-      - elysia
-      - fastify
-      - h3
-      - hono
-      - srvx
-
-  '@universal-middleware/node@0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)':
-    dependencies:
-      '@universal-middleware/core': 0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
       - '@hattip/core'
@@ -5479,8 +5274,6 @@ snapshots:
       '@rollup/rollup-win32-x64-msvc': 4.64.10
       fsevents: 2.3.3
 
-  rou3@0.8.1: {}
-
   rou3@1.0.0: {}
 
   run-parallel@1.2.0:
@@ -5532,10 +5325,6 @@ snapshots:
   source-map@0.7.6: {}
 
   space-separated-tokens@2.0.2: {}
-
-  srvx@0.11.22: {}
-
-  srvx@0.12.5: {}
 
   srvx@1.0.5: {}
 
@@ -5738,89 +5527,11 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vike-react-extension@file:examples/components-client/vike-react-extension(react@19.3.1)(vike-react@packages+vike-react-rsc)(vike@0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))):
+  vike-react-extension@file:examples/components-client/vike-react-extension(react@19.3.1)(vike-react@packages+vike-react-rsc)(vike@0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))):
     dependencies:
       react: 19.3.1
-      vike: 0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
+      vike: 0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
       vike-react: link:packages/vike-react-rsc
-
-  vike@0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
-    dependencies:
-      '@babel/core': 7.29.7
-      '@babel/types': 7.29.8
-      '@brillout/import': 0.2.6
-      '@brillout/json-serializer': 0.5.27
-      '@brillout/picocolors': 1.0.31
-      '@brillout/vite-plugin-server-entry': 0.7.24
-      '@universal-deploy/store': 0.3.0(srvx@0.11.22)
-      '@universal-deploy/vite': 0.2.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-      '@universal-middleware/core': 0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
-      '@universal-middleware/node': 0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.11.22)
-      cac: 6.7.14
-      convert-route: 2.0.0
-      es-module-lexer: 1.7.0
-      json5: 2.2.3
-      magic-string: 1.4.5
-      picomatch: 4.0.7
-      rolldown: 1.2.2
-      semver: 7.8.6
-      sirv: 3.0.2
-      source-map-support: 0.5.21
-      tinyglobby: 0.2.17
-      vite-plugin-wrapper: 0.1.1(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-    optionalDependencies:
-      react-streaming: 0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      vite: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
-    transitivePeerDependencies:
-      - '@cloudflare/workers-types'
-      - '@hattip/core'
-      - '@types/express'
-      - '@webroute/route'
-      - elysia
-      - fastify
-      - h3
-      - hono
-      - srvx
-      - supports-color
-
-  vike@0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
-    dependencies:
-      '@babel/core': 7.29.7
-      '@babel/types': 7.29.8
-      '@brillout/import': 0.2.6
-      '@brillout/json-serializer': 0.5.27
-      '@brillout/picocolors': 1.0.31
-      '@brillout/vite-plugin-server-entry': 0.7.24
-      '@universal-deploy/store': 0.3.0(srvx@0.12.5)
-      '@universal-deploy/vite': 0.2.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-      '@universal-middleware/core': 0.7.2(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
-      '@universal-middleware/node': 0.2.9(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(srvx@0.12.5)
-      cac: 6.7.14
-      convert-route: 2.0.0
-      es-module-lexer: 1.7.0
-      json5: 2.2.3
-      magic-string: 1.4.5
-      picomatch: 4.0.7
-      rolldown: 1.2.2
-      semver: 7.8.6
-      sirv: 3.0.2
-      source-map-support: 0.5.21
-      tinyglobby: 0.2.17
-      vite-plugin-wrapper: 0.1.1(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2))
-    optionalDependencies:
-      react-streaming: 0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      vite: 8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)
-    transitivePeerDependencies:
-      - '@cloudflare/workers-types'
-      - '@hattip/core'
-      - '@types/express'
-      - '@webroute/route'
-      - elysia
-      - fastify
-      - h3
-      - hono
-      - srvx
-      - supports-color
 
   vike@0.4.269(@hattip/core@0.0.49)(@types/express@4.17.25)(hono@4.13.0)(react-streaming@0.4.25(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(srvx@1.0.5)(vite@8.2.0(@types/node@26.6.3)(esbuild@0.27.0)(jiti@2.6.1)(terser@5.51.2)):
     dependencies:
