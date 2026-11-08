@@ -8,7 +8,7 @@ for new apps and for [`vike-react`](https://vike.dev/vike-react) apps moving to 
 ## Getting started
 
 ```sh
-npm install vike-react-rsc vike react react-dom react-server-dom-webpack vite @vitejs/plugin-rsc
+npm install vike-react-rsc vike react react-dom vite @vitejs/plugin-rsc
 ```
 
 ```ts
@@ -206,7 +206,7 @@ export function guard(pageContext: PageContextServer) {
 
 ## Moving a `vike-react` app
 
-Upgrade to the versions under [Requirements](#requirements-and-status). Install `vike-react-rsc`, `@vitejs/plugin-rsc` and `react-server-dom-webpack`, and alias `vike-react` to `vike-react-rsc`, so `vike-react/*` imports and extensions such as `vike-react-query` use it:
+Upgrade to the versions under [Requirements](#requirements-and-status). Install `vike-react-rsc` and `@vitejs/plugin-rsc`, and alias `vike-react` to `vike-react-rsc`, so `vike-react/*` imports and extensions such as `vike-react-query` use it:
 
 ```json
 {
@@ -268,7 +268,8 @@ Boundaries only run in the browser, so to catch a throw on a first load, put a `
 
 ## Requirements and status
 
-- Vite 8, React 19.3.1+, `@vitejs/plugin-rsc` 0.5.36+ and Vike 0.4.269+.
+- Vite 8, React 19.3.1+, `@vitejs/plugin-rsc` 0.5.39+ and Vike 0.4.269+.
+  `@vitejs/plugin-rsc` includes `react-server-dom-webpack`: install `react-server-dom-webpack` yourself only to run a newer React than the one it includes.
 - Vike's built-in server, which needs no setup, or your own, e.g. Hono or Express: see [`+server`](https://vike.dev/server).
   [`vike-photon`](https://github.com/vikejs/vike-photon) isn't supported, as it's [deprecated](https://vike.dev/blog/universal-deploy).
   On [Cloudflare](https://vike.dev/cloudflare), the rsc environment runs in the same Worker: `cloudflare({ viteEnvironment: { name: "ssr", childEnvironments: ["rsc"] } })` in `vite.config.ts`.
