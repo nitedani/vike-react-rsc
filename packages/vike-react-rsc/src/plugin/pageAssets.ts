@@ -3,8 +3,7 @@ import type { Plugin, Rollup } from "vite";
 import { getRscPageEntry } from "./vikeParts";
 
 /** Vike preloads the fonts it finds in a page's client entry. A server component's fonts are only in the rsc build's chunks, and a client
- * component's only behind the page's dynamic import of its client references, so each page's client entry lists those too.
- * TODO: remove once plugin-rsc lists fonts in serverResources and clientReferenceDeps, not only among the files it copies to the client */
+ * component's only behind the page's dynamic import of its client references, so each page's client entry lists those too. */
 export function pageAssets(): Plugin {
   return {
     name: "vike-react-rsc:page-assets",
