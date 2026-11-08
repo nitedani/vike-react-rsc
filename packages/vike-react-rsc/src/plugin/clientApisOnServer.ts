@@ -85,40 +85,91 @@ function getClientApis(program: ESTree.Program): string[] {
       else if (specifier.imported.type === "Identifier" && clientApis.includes(specifier.imported.name)) apis.add(specifier.imported.name);
     }
   }
-  if (namespaces.size === 0) return [...apis];
-  const declared = getDeclaredNames(program);
-  new Visitor({
-    MemberExpression: ({ object, property, computed }) => {
-      if (computed || object.type !== "Identifier" || !namespaces.has(object.name) || declared.has(object.name) || property.type !== "Identifier") return;
-      if (clientApis.includes(property.name)) apis.add(property.name);
-    },
-  }).visit(program);
+  for (const api of getNamespaceApis(program, namespaces)) apis.add(api);
   return [...apis];
 }
 
-// Every name a function, variable, class or catch clause of the module binds, in any scope. A namespace import's name among them
-// may mean the local one, so the import isn't looked for: React's error still reports a real call
-function getDeclaredNames(program: ESTree.Program): Set<string> {
-  const names = new Set<string>();
-  const add = (pattern: ESTree.Node | null | undefined): void => {
-    if (pattern?.type === "Identifier") names.add(pattern.name);
-    else if (pattern?.type === "ObjectPattern") pattern.properties.forEach((property) => add(property.type === "Property" ? (property.value as ESTree.Node) : property));
-    else if (pattern?.type === "ArrayPattern") pattern.elements.forEach(add);
-    else if (pattern?.type === "AssignmentPattern") add(pattern.left);
-    else if (pattern?.type === "RestElement") add(pattern.argument);
+// The browser-only APIs used as `name.api` where `name` is one of `namespaces` and no scope around the use binds another `name`
+function getNamespaceApis(program: ESTree.Program, namespaces: Set<string>): string[] {
+  const scopes: Scope[] = [{ names: new Set(), isFunction: true }];
+  const uses: { name: string; api: string; around: Scope[] }[] = [];
+  const declare = (pattern: ESTree.Node | null | undefined, scope = scopes.at(-1)!) => {
+    for (const name of getBoundNames(pattern)) scope.names.add(name);
   };
-  const addFunction = ({ id, params }: ESTree.Function) => [id, ...params].forEach(add);
-  const addClass = ({ id }: ESTree.Class) => add(id);
+  const enter = (isFunction = false) => scopes.push({ names: new Set(), isFunction });
+  const exit = () => scopes.pop();
+  const enterBlock = () => enter();
+  const enterFunction = ({ type, id, params }: ESTree.Function) => {
+    // A function declaration's name is bound around it, a function expression's only inside it
+    if (type === "FunctionDeclaration") declare(id);
+    enter(true);
+    if (type === "FunctionExpression") declare(id);
+    params.forEach((param) => declare(param));
+  };
   new Visitor({
-    FunctionDeclaration: addFunction,
-    FunctionExpression: addFunction,
-    ArrowFunctionExpression: ({ params }) => params.forEach(add),
-    ClassDeclaration: addClass,
-    ClassExpression: addClass,
-    VariableDeclarator: ({ id }) => add(id),
-    CatchClause: ({ param }) => add(param),
+    FunctionDeclaration: enterFunction,
+    "FunctionDeclaration:exit": exit,
+    FunctionExpression: enterFunction,
+    "FunctionExpression:exit": exit,
+    ArrowFunctionExpression: ({ params }) => {
+      enter(true);
+      params.forEach((param) => declare(param));
+    },
+    "ArrowFunctionExpression:exit": exit,
+    StaticBlock: () => enter(true),
+    "StaticBlock:exit": exit,
+    BlockStatement: enterBlock,
+    "BlockStatement:exit": exit,
+    ForStatement: enterBlock,
+    "ForStatement:exit": exit,
+    ForInStatement: enterBlock,
+    "ForInStatement:exit": exit,
+    ForOfStatement: enterBlock,
+    "ForOfStatement:exit": exit,
+    SwitchStatement: enterBlock,
+    "SwitchStatement:exit": exit,
+    CatchClause: ({ param }) => {
+      enter();
+      declare(param);
+    },
+    "CatchClause:exit": exit,
+    ClassDeclaration: ({ id }) => declare(id),
+    ClassExpression: ({ id }) => {
+      enter();
+      declare(id);
+    },
+    "ClassExpression:exit": exit,
+    VariableDeclaration: ({ kind, declarations }) => {
+      // var belongs to the enclosing function, wherever it's written
+      const scope = kind === "var" ? scopes.findLast(({ isFunction }) => isFunction) : scopes.at(-1);
+      for (const { id } of declarations) declare(id, scope);
+    },
+    MemberExpression: ({ object, property, computed }) => {
+      if (computed || object.type !== "Identifier" || !namespaces.has(object.name) || property.type !== "Identifier" || !clientApis.includes(property.name)) return;
+      uses.push({ name: object.name, api: property.name, around: [...scopes] });
+    },
   }).visit(program);
-  return names;
+  // Once every scope is complete: a name can be bound after its use, e.g. by a var further down
+  return uses.filter(({ name, around }) => !around.some((scope) => scope.names.has(name))).map(({ api }) => api);
+}
+
+type Scope = { names: Set<string>; isFunction: boolean };
+
+function getBoundNames(pattern: ESTree.Node | null | undefined): string[] {
+  switch (pattern?.type) {
+    case "Identifier":
+      return [pattern.name];
+    case "ObjectPattern":
+      return pattern.properties.flatMap((property) => getBoundNames(property.type === "Property" ? (property.value as ESTree.Node) : property));
+    case "ArrayPattern":
+      return pattern.elements.flatMap(getBoundNames);
+    case "AssignmentPattern":
+      return getBoundNames(pattern.left);
+    case "RestElement":
+      return getBoundNames(pattern.argument);
+    default:
+      return [];
+  }
 }
 
 // The fix, and why the file runs on the server: the server component it imports, or else the way up its importers to each page

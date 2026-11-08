@@ -726,8 +726,12 @@ function testClientHooks() {
     );
     const { isSuccess, output } = await build("./pages/markdown/+Page.tsx", (source) =>
       source
-        .replace('"use server component";', '$&\nimport * as React from "react";\nimport { Article } from "../../components/Article";')
-        .replace("export default function Page() {", "$&\n  React.useState(0);\n  console.log(Article);")
+        // React.useState() here is the import's, whatever a function beside it or a block before it calls React
+        .replace(
+          '"use server component";',
+          '$&\nimport * as React from "react";\nimport { Article } from "../../components/Article";\nfunction label({ React }: { React: { version: string } }) {\n  return React.version;\n}'
+        )
+        .replace("export default function Page() {", '$&\n  {\n    const React = { version: "A block\'s" };\n    console.log(React.version, label);\n  }\n  React.useState(0);\n  console.log(Article);')
     );
     expect(isSuccess).to.equal(true);
     expect(output.split(CLIENT_APIS_WARNING).length - 1).to.equal(1);
@@ -745,7 +749,12 @@ function testClientHooks() {
     // pages/server/+Page.tsx, a server component, also imports Counter, a "use client" file that imports useState()
     editFile("./pages/server/+Page.tsx", (source) =>
       source
-        .replace('"use server component";', '$&\nimport * as React from "react";\nfunction label(React: { useState: () => string }) {\n  return React.useState();\n}')
+        .replace(
+          '"use server component";',
+          '$&\nimport * as React from "react";\nfunction label(React: { useState: () => string }) {\n  return React.useState();\n}\n' +
+            'function hoisted() {\n  if (Math.random() > 2) {\n    var React: any = {};\n  }\n  return React.useState();\n}\n' +
+            'const named = function React(this: any) {\n  return (React as any).useState();\n};\nconsole.log(hoisted, named);'
+        )
         .replace("export default async function Page() {", '$&\n  console.log(React.version, label({ useState: () => "A label" }));')
     );
     const { isSuccess, output } = await build("./pages/markdown/+Page.tsx", (source) =>
