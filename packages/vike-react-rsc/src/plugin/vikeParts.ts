@@ -45,7 +45,7 @@ function asServerOnly(source: ConfigValueSource): ConfigValueSource {
 
 /** Sets whether a client navigation to the page asks the server for its pageContext */
 export function setNeedsPageContextRequest(pageConfig: PageConfig, needsRequest: boolean): void {
-  // TODO: replace with a public per-page setter in Vike. Vike makes the request for a page with a server-only hook, and an extension can't say which of its pages need its own hook
+  // TODO: replace with a public per-page setter in Vike: https://github.com/vikejs/vike/issues/3730. Vike makes the request for a page with a server-only hook, and an extension can't say which of its pages need its own hook
   const computed = pageConfig.configValuesComputed.hasServerOnlyHook;
   if (computed) computed.value = needsRequest;
 }
