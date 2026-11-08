@@ -729,7 +729,7 @@ function testClientHooks() {
         // React.useState() here is the import's, whatever a function beside it or a block before it calls React
         .replace(
           '"use server component";',
-          '$&\nimport * as React from "react";\nimport { Article } from "../../components/Article";\nfunction label({ React }: { React: { version: string } }) {\n  return React.version;\n}'
+          '$&\nimport * as React from "react";\nimport { Article } from "../../components/Article";\nfunction label({ React }: { React: { version: string } }) {\n  return React.version;\n}\nconst { useReducer: reducer, useRef = () => null } = React;\nconsole.log(reducer, useRef);'
         )
         .replace("export default function Page() {", '$&\n  {\n    const React = { version: "A block\'s" };\n    console.log(React.version, label);\n  }\n  React.useState(0);\n  console.log(Article);')
     );
@@ -742,7 +742,7 @@ function testClientHooks() {
     expect(output).to.include(
       `components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/markdown/+Page.tsx imports it through components/Markdown.tsx: move the code that uses createContext() into a "use client" file (this one, if nothing else in it needs the server)`
     );
-    expect(output).to.include(`pages/markdown/+Page.tsx uses useState() from react, ${CLIENT_API_ERROR}: move the code that uses useState() into a "use client" file (this one, if nothing else in it needs the server)`);
+    expect(output).to.include(`pages/markdown/+Page.tsx uses useReducer(), useRef(), useState() from react, ${CLIENT_API_ERROR}: move the code that uses useReducer(), useRef(), useState() into a "use client" file (this one, if nothing else in it needs the server)`);
   });
 
   test("Build: a server component importing React's server APIs, only the types of browser-only ones, or with a local variable named like its React import, builds without the warning", async () => {
@@ -754,7 +754,8 @@ function testClientHooks() {
           '$&\nimport * as React from "react";\nfunction label(React: { useState: () => string }) {\n  return React.useState();\n}\n' +
             'function hoisted() {\n  if (Math.random() > 2) {\n    var React: any = {};\n  }\n  return React.useState();\n}\n' +
             'const named = function React(this: any) {\n  return (React as any).useState();\n};\n' +
-            'function declaredAfterUse() {\n  const state = React.useState();\n  var React: any;\n  return state;\n}\nconsole.log(hoisted, named, declaredAfterUse);'
+            'function declaredAfterUse() {\n  const state = React.useState();\n  var React: any;\n  return state;\n}\n' +
+            'function destructured(React: { useState: () => string }) {\n  const { useState } = React;\n  return useState();\n}\nconsole.log(hoisted, named, declaredAfterUse, destructured);'
         )
         .replace("export default async function Page() {", '$&\n  console.log(React.version, label({ useState: () => "A label" }));')
     );

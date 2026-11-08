@@ -74,7 +74,7 @@ function getShortestImportChains(id: string, isComponent: (id: string) => unknow
   return chains.length > 0 ? chains : [[id]];
 }
 
-// The browser-only APIs the module imports from React: by name, or used on a namespace or default import, e.g. React.useState
+// The browser-only APIs the module imports from React: by name, or used on a namespace or default import, e.g. React.useState or const { useState } = React
 function getClientApis(program: ESTree.Program): string[] {
   const apis = new Set<string>();
   const namespaces = new Set<string>();
@@ -89,10 +89,13 @@ function getClientApis(program: ESTree.Program): string[] {
   return [...apis];
 }
 
-// The browser-only APIs used as `name.api` where `name` is one of `namespaces` and no scope around the use binds another `name`
+// The browser-only APIs used as `name.api` or destructured from `name`, where `name` is one of `namespaces` and no scope around the use binds another `name`
 function getNamespaceApis(program: ESTree.Program, namespaces: Set<string>): string[] {
   const scopes: Scope[] = [{ names: new Set(), isFunction: true }];
   const uses: { name: string; api: string; around: Scope[] }[] = [];
+  const addUse = (name: string, key: ESTree.Node, computed: boolean) => {
+    if (!computed && key.type === "Identifier" && clientApis.includes(key.name)) uses.push({ name, api: key.name, around: [...scopes] });
+  };
   const declare = (pattern: ESTree.Node | null | undefined, scope = scopes.at(-1)!) => {
     for (const name of getBoundNames(pattern)) scope.names.add(name);
   };
@@ -144,9 +147,12 @@ function getNamespaceApis(program: ESTree.Program, namespaces: Set<string>): str
       const scope = kind === "var" ? scopes.findLast(({ isFunction }) => isFunction) : scopes.at(-1);
       for (const { id } of declarations) declare(id, scope);
     },
+    VariableDeclarator: ({ id, init }) => {
+      if (id.type !== "ObjectPattern" || init?.type !== "Identifier" || !namespaces.has(init.name)) return;
+      for (const property of id.properties) if (property.type === "Property") addUse(init.name, property.key, property.computed);
+    },
     MemberExpression: ({ object, property, computed }) => {
-      if (computed || object.type !== "Identifier" || !namespaces.has(object.name) || property.type !== "Identifier" || !clientApis.includes(property.name)) return;
-      uses.push({ name: object.name, api: property.name, around: [...scopes] });
+      if (object.type === "Identifier" && namespaces.has(object.name)) addUse(object.name, property, computed);
     },
   }).visit(program);
   // Once every scope is complete: a name can be bound after its use, e.g. by a var further down
