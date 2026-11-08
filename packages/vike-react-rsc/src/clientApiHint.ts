@@ -34,7 +34,7 @@ export function getClientApiHint(error: unknown, page?: string, serverComponentI
     }
     // A build's stack doesn't name the failing file, which could be a package's, or one of those
     const orReexport = import.meta.env.DEV ? "" : `, or, if it comes from a package, re-export the components you use from that package in a "use client" file of the app`;
-    const listed = import.meta.env.DEV ? "" : `. The build's warning lists the app's server files that import ${api} from react`;
+    const listed = import.meta.env.DEV ? "" : `. The build's warning, if it printed one, lists the app's server files where it found ${api}`;
     return `${runsOnServer}: move the code that ${use} into a "use client" file (${caller === file ? "this one" : "the one it's in"}, if nothing else in it needs the server)${orReexport}${listed}`;
   }
   // A "use client" file can't import a server component

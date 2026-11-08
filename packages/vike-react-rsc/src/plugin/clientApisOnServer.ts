@@ -4,10 +4,10 @@ import { getComponentConfigs } from "./componentConfigs";
 import { getDirectives, getFile, getFileName, isAppFile, isModuleFile, parseCompiled } from "./parse";
 import { findServerComponentImport, getModule, type Context } from "./serverComponentImports";
 
-/** An app's server file that imports a browser-only React API gets a warning, in dev as the server loads it and in the build
- * one that lists every such file, naming each Page, Layout, Wrapper or Loading that imports it and the files in between. Not an
- * error: the file may use it only in the browser, e.g. in a hook that only client components call. React's error, with
- * getClientApiHint(), reports a call that runs on the server */
+/** An app's server file that names a browser-only React API, so not through `export *` or `React[key]`, gets a warning, in
+ * dev as the server loads it and in the build one that lists every such file, naming each Page, Layout, Wrapper or Loading
+ * that imports it and the files in between. Not an error: the file may use it only in the browser, e.g. in a hook that only
+ * client components call. React's error, with getClientApiHint(), reports a call that runs on the server */
 export function clientApisOnServer(): Plugin {
   // The browser-only React APIs of each server file the rsc build loads
   const clientApiUses = new Map<string, string[]>();
