@@ -739,8 +739,13 @@ function testClientHooks() {
     expect(output).to.include(`pages/markdown/+Page.tsx uses useState() from react, ${CLIENT_API_ERROR}: start it with "use client"`);
   });
 
-  test("Build: a server component importing React's server APIs, or only the types of browser-only ones, builds without the warning", async () => {
+  test("Build: a server component importing React's server APIs, only the types of browser-only ones, or with a local variable named like its React import, builds without the warning", async () => {
     // pages/server/+Page.tsx, a server component, also imports Counter, a "use client" file that imports useState()
+    editFile("./pages/server/+Page.tsx", (source) =>
+      source
+        .replace('"use server component";', '$&\nimport * as React from "react";\nfunction label(React: { useState: () => string }) {\n  return React.useState();\n}')
+        .replace("export default async function Page() {", '$&\n  console.log(React.version, label({ useState: () => "A label" }));')
+    );
     const { isSuccess, output } = await build("./pages/markdown/+Page.tsx", (source) =>
       source
         .replace(

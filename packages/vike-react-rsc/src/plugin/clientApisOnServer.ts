@@ -86,13 +86,39 @@ function getClientApis(program: ESTree.Program): string[] {
     }
   }
   if (namespaces.size === 0) return [...apis];
+  const declared = getDeclaredNames(program);
   new Visitor({
     MemberExpression: ({ object, property, computed }) => {
-      if (computed || object.type !== "Identifier" || !namespaces.has(object.name) || property.type !== "Identifier") return;
+      if (computed || object.type !== "Identifier" || !namespaces.has(object.name) || declared.has(object.name) || property.type !== "Identifier") return;
       if (clientApis.includes(property.name)) apis.add(property.name);
     },
   }).visit(program);
   return [...apis];
+}
+
+// Every name a function, variable, class or catch clause of the module binds, in any scope. A namespace import's name among them
+// may mean the local one, so the import isn't looked for: React's error still reports a real call
+function getDeclaredNames(program: ESTree.Program): Set<string> {
+  const names = new Set<string>();
+  const add = (pattern: ESTree.Node | null | undefined): void => {
+    if (pattern?.type === "Identifier") names.add(pattern.name);
+    else if (pattern?.type === "ObjectPattern") pattern.properties.forEach((property) => add(property.type === "Property" ? (property.value as ESTree.Node) : property));
+    else if (pattern?.type === "ArrayPattern") pattern.elements.forEach(add);
+    else if (pattern?.type === "AssignmentPattern") add(pattern.left);
+    else if (pattern?.type === "RestElement") add(pattern.argument);
+  };
+  const addFunction = ({ id, params }: ESTree.Function) => [id, ...params].forEach(add);
+  const addClass = ({ id }: ESTree.Class) => add(id);
+  new Visitor({
+    FunctionDeclaration: addFunction,
+    FunctionExpression: addFunction,
+    ArrowFunctionExpression: ({ params }) => params.forEach(add),
+    ClassDeclaration: addClass,
+    ClassExpression: addClass,
+    VariableDeclarator: ({ id }) => add(id),
+    CatchClause: ({ param }) => add(param),
+  }).visit(program);
+  return names;
 }
 
 // The fix, and why the file runs on the server: the server component it imports, or else the way up its importers to each page
