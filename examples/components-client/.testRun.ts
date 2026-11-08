@@ -725,10 +725,14 @@ function testClientHooks() {
       source.replace('"use server component";', '$&\nimport { Leaf } from "./Leaf";').replace(/return (<div .*\/>);/, "return <><Leaf />$1</>;")
     );
     const { isSuccess, output } = await build("./pages/markdown/+Page.tsx", (source) =>
-      source.replace('"use server component";', '$&\nimport * as React from "react";').replace("export default function Page() {", "$&\n  React.useState(0);")
+      source
+        .replace('"use server component";', '$&\nimport * as React from "react";\nimport { Article } from "../../components/Article";')
+        .replace("export default function Page() {", "$&\n  React.useState(0);\n  console.log(Article);")
     );
     expect(isSuccess).to.equal(true);
     expect(output.split(CLIENT_APIS_WARNING).length - 1).to.equal(1);
+    // This page also reaches Leaf.tsx through Article.tsx: one line for the page, the shortest way
+    expect(output).to.not.include("as pages/markdown/+Page.tsx imports it through components/Article.tsx");
     expect(output).to.include(
       `components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/markdown/+Page.tsx imports it through components/Markdown.tsx: start it with "use client"`
     );

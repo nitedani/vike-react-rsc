@@ -1,8 +1,7 @@
 import { Visitor, type ESTree, type Plugin } from "vite";
 import { clientApis } from "../clientApiHint";
 import { getComponentConfigs } from "./componentConfigs";
-import { getImportChains } from "./noServerComponentsInBrowser";
-import { getDirectives, getFile, getFileName, isAppFile, parseCompiled } from "./parse";
+import { getDirectives, getFile, getFileName, isAppFile, isModuleFile, parseCompiled } from "./parse";
 import { findServerComponentImport, getModule, type Context } from "./serverComponentImports";
 
 /** An app's server file that imports a browser-only React API gets a warning, in dev as the server loads it and in the build
@@ -34,7 +33,7 @@ export function clientApisOnServer(): Plugin {
       }
       const getComponentConfig = await getComponentConfigs(this);
       const { moduleGraph } = environment;
-      const chains = getImportChains(id, getComponentConfig, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])].flatMap((importer) => importer.id ?? []));
+      const chains = getShortestImportChains(id, getComponentConfig, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])].flatMap((importer) => importer.id ?? []));
       this.warn(await getClientApiWarning(id, apis, chains, this));
     },
     async buildEnd() {
@@ -42,7 +41,7 @@ export function clientApisOnServer(): Plugin {
       const getComponentConfig = await getComponentConfigs(this);
       const warnings = await Promise.all(
         [...clientApiUses].map(([id, apis]) => {
-          const chains = getImportChains(id, getComponentConfig, (id) => {
+          const chains = getShortestImportChains(id, getComponentConfig, (id) => {
             const { importers = [], dynamicImporters = [] } = this.getModuleInfo(id) ?? {};
             return [...importers, ...dynamicImporters];
           });
@@ -53,6 +52,26 @@ export function clientApisOnServer(): Plugin {
       if (warning !== warned) this.warn((warned = warning));
     },
   };
+}
+
+// The shortest way from `id` up its importers to each Page, Layout, Wrapper or Loading, or to a file the app's code doesn't
+// import. Each file once: the ways up a file that many others share multiply with every level of them.
+function getShortestImportChains(id: string, isComponent: (id: string) => unknown, getImporters: (id: string) => string[]): string[][] {
+  const chains: string[][] = [];
+  const visited = new Set([id]);
+  const queue = [[id]];
+  for (const chain of queue) {
+    const file = chain.at(-1)!;
+    const importers = isComponent(file) ? [] : getImporters(file).filter((importer) => isModuleFile(importer) && !chain.includes(importer));
+    if (importers.length === 0) chains.push(chain);
+    for (const importer of importers) {
+      if (visited.has(importer)) continue;
+      visited.add(importer);
+      queue.push([...chain, importer]);
+    }
+  }
+  // Files that import only each other have no top
+  return chains.length > 0 ? chains : [[id]];
 }
 
 // The browser-only APIs the module imports from React: by name, or used on a namespace or default import, e.g. React.useState
@@ -76,7 +95,7 @@ function getClientApis(program: ESTree.Program): string[] {
   return [...apis];
 }
 
-// The fix, and why the file runs on the server: the server component it imports, or else each way up its importers
+// The fix, and why the file runs on the server: the server component it imports, or else the way up its importers to each page
 async function getClientApiWarning(id: string, apis: string[], chains: string[][], context: Context): Promise<string> {
   const { root } = context.environment.config;
   const uses = apis.map((api) => (api === "Component" || api === "PureComponent" ? api : `${api}()`)).join(", ");
