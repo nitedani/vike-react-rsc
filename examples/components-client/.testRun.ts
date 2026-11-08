@@ -753,7 +753,8 @@ function testClientHooks() {
           '"use server component";',
           '$&\nimport * as React from "react";\nfunction label(React: { useState: () => string }) {\n  return React.useState();\n}\n' +
             'function hoisted() {\n  if (Math.random() > 2) {\n    var React: any = {};\n  }\n  return React.useState();\n}\n' +
-            'const named = function React(this: any) {\n  return (React as any).useState();\n};\nconsole.log(hoisted, named);'
+            'const named = function React(this: any) {\n  return (React as any).useState();\n};\n' +
+            'function declaredAfterUse() {\n  const state = React.useState();\n  var React: any;\n  return state;\n}\nconsole.log(hoisted, named, declaredAfterUse);'
         )
         .replace("export default async function Page() {", '$&\n  console.log(React.version, label({ useState: () => "A label" }));')
     );
