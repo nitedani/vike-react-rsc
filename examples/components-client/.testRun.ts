@@ -686,7 +686,7 @@ function testClientHooks() {
   test('Dev: a server component calling useState() gets React\'s error, naming its file and "use client"', async () => {
     await expectHelperPageError(
       `"use server component";\nimport { useState } from "react";\nexport default function Page() {\n  useState(0);\n  return null;\n}\n`,
-      `pages/helper/+Page.tsx calls useState(), ${CLIENT_API_ERROR}: start it with "use client": TypeError`
+      `pages/helper/+Page.tsx calls useState(), ${CLIENT_API_ERROR}: move the code that calls useState() into a "use client" file (this one, if nothing else in it needs the server): TypeError`
     );
   });
 
@@ -694,7 +694,7 @@ function testClientHooks() {
     await expectHelperPageError(
       'import { useState } from "react";\nimport { Markdown } from "../../components/Markdown";\nexport default function Page() {\n  useState(0);\n  return <Markdown source="A page" />;\n}\n',
       `pages/helper/+Page.tsx calls useState(), ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports the server component components/Markdown.tsx: ` +
-        'move the code that calls useState() into a "use client" component, or remove "use server component" from components/Markdown.tsx: TypeError'
+        'move the code that calls useState() into a "use client" component, or remove "use server component" from components/Markdown.tsx, if nothing in it needs the server: TypeError'
     );
   });
 
@@ -702,7 +702,7 @@ function testClientHooks() {
     editFile("./components/Leaf.tsx", (source) => `import { useState } from "react";\n${source.replace("export function Leaf() {", "$&\n  useState(0);")}`);
     await expectHelperPageError(
       'import { Markdown } from "../../components/Markdown";\nimport { Leaf } from "../../components/Leaf";\nexport default function Page() {\n  return <><Markdown source="A page" /><Leaf /></>;\n}\n',
-      `components/Leaf.tsx calls useState(), ${CLIENT_API_ERROR}: start it with "use client": TypeError`
+      `components/Leaf.tsx calls useState(), ${CLIENT_API_ERROR}: move the code that calls useState() into a "use client" file (this one, if nothing else in it needs the server): TypeError`
     );
     // And the warning as the server loaded it
     expectLog(`components/Leaf.tsx uses useState() from react, ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports it: move the code that uses useState() into a "use client" file (this one, if nothing else in it needs the server)`);
@@ -713,7 +713,7 @@ function testClientHooks() {
       ['import { createContext } from "react";\nconst Context = createContext(null);\nexport default function Page() {\n  return null;\n}\n', "calls createContext()"],
       ['import { Component } from "react";\nexport default class Page extends Component {\n  render() {\n    return null;\n  }\n}\n', "extends Component or PureComponent"],
     ]) {
-      await expectHelperPageError(`"use server component";\n${code}`, `pages/helper/+Page.tsx ${use}, ${CLIENT_API_ERROR}: start it with "use client"`);
+      await expectHelperPageError(`"use server component";\n${code}`, `pages/helper/+Page.tsx ${use}, ${CLIENT_API_ERROR}: move the code that ${use} into a "use client" file (this one, if nothing else in it needs the server)`);
     }
   });
 
