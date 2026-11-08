@@ -56,6 +56,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testServerComponents();
   testLoading();
   testVikeReactRendering();
+  testPageContextRequests();
   testVikeReactImports();
   testFormBeforeHydration();
   testRestoredFormState();
@@ -441,6 +442,29 @@ function testVikeReactRendering() {
     await page.goto(getServerUrl() + "/spa-promise", { waitUntil: "commit" });
     await page.click("button:text-is('Ask')");
     await page.waitForSelector("#answer:text-is('Answered once asked')");
+  });
+}
+
+function testPageContextRequests() {
+  test("components: 'client': a link click asks the server only for a page with a server component or a server hook", async () => {
+    await page.goto(getServerUrl() + "/server");
+    await waitForHydration("#layout-counter");
+    const requests: string[] = [];
+    page.on("request", (request) => {
+      const { pathname } = new URL(request.url());
+      if (pathname.endsWith(".pageContext.json")) requests.push(pathname);
+    });
+    for (const [href, rendered] of [
+      ["/", "h1:text-is('A client page')"],
+      ["/server", "text=Rendered on the server"],
+      ["/hooks", "#data:text-is('Data from +data')"],
+      ["/", "h1:text-is('A client page')"],
+      ["/admin", "text=A server layout, rendered on the server"],
+    ] as const) {
+      await page.click(`a[href="${href}"]`);
+      await page.waitForSelector(rendered);
+    }
+    expect(requests).to.deep.equal(["/server/index.pageContext.json", "/hooks/index.pageContext.json", "/admin/index.pageContext.json"]);
   });
 }
 
