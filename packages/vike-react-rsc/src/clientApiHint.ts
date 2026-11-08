@@ -1,8 +1,8 @@
 /** What a server file can use, but React's server build lacks: Component and PureComponent are what a class component extends */
 export const clientApis: string[] = [
-  "Component", "PureComponent", "createContext", "startTransition", "useActionState", "useContext", "useDeferredValue",
-  "useEffect", "useEffectEvent", "useImperativeHandle", "useInsertionEffect", "useLayoutEffect", "useOptimistic", "useReducer",
-  "useRef", "useState", "useSyncExternalStore", "useTransition",
+  "Component", "PureComponent", "addTransitionType", "createContext", "startTransition", "useActionState", "useContext",
+  "useDeferredValue", "useEffect", "useEffectEvent", "useImperativeHandle", "useInsertionEffect", "useLayoutEffect",
+  "useOptimistic", "useReducer", "useRef", "useState", "useSyncExternalStore", "useTransition",
 ];
 
 /** For React's TypeError when a server file uses one of them: the fix, naming the component by the first frame named like
