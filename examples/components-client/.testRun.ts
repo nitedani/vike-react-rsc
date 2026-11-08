@@ -705,7 +705,7 @@ function testClientHooks() {
       `components/Leaf.tsx calls useState(), ${CLIENT_API_ERROR}: start it with "use client": TypeError`
     );
     // And the warning as the server loaded it
-    expectLog(`components/Leaf.tsx uses useState() from react, ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports it: start it with "use client"`);
+    expectLog(`components/Leaf.tsx uses useState() from react, ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports it: start it with "use client" if the server uses only its components, else move the code that uses useState() into a "use client" file`);
   });
 
   test('Dev: a server file calling createContext() or extending Component as it loads gets the same hint', async () => {
@@ -734,9 +734,9 @@ function testClientHooks() {
     // This page also reaches Leaf.tsx through Article.tsx: one line for the page, the shortest way
     expect(output).to.not.include("as pages/markdown/+Page.tsx imports it through components/Article.tsx");
     expect(output).to.include(
-      `components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/markdown/+Page.tsx imports it through components/Markdown.tsx: start it with "use client"`
+      `components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/markdown/+Page.tsx imports it through components/Markdown.tsx: start it with "use client" if the server uses only its components, else move the code that uses createContext() into a "use client" file`
     );
-    expect(output).to.include(`pages/markdown/+Page.tsx uses useState() from react, ${CLIENT_API_ERROR}: start it with "use client"`);
+    expect(output).to.include(`pages/markdown/+Page.tsx uses useState() from react, ${CLIENT_API_ERROR}: start it with "use client" if the server uses only its components, else move the code that uses useState() into a "use client" file`);
   });
 
   test("Build: a server component importing React's server APIs, only the types of browser-only ones, or with a local variable named like its React import, builds without the warning", async () => {

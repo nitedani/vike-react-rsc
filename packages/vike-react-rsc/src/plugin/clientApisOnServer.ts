@@ -140,7 +140,7 @@ async function getClientApiWarning(id: string, apis: string[], chains: string[][
   const warnings = chains.map(([, ...importers]) => {
     const [importer, ...between] = importers.map((file) => getFileName(file, root)).reverse();
     const through = between.length > 0 ? ` through ${between.join(", ")}` : "";
-    return `${runsOnServer}${importer ? `, as ${importer} imports it${through}` : ""}: start it with "use client"`;
+    return `${runsOnServer}${importer ? `, as ${importer} imports it${through}` : ""}: start it with "use client" if the server uses only its components, else move the code that uses ${uses} into a "use client" file`;
   });
   return [...new Set(warnings)].join("\n");
 }
