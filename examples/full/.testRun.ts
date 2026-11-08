@@ -167,6 +167,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testConfig(isStatic);
   // plugin-rsc has no client JS to preload in dev
   if (!isDev) testClientJsPreload();
+  // Vike preloads no font in dev
+  if (!isDev) testFontPreload();
   testClientCss();
   if (isDev) testClientCssLinkRemoved();
   testMisuse();
@@ -1391,6 +1393,15 @@ function testClientJsPreload() {
     expect(responses.filter((response) => !response.ok).map((response) => response.url)).to.deep.equal([]);
     const chunks = await Promise.all(responses.map((response) => response.text()));
     expect(chunks.some((chunk) => chunk.includes("Styled by a client component's CSS"))).to.equal(true);
+  });
+}
+
+function testFontPreload() {
+  test("The head preloads the fonts of a page's server and client components", async () => {
+    const html = await fetchHtml("/fonts");
+    const head = html.slice(0, html.indexOf("</head>"));
+    const fonts = [...head.matchAll(/<link rel="preload" href="[^"]*\/([a-z-]+)\.[^"]*" as="font"/g)].map((match) => match[1]!);
+    expect(fonts.sort()).to.deep.equal(["client-font", "server-font"]);
   });
 }
 
