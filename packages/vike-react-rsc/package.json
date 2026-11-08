@@ -88,7 +88,7 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "@vitejs/plugin-rsc": "^0.5.36",
+    "@vitejs/plugin-rsc": "^0.5.39",
     "react": ">=19.3.1 <20",
     "react-dom": ">=19.3.1 <20",
     "react-server-dom-webpack": ">=19.3.1 <20",
@@ -115,6 +115,6 @@
     "typescript": "^7.0.2",
     "vike": "0.4.269",
     "vite": "^8.2.0",
-    "@vitejs/plugin-rsc": "^0.5.36"
+    "@vitejs/plugin-rsc": "^0.5.39"
   }
 }

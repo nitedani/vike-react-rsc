@@ -11,7 +11,7 @@
   "dependencies": {
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-rsc": "^0.5.36",
+    "@vitejs/plugin-rsc": "^0.5.39",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "typescript": "^7.0.2",
