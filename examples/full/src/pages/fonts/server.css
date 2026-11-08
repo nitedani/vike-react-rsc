@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Example Server Font";
-  src: url("./server-font.woff2") format("woff2");
+  src: url("./server-font.woff2") format("woff2"), url("./server-font.woff") format("woff");
 }
 
 [data-server-font] {
