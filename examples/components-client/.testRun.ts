@@ -733,6 +733,8 @@ function testClientHooks() {
     expect(output.split(CLIENT_APIS_WARNING).length - 1).to.equal(1);
     // This page also reaches Leaf.tsx through Article.tsx: one line for the page, the shortest way
     expect(output).to.not.include("as pages/markdown/+Page.tsx imports it through components/Article.tsx");
+    // And each other page that imports it
+    expect(output).to.include(`components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/server/+Page.tsx imports it through components/index.ts, components/Markdown.tsx:`);
     expect(output).to.include(
       `components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/markdown/+Page.tsx imports it through components/Markdown.tsx: start it with "use client" if the server uses only its components, else move the code that uses createContext() into a "use client" file`
     );
