@@ -1,4 +1,4 @@
-import { pipeline, Readable } from "node:stream";
+import { pipeline, Readable, type Writable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import type { ReactFormState } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -106,8 +106,14 @@ function toNodeStream(stream: HtmlStream): HtmlStream {
   return {
     ...stream,
     readable: null,
-    // On an error, pipeline() has already destroyed both: a client that leaves cancels the render
-    pipe: (writable) => pipeline(Readable.fromWeb(readable), writable, () => {}),
+    pipe: (writable) => {
+      const nodeReadable = Readable.fromWeb(readable);
+      // On an error, pipeline() has already destroyed both: a client that leaves cancels the render
+      pipeline(nodeReadable, writable, () => {});
+      // As Vike pipes a Web stream: e.g. compression() holds the writes until flush()
+      const flushable = writable as Writable & { flush?: () => void };
+      nodeReadable.on("data", () => flushable.flush?.());
+    },
   };
 }
 
