@@ -17,6 +17,7 @@ const AFTER_RENDER_ERROR = "A page's +onAfterRenderClient failed on demand";
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
+const CLIENT_APIS_WARNING = "[plugin vike-react-rsc:client-apis-on-server]";
 const EXPORT_ALL_ERROR = "doesn't name its Page";
 // Logged by /use-config-server
 const USE_CONFIG_IN_SERVER_COMPONENT_ERROR =
@@ -697,12 +698,14 @@ function testClientHooks() {
     );
   });
 
-  test('Dev: a file that calls useState() on a page that a server component import moves to the server, but that imports none, gets React\'s error, naming its file and "use client"', async () => {
+  test('Dev: a file that calls useState() on a page that a server component import moves to the server, but that imports none, gets React\'s error, naming its file and "use client", and a warning as it loads', async () => {
     editFile("./components/Leaf.tsx", (source) => `import { useState } from "react";\n${source.replace("export function Leaf() {", "$&\n  useState(0);")}`);
     await expectHelperPageError(
       'import { Markdown } from "../../components/Markdown";\nimport { Leaf } from "../../components/Leaf";\nexport default function Page() {\n  return <><Markdown source="A page" /><Leaf /></>;\n}\n',
       `components/Leaf.tsx calls useState(), ${CLIENT_API_ERROR}: start it with "use client": TypeError`
     );
+    // And the warning as the server loaded it
+    expectLog(`components/Leaf.tsx uses useState() from react, ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports it: start it with "use client"`);
   });
 
   test('Dev: a server file calling createContext() or extending Component as it loads gets the same hint', async () => {
@@ -712,6 +715,39 @@ function testClientHooks() {
     ]) {
       await expectHelperPageError(`"use server component";\n${code}`, `pages/helper/+Page.tsx ${use}, ${CLIENT_API_ERROR}: start it with "use client"`);
     }
+  });
+
+  test("Build: server files that import browser-only React APIs build, with one warning naming each with the files that import it", async () => {
+    // The dev server sees the edits too, and renders nothing with them while no page is open
+    await page.goto("about:blank");
+    editFile("./components/Leaf.tsx", (source) => `import { createContext } from "react";\nexport const LeafContext = createContext(null);\n${source}`);
+    editFile("./components/Markdown.tsx", (source) =>
+      source.replace('"use server component";', '$&\nimport { Leaf } from "./Leaf";').replace(/return (<div .*\/>);/, "return <><Leaf />$1</>;")
+    );
+    const { isSuccess, output } = await build("./pages/markdown/+Page.tsx", (source) =>
+      source.replace('"use server component";', '$&\nimport * as React from "react";').replace("export default function Page() {", "$&\n  React.useState(0);")
+    );
+    expect(isSuccess).to.equal(true);
+    expect(output.split(CLIENT_APIS_WARNING).length - 1).to.equal(1);
+    expect(output).to.include(
+      `components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/markdown/+Page.tsx imports it through components/Markdown.tsx: start it with "use client"`
+    );
+    expect(output).to.include(`pages/markdown/+Page.tsx uses useState() from react, ${CLIENT_API_ERROR}: start it with "use client"`);
+  });
+
+  test("Build: a server component importing React's server APIs, or only the types of browser-only ones, builds without the warning", async () => {
+    // pages/server/+Page.tsx, a server component, also imports Counter, a "use client" file that imports useState()
+    const { isSuccess, output } = await build("./pages/markdown/+Page.tsx", (source) =>
+      source
+        .replace(
+          '"use server component";',
+          '$&\nimport * as React from "react";\nimport { cache, type useState } from "react";\nimport type { Component } from "react";\n' +
+            'const getSource = cache(() => "A page");\ntype Browser = typeof useState | Component | React.Component;'
+        )
+        .replace("export default function Page() {", "$&\n  React.useId();\n  getSource();")
+    );
+    expect(isSuccess).to.equal(true);
+    expect(output).to.not.include(CLIENT_API_ERROR);
   });
 }
 
@@ -1023,10 +1059,13 @@ function testComponentsConfig() {
     expect(output).to.include("Set components once, in the root +config.js: pages set it to");
   });
 
-  test("Build: ssr: false under components: 'server' builds, without a warning", async () => {
+  test("Build: ssr: false under components: 'server' builds, without a warning about it", async () => {
     const { isSuccess, output } = await build("./pages/+config.ts", (source) => source.replace('components: "client"', 'components: "server"'));
     expect(isSuccess).to.equal(true);
-    expect(output).to.not.include("sets ssr to false");
+    // Under 'server', this app's files without a directive are server components: those that import useState() are warned about
+    expect(output).to.include(`pages/+Layout.tsx uses useState() from react, ${CLIENT_API_ERROR}`);
+    // A warning about ssr: false would name the file that sets it
+    expect(output).to.not.include("pages/spa/+config.ts");
   });
 }
 

@@ -47,11 +47,11 @@ export function noServerComponentsInBrowser(): Plugin {
   };
 }
 
-type GetComponentConfig = Awaited<ReturnType<typeof getComponentConfigs>>;
+export type GetComponentConfig = Awaited<ReturnType<typeof getComponentConfigs>>;
 
 // Each way from `id` up its importers to a Page, Layout, Wrapper or Loading, or to a file the app's code doesn't import, the way
 // plugin-rsc reports server-only. Every page that imports it, not just the first: in dev, the one the browser opens.
-function getImportChains(id: string, getComponentConfig: GetComponentConfig, getImporters: (id: string) => string[]): string[][] {
+export function getImportChains(id: string, getComponentConfig: GetComponentConfig, getImporters: (id: string) => string[]): string[][] {
   const chains: string[][] = [];
   const walk = (chain: string[]) => {
     const file = chain.at(-1)!;
