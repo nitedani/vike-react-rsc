@@ -74,15 +74,19 @@ function getShortestImportChains(id: string, isComponent: (id: string) => unknow
   return chains.length > 0 ? chains : [[id]];
 }
 
-// The browser-only APIs the module imports from React: by name, or used on a namespace or default import, e.g. React.useState or const { useState } = React
+// The browser-only APIs the module imports from React: by name, re-exported by name, or used on a namespace or default import, e.g. React.useState or const { useState } = React
 function getClientApis(program: ESTree.Program): string[] {
   const apis = new Set<string>();
   const namespaces = new Set<string>();
+  const addApi = (name: ESTree.Node) => {
+    if (name.type === "Identifier" && clientApis.includes(name.name)) apis.add(name.name);
+  };
   for (const statement of program.body) {
+    if (statement.type === "ExportNamedDeclaration" && statement.source?.value === "react") statement.specifiers.forEach(({ local }) => addApi(local));
     if (statement.type !== "ImportDeclaration" || statement.source.value !== "react") continue;
     for (const specifier of statement.specifiers) {
       if (specifier.type !== "ImportSpecifier") namespaces.add(specifier.local.name);
-      else if (specifier.imported.type === "Identifier" && clientApis.includes(specifier.imported.name)) apis.add(specifier.imported.name);
+      else addApi(specifier.imported);
     }
   }
   for (const api of getNamespaceApis(program, namespaces)) apis.add(api);

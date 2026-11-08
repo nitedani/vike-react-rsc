@@ -724,6 +724,7 @@ function testClientHooks() {
     editFile("./components/Markdown.tsx", (source) =>
       source.replace('"use server component";', '$&\nimport { Leaf } from "./Leaf";').replace(/return (<div .*\/>);/, "return <><Leaf />$1</>;")
     );
+    editFile("./components/Badge.tsx", (source) => `export { useOptimistic as optimistic } from "react";\n${source}`);
     const { isSuccess, output } = await build("./pages/markdown/+Page.tsx", (source) =>
       source
         // React.useState() here is the import's, whatever a function beside it or a block before it calls React
@@ -742,6 +743,7 @@ function testClientHooks() {
     expect(output).to.include(
       `components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/markdown/+Page.tsx imports it through components/Markdown.tsx: move the code that uses createContext() into a "use client" file (this one, if nothing else in it needs the server)`
     );
+    expect(output).to.include(`components/Badge.tsx uses useOptimistic() from react, ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports it: move the code that uses useOptimistic() into a "use client" file`);
     expect(output).to.include(`pages/markdown/+Page.tsx uses useReducer(), useRef(), useState() from react, ${CLIENT_API_ERROR}: move the code that uses useReducer(), useRef(), useState() into a "use client" file (this one, if nothing else in it needs the server)`);
   });
 
