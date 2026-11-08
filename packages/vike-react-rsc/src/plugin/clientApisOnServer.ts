@@ -201,7 +201,7 @@ async function getClientApiWarning(id: string, apis: string[], chains: string[][
   const warnings = chains.map(([, ...importers]) => {
     const [importer, ...between] = importers.map((file) => getFileName(file, root)).reverse();
     const through = between.length > 0 ? ` through ${between.join(", ")}` : "";
-    return `${runsOnServer}${importer ? `, as ${importer} imports it${through}` : ""}: move the code that uses ${uses} into a "use client" file (this one, if nothing else in it needs the server)`;
+    return `${runsOnServer}${importer ? `, as ${importer} imports it${through}` : ""}: move the code that uses ${uses} into a "use client" file`;
   });
   return [...new Set(warnings)].join("\n");
 }
