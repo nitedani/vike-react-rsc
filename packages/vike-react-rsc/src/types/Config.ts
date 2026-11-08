@@ -18,7 +18,7 @@ declare global {
       Head?: HeadValue | ImportString;
 
       /**
-       * Set the page's tilte.
+       * Set the page's title.
        *
        * Generates:
        * ```jsx

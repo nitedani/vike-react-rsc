@@ -8,7 +8,7 @@
   },
   "homepage": "https://github.com/nitedani/vike-react-rsc#readme",
   "bugs": "https://github.com/nitedani/vike-react-rsc/issues",
-  "description": "",
+  "description": "React Server Components for Vike",
   "type": "module",
   "scripts": {
     "dev": "tsdown --watch --sourcemap",
@@ -72,7 +72,14 @@
   "files": [
     "dist"
   ],
-  "keywords": [],
+  "keywords": [
+    "vike",
+    "react",
+    "rsc",
+    "react-server-components",
+    "server-components",
+    "server-actions"
+  ],
   "author": "",
   "license": "MIT",
   "peerDependencies": {
