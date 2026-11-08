@@ -787,6 +787,41 @@ function testMarkerHmr() {
     expect(await fetchHtml("/hmr")).to.not.include("rscPayload");
   });
 
+  test("Dev: adding a server hook file to a client page brings back its request on the next link click, and removing it takes the request away, without a manual reload", async () => {
+    const hookFile = fileURLToPath(new URL("pages/index/+onCreatePageContext.server.ts", import.meta.url));
+    const reloadAfter = async (edit: () => void) => {
+      const reload = page.waitForEvent("load");
+      edit();
+      await reload;
+    };
+    const requestsOfHomeLink = async () => {
+      await page.click('a[href="/server"]');
+      await page.waitForSelector("text=Rendered on the server");
+      const requests: string[] = [];
+      const logRequest = (request: { url(): string }) => {
+        const { pathname } = new URL(request.url());
+        if (pathname.endsWith(".pageContext.json")) requests.push(pathname);
+      };
+      page.on("request", logRequest);
+      await page.click('a[href="/"]');
+      await page.waitForSelector("h1:text-is('A client page')");
+      page.off("request", logRequest);
+      return requests;
+    };
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    expect(await requestsOfHomeLink()).to.deep.equal([]);
+    try {
+      await reloadAfter(() => writeFileSync(hookFile, "export function onCreatePageContext() {}\n"));
+      await waitForHydration("#counter");
+      expect(await requestsOfHomeLink()).to.deep.equal(["/index.pageContext.json"]);
+    } finally {
+      await reloadAfter(() => unlinkSync(hookFile));
+    }
+    await waitForHydration("#counter");
+    expect(await requestsOfHomeLink()).to.deep.equal([]);
+  });
+
   test("Dev: deleting a + file or a +config file shows no error", async () => {
     // The dev server has loaded /hmr's +Page.tsx
     await page.goto(getServerUrl() + "/hmr");
