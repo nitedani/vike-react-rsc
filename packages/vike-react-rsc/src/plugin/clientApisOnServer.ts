@@ -185,7 +185,7 @@ async function getClientApiWarning(id: string, apis: string[], chains: string[][
     const serverComponent = imported.pop()!;
     const through = imported.length > 0 ? ` through ${imported.join(", ")}` : "";
     // A package's file isn't the app's to change
-    const fix = serverComponent.startsWith("node_modules/") ? "" : `, or remove "use server component" from ${serverComponent}`;
+    const fix = serverComponent.startsWith("node_modules/") ? "" : `, or remove "use server component" from ${serverComponent}, if nothing in it needs the server`;
     return `${runsOnServer}, as it imports the server component ${serverComponent}${through}: move the code that uses ${uses} into a "use client" component${fix}`;
   }
   const warnings = chains.map(([, ...importers]) => {
