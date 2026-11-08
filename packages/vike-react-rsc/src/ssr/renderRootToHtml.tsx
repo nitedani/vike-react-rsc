@@ -1,3 +1,5 @@
+import { pipeline, Readable } from "node:stream";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import type { ReactFormState } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { renderToStream, type RenderToStreamOptions } from "react-streaming/server.web";
@@ -8,6 +10,8 @@ import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { REDIRECT_META_ATTRIBUTE } from "../protocol";
 import { isHttpUrl } from "../redirect";
 import type { ClientDeps } from "./clientDeps";
+
+type HtmlStream = Awaited<ReturnType<typeof renderToStream>>;
 
 // Renders pageContext.page, which +onBeforeRenderHtml may have replaced, to pageContext.pageHtmlString or pageHtmlStream
 export async function renderRootToHtml(
@@ -70,9 +74,12 @@ export async function renderRootToHtml(
       deps.injectToStream = stream.injectToStream;
       // A string, as vike-react's renderToString() gives +onAfterRenderHtml
       if (rendersToString) pageContext.pageHtmlString = await new Response(stream.readable).text();
-      // That stream has ended, so injecting into it would throw. +onAfterRenderHtml gets a new stream with the same
-      // HTML, which it can still inject into.
-      else pageContext.pageHtmlStream = stream.disabled ? toDisabledStream(await new Response(stream.readable).text()) : stream;
+      else {
+        // That stream has ended, so injecting into it would throw. +onAfterRenderHtml gets a new stream with the same
+        // HTML, which it can still inject into.
+        const htmlStream = stream.disabled ? toDisabledStream(await new Response(stream.readable).text()) : stream;
+        pageContext.pageHtmlStream = streamSetting.type === "node" ? toNodeStream(htmlStream) : htmlStream;
+      }
     }
     // An abort thrown inside a Suspense boundary and reported before this function returns, e.g. on a page rendered
     // whole: Vike answers it
@@ -93,9 +100,20 @@ function logBoundaryError(error: unknown, signal: AbortSignal) {
   console.error(error);
 }
 
+// The same stream as a Node.js stream, as react-streaming renders it for vike-react's +stream { type: 'node' }
+function toNodeStream(stream: HtmlStream): HtmlStream {
+  const readable = stream.readable! as NodeReadableStream;
+  return {
+    ...stream,
+    readable: null,
+    // On an error, pipeline() has already destroyed both: a client that leaves cancels the render
+    pipe: (writable) => pipeline(Readable.fromWeb(readable), writable, () => {}),
+  };
+}
+
 // A stream like react-streaming's when it doesn't stream, as vike-react's +onAfterRenderHtml gets it. What a hook
 // injects goes after the page's HTML, in order, until the stream has been read to its end.
-function toDisabledStream(html: string): Awaited<ReturnType<typeof renderToStream>> {
+function toDisabledStream(html: string): HtmlStream {
   const chunks: (string | Promise<string>)[] = [html];
   let ended = false;
   const encoder = new TextEncoder();

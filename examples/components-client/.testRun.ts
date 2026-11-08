@@ -340,6 +340,19 @@ function testVikeReactRendering() {
     expect(firstChunk).to.not.include("<p>Waiting for the delay</p>");
   });
 
+  test("components: 'client': stream: 'web' streams the HTML, as in vike-react", async () => {
+    const html = await fetchHtml("/stream-web");
+    expect(html).to.include("<p>Waiting for the delay</p>");
+    expect(html).to.include('<p id="delayed">Rendered after a delay</p>');
+  });
+
+  test("components: 'client': stream: { type: 'node' } streams the HTML, and +onAfterRenderHtml gets a Node.js stream, as in vike-react", async () => {
+    const html = await fetchHtml("/stream-node");
+    expect(html).to.include("<p>Waiting for the delay</p>");
+    expect(html).to.include('<p id="delayed">Rendered after a delay</p>');
+    expect(html).to.include("<!-- A Node.js stream -->");
+  });
+
   test("components: 'client': a stream: false page sends its HTML before its Flight ends, then the Flight's rows the HTML doesn't wait for", async () => {
     const response = await fetch(getServerUrl() + "/stream-off-promise");
     // With a content-length, Vike would have waited for the promise's row
