@@ -705,7 +705,7 @@ function testClientHooks() {
       `components/Leaf.tsx calls useState(), ${CLIENT_API_ERROR}: start it with "use client": TypeError`
     );
     // And the warning as the server loaded it
-    expectLog(`components/Leaf.tsx uses useState() from react, ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports it: start it with "use client" if the server uses only its components, else move the code that uses useState() into a "use client" file`);
+    expectLog(`components/Leaf.tsx uses useState() from react, ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports it: move the code that uses useState() into a "use client" file (this one, if nothing else in it needs the server)`);
   });
 
   test('Dev: a server file calling createContext() or extending Component as it loads gets the same hint', async () => {
@@ -736,9 +736,9 @@ function testClientHooks() {
     // And each other page that imports it
     expect(output).to.include(`components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/server/+Page.tsx imports it through components/index.ts, components/Markdown.tsx:`);
     expect(output).to.include(
-      `components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/markdown/+Page.tsx imports it through components/Markdown.tsx: start it with "use client" if the server uses only its components, else move the code that uses createContext() into a "use client" file`
+      `components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/markdown/+Page.tsx imports it through components/Markdown.tsx: move the code that uses createContext() into a "use client" file (this one, if nothing else in it needs the server)`
     );
-    expect(output).to.include(`pages/markdown/+Page.tsx uses useState() from react, ${CLIENT_API_ERROR}: start it with "use client" if the server uses only its components, else move the code that uses useState() into a "use client" file`);
+    expect(output).to.include(`pages/markdown/+Page.tsx uses useState() from react, ${CLIENT_API_ERROR}: move the code that uses useState() into a "use client" file (this one, if nothing else in it needs the server)`);
   });
 
   test("Build: a server component importing React's server APIs, only the types of browser-only ones, or with a local variable named like its React import, builds without the warning", async () => {
