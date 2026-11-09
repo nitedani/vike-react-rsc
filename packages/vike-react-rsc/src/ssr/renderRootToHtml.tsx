@@ -1,4 +1,4 @@
-import { pipeline, Readable, type Writable } from "node:stream";
+import type { Writable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import type { ReactFormState } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -78,7 +78,7 @@ export async function renderRootToHtml(
         // That stream has ended, so injecting into it would throw. +onAfterRenderHtml gets a new stream with the same
         // HTML, which it can still inject into.
         const htmlStream = stream.disabled ? toDisabledStream(await new Response(stream.readable).text()) : stream;
-        pageContext.pageHtmlStream = streamSetting.type === "node" ? toNodeStream(htmlStream) : htmlStream;
+        pageContext.pageHtmlStream = streamSetting.type === "node" ? await toNodeStream(htmlStream) : htmlStream;
       }
     }
     // An abort thrown inside a Suspense boundary and reported before this function returns, e.g. on a page rendered
@@ -101,7 +101,9 @@ function logBoundaryError(error: unknown, signal: AbortSignal) {
 }
 
 // The same stream as a Node.js stream, as react-streaming renders it for vike-react's +stream { type: 'node' }
-function toNodeStream(stream: HtmlStream): HtmlStream {
+async function toNodeStream(stream: HtmlStream): Promise<HtmlStream> {
+  // Imported here because a Worker without nodejs_compat has no node:stream, and a top-level import fails all of its pages
+  const { pipeline, Readable } = await import("node:stream");
   const readable = stream.readable! as NodeReadableStream;
   return {
     ...stream,
