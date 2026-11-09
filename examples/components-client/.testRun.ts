@@ -122,6 +122,18 @@ function testServerComponents() {
     expect(await page.textContent("#rendered-on")).to.equal("Rendered on the server, next to an export type *");
   });
 
+  test("components: 'client': a server +Page that imports CSS hydrates and its CSS applies, on a first load and a client navigation, however it's exported", async () => {
+    for (const pathname of ["/server-css", "/server-css-named", "/server-css-const"]) {
+      await page.goto(getServerUrl() + pathname);
+      await expectServerCssPage();
+
+      await page.goto(getServerUrl() + "/");
+      await waitForHydration("#counter");
+      await clickLink(pathname);
+      await expectServerCssPage();
+    }
+  });
+
   test("components: 'client': a file without a directive that imports a server component, through another such file, is a server component, and the client component it renders hydrates", async () => {
     await page.goto(getServerUrl() + "/ancestor");
     await waitForHydration("#counter");
@@ -1149,6 +1161,15 @@ async function clickCounter(selector: string, text: string) {
   await autoRetry(async () => {
     expect(await page.textContent(selector)).to.equal(text);
   });
+}
+
+// The page's element has the style of its CSS, and its client component hydrates
+async function expectServerCssPage() {
+  await page.waitForSelector("#server-css");
+  await autoRetry(async () => {
+    expect(await page.$eval("#server-css", (element) => getComputedStyle(element).color)).to.equal("rgb(1, 2, 3)");
+  });
+  await clickCounter("#counter", "Counter 1");
 }
 
 // The page may have no link to `pathname`: one is added, then clicked as a user would, so Vike's router navigates

@@ -38,7 +38,7 @@ export function vikeReactRscPlugins(): Plugin[] {
     commonJsDeps(),
     noServerFunctionComponents(),
     noServerComponentsInBrowser(),
-    placement(),
+    ...placement(),
     // Vike handles the requests and the client entry
     ...rsc({ serverHandler: false, customClientEntry: true }),
   ];
