@@ -1,6 +1,7 @@
 import rsc from "@vitejs/plugin-rsc";
 import type { Plugin } from "vite";
 import { setBrowserEnvironment } from "./plugin/browserResolver";
+import { clientApisOnServer } from "./plugin/clientApisOnServer";
 import { clientInServerPackageDeps } from "./plugin/clientInServerPackageDeps";
 import { clientReferenceDeps } from "./plugin/clientReferenceDeps";
 import { commonJsDeps } from "./plugin/commonJsDeps";
@@ -46,6 +47,7 @@ export function vikeReactRscPlugins(): Plugin[] {
     noServerFunctionComponents(),
     noServerComponentsInBrowser(),
     placement(),
+    clientApisOnServer(),
     pageAssets(),
     // Vike handles the requests and the client entry
     ...rsc({ serverHandler: false, customClientEntry: true }),
