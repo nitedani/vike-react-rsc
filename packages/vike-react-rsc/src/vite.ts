@@ -36,6 +36,16 @@ export function vikeReactRscPlugins(): Plugin[] {
       configEnvironment: (name, _config, { command }) => {
         if (name === "client") return { define: { __VIKE_REACT_RSC_CLIENT_DEFAULT__: String(command === "serve" || isClientDefault()) } };
       },
+      // The server runs the rsc env's output, so with @cloudflare/vite-plugin both run in the Worker, whose envs bundle every package
+      configResolved({ plugins, environments: { ssr, rsc } }) {
+        const isCloudflare = plugins.some((plugin) => plugin.name === "vite-plugin-cloudflare");
+        if (isCloudflare && ssr?.resolve.noExternal === true && rsc?.resolve.noExternal !== true) {
+          throw new Error(
+            "[vike-react-rsc] @cloudflare/vite-plugin runs the ssr environment in a Worker, but not the rsc environment, which the server runs: " +
+              'add it with cloudflare({ viteEnvironment: { name: "ssr", childEnvironments: ["rsc"] } })',
+          );
+        }
+      },
       // The plugins below resolve imports as the browser does
       configureServer: (server) => setBrowserEnvironment(server.environments.client!),
       // Before plugin-rsc's, which builds the envs
