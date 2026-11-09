@@ -2,6 +2,7 @@ import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
 import { componentConfigNames } from "../rendersFlight";
 
+const PAGE_ENTRY = "\0virtual:vike:page-entry:";
 // vike-react-rsc's own server hook, as its config imports it
 const OWN_SERVER_HOOK = "vike-react-rsc/__internal/ssr";
 
@@ -52,7 +53,12 @@ export function setNeedsPageContextRequest(pageConfig: PageConfig, needsRequest:
 
 /** Whether `importer` is the virtual module Vike loads a page's + files from */
 export function isPageEntry(importer: string | undefined): boolean {
-  return !!importer?.startsWith("\0virtual:vike:page-entry:");
+  return !!importer?.startsWith(PAGE_ENTRY);
+}
+
+/** The rsc env's page entry of the page whose client page entry is `id`, if it is one */
+export function getRscPageEntry(id: string | null): string | undefined {
+  if (id?.startsWith(`${PAGE_ENTRY}client:`)) return `${PAGE_ENTRY}rsc:${id.slice(`${PAGE_ENTRY}client:`.length)}`;
 }
 
 /** Whether the module is one of Vike's virtual modules, which hold what it serializes of the page configs */
