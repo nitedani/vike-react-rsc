@@ -8,6 +8,7 @@ import { commonJsDeps } from "./plugin/commonJsDeps";
 import { isClientDefault } from "./plugin/componentConfigs";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
+import { pageAssets } from "./plugin/pageAssets";
 import { placement } from "./plugin/placement";
 
 export function vikeReactRscPlugins(): Plugin[] {
@@ -21,8 +22,14 @@ export function vikeReactRscPlugins(): Plugin[] {
           // Pre-bundled, a linked copy would load twice and React would remount the Layout: plugin-rsc still loads its client components, e.g. LoadingBoundary, from their own files
           // Included from vike-react-rsc, where React resolves even when the app's root has none: Vite doesn't discover these imports of the excluded package once it's installed, and the browser can't load them as CommonJS
           client: { optimizeDeps: { exclude: ["vike-react-rsc", "vike-react"], include: ["vike-react-rsc > react", "vike-react-rsc > react/jsx-runtime"] } },
-          // Vike deploys dist/server, rsc included
-          rsc: { build: { outDir: `${build?.outDir ?? "dist"}/server/rsc` } },
+          rsc: {
+            build: {
+              // Vike deploys dist/server, rsc included
+              outDir: `${build?.outDir ?? "dist"}/server/rsc`,
+              // Vike's file names: with them Vike recognizes a font's .woff fallback of its .woff2, and doesn't preload it
+              rolldownOptions: { output: { assetFileNames: `${build?.assetsDir ?? "assets"}/static/[name].[hash][extname]` } },
+            },
+          },
         },
       }),
       // The client build leaves out what renders a page without a Flight, unless components is 'client'
@@ -41,6 +48,7 @@ export function vikeReactRscPlugins(): Plugin[] {
     noServerComponentsInBrowser(),
     placement(),
     clientApisOnServer(),
+    pageAssets(),
     // Vike handles the requests and the client entry
     ...rsc({ serverHandler: false, customClientEntry: true }),
   ];
