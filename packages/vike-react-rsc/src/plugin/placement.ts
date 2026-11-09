@@ -1,12 +1,21 @@
 import { transformModuleExportEffect } from "@vitejs/plugin-rsc/transforms";
 import path from "node:path";
-import type { ESTree, Plugin } from "vite";
+import type { DevEnvironment, ESTree, Plugin } from "vite";
 import type { ServerComponentFlags } from "../rendersFlight";
 import { resolveForBrowser } from "./browserResolver";
 import { getComponentConfigs, isClientDefault, resolveComponentConfigs, type Part } from "./componentConfigs";
 import { getDirectives, getFile, getFileName, isAppFile, parse, type Directive } from "./parse";
-import { findServerComponentImport, getModule, invalidateModules, type Context } from "./serverComponentImports";
-import { isPageEntry } from "./vikeParts";
+import { findServerComponentImport, getModule, invalidateModules, resolveImport, type Context } from "./serverComponentImports";
+import {
+  getPageConfigs,
+  getPagePartImports,
+  hasAppServerHook,
+  isPageEntry,
+  isVikeVirtualModule,
+  setNeedsPageContextRequest,
+  type PageConfig,
+  type PageConfigs,
+} from "./vikeParts";
 
 // A client component's import, with the exports Vike reads and the file that imports it, which plugin-rsc's client reference
 // imports in each env
@@ -15,18 +24,44 @@ const CLIENT_IMPORT = "virtual:vike-react-rsc/client-import:";
 /** A file runs where the file that imports it runs, and a Page, Layout, Wrapper or Loading's `layout` where `components` says, unless
  * `"use client"` at its top puts it in the browser or `"use server component"` on the server. Under `'client'`, one without a
  * directive that imports a server component, through files without one, is a server component too */
-export function placement(): Plugin {
+export function placement(): Plugin[] {
   // Whether the env last loaded the file as a server component, and the files it read to decide it, by env and file
-  const decisions = new Map<string, Map<string, { isServerComponent: boolean; read: Set<string> }>>();
+  const decisions = new Map<string, Map<string, Decision>>();
   const getDecisions = (environmentName: string) => {
     let decided = decisions.get(environmentName);
     if (!decided) decisions.set(environmentName, (decided = new Map()));
     return decided;
   };
-  return {
+  // The client env, in dev
+  let client: DevEnvironment | undefined;
+  // By page, whether it needs a pageContext request. Then, by Vike's page configs, the decision and the files read to take it
+  let needsRequest = new Map<string, boolean>();
+  const pageContextRequests = new WeakMap<PageConfigs, { decided: Promise<boolean>; read: Set<string> }>();
+  // Whether a page changed since the last decision, whichever page configs that was for
+  const decideRequests = (pageConfigs: PageConfigs, context: Context) => {
+    const read = new Set<string>();
+    const decided = decidePageContextRequests(pageConfigs, context, !!client, read).then((needs) => {
+      const previous = needsRequest;
+      needsRequest = needs;
+      return [...needs].some(([pageId, value]) => previous.get(pageId) === !value);
+    });
+    pageContextRequests.set(pageConfigs, { decided, read });
+    return decided;
+  };
+  const decideNewPageConfigs = async (context: Context) => {
+    const pageConfigs = getPageConfigs();
+    const decision = pageContextRequests.get(pageConfigs);
+    if (decision) await decision.decided;
+    // Vike reloads its page configs when a + file is added or removed, without reloading the browser
+    else if ((await decideRequests(pageConfigs, context)) && client) reloadPageConfigs(client);
+  };
+  const decide: Plugin = {
     name: "vike-react-rsc:placement",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
+    configureServer: (server) => {
+      client = server.environments.client;
+    },
     resolveId: {
       // Before plugin-rsc's, which resolves the import with the react-server condition
       order: "pre",
@@ -44,6 +79,11 @@ export function placement(): Plugin {
     },
     // Each env loads the file its own conditions give: the browser its file, the HTML render Node's
     async load(id) {
+      // Before Vike's load, which serializes the pages' configs
+      if (isVikeVirtualModule(id)) {
+        await decideNewPageConfigs(this);
+        return;
+      }
       if (!id.startsWith(`\0${CLIENT_IMPORT}`)) return;
       const [importPath, query] = id.slice(CLIENT_IMPORT.length + 1).split("?") as [string, string];
       const params = new URLSearchParams(query);
@@ -53,6 +93,11 @@ export function placement(): Plugin {
       return `"use client";\nexport { ${exportNames.join(", ")} } from ${JSON.stringify(file ?? importPath)};\n`;
     },
     async transform(code, id) {
+      // After Vike's load, which waits for the page configs of a + file that was just added or removed
+      if (isVikeVirtualModule(id)) {
+        await decideNewPageConfigs(this);
+        return;
+      }
       const components = (await getComponentConfigs(this))(id);
       if (!components) return;
       const isRsc = this.environment.name === "rsc";
@@ -63,17 +108,11 @@ export function placement(): Plugin {
       if (/\.mdx?$/.test(getFile(id))) return isRsc ? { code: `"use client";${code}`, map: null } : undefined;
       const program = await parse(code, id);
       const directives = getDirectives(program);
-      const { isServerComponent, serverComponentImport, read } = await decideIsServerComponent(getFile(id), directives, components, this);
-      getDecisions(this.environment.name).set(getFile(id), { isServerComponent, read });
+      const decision = await decideIsServerComponent(getFile(id), directives, components, this);
+      getDecisions(this.environment.name).set(getFile(id), decision);
       // On the first line, so the source map stays valid
-      if (isRsc && directives.length === 0 && !isServerComponent) return { code: `"use client";${code}`, map: null };
-      if (!isServerComponent) return;
-      const { root } = this.environment.config;
-      const file = path.relative(root, getFile(id));
-      // For a file that is one because it imports a server component: the files from it to that server component
-      const files = serverComponentImport?.map((imported) => getFileName(imported, root));
-      const flags = JSON.stringify({ isServerComponent: true, file, serverComponentImport: files } satisfies ServerComponentFlags);
-      return isRsc ? tagServerComponent(code, program, components, file, flags) : getServerComponentStub(components, flags);
+      if (isRsc && directives.length === 0 && !decision.isServerComponent) return { code: `"use client";${code}`, map: null };
+      if (!isRsc && decision.isServerComponent) return getServerComponentStub(components, getServerComponentFlags(id, decision, this.environment.config.root));
     },
     async hotUpdate({ type, file, read }) {
       const { environment } = this;
@@ -84,6 +123,12 @@ export function placement(): Plugin {
         return;
       }
       const context = { environment, resolve: (source: string, importer?: string) => environment.pluginContainer.resolveId(source, importer) };
+      const pageConfigs = getPageConfigs();
+      // Before the reload below, which loads what it decides
+      if (environment.name === "client" && pageContextRequests.get(pageConfigs)?.read.has(file)) {
+        getModule(context, file, read);
+        if (await decideRequests(pageConfigs, context)) reloadPageConfigs(environment);
+      }
       const components = await getComponentConfigs(context);
       // Each Page, Layout, Wrapper or Loading that read the file to decide where it runs, the file itself included
       const changed: string[] = [];
@@ -107,7 +152,22 @@ export function placement(): Plugin {
       if (decided.get(file)?.isServerComponent && environment.name !== "rsc") return [];
     },
   };
+  const tag: Plugin = {
+    name: "vike-react-rsc:tag-server-components",
+    // After plugin-rsc's CSS wrapper, which replaces the export with a function that doesn't have the flags
+    enforce: "post",
+    async transform(code, id) {
+      if (this.environment.name !== "rsc") return;
+      const decision = getDecisions("rsc").get(getFile(id));
+      const components = (await getComponentConfigs(this))(id);
+      if (!decision?.isServerComponent || !components) return;
+      return tagServerComponent(code, await parse(code, id), components, getServerComponentFlags(id, decision, this.environment.config.root));
+    },
+  };
+  return [decide, tag];
 }
+
+type Decision = { isServerComponent: boolean; serverComponentImport?: string[]; read: Set<string> };
 
 // Where the env runs a Page, Layout, Wrapper or Loading, the server component import that decides it if any, and the files read
 async function decideIsServerComponent(
@@ -115,7 +175,7 @@ async function decideIsServerComponent(
   directives: Directive[],
   components: Part[],
   context: Context
-): Promise<{ isServerComponent: boolean; serverComponentImport?: string[]; read: Set<string> }> {
+): Promise<Decision> {
   // By its directive, or as the file the env loads for a package's server component
   if (directives.includes("use server component") || components.some((c) => c.isPackageServerComponent)) {
     return { isServerComponent: true, read: new Set([file]) };
@@ -125,20 +185,63 @@ async function decideIsServerComponent(
   return { isServerComponent: serverComponentImport !== undefined, serverComponentImport, read };
 }
 
+// Under 'client', a client navigation asks the server only for a page that renders a server component or has a hook that can run
+// there. By page, whether it needs the request
+async function decidePageContextRequests(pageConfigs: PageConfigs, context: Context, isDev: boolean, read: Set<string>): Promise<Map<string, boolean>> {
+  return new Map(
+    await Promise.all(
+      pageConfigs.map(async (pageConfig) => {
+        // A check that fails keeps the request, which is always safe. An invalid `components` is reported where it is used
+        const needs = await needsPageContextRequest(pageConfig, context, isDev, read).catch(() => true);
+        setNeedsPageContextRequest(pageConfig, needs);
+        return [pageConfig.pageId, needs] as const;
+      })
+    )
+  );
+}
+
+// An open tab holds what Vike serialized of the pages' configs, in the page entries too: it starts over
+function reloadPageConfigs(environment: DevEnvironment) {
+  for (const mod of environment.moduleGraph.idToModuleMap.values()) if (isVikeVirtualModule(mod.id)) environment.moduleGraph.invalidateModule(mod);
+  environment.hot.send({ type: "full-reload" });
+}
+
+async function needsPageContextRequest(pageConfig: PageConfig, context: Context, isDev: boolean, read: Set<string>): Promise<boolean> {
+  // Under 'server', each page renders from its Flight. And a browser error fetches the error page's pageContext from the server
+  if (!isClientDefault() || pageConfig.isErrorPage || hasAppServerHook(pageConfig, isDev)) return true;
+  for (const { appFile, importPath, importer } of getPagePartImports(pageConfig)) {
+    // As the browser resolves it: its file says where a package's component runs
+    const id = appFile ?? (importPath && (await resolveImport(context, importPath, importer)));
+    if (!id) continue;
+    const file = getFile(id);
+    const { directives } = await getModule(context, file);
+    const decision = await decideIsServerComponent(file, directives, [], context);
+    for (const readFile of decision.read) read.add(readFile);
+    if (decision.isServerComponent) return true;
+  }
+  return false;
+}
+
+function getServerComponentFlags(id: string, { serverComponentImport }: Decision, root: string): ServerComponentFlags {
+  // For a file that is one because it imports a server component: the files from it to that server component
+  const files = serverComponentImport?.map((imported) => getFileName(imported, root));
+  return { isServerComponent: true, file: path.relative(root, getFile(id)), serverComponentImport: files };
+}
+
 // Outside the rsc env, a server Page, Layout, Wrapper or Loading: the page renders from its Flight, which has what it
 // rendered. Each export Vike reads, a + file's default one, whatever the file exports itself
-function getServerComponentStub(components: Part[], flags: string) {
+function getServerComponentStub(components: Part[], flags: ServerComponentFlags) {
   const exports = [...new Set(components.map(({ exportName = "default" }) => `stub as ${exportName}`))].join(", ");
-  return { code: `const stub = Object.assign(() => null, ${flags});\nexport { ${exports} };`, map: null };
+  return { code: `const stub = Object.assign(() => null, ${JSON.stringify(flags)});\nexport { ${exports} };`, map: null };
 }
 
 // In the rsc env, a server Page, Layout, Wrapper or Loading carries the stub's flags, so every env finds it the same way
-function tagServerComponent(code: string, program: ESTree.Program, components: Part[], file: string, flags: string) {
+function tagServerComponent(code: string, program: ESTree.Program, components: Part[], flags: ServerComponentFlags) {
   // The exports Vike reads: each import's, or a + file's default one or the one named after the config
   const exportNames = [...new Set(components.flatMap(({ configName, exportName }) => (exportName ? [exportName] : [configName, "default"])))];
   const configNames = [...new Set(components.map(({ configName }) => configName))].join(" or ");
   const { output, references } = transformModuleExportEffect(code, program, {
-    generate: ({ binding }) => `Object.assign(${binding}, ${flags})`,
+    generate: ({ binding }) => `Object.assign(${binding}, ${JSON.stringify(flags)})`,
     filter: (name) => exportNames.includes(name),
     exportAll: "preserve",
   });
@@ -150,7 +253,7 @@ function tagServerComponent(code: string, program: ESTree.Program, components: P
     const source = JSON.stringify(exportAll.source.value);
     const statement = code.slice(exportAll.start, exportAll.source.end);
     throw new Error(
-      `[vike-react-rsc] ${file} starts with "use server component", but ${statement} doesn't name its ${configNames}: ` +
+      `[vike-react-rsc] ${flags.file} starts with "use server component", but ${statement} doesn't name its ${configNames}: ` +
         `write ${exportNames.map((name) => `export { ${name} } from ${source}`).join(" or ")}`
     );
   }

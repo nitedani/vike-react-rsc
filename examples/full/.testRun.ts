@@ -167,6 +167,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   testConfig(isStatic);
   // plugin-rsc has no client JS to preload in dev
   if (!isDev) testClientJsPreload();
+  // Vike preloads no font in dev
+  if (!isDev) testFontPreload();
   testClientCss();
   if (isDev) testClientCssLinkRemoved();
   testMisuse();
@@ -1391,6 +1393,22 @@ function testClientJsPreload() {
     expect(responses.filter((response) => !response.ok).map((response) => response.url)).to.deep.equal([]);
     const chunks = await Promise.all(responses.map((response) => response.text()));
     expect(chunks.some((chunk) => chunk.includes("Styled by a client component's CSS"))).to.equal(true);
+  });
+}
+
+function testFontPreload() {
+  test("The head preloads the fonts of a page's server and client components, without a .woff2's .woff fallback", async () => {
+    const html = await fetchHtml("/fonts");
+    const head = html.slice(0, html.indexOf("</head>"));
+    // A font's name and extension, e.g. server-font.woff2 for /assets/static/server-font.rZK6Ftbh.woff2
+    const fonts = [...head.matchAll(/<link rel="preload" href="[^"]*\/([^/."]+)[^/"]*\.(woff2?)" as="font"/g)].map((match) => `${match[1]}.${match[2]}`);
+    expect(fonts.sort()).to.deep.equal(["client-font.woff2", "server-font.woff2"]);
+
+    // The browser that needs the fallback still finds it through the page's CSS
+    const stylesheets = [...html.matchAll(/<link rel="stylesheet"[^>]* href="([^"]+)"/g)].map((match) => match[1]!);
+    const css = await Promise.all(stylesheets.map(async (href) => (await fetch(getServerUrl() + href)).text()));
+    const fallback = css.join("").match(/[^()"']*server-font\.[^()"']*\.woff(?=\))/)![0];
+    expect((await (await fetch(getServerUrl() + fallback)).text()).slice(0, 4)).to.equal("wOFF");
   });
 }
 

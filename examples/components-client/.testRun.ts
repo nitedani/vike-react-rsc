@@ -17,6 +17,7 @@ const AFTER_RENDER_ERROR = "A page's +onAfterRenderClient failed on demand";
 const SERVER_FUNCTION_COMPONENT_ERROR = 'starts with "use server", which makes its exports server functions';
 const CLIENT_HOOK_ERROR = "is for client components";
 const CLIENT_API_ERROR = "which runs only in the browser, but runs on the server";
+const CLIENT_APIS_WARNING = "[plugin vike-react-rsc:client-apis-on-server]";
 const EXPORT_ALL_ERROR = "doesn't name its Page";
 // Logged by /use-config-server
 const USE_CONFIG_IN_SERVER_COMPONENT_ERROR =
@@ -56,6 +57,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testServerComponents();
   testLoading();
   testVikeReactRendering();
+  testPageContextRequests();
   testVikeReactImports();
   testFormBeforeHydration();
   testRestoredFormState();
@@ -119,6 +121,18 @@ function testServerComponents() {
     await page.goto(getServerUrl() + "/export-type-all");
     await waitForHydration("#layout-counter");
     expect(await page.textContent("#rendered-on")).to.equal("Rendered on the server, next to an export type *");
+  });
+
+  test("components: 'client': a server +Page that imports CSS hydrates and its CSS applies, on a first load and a client navigation, however it's exported", async () => {
+    for (const pathname of ["/server-css", "/server-css-named", "/server-css-const"]) {
+      await page.goto(getServerUrl() + pathname);
+      await expectServerCssPage();
+
+      await page.goto(getServerUrl() + "/");
+      await waitForHydration("#counter");
+      await clickLink(pathname);
+      await expectServerCssPage();
+    }
   });
 
   test("components: 'client': a file without a directive that imports a server component, through another such file, is a server component, and the client component it renders hydrates", async () => {
@@ -457,6 +471,29 @@ function testVikeReactRendering() {
   });
 }
 
+function testPageContextRequests() {
+  test("components: 'client': a link click asks the server only for a page with a server component or a server hook", async () => {
+    await page.goto(getServerUrl() + "/server");
+    await waitForHydration("#layout-counter");
+    const requests: string[] = [];
+    page.on("request", (request) => {
+      const { pathname } = new URL(request.url());
+      if (pathname.endsWith(".pageContext.json")) requests.push(pathname);
+    });
+    for (const [href, rendered] of [
+      ["/", "h1:text-is('A client page')"],
+      ["/server", "text=Rendered on the server"],
+      ["/hooks", "#data:text-is('Data from +data')"],
+      ["/", "h1:text-is('A client page')"],
+      ["/admin", "text=A server layout, rendered on the server"],
+    ] as const) {
+      await page.click(`a[href="${href}"]`);
+      await page.waitForSelector(rendered);
+    }
+    expect(requests).to.deep.equal(["/server/index.pageContext.json", "/hooks/index.pageContext.json", "/admin/index.pageContext.json"]);
+  });
+}
+
 function testVikeReactImports() {
   test("components: 'client': vike-react's useData(), useHydrated() and <ClientOnly> from vike-react-rsc, in a React.lazy +Wrapper", async () => {
     const html = await fetchHtml("/hooks");
@@ -698,7 +735,7 @@ function testClientHooks() {
   test('Dev: a server component calling useState() gets React\'s error, naming its file and "use client"', async () => {
     await expectHelperPageError(
       `"use server component";\nimport { useState } from "react";\nexport default function Page() {\n  useState(0);\n  return null;\n}\n`,
-      `pages/helper/+Page.tsx calls useState(), ${CLIENT_API_ERROR}: start it with "use client": TypeError`
+      `pages/helper/+Page.tsx calls useState(), ${CLIENT_API_ERROR}: move the code that calls useState() into a "use client" file (this one, if nothing else in it needs the server): TypeError`
     );
   });
 
@@ -706,16 +743,18 @@ function testClientHooks() {
     await expectHelperPageError(
       'import { useState } from "react";\nimport { Markdown } from "../../components/Markdown";\nexport default function Page() {\n  useState(0);\n  return <Markdown source="A page" />;\n}\n',
       `pages/helper/+Page.tsx calls useState(), ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports the server component components/Markdown.tsx: ` +
-        'move the code that calls useState() into a "use client" component, or remove "use server component" from components/Markdown.tsx: TypeError'
+        'move the code that calls useState() into a "use client" component, or remove "use server component" from components/Markdown.tsx, if nothing in it needs the server: TypeError'
     );
   });
 
-  test('Dev: a file that calls useState() on a page that a server component import moves to the server, but that imports none, gets React\'s error, naming its file and "use client"', async () => {
+  test('Dev: a file that calls useState() on a page that a server component import moves to the server, but that imports none, gets React\'s error, naming its file and "use client", and a warning as it loads', async () => {
     editFile("./components/Leaf.tsx", (source) => `import { useState } from "react";\n${source.replace("export function Leaf() {", "$&\n  useState(0);")}`);
     await expectHelperPageError(
       'import { Markdown } from "../../components/Markdown";\nimport { Leaf } from "../../components/Leaf";\nexport default function Page() {\n  return <><Markdown source="A page" /><Leaf /></>;\n}\n',
-      `components/Leaf.tsx calls useState(), ${CLIENT_API_ERROR}: start it with "use client": TypeError`
+      `components/Leaf.tsx calls useState(), ${CLIENT_API_ERROR}: move the code that calls useState() into a "use client" file (this one, if nothing else in it needs the server): TypeError`
     );
+    // And the warning as the server loaded it
+    expectLog(`components/Leaf.tsx uses useState() from react, ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports it: move the code that uses useState() into a "use client" file`);
   });
 
   test('Dev: a server file calling createContext() or extending Component as it loads gets the same hint', async () => {
@@ -723,8 +762,65 @@ function testClientHooks() {
       ['import { createContext } from "react";\nconst Context = createContext(null);\nexport default function Page() {\n  return null;\n}\n', "calls createContext()"],
       ['import { Component } from "react";\nexport default class Page extends Component {\n  render() {\n    return null;\n  }\n}\n', "extends Component or PureComponent"],
     ]) {
-      await expectHelperPageError(`"use server component";\n${code}`, `pages/helper/+Page.tsx ${use}, ${CLIENT_API_ERROR}: start it with "use client"`);
+      await expectHelperPageError(`"use server component";\n${code}`, `pages/helper/+Page.tsx ${use}, ${CLIENT_API_ERROR}: move the code that ${use} into a "use client" file (this one, if nothing else in it needs the server)`);
     }
+  });
+
+  test("Build: server files that import browser-only React APIs build, with one warning naming each with the files that import it", async () => {
+    // The dev server sees the edits too, and renders nothing with them while no page is open
+    await page.goto("about:blank");
+    editFile("./components/Leaf.tsx", (source) => `import { createContext } from "react";\nexport const LeafContext = createContext(null);\n${source}`);
+    editFile("./components/Markdown.tsx", (source) =>
+      source.replace('"use server component";', '$&\nimport { Leaf } from "./Leaf";').replace(/return (<div .*\/>);/, "return <><Leaf />$1</>;")
+    );
+    editFile("./components/Badge.tsx", (source) => `export { useOptimistic as optimistic } from "react";\n${source}`);
+    const { isSuccess, output } = await build("./pages/markdown/+Page.tsx", (source) =>
+      source
+        // React.useState() here is the import's, whatever a function beside it or a block before it calls React
+        .replace(
+          '"use server component";',
+          '$&\nimport * as React from "react";\nimport { Article } from "../../components/Article";\nfunction label({ React }: { React: { version: string } }) {\n  return React.version;\n}\nconst { useReducer: reducer, useRef = () => null } = React;\nconsole.log(reducer, useRef);'
+        )
+        .replace("export default function Page() {", '$&\n  {\n    const React = { version: "A block\'s" };\n    console.log(React.version, label);\n  }\n  React.useState(0);\n  console.log(Article);')
+    );
+    expect(isSuccess).to.equal(true);
+    expect(output.split(CLIENT_APIS_WARNING).length - 1).to.equal(1);
+    // This page also reaches Leaf.tsx through Article.tsx: one line for the page, the shortest way
+    expect(output).to.not.include("as pages/markdown/+Page.tsx imports it through components/Article.tsx");
+    // And each other page that imports it
+    expect(output).to.include(`components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/server/+Page.tsx imports it through components/index.ts, components/Markdown.tsx:`);
+    expect(output).to.include(
+      `components/Leaf.tsx uses createContext() from react, ${CLIENT_API_ERROR}, as pages/markdown/+Page.tsx imports it through components/Markdown.tsx: move the code that uses createContext() into a "use client" file`
+    );
+    expect(output).to.include(`components/Badge.tsx uses useOptimistic() from react, ${CLIENT_API_ERROR}, as pages/helper/+Page.tsx imports it: move the code that uses useOptimistic() into a "use client" file`);
+    expect(output).to.include(`pages/markdown/+Page.tsx uses useReducer(), useRef(), useState() from react, ${CLIENT_API_ERROR}: move the code that uses useReducer(), useRef(), useState() into a "use client" file`);
+  });
+
+  test("Build: a server component importing React's server APIs, only the types of browser-only ones, or with a local variable named like its React import, builds without the warning", async () => {
+    // pages/server/+Page.tsx, a server component, also imports Counter, a "use client" file that imports useState()
+    editFile("./pages/server/+Page.tsx", (source) =>
+      source
+        .replace(
+          '"use server component";',
+          '$&\nimport * as React from "react";\nfunction label(React: { useState: () => string }) {\n  return React.useState();\n}\n' +
+            'function hoisted() {\n  if (Math.random() > 2) {\n    var React: any = {};\n  }\n  return React.useState();\n}\n' +
+            'const named = function React(this: any) {\n  return (React as any).useState();\n};\n' +
+            'function declaredAfterUse() {\n  const state = React.useState();\n  var React: any;\n  return state;\n}\n' +
+            'function destructured(React: { useState: () => string }) {\n  const { useState } = React;\n  return useState();\n}\nconsole.log(hoisted, named, declaredAfterUse, destructured);'
+        )
+        .replace("export default async function Page() {", '$&\n  console.log(React.version, label({ useState: () => "A label" }));')
+    );
+    const { isSuccess, output } = await build("./pages/markdown/+Page.tsx", (source) =>
+      source
+        .replace(
+          '"use server component";',
+          '$&\nimport * as React from "react";\nimport { cache, type useState } from "react";\nimport type { Component } from "react";\n' +
+            'const getSource = cache(() => "A page");\ntype Browser = typeof useState | Component | React.Component;'
+        )
+        .replace("export default function Page() {", "$&\n  React.useId();\n  getSource();")
+    );
+    expect(isSuccess).to.equal(true);
+    expect(output).to.not.include(CLIENT_API_ERROR);
   });
 }
 
@@ -774,6 +870,41 @@ function testMarkerHmr() {
     editFileRevert();
     await page.waitForSelector("text=A leaf without a directive");
     expect(await fetchHtml("/hmr")).to.not.include("rscPayload");
+  });
+
+  test("Dev: adding a server hook file to a client page brings back its request on the next link click, and removing it takes the request away, without a manual reload", async () => {
+    const hookFile = fileURLToPath(new URL("pages/index/+onCreatePageContext.server.ts", import.meta.url));
+    const reloadAfter = async (edit: () => void) => {
+      const reload = page.waitForEvent("load");
+      edit();
+      await reload;
+    };
+    const requestsOfHomeLink = async () => {
+      await page.click('a[href="/server"]');
+      await page.waitForSelector("text=Rendered on the server");
+      const requests: string[] = [];
+      const logRequest = (request: { url(): string }) => {
+        const { pathname } = new URL(request.url());
+        if (pathname.endsWith(".pageContext.json")) requests.push(pathname);
+      };
+      page.on("request", logRequest);
+      await page.click('a[href="/"]');
+      await page.waitForSelector("h1:text-is('A client page')");
+      page.off("request", logRequest);
+      return requests;
+    };
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    expect(await requestsOfHomeLink()).to.deep.equal([]);
+    try {
+      await reloadAfter(() => writeFileSync(hookFile, "export function onCreatePageContext() {}\n"));
+      await waitForHydration("#counter");
+      expect(await requestsOfHomeLink()).to.deep.equal(["/index.pageContext.json"]);
+    } finally {
+      await reloadAfter(() => unlinkSync(hookFile));
+    }
+    await waitForHydration("#counter");
+    expect(await requestsOfHomeLink()).to.deep.equal([]);
   });
 
   test("Dev: deleting a + file or a +config file shows no error", async () => {
@@ -1036,10 +1167,13 @@ function testComponentsConfig() {
     expect(output).to.include("Set components once, in the root +config.js: pages set it to");
   });
 
-  test("Build: ssr: false under components: 'server' builds, without a warning", async () => {
+  test("Build: ssr: false under components: 'server' builds, without a warning about it", async () => {
     const { isSuccess, output } = await build("./pages/+config.ts", (source) => source.replace('components: "client"', 'components: "server"'));
     expect(isSuccess).to.equal(true);
-    expect(output).to.not.include("sets ssr to false");
+    // Under 'server', this app's files without a directive are server components: those that import useState() are warned about
+    expect(output).to.include(`pages/+Layout.tsx uses useState() from react, ${CLIENT_API_ERROR}`);
+    // A warning about ssr: false would name the file that sets it
+    expect(output).to.not.include("pages/spa/+config.ts");
   });
 }
 
@@ -1103,6 +1237,15 @@ async function clickCounter(selector: string, text: string) {
   await autoRetry(async () => {
     expect(await page.textContent(selector)).to.equal(text);
   });
+}
+
+// The page's element has the style of its CSS, and its client component hydrates
+async function expectServerCssPage() {
+  await page.waitForSelector("#server-css");
+  await autoRetry(async () => {
+    expect(await page.$eval("#server-css", (element) => getComputedStyle(element).color)).to.equal("rgb(1, 2, 3)");
+  });
+  await clickCounter("#counter", "Counter 1");
 }
 
 // The page may have no link to `pathname`: one is added, then clicked as a user would, so Vike's router navigates

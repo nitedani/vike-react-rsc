@@ -13,26 +13,30 @@ export function clientReferenceDeps(): Plugin {
   return {
     name: "vike-react-rsc:client-reference-deps",
     apply: "serve",
-    configureServer(server) {
-      const client = server.environments.client!;
-      let resolveFirstRender!: () => void;
-      const firstRender = new Promise<void>((resolve) => (resolveFirstRender = resolve));
-      servers.set(server.config, { client, manager: getPluginApi(server.config)!.manager, firstRender, warmed: new Set() });
-      // At the front: a middleware added before it, e.g. @hono/vite-dev-server's, may answer the page without calling next()
-      server.middlewares.stack.unshift({
-        route: "",
-        handle: ((req, res, next) => {
-          if (req.headers.accept?.includes("text/html")) res.once("close", resolveFirstRender);
-          next();
-        }) satisfies Connect.NextHandleFunction,
-      });
-      // Vite's close() waits for the client env's pending requests, which wait for the first batch, and cancels that batch
-      const close = server.close;
-      server.close = async () => {
-        resolveFirstRender();
-        await client.waitForRequestsIdle();
-        return close();
-      };
+    configureServer: {
+      // Before @cloudflare/vite-plugin's, whose configureServer starts the client env: the hooks below read what this one sets
+      order: "pre",
+      handler(server) {
+        const client = server.environments.client!;
+        let resolveFirstRender!: () => void;
+        const firstRender = new Promise<void>((resolve) => (resolveFirstRender = resolve));
+        servers.set(server.config, { client, manager: getPluginApi(server.config)!.manager, firstRender, warmed: new Set() });
+        // At the front: a middleware added before it, e.g. @hono/vite-dev-server's, may answer the page without calling next()
+        server.middlewares.stack.unshift({
+          route: "",
+          handle: ((req, res, next) => {
+            if (req.headers.accept?.includes("text/html")) res.once("close", resolveFirstRender);
+            next();
+          }) satisfies Connect.NextHandleFunction,
+        });
+        // Vite's close() waits for the client env's pending requests, which wait for the first batch, and cancels that batch
+        const close = server.close;
+        server.close = async () => {
+          resolveFirstRender();
+          await client.waitForRequestsIdle();
+          return close();
+        };
+      },
     },
     // On a cold cache, Vite's first batch waits until the client env has no pending request, so this one holds it
     buildStart() {

@@ -1,0 +1,8 @@
+@font-face {
+  font-family: "Example Client Font";
+  src: url("./client-font.woff2") format("woff2");
+}
+
+[data-client-font] {
+  font-family: "Example Client Font";
+}
