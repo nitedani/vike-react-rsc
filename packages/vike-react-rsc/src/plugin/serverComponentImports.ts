@@ -64,7 +64,7 @@ export function invalidateModules(environment: Environment, file?: string): void
 
 /** An import as the browser resolves it, so a walk reads the files the browser would load, without registering the packages
  * for Vite to pre-bundle; or else as the env's plugins do, e.g. vite-tsconfig-paths */
-async function resolveImport(context: ResolveContext, source: string, importer: string): Promise<string | undefined> {
+export async function resolveImport(context: ResolveContext, source: string, importer: string | undefined): Promise<string | undefined> {
   return (await resolveForBrowser(source, importer)) ?? (await context.resolve(source, importer))?.id;
 }
 

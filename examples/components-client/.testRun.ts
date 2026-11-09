@@ -56,6 +56,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   testServerComponents();
   testLoading();
   testVikeReactRendering();
+  testPageContextRequests();
   testVikeReactImports();
   testFormBeforeHydration();
   testRestoredFormState();
@@ -444,6 +445,29 @@ function testVikeReactRendering() {
   });
 }
 
+function testPageContextRequests() {
+  test("components: 'client': a link click asks the server only for a page with a server component or a server hook", async () => {
+    await page.goto(getServerUrl() + "/server");
+    await waitForHydration("#layout-counter");
+    const requests: string[] = [];
+    page.on("request", (request) => {
+      const { pathname } = new URL(request.url());
+      if (pathname.endsWith(".pageContext.json")) requests.push(pathname);
+    });
+    for (const [href, rendered] of [
+      ["/", "h1:text-is('A client page')"],
+      ["/server", "text=Rendered on the server"],
+      ["/hooks", "#data:text-is('Data from +data')"],
+      ["/", "h1:text-is('A client page')"],
+      ["/admin", "text=A server layout, rendered on the server"],
+    ] as const) {
+      await page.click(`a[href="${href}"]`);
+      await page.waitForSelector(rendered);
+    }
+    expect(requests).to.deep.equal(["/server/index.pageContext.json", "/hooks/index.pageContext.json", "/admin/index.pageContext.json"]);
+  });
+}
+
 function testVikeReactImports() {
   test("components: 'client': vike-react's useData(), useHydrated() and <ClientOnly> from vike-react-rsc, in a React.lazy +Wrapper", async () => {
     const html = await fetchHtml("/hooks");
@@ -761,6 +785,41 @@ function testMarkerHmr() {
     editFileRevert();
     await page.waitForSelector("text=A leaf without a directive");
     expect(await fetchHtml("/hmr")).to.not.include("rscPayload");
+  });
+
+  test("Dev: adding a server hook file to a client page brings back its request on the next link click, and removing it takes the request away, without a manual reload", async () => {
+    const hookFile = fileURLToPath(new URL("pages/index/+onCreatePageContext.server.ts", import.meta.url));
+    const reloadAfter = async (edit: () => void) => {
+      const reload = page.waitForEvent("load");
+      edit();
+      await reload;
+    };
+    const requestsOfHomeLink = async () => {
+      await page.click('a[href="/server"]');
+      await page.waitForSelector("text=Rendered on the server");
+      const requests: string[] = [];
+      const logRequest = (request: { url(): string }) => {
+        const { pathname } = new URL(request.url());
+        if (pathname.endsWith(".pageContext.json")) requests.push(pathname);
+      };
+      page.on("request", logRequest);
+      await page.click('a[href="/"]');
+      await page.waitForSelector("h1:text-is('A client page')");
+      page.off("request", logRequest);
+      return requests;
+    };
+    await page.goto(getServerUrl() + "/");
+    await waitForHydration("#counter");
+    expect(await requestsOfHomeLink()).to.deep.equal([]);
+    try {
+      await reloadAfter(() => writeFileSync(hookFile, "export function onCreatePageContext() {}\n"));
+      await waitForHydration("#counter");
+      expect(await requestsOfHomeLink()).to.deep.equal(["/index.pageContext.json"]);
+    } finally {
+      await reloadAfter(() => unlinkSync(hookFile));
+    }
+    await waitForHydration("#counter");
+    expect(await requestsOfHomeLink()).to.deep.equal([]);
   });
 
   test("Dev: deleting a + file or a +config file shows no error", async () => {
