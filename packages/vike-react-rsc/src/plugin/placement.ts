@@ -33,7 +33,7 @@ export function placement(): Plugin[] {
     return decided;
   };
   // By Vike's page configs, the decision of whether each page needs a pageContext request and the files read to take it
-  const pageContextRequests = new WeakMap<PageConfigs, { decided: Promise<void>; read: Set<string> }>();
+  let pageContextRequests = new WeakMap<PageConfigs, { decided: Promise<void>; read: Set<string> }>();
   const decideRequests = (pageConfigs: PageConfigs, context: Context) => {
     const read = new Set<string>();
     const decided = decidePageContextRequests(pageConfigs, context, read);
@@ -48,6 +48,10 @@ export function placement(): Plugin[] {
     name: "vike-react-rsc:placement",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
+    // Vite resolved its config again, e.g. its dev server restarted: Vike forgot the values set, on the same page configs
+    configResolved: () => {
+      pageContextRequests = new WeakMap();
+    },
     resolveId: {
       // Before plugin-rsc's, which resolves the import with the react-server condition
       order: "pre",

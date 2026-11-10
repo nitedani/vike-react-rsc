@@ -71,6 +71,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
   if (isDev) testServerComponentHmr();
   if (isDev) testClientComponentHmr();
   if (isDev) testServerComponentImports();
+  // Last: after it, Vite answers a page's next requests with 504 Outdated Request
+  if (isDev) testViteRestart();
 }
 
 function testClientComponents() {
@@ -919,6 +921,32 @@ function testMarkerHmr() {
       // Vike logs it as its config reload starts, and a file deleted during that reload fails it
       await sleep(1000);
     }
+  });
+}
+
+function testViteRestart() {
+  test("Dev: after Vite restarts, a server page renders", async () => {
+    // Vite restarts on each edit of its config file
+    const restarts = () => {
+      let count = 0;
+      expectLog("server restarted", { filter: () => ++count > 0 });
+      return count;
+    };
+    const serverPageRenders = () => autoRetry(async () => expect(await fetchHtml("/server")).to.include("A server page"));
+    // An open page would reload on each restart
+    await page.goto("about:blank");
+    editFile("./vite.config.ts", (source) => `${source}// An edit\n`);
+    try {
+      await autoRetry(() => expect(restarts()).to.equal(1));
+      // Before the revert, which would restart Vite while it loads the app
+      await serverPageRenders();
+    } finally {
+      editFileRevert();
+    }
+    await autoRetry(() => expect(restarts()).to.equal(2));
+    await serverPageRenders();
+    // React's warning on the first render after a restart, on main too
+    expectLog("Detected multiple renderers concurrently rendering the same context provider");
   });
 }
 
