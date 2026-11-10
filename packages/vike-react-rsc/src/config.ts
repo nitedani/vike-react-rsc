@@ -2,6 +2,7 @@ import type { Config } from "vike/types";
 import "./types/Config.js";
 import "./types/PageContext.js";
 import { ssrEffect } from "./integration/ssrEffect";
+import { onCreatePageConfig } from "./plugin/pageConfig";
 import { vikeReactRscPlugins } from "./vite";
 
 // Users add it with `extends: [vikeReactRsc]`
@@ -13,7 +14,9 @@ const vikeReactRsc: Config = {
 
   Loading: "import:vike-react-rsc/__internal/Loading:default",
 
-  onCreatePageContext: ["import:vike-react-rsc/__internal/ssr:onCreatePageContext", "import:vike-react-rsc/__internal/browserHooks:throwLateError"],
+  onCreatePageContext: "import:vike-react-rsc/__internal/browserHooks:throwLateError",
+  // Adds the server onCreatePageContext hook, per page
+  onCreatePageConfig_experimental: onCreatePageConfig,
   onRenderHtml: "import:vike-react-rsc/__internal/ssr:onRenderHtml",
   onRenderClient: "import:vike-react-rsc/__internal/browser:onRenderClient",
   onError: "import:vike-react-rsc/__internal/onError:onError",

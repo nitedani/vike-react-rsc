@@ -10,6 +10,7 @@ export default defineConfig({
     "src/__internal/browser.ts",
     "src/__internal/browserHooks.client.ts",
     "src/__internal/ssr.server.ts",
+    "src/__internal/ssr.ssr.ts",
     "src/__internal/rsc.ts",
     "src/__internal/middleware.ts",
     "src/__internal/onError.ts",

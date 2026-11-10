@@ -3,7 +3,7 @@ import { isBuiltin } from "node:module";
 import path from "node:path";
 import type { Environment, ResolvedConfig } from "vite";
 import packageJson from "../../package.json";
-import { resolveForBrowser } from "./browserResolver";
+import { getViteConfig, resolveForBrowser } from "./browserResolver";
 import type { ResolveContext } from "./componentConfigs";
 import { getDirectives, getImportSources, isModuleFile, parseCompiled, type Directive } from "./parse";
 
@@ -56,6 +56,18 @@ export function getModule(context: Context, file: string, read: () => string | P
   return walked;
 }
 
+/** A module's directives and imports, of the app or of a package, its code read by `read` on each call, so that `read` sees every
+ * file a walk depends on, and parsed again only when it changed */
+export async function getModuleOfCode(file: string, read: (file: string) => Promise<string>, context: Pick<ResolveContext, "resolve">): Promise<WalkedModule> {
+  if (!(await canImportServerComponent(file))) return { directives: [], imports: [] };
+  const code = await read(file).catch(() => "");
+  const parsed = modulesByCode.get(file);
+  if (parsed?.code === code) return parsed.walked;
+  const walked = readModule(file, () => code, getViteConfig(), (source) => resolveImport(context, source, file));
+  modulesByCode.set(file, { code, walked });
+  return walked;
+}
+
 /** Forgets what the env read of the file, or of every file: a new or deleted file can change what its importers import */
 export function invalidateModules(environment: Environment, file?: string): void {
   if (file) modules.get(environment)?.delete(file);
@@ -64,7 +76,7 @@ export function invalidateModules(environment: Environment, file?: string): void
 
 /** An import as the browser resolves it, so a walk reads the files the browser would load, without registering the packages
  * for Vite to pre-bundle; or else as the env's plugins do, e.g. vite-tsconfig-paths */
-export async function resolveImport(context: ResolveContext, source: string, importer: string | undefined): Promise<string | undefined> {
+export async function resolveImport(context: Pick<ResolveContext, "resolve">, source: string, importer: string | undefined): Promise<string | undefined> {
   return (await resolveForBrowser(source, importer)) ?? (await context.resolve(source, importer))?.id;
 }
 
@@ -133,10 +145,12 @@ async function findPackage(name: string, from: string): Promise<string | undefin
 }
 
 type WalkedModule = { directives: Directive[]; imports: string[] };
-type GetModule = (file: string) => Promise<WalkedModule>;
+export type GetModule = (file: string) => Promise<WalkedModule>;
 export type Context = ResolveContext & { environment: Environment };
 // Each module's directives and imports, by env and file
 const modules = new WeakMap<Environment, Map<string, Promise<WalkedModule>>>();
+// Each module's code and its directives and imports, by file
+const modulesByCode = new Map<string, { code: string; walked: Promise<WalkedModule> }>();
 /** Whether a file of the package names "use server component", and the directory of each package it depends on */
 type Package = { namesServerComponent: boolean; dependencies: string[] };
 // By the package's directory: its files stay as installed
