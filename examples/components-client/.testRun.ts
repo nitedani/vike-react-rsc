@@ -472,6 +472,7 @@ function testPageContextRequests() {
       ["/server", "text=Rendered on the server"],
       ["/hooks", "#data:text-is('Data from +data')"],
       ["/", "h1:text-is('A client page')"],
+      ["/client-guard", "h1:text-is('A page with a client guard')"],
       ["/admin", "text=A server layout, rendered on the server"],
     ] as const) {
       await page.click(`a[href="${href}"]`);

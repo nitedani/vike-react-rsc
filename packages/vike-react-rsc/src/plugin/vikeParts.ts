@@ -63,7 +63,7 @@ function getPointerImports(value: unknown): { importPath: string; exportName: st
 }
 
 type PageConfigs = ReturnType<typeof getVikeConfig>["dangerouslyUseInternals"]["_pageConfigs"];
-type PageConfig = PageConfigs[number];
+export type PageConfig = PageConfigs[number];
 type ConfigValueSource = PageConfig["configValueSources"][string][number];
 /** The app's own file, or an import of a package or through a path alias and the file that imports it */
 export type PartImport = { configName: string; appFile?: string; importPath?: string; importer?: string; exportName?: string };
