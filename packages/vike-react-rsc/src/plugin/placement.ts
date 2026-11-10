@@ -1,6 +1,6 @@
 import { transformModuleExportEffect } from "@vitejs/plugin-rsc/transforms";
 import path from "node:path";
-import type { DevEnvironment, ESTree, Plugin } from "vite";
+import type { ESTree, Plugin } from "vite";
 import type { ServerComponentFlags } from "../rendersFlight";
 import { resolveForBrowser } from "./browserResolver";
 import { getComponentConfigs, isClientDefault, resolveComponentConfigs, type Part } from "./componentConfigs";
@@ -32,36 +32,22 @@ export function placement(): Plugin[] {
     if (!decided) decisions.set(environmentName, (decided = new Map()));
     return decided;
   };
-  // The client env, in dev
-  let client: DevEnvironment | undefined;
-  // By page, whether it needs a pageContext request. Then, by Vike's page configs, the decision and the files read to take it
-  let needsRequest = new Map<string, boolean>();
-  const pageContextRequests = new WeakMap<PageConfigs, { decided: Promise<boolean>; read: Set<string> }>();
-  // Whether a page changed since the last decision, whichever page configs that was for
+  // By Vike's page configs, the decision of whether each page needs a pageContext request and the files read to take it
+  const pageContextRequests = new WeakMap<PageConfigs, { decided: Promise<void>; read: Set<string> }>();
   const decideRequests = (pageConfigs: PageConfigs, context: Context) => {
     const read = new Set<string>();
-    const decided = decidePageContextRequests(pageConfigs, context, !!client, read).then((needs) => {
-      const previous = needsRequest;
-      needsRequest = needs;
-      return [...needs].some(([pageId, value]) => previous.get(pageId) === !value);
-    });
+    const decided = decidePageContextRequests(pageConfigs, context, read);
     pageContextRequests.set(pageConfigs, { decided, read });
     return decided;
   };
-  const decideNewPageConfigs = async (context: Context) => {
+  const decideNewPageConfigs = (context: Context) => {
     const pageConfigs = getPageConfigs();
-    const decision = pageContextRequests.get(pageConfigs);
-    if (decision) await decision.decided;
-    // Vike reloads its page configs when a + file is added or removed, without reloading the browser
-    else if ((await decideRequests(pageConfigs, context)) && client) reloadPageConfigs(client);
+    return pageContextRequests.get(pageConfigs)?.decided ?? decideRequests(pageConfigs, context);
   };
   const decide: Plugin = {
     name: "vike-react-rsc:placement",
     // The code as the user wrote it, before plugin-rsc reads its directives
     enforce: "pre",
-    configureServer: (server) => {
-      client = server.environments.client;
-    },
     resolveId: {
       // Before plugin-rsc's, which resolves the import with the react-server condition
       order: "pre",
@@ -79,7 +65,7 @@ export function placement(): Plugin[] {
     },
     // Each env loads the file its own conditions give: the browser its file, the HTML render Node's
     async load(id) {
-      // Before Vike's load, which serializes the pages' configs
+      // Before Vike's load, which serializes the pages' configs: a build refuses a value set after it
       if (isVikeVirtualModule(id)) {
         await decideNewPageConfigs(this);
         return;
@@ -93,7 +79,8 @@ export function placement(): Plugin[] {
       return `"use client";\nexport { ${exportNames.join(", ")} } from ${JSON.stringify(file ?? importPath)};\n`;
     },
     async transform(code, id) {
-      // After Vike's load, which waits for the page configs of a + file that was just added or removed
+      // After Vike's load, which waits for the page configs of a + file that was just added or removed: in dev, a value set on page
+      // configs that Vike has serialized reloads the browser
       if (isVikeVirtualModule(id)) {
         await decideNewPageConfigs(this);
         return;
@@ -127,7 +114,7 @@ export function placement(): Plugin[] {
       // Before the reload below, which loads what it decides
       if (environment.name === "client" && pageContextRequests.get(pageConfigs)?.read.has(file)) {
         getModule(context, file, read);
-        if (await decideRequests(pageConfigs, context)) reloadPageConfigs(environment);
+        await decideRequests(pageConfigs, context);
       }
       const components = await getComponentConfigs(context);
       // Each Page, Layout, Wrapper or Loading that read the file to decide where it runs, the file itself included
@@ -186,29 +173,19 @@ async function decideIsServerComponent(
 }
 
 // Under 'client', a client navigation asks the server only for a page that renders a server component or has a hook that can run
-// there. By page, whether it needs the request
-async function decidePageContextRequests(pageConfigs: PageConfigs, context: Context, isDev: boolean, read: Set<string>): Promise<Map<string, boolean>> {
-  return new Map(
-    await Promise.all(
-      pageConfigs.map(async (pageConfig) => {
-        // A check that fails keeps the request, which is always safe. An invalid `components` is reported where it is used
-        const needs = await needsPageContextRequest(pageConfig, context, isDev, read).catch(() => true);
-        setNeedsPageContextRequest(pageConfig, needs);
-        return [pageConfig.pageId, needs] as const;
-      })
-    )
+// there
+async function decidePageContextRequests(pageConfigs: PageConfigs, context: Context, read: Set<string>): Promise<void> {
+  await Promise.all(
+    pageConfigs.map(async (pageConfig) => {
+      // A check that fails keeps the request, which is always safe. An invalid `components` is reported where it is used
+      setNeedsPageContextRequest(pageConfig, await needsPageContextRequest(pageConfig, context, read).catch(() => true));
+    })
   );
 }
 
-// An open tab holds what Vike serialized of the pages' configs, in the page entries too: it starts over
-function reloadPageConfigs(environment: DevEnvironment) {
-  for (const mod of environment.moduleGraph.idToModuleMap.values()) if (isVikeVirtualModule(mod.id)) environment.moduleGraph.invalidateModule(mod);
-  environment.hot.send({ type: "full-reload" });
-}
-
-async function needsPageContextRequest(pageConfig: PageConfig, context: Context, isDev: boolean, read: Set<string>): Promise<boolean> {
+async function needsPageContextRequest(pageConfig: PageConfig, context: Context, read: Set<string>): Promise<boolean> {
   // Under 'server', each page renders from its Flight. And a browser error fetches the error page's pageContext from the server
-  if (!isClientDefault() || pageConfig.isErrorPage || hasAppServerHook(pageConfig, isDev)) return true;
+  if (!isClientDefault() || pageConfig.isErrorPage || hasAppServerHook(pageConfig)) return true;
   for (const { appFile, importPath, importer } of getPagePartImports(pageConfig)) {
     // As the browser resolves it: its file says where a package's component runs
     const id = appFile ?? (importPath && (await resolveImport(context, importPath, importer)));

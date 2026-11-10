@@ -26,29 +26,36 @@ export function getPagePartImports({ configValueSources }: PageConfig): PartImpo
   );
 }
 
+// The hooks that Vike can run on the server for a client navigation
+const serverHookNames = ["data", "onBeforeRender", "onCreatePageContext", "guard"];
+
 /** Whether the page has a hook that Vike runs on the server for a client navigation, vike-react-rsc's own left out. A universal
  * one counts too: it runs on the server while Vike asks the server for the page, so it can read what only the server has */
-export function hasAppServerHook(pageConfig: PageConfig, isDev: boolean): boolean {
-  const configValueSources = Object.fromEntries(
-    Object.entries(pageConfig.configValueSources).map(([configName, sources]) => [configName, sources.filter((source) => !isOwnHook(source)).map(asServerOnly)])
-  );
-  // Not false also when Vike no longer has this rule: the page keeps the request
-  return pageConfig.configDefinitions.hasServerOnlyHook?._computed?.({ ...pageConfig, configValueSources }, isDev) !== false;
+export function hasAppServerHook(pageConfig: PageConfig): boolean {
+  return serverHookNames.some((hookName) => {
+    // The environment Vike resolved, from the file name or `meta`, of the value that applies: the first one of a non-cumulative hook
+    const sources = (pageConfig.configValueSources[hookName] ?? []).filter((source) => source.configEnv.server && !isOwnHook(source));
+    const applied = pageConfig.configDefinitions[hookName]?.cumulative ? sources : sources.slice(0, 1);
+    // A `.ssr` hook doesn't run for a navigation, and null removes an inherited hook
+    return applied.some((source) => {
+      const isSsr = "fileName" in source.definedAt && !!source.definedAt.fileName?.includes(".ssr.");
+      return !isSsr && !(source.valueIsLoaded && source.value === null);
+    });
+  });
 }
 
 function isOwnHook({ definedAt }: ConfigValueSource): boolean {
   return "importPathAbsolute" in definedAt && definedAt.importPathAbsolute === OWN_SERVER_HOOK;
 }
 
-function asServerOnly(source: ConfigValueSource): ConfigValueSource {
-  return source.configEnv.server ? { ...source, configEnv: { ...source.configEnv, client: false } } : source;
-}
-
-/** Sets whether a client navigation to the page asks the server for its pageContext */
-export function setNeedsPageContextRequest(pageConfig: PageConfig, needsRequest: boolean): void {
-  // TODO: replace with a public per-page setter in Vike: https://github.com/vikejs/vike/issues/3730. Vike makes the request for a page with a server-only hook, and an extension can't say which of its pages need its own hook
-  const computed = pageConfig.configValuesComputed.hasServerOnlyHook;
-  if (computed) computed.value = needsRequest;
+/** Sets whether a client navigation to the page asks the server for its pageContext: Vike asks for a page with a `.server` hook, and
+ * runs a `.ssr` one only to render the HTML */
+export function setNeedsPageContextRequest({ pageId }: PageConfig, needsRequest: boolean): void {
+  const { config } = getVikeConfig().pages[pageId]!;
+  // Vike's type of a page's config has no import strings
+  (config as { onCreatePageContext?: unknown }).onCreatePageContext = needsRequest
+    ? "import:vike-react-rsc/__internal/ssr:onCreatePageContext"
+    : "import:vike-react-rsc/__internal/ssr.ssr:onCreatePageContext";
 }
 
 /** Whether `importer` is the virtual module Vike loads a page's + files from */

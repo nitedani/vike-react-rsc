@@ -13,7 +13,8 @@ const vikeReactRsc: Config = {
 
   Loading: "import:vike-react-rsc/__internal/Loading:default",
 
-  onCreatePageContext: ["import:vike-react-rsc/__internal/ssr:onCreatePageContext", "import:vike-react-rsc/__internal/browserHooks:throwLateError"],
+  // The plugin adds the server one, per page
+  onCreatePageContext: "import:vike-react-rsc/__internal/browserHooks:throwLateError",
   onRenderHtml: "import:vike-react-rsc/__internal/ssr:onRenderHtml",
   onRenderClient: "import:vike-react-rsc/__internal/browser:onRenderClient",
   onError: "import:vike-react-rsc/__internal/onError:onError",
