@@ -624,12 +624,11 @@ function testServerComponentAbort() {
   test("Server component: throw redirect() before the HTML starts is a 302", async () => {
     const response = await fetch(getServerUrl() + "/abort/redirect", { redirect: "manual" });
     expect([response.status, response.headers.get("location")]).to.deep.equal([302, "/"]);
-    // A crawler gets the whole page at once, so inside <Suspense> too
-    const crawled = await fetch(getServerUrl() + "/abort/redirect-streamed", {
-      redirect: "manual",
-      headers: { "user-agent": "Googlebot/2.1" },
-    });
-    expect([crawled.status, crawled.headers.get("location")]).to.deep.equal([302, "/"]);
+    // A crawler gets the whole page at once, so inside <Suspense> too, with a Web or a Node.js stream
+    for (const path of ["/abort/redirect-streamed", "/abort/redirect-streamed-node"]) {
+      const crawled = await fetch(getServerUrl() + path, { redirect: "manual", headers: { "user-agent": "Googlebot/2.1" } });
+      expect([crawled.status, crawled.headers.get("location")], path).to.deep.equal([302, "/"]);
+    }
   });
 
   test("Server component: throw render(404) before the HTML starts is the error page, with its status", async () => {
