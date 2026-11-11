@@ -1,6 +1,6 @@
 import type { ReactFormState } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { renderToStream, type RenderToStreamOptions } from "react-streaming/server.web";
+import { renderToStream, type RenderToStreamOptions } from "react-streaming/server";
 import type { PageContextServer } from "vike/types";
 import { getAbort, toVikeAbort, type Abort } from "../abort";
 import type { StreamSetting } from "../integration/onRenderHtml";
@@ -53,9 +53,9 @@ export async function renderRootToHtml(
         // Without `disable`, react-streaming streams, except to bots, which get the page whole
         disable: rendersToString || streamSetting.enable === false || undefined,
         ...options,
-        // Always a Web stream: the react-streaming entry imported above renders no Node stream. Vike accepts either
-        // kind of stream, so a +react that asks for a Node stream gets the same page.
-        webStream: true,
+        // A Web stream, but for +stream { type: 'node' }, where react-streaming renders a Node.js stream on Node.js and
+        // a Web stream on a Worker, which has no Node.js stream renderer
+        webStream: rendersToString || streamSetting.type === "web" || undefined,
         streamOptions,
         signal: options?.signal ? AbortSignal.any([htmlRender.signal, options.signal]) : htmlRender.signal,
         onBoundaryError: (error) => {
@@ -65,19 +65,19 @@ export async function renderRootToHtml(
         },
       });
       // react-streaming renders the page whole on a page without +stream, for a crawler, when pre-rendering, and with
-      // { require: true, enable: false }. We wait for its end: react-streaming reports a Suspense boundary's abort
-      // late, and Vike can answer it only until this function returns.
-      if (stream.disabled) await stream.streamEnd;
+      // { require: true, enable: false }. It reports a Suspense boundary's abort a macrotask late, and Vike can answer
+      // it only until this function returns. So we wait for a Web stream's end, or, as a Node.js stream ends only once
+      // Vike pipes it, for the next macrotask.
+      if (stream.disabled) await (stream.readable ? stream.streamEnd : new Promise((resolve) => setImmediate(resolve)));
       void stream.streamEnd.then(() => htmlRender.abort());
       deps.injectToStream = stream.injectToStream;
       // A string, as vike-react's renderToString() gives +onAfterRenderHtml
       if (rendersToString) pageContext.pageHtmlString = await new Response(stream.readable).text();
-      else {
-        // That stream has ended, so injecting into it would throw. +onAfterRenderHtml gets a new stream with the same
-        // HTML, which it can still inject into.
-        const htmlStream = stream.disabled ? toDisabledStream(await new Response(stream.readable).text()) : stream;
-        pageContext.pageHtmlStream = streamSetting.type === "node" ? toNodeStream(htmlStream) : htmlStream;
-      }
+      // A Web stream rendered whole has ended, so injecting into it would throw. +onAfterRenderHtml gets a new stream
+      // with the same HTML, which it can still inject into.
+      else if (stream.disabled && stream.readable)
+        pageContext.pageHtmlStream = toDisabledStream(await new Response(stream.readable).text());
+      else pageContext.pageHtmlStream = stream;
     }
     // An abort thrown inside a Suspense boundary and reported before this function returns, e.g. on a page rendered
     // whole: Vike answers it
@@ -96,54 +96,6 @@ function logBoundaryError(error: unknown, signal: AbortSignal) {
   // A server component's error comes through the Flight with a digest, and the rsc env has already logged it
   if (typeof error === "object" && error !== null && "digest" in error) return;
   console.error(error);
-}
-
-// The same stream as a Node.js stream, as react-streaming renders it for vike-react's +stream { type: 'node' }
-function toNodeStream(stream: HtmlStream): HtmlStream {
-  const readable = stream.readable!;
-  return { ...stream, readable: null, pipe: (writable) => void pipeToNodeWritable(readable, writable) };
-}
-
-// The Writable that Vike pipes into, as far as we use it: its own methods, so that we import no node: module, which a
-// Worker without nodejs_compat doesn't have
-type NodeWritable = {
-  write(chunk: Uint8Array): boolean;
-  end(): void;
-  destroy(error?: Error): void;
-  flush?: () => void;
-  on(event: "drain" | "close" | "error", listener: () => void): unknown;
-  off(event: "drain" | "close" | "error", listener: () => void): unknown;
-};
-
-async function pipeToNodeWritable(readable: ReadableStream<Uint8Array>, writable: NodeWritable): Promise<void> {
-  const reader = readable.getReader();
-  let closed = false;
-  let resume = () => {};
-  const onDrain = () => resume();
-  // A client that leaves closes the writable, which cancels the render. Also on 'error', which comes before 'close'.
-  const onClose = () => {
-    closed = true;
-    resume();
-    reader.cancel().catch(() => {});
-    writable.off("drain", onDrain);
-    writable.off("close", onClose);
-    writable.off("error", onClose);
-  };
-  writable.on("drain", onDrain);
-  writable.on("close", onClose);
-  writable.on("error", onClose);
-  try {
-    for (let chunk = await reader.read(); !chunk.done && !closed; chunk = await reader.read()) {
-      const ready = writable.write(chunk.value);
-      // As Vike pipes a Web stream: e.g. compression() holds the writes until flush()
-      writable.flush?.();
-      // Read on once the writable has taken what it holds
-      if (!ready && !closed) await new Promise<void>((resolve) => (resume = resolve));
-    }
-    if (!closed) writable.end();
-  } catch (error) {
-    if (!closed) writable.destroy(error as Error);
-  }
 }
 
 // A stream like react-streaming's when it doesn't stream, as vike-react's +onAfterRenderHtml gets it. What a hook
