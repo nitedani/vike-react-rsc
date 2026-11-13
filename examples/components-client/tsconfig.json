@@ -4,7 +4,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
-    "types": ["vite/client"],
+    "types": ["vite/client", "vike-react"],
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "noEmit": true,

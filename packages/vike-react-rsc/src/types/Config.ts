@@ -250,7 +250,15 @@ type PageContext_ = PageContext;
 
 type StreamSetting =
   | boolean
+  | "node"
+  | "web"
   | {
+      /**
+       * Whether the HTML stream should be a Web Stream or a Node.js Stream.
+       *
+       * https://vike.dev/stream
+       */
+      type?: "node" | "web";
       /**
        * Whether Server-Side Rendering (SSR) must use a stream. (Some tool integrations require it.)
        *
@@ -261,6 +269,8 @@ type StreamSetting =
       require?: boolean;
       /**
        * Setting +stream to `{ enable: null }` is the same as not setting +stream at all.
+       *
+       * Useful for changing stream settings without enabling streaming. For example, Vike extensions can set +stream to `{ enable: null, type: 'web' }` to change the default stream type without enabling streaming.
        *
        * https://vike.dev/stream
        */

@@ -219,18 +219,22 @@ async function getHtmlInjections(pageContext: PageContextServer) {
   return { bodyHtmlBegin, bodyHtmlEnd, headHtmlBegin, headHtmlEnd };
 }
 
-// As vike-react's resolveStreamSetting()
-export type StreamSetting = { enable: boolean | null; require: boolean };
+// As vike-react's resolveStreamSetting(). The HTML stream is a Web stream unless +stream asks for a Node.js one.
+export type StreamSetting = { type: "node" | "web"; enable: boolean | null; require: boolean };
 function resolveStreamSetting(pageContext: PageContextServer): StreamSetting {
-  const streamSetting: StreamSetting = { enable: null, require: false };
+  const streamSetting: StreamSetting = { type: "web", enable: null, require: false };
   pageContext.config.stream
     ?.slice()
     .reverse()
     .forEach((setting) => {
       if (typeof setting === "boolean") streamSetting.enable = setting;
-      else if (setting) {
+      else if (typeof setting === "string") {
+        streamSetting.type = setting;
+        streamSetting.enable = true;
+      } else if (setting) {
         if (setting.enable !== null) streamSetting.enable = setting.enable ?? true;
         if (setting.require !== undefined) streamSetting.require = setting.require;
+        if (setting.type !== undefined) streamSetting.type = setting.type;
       }
     });
   return streamSetting;

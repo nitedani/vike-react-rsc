@@ -15,7 +15,12 @@
     "build": "tsdown",
     "prepack": "pnpm run build && cp ../../README.md ../../LICENSE.md ."
   },
+  "types": "./dist/index.d.ts",
   "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
     "./config": "./dist/config.js",
     "./server": {
       "react-server": "./dist/server.rsc.js",

@@ -9,6 +9,8 @@ import { REDIRECT_META_ATTRIBUTE } from "../protocol";
 import { isHttpUrl } from "../redirect";
 import type { ClientDeps } from "./clientDeps";
 
+type HtmlStream = Awaited<ReturnType<typeof renderToStream>>;
+
 // Renders pageContext.page, which +onBeforeRenderHtml may have replaced, to pageContext.pageHtmlString or pageHtmlStream
 export async function renderRootToHtml(
   pageContext: PageContextServer,
@@ -70,9 +72,12 @@ export async function renderRootToHtml(
       deps.injectToStream = stream.injectToStream;
       // A string, as vike-react's renderToString() gives +onAfterRenderHtml
       if (rendersToString) pageContext.pageHtmlString = await new Response(stream.readable).text();
-      // That stream has ended, so injecting into it would throw. +onAfterRenderHtml gets a new stream with the same
-      // HTML, which it can still inject into.
-      else pageContext.pageHtmlStream = stream.disabled ? toDisabledStream(await new Response(stream.readable).text()) : stream;
+      else {
+        // That stream has ended, so injecting into it would throw. +onAfterRenderHtml gets a new stream with the same
+        // HTML, which it can still inject into.
+        const htmlStream = stream.disabled ? toDisabledStream(await new Response(stream.readable).text()) : stream;
+        pageContext.pageHtmlStream = streamSetting.type === "node" ? toNodeStream(htmlStream) : htmlStream;
+      }
     }
     // An abort thrown inside a Suspense boundary and reported before this function returns, e.g. on a page rendered
     // whole: Vike answers it
@@ -93,9 +98,57 @@ function logBoundaryError(error: unknown, signal: AbortSignal) {
   console.error(error);
 }
 
+// The same stream as a Node.js stream, as react-streaming renders it for vike-react's +stream { type: 'node' }
+function toNodeStream(stream: HtmlStream): HtmlStream {
+  const readable = stream.readable!;
+  return { ...stream, readable: null, pipe: (writable) => void pipeToNodeWritable(readable, writable) };
+}
+
+// The Writable that Vike pipes into, as far as we use it: its own methods, so that we import no node: module, which a
+// Worker without nodejs_compat doesn't have
+type NodeWritable = {
+  write(chunk: Uint8Array): boolean;
+  end(): void;
+  destroy(error?: Error): void;
+  flush?: () => void;
+  on(event: "drain" | "close" | "error", listener: () => void): unknown;
+  off(event: "drain" | "close" | "error", listener: () => void): unknown;
+};
+
+async function pipeToNodeWritable(readable: ReadableStream<Uint8Array>, writable: NodeWritable): Promise<void> {
+  const reader = readable.getReader();
+  let closed = false;
+  let resume = () => {};
+  const onDrain = () => resume();
+  // A client that leaves closes the writable, which cancels the render. Also on 'error', which comes before 'close'.
+  const onClose = () => {
+    closed = true;
+    resume();
+    reader.cancel().catch(() => {});
+    writable.off("drain", onDrain);
+    writable.off("close", onClose);
+    writable.off("error", onClose);
+  };
+  writable.on("drain", onDrain);
+  writable.on("close", onClose);
+  writable.on("error", onClose);
+  try {
+    for (let chunk = await reader.read(); !chunk.done && !closed; chunk = await reader.read()) {
+      const ready = writable.write(chunk.value);
+      // As Vike pipes a Web stream: e.g. compression() holds the writes until flush()
+      writable.flush?.();
+      // Read on once the writable has taken what it holds
+      if (!ready && !closed) await new Promise<void>((resolve) => (resume = resolve));
+    }
+    if (!closed) writable.end();
+  } catch (error) {
+    if (!closed) writable.destroy(error as Error);
+  }
+}
+
 // A stream like react-streaming's when it doesn't stream, as vike-react's +onAfterRenderHtml gets it. What a hook
 // injects goes after the page's HTML, in order, until the stream has been read to its end.
-function toDisabledStream(html: string): Awaited<ReturnType<typeof renderToStream>> {
+function toDisabledStream(html: string): HtmlStream {
   const chunks: (string | Promise<string>)[] = [html];
   let ended = false;
   const encoder = new TextEncoder();
