@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 import type { HydrationOptions, RootOptions } from "react-dom/client";
 import type { ServerOptions } from "react-dom/server";
-import type { RenderToStreamOptions } from "react-streaming/server.web";
+import type { RenderToStreamOptions } from "react-streaming/server";
 import type { ImportString, PageContext, PageContextClient, PageContextServer } from "vike/types";
 import type { ConfigsCumulative } from "../hooks/useConfig/configsCumulative";
 import type { HtmlInjection, Viewport } from "../integration/onRenderHtml";

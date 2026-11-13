@@ -1,6 +1,6 @@
 import type { JSX, ReactNode } from "react";
 import type { Root as ReactRoot } from "react-dom/client";
-import type { renderToStream } from "react-streaming/server.web";
+import type { renderToStream } from "react-streaming/server";
 import type { ActionCall } from "../ssr/action";
 import type { Cookies } from "../ssr/cookies";
 import type { ConfigViaHookResolved } from "./Config";
