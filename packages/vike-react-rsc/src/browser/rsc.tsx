@@ -1,6 +1,7 @@
 import { Component, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { usePageContext } from "../pageContext";
 import { getShared } from "../shared";
+import { loadComponent } from "./callKind";
 
 type Output = { node: ReactNode; generation: number; drops: number; loadedAt: number };
 
@@ -21,7 +22,6 @@ const state = getShared("rsc", () => ({
   // Raised by every redirect that drops the outputs, a library copy's included: an output or a load from before is
   // neither shown, shared nor cached
   drops: 0,
-  isLoading: false,
   // What rsc() outputs threw: AbortBoundary tells them from what a server action's answer sent
   thrownByOutputs: new WeakSet<object>(),
 }));
@@ -105,11 +105,6 @@ export function isThrownByRscOutput(error: unknown): boolean {
   return typeof error === "object" && error !== null && state.thrownByOutputs.has(error);
 }
 
-/** True while rsc() calls a server function: callServer() reads it in the same synchronous call */
-export function isRscLoad(): boolean {
-  return state.isLoading;
-}
-
 export function markRscOutputsStale(): void {
   state.generation++;
   for (const onStale of state.onStale) onStale();
@@ -136,10 +131,7 @@ function load(key: string, call: () => Promise<ReactNode>, staleTime: number): P
   const loadKey = `${startedAfter}:${startedIn}:${key}`;
   const pending = loads.get(loadKey);
   if (pending) return pending;
-  state.isLoading = true;
-  const request = call();
-  state.isLoading = false;
-  const loading = request
+  const loading = loadComponent(call)
     .then(
       (node) => {
         if (staleTime > 0 && node !== undefined && startedAfter === state.drops) outputs.set(key, { node, generation: startedIn, drops: startedAfter, loadedAt: Date.now() });

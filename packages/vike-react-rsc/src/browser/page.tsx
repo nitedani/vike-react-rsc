@@ -11,11 +11,12 @@ import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
 import type { PageContextInternal } from "../types/PageContext";
 import { AbortBoundary } from "./AbortBoundary";
+import type { RedirectHistory } from "./callServer";
 
-// `keepsPage`: a server action's answer sent `root`, after rerender() or as a throw render()'s page, so its redirect keeps
-// the page in history; one that an rsc() output inside it throws doesn't, as that output loaded on its own
+// `redirectHistory`: of a redirect `root` throws, the same as for the call whose answer sent it, after rerender() or as a
+// throw render()'s page. A navigation's page has none: its redirect replaces it.
 // `headSettings`: the head an answer sent with `root`, which Root applies once React has committed it
-type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings; keepsPage?: boolean };
+type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings; redirectHistory?: RedirectHistory };
 
 // One for every copy of this file: after an edit, Vite can load the next page's entry with a new copy
 const shared = getShared(
@@ -79,7 +80,7 @@ export function endNavigation(error?: unknown): void {
 }
 
 /** Shows the tree an action's answer sent, after rerender() or as a throw render()'s page, with the pageContext values it sent and none of the passToClient `keys` it didn't */
-export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys: string[], keepsPage: boolean, headSettings: HeadSettings): void {
+export function showRoot({ root, passed, keys, redirectHistory, headSettings }: { root: ReactNode; passed: Record<string, unknown>; keys: string[]; redirectHistory: RedirectHistory; headSettings: HeadSettings }): void {
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
   const pageContext = createPageContextFromServer_experimentalRSC(shared.current!, passed);
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
@@ -87,7 +88,7 @@ export function showRoot(root: ReactNode, passed: Record<string, unknown>, keys:
   if (pageContext.pageId !== shared.shown!.pageContext.pageId) shared.head = undefined;
   // As on a navigation, its components' useConfig() values wait for Root to apply the head
   (pageContext as PageContextInternal)._headAlreadySet = false;
-  show({ pageContext, root, keepsPage, headSettings });
+  show({ pageContext, root, redirectHistory, headSettings });
 }
 
 export function setReactRoot(reactRoot: ReactRoot): void {
@@ -168,7 +169,7 @@ export function Root({ page }: { page: Shown }): ReactElement {
   // TODO: remove once the react peer dependency requires a React release that includes https://github.com/react/react/pull/36867
   return PageContextProvider({
     pageContext: state.pageContext,
-    children: <AbortBoundary keepsPage={!!state.keepsPage}>{state.root}</AbortBoundary>,
+    children: <AbortBoundary redirectHistory={state.redirectHistory ?? "replace"}>{state.root}</AbortBoundary>,
   });
 }
 
