@@ -138,10 +138,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       logText.includes("An error occurred in the <Redirect> component") ||
       // testErrorOverlay()
       (isDev && logSource === "stderr" && logText.includes("Adjacent JSX elements must be wrapped")) ||
-      // Pre-rendering runs inside a build hook, which Rolldown reports as slow.
-      (isStatic &&
-        logSource === "stderr" &&
-        logText.includes("[PLUGIN_TIMINGS]")),
+      // Rolldown's report of how long the build's plugins took, which depends on the machine's speed
+      (!isDev && logSource === "stderr" && logText.includes("[PLUGIN_TIMINGS]")),
   });
 
   // The first request after the server starts
