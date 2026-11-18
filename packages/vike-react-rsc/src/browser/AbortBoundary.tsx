@@ -2,8 +2,7 @@ import { Component, use, type ReactNode } from "react";
 import type { RootOptions } from "react-dom/client";
 import { getAbort } from "../abort";
 import { REDIRECT_META_ATTRIBUTE } from "../protocol";
-import { followRedirect, type RedirectHistory } from "./callServer";
-import { endNavigation } from "./page";
+import { endNavigation, followRedirect, type RedirectHistory } from "./navigation";
 import { isThrownByRscOutput } from "./rsc";
 
 type CaughtErrorInfo = Parameters<NonNullable<RootOptions["onCaughtError"]>>[1];

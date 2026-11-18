@@ -10,7 +10,7 @@ import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
 import type { PageContextInternal } from "../types/PageContext";
 import { AbortBoundary } from "./AbortBoundary";
-import type { RedirectHistory } from "./callServer";
+import { endNavigation, getCurrentPageContext, isNavigationWaiting, type RedirectHistory } from "./navigation";
 
 // `redirectHistory`: of a redirect `root` throws, the same as for the call whose answer sent it, after rerender() or as a
 // throw render()'s page. A navigation's page has none: its redirect replaces it.
@@ -19,10 +19,8 @@ type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: H
 
 // One for every copy of this file: after an edit, Vite can load the next page's entry with a new copy
 const shared = getShared(
-  "page",
+  "root",
   (): {
-    // The pageContext of the page Vike showed, which actions' answers don't replace: actions call its URL, and their answers apply only while it's current
-    current?: PageContextClient;
     // What Root shows, and how to change it once Root has mounted
     shown?: Shown;
     // The head we last applied, the HTML's at first, not what useConfig() set since: an answer applies only the values that differ from it
@@ -30,18 +28,8 @@ const shared = getShared(
     setRootState?: (shown: Shown) => void;
     // The React root Root renders in, to mount Root again after an error unmounted it or kept it from mounting
     reactRoot?: ReactRoot;
-    // The navigation waiting until React shows its page, or throws on it
-    rendering?: { resolve: () => void; reject: (error: unknown) => void };
   } => ({ head: readHtmlHead() })
 );
-
-export function setCurrentPageContext(pageContext: PageContextClient): void {
-  shared.current = pageContext;
-}
-
-export function getCurrentPageContext(): PageContextClient {
-  return shared.current!;
-}
 
 export function show(next: Shown): void {
   const previous = shared.shown;
@@ -51,35 +39,10 @@ export function show(next: Shown): void {
   else shared.setRootState?.(next);
 }
 
-/** Resolves once React shows what show() was last given or `abortSignal` aborts, or rejects with the error React throws while rendering it */
-export async function rendered(abortSignal: AbortSignal): Promise<void> {
-  let end!: () => void;
-  const rendering = new Promise<void>((resolve, reject) => {
-    shared.rendering = { resolve, reject };
-    end = resolve;
-  });
-  abortSignal.addEventListener("abort", end);
-  if (abortSignal.aborted) end();
-  try {
-    await rendering;
-  } finally {
-    abortSignal.removeEventListener("abort", end);
-  }
-}
-
-/** Ends the navigation waiting until React shows its page, with the error React threw on it if any. Also when a page leaves
- * for a redirect's target instead */
-export function endNavigation(error?: unknown): void {
-  const { rendering } = shared;
-  shared.rendering = undefined;
-  if (error === undefined) rendering?.resolve();
-  else rendering?.reject(error);
-}
-
 /** Shows the tree an action's answer sent, after rerender() or as a throw render()'s page, with the pageContext values it sent and none of the passToClient `keys` it didn't */
 export function showRoot({ root, passed, keys, redirectHistory, headSettings }: { root: ReactNode; passed: Record<string, unknown>; keys: string[]; redirectHistory: RedirectHistory; headSettings: HeadSettings }): void {
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
-  const pageContext = createPageContextFromServer(shared.current!, passed);
+  const pageContext = createPageContextFromServer(getCurrentPageContext(), passed);
   for (const key of keys) if (!(key in passed)) Reflect.deleteProperty(pageContext, key);
   // Another page's tree, e.g. a throw render()'s, applies its whole head, as a navigation's page does
   if (pageContext.pageId !== shared.shown!.pageContext.pageId) shared.head = undefined;
@@ -102,11 +65,11 @@ export function onUncaughtError(error: unknown, componentStackToLog: string | un
   shared.setRootState = (shown) => shared.reactRoot!.render(getRootElement(shown));
   const abort = getAbort(error);
   // A server component's `throw render()` while a navigation waits for the page: Vike answers it, unlogged, as on the server
-  if (abort && shared.rendering) return endNavigation(toVikeAbort(abort));
+  if (abort && isNavigationWaiting()) return endNavigation(toVikeAbort(abort));
   console.error(...(componentStackToLog ? [error, componentStackToLog] : [error]));
   markLogged(error);
-  if (shared.rendering) endNavigation(error);
-  else showErrorPage(abort ? toVikeAbort(abort) : error, shared.current!);
+  if (isNavigationWaiting()) endNavigation(error);
+  else showErrorPage(abort ? toVikeAbort(abort) : error, getCurrentPageContext());
 }
 
 // Around Root, not inside it: on hydration, React runs effects twice only under a <StrictMode> at the root

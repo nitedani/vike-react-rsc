@@ -1,17 +1,13 @@
 import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
-import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
-import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import { readPageContextJson } from "../edges/vikeClient";
-import { getRedirectUrl } from "../redirect";
+import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
 import type { ActionPayload } from "../rsc/runtime";
 import { getCallKind, type CallKind } from "./callKind";
-import { getCurrentPageContext, showRoot } from "./page";
-import { dropRscOutputs, markRscOutputsStale } from "./rsc";
-
-/** How a redirect changes history: "push" keeps the page, "replace" replaces it, as an HTTP redirect does */
-export type RedirectHistory = "push" | "replace";
+import { followRedirect, getCurrentPageContext, leavePage, type RedirectHistory } from "./navigation";
+import { showRoot } from "./root";
+import { markRscOutputsStale } from "./rsc";
 
 /** React calls it for every server function the browser calls, rsc()'s included */
 export async function callServer(id: string, args: unknown[]): Promise<unknown> {
@@ -42,17 +38,6 @@ async function postAction(url: string, id: string, args: unknown[], kind: CallKi
   });
 }
 
-/** Follows a redirect the server sent */
-export function followRedirect(redirectTo: string, history: RedirectHistory): Promise<void> {
-  // A redirect that replaces the page can come from an rsc() output, loaded or still loading, which would throw it again after Back
-  if (history === "replace") dropRscOutputs();
-  const url = getRedirectUrl(redirectTo, location.href);
-  if (!url) throw new Error(`[vike-react-rsc] The server redirected to ${redirectTo}, which isn't an http(s) URL`);
-  if (url.origin !== location.origin) return leavePage(() => location[history === "push" ? "assign" : "replace"](url.href));
-  // Settles after the navigation, so a form action's pending transition doesn't hold the new page back
-  return navigate(url.pathname + url.search + url.hash, { overwriteLastHistoryEntry: history === "replace" });
-}
-
 async function readAnswer(response: Response, pageContext: PageContextClient, kind: CallKind): Promise<unknown> {
   // E.g. a 404 page instead of the answer, Vike's HTML error page, or a static host
   const isFlight = response.headers.get("content-type")?.split(";")[0] === FLIGHT_CONTENT_TYPE.split(";")[0];
@@ -67,12 +52,6 @@ async function readAnswer(response: Response, pageContext: PageContextClient, ki
     }
   }
   return payload.returnValue;
-}
-
-// Never settles: the caller doesn't resume, the document goes away
-function leavePage(leave: () => void): Promise<never> {
-  leave();
-  return new Promise(() => {});
 }
 
 // Once per action id and tab: an rsc() load that runs on mount would otherwise reload forever
