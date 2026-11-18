@@ -1,13 +1,14 @@
 import { Visitor, type ESTree, type Plugin } from "vite";
 import { clientApis } from "../clientApiHint";
 import { getComponentConfigs } from "./componentConfigs";
+import { describeServerComponentImport, getBuildImporters, getDevImporters } from "./diagnostics";
 import { getDirectives, getFile, getFileName, isAppFile, isModuleFile, parseCompiled } from "./parse";
 import { findServerComponentImport, getModule, type Context } from "./serverComponentImports";
 
 /** An app's server file that names a browser-only React API, so not through `export *` or `React[key]`, gets a warning, in
  * dev as the server loads it and in the build one that lists every such file, naming each Page, Layout, Wrapper or Loading
  * that imports it and the files in between. Not an error: the file may use it only in the browser, e.g. in a hook that only
- * client components call. React's error, with getClientApiHint(), reports a call that runs on the server */
+ * client components call. React's error, with getRenderErrorHint(), reports a call that runs on the server */
 export function clientApisOnServer(): Plugin {
   // The browser-only React APIs of each server file the rsc build loads
   const clientApiUses = new Map<string, string[]>();
@@ -32,8 +33,7 @@ export function clientApisOnServer(): Plugin {
         return;
       }
       const getComponentConfig = await getComponentConfigs(this);
-      const { moduleGraph } = environment;
-      const chains = getShortestImportChains(id, getComponentConfig, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])].flatMap((importer) => importer.id ?? []));
+      const chains = getShortestImportChains(id, getComponentConfig, getDevImporters(environment));
       this.warn(await getClientApiWarning(id, apis, chains, this));
     },
     async buildEnd() {
@@ -41,10 +41,7 @@ export function clientApisOnServer(): Plugin {
       const getComponentConfig = await getComponentConfigs(this);
       const warnings = await Promise.all(
         [...clientApiUses].map(([id, apis]) => {
-          const chains = getShortestImportChains(id, getComponentConfig, (id) => {
-            const { importers = [], dynamicImporters = [] } = this.getModuleInfo(id) ?? {};
-            return [...importers, ...dynamicImporters];
-          });
+          const chains = getShortestImportChains(id, getComponentConfig, getBuildImporters(this));
           return getClientApiWarning(id, apis, chains, this);
         })
       );
@@ -191,12 +188,8 @@ async function getClientApiWarning(id: string, apis: string[], chains: string[][
   const walk = (file: string) => getModule(context, file);
   const { serverComponentImport } = (await walk(getFile(id))).directives.length === 0 ? await findServerComponentImport(getFile(id), walk) : {};
   if (serverComponentImport) {
-    const [, ...imported] = serverComponentImport.map((file) => getFileName(file, root));
-    const serverComponent = imported.pop()!;
-    const through = imported.length > 0 ? ` through ${imported.join(", ")}` : "";
-    // A package's file isn't the app's to change
-    const fix = serverComponent.startsWith("node_modules/") ? "" : `, or remove "use server component" from ${serverComponent}, if nothing in it needs the server`;
-    return `${runsOnServer}, as it imports the server component ${serverComponent}${through}: move the code that uses ${uses} into a "use client" component${fix}`;
+    const { serverComponent, through, removeDirective } = describeServerComponentImport(serverComponentImport.map((file) => getFileName(file, root)));
+    return `${runsOnServer}, as it imports the server component ${serverComponent}${through}: move the code that uses ${uses} into a "use client" component${removeDirective}`;
   }
   const warnings = chains.map(([, ...importers]) => {
     const [importer, ...between] = importers.map((file) => getFileName(file, root)).reverse();

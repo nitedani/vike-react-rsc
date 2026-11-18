@@ -4,7 +4,7 @@ import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
 import { getAbortDigest } from "../abort";
 import { readVikeAbort } from "../edges/vikeRsc";
-import { getClientApiHint } from "../clientApiHint";
+import { getRenderErrorHint } from "../clientApiHint";
 import { getPageElement } from "../integration/getPageElement";
 import { getServerComponentImports } from "../serverComponentFlags";
 import type { HeadSettings } from "../integration/getHeadSettings";
@@ -94,7 +94,7 @@ function renderOnRead<Payload>(scope: Scope, getPayload: () => Payload): Readabl
           if (abort) return getAbortDigest(abort);
           // Not the abort, nor what failed because of it
           if (stopped.signal.aborted) return;
-          const hint = getClientApiHint(error, undefined, getServerComponentImports(pageContext));
+          const hint = getRenderErrorHint(error, getServerComponentImports(pageContext));
           console.error(`[vike-react-rsc] A server component, or a value sent to the browser, failed${hint ? `: ${hint}` : ""}:`, error);
         },
       })
