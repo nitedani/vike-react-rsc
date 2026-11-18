@@ -58,12 +58,12 @@ async function readAnswer(response: Response, pageContext: PageContextClient, ki
   const isFlight = response.headers.get("content-type")?.split(";")[0] === FLIGHT_CONTENT_TYPE.split(";")[0];
   if (!response.ok || !isFlight) throw new Error(`[vike-react-rsc] Server action failed: HTTP ${response.status}`);
   const payload = await createFromFetch<ActionPayload>(Promise.resolve(response));
-  if ("root" in payload) {
-    const { json, keys, headSettings } = payload.passedToClient;
+  if (payload.page) {
+    const { root, passedToClient: { json, keys, headSettings } } = payload.page;
     const passed = (await readPageContextJson(new Response(json), pageContext.abortSignal)) as Record<string, unknown>;
     // The page changed since the call: this answer's page is out of date
     if (getCurrentPageContext() === pageContext) {
-      startTransition(() => showRoot({ root: payload.root, passed, keys, redirectHistory: getRedirectHistory(kind), headSettings }));
+      startTransition(() => showRoot({ root, passed, keys, redirectHistory: getRedirectHistory(kind), headSettings }));
     }
   }
   return payload.returnValue;

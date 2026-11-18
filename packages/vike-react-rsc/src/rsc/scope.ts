@@ -4,17 +4,12 @@ import { noRequestContext, notInServerAction } from "../errors";
 import { getForkedPageContext } from "../forkPageContext";
 import { getShared } from "../shared";
 import "../types/PageContext";
-import type { ActionOutcome } from "./runtime";
+import type { ActionRun } from "./runtime";
 
 // React and user code call server components and server actions without a pageContext argument, so they find their
-// request here
-export type Scope = {
-  pageContext: PageContext;
-  // The outcome the running action builds
-  action?: { outcome: ActionOutcome };
-  // Rendering what an action returns without rerender(), outside rsc(): the page's guard() and data() didn't run
-  withoutPage?: boolean;
-};
+// request here: a page's server components render, an action runs and builds its `outcome`, or what an action returned
+// without rerender(), outside rsc(), renders, for which the page's guard() and data() didn't run
+export type Scope = { kind: "page" | "actionOutput"; pageContext: PageContext } | { kind: "action"; pageContext: PageContext; outcome: ActionRun };
 
 /** getRequestContext()'s value. TypeScript doesn't know what a +middleware adds, so it is `unknown` */
 export type RequestContext = Pick<PageContextServer, "headers" | "cookies" | "abortSignal"> & Record<string, unknown>;
@@ -41,10 +36,10 @@ export function readHtmlPageContext(caller: string): PageContextServer {
     throw new Error(`[vike-react-rsc] ${caller} needs a server component render, and none runs here`);
   }
   // An action runs for the request, from whichever page called it
-  if (scope.action) {
+  if (scope.kind === "action") {
     throw new Error(`[vike-react-rsc] ${caller} needs a page, and a server action or a component passed to rsc() has none: call getRequestContext() from vike-react-rsc/server`);
   }
-  if (scope.withoutPage) {
+  if (scope.kind === "actionOutput") {
     throw new Error(`[vike-react-rsc] ${caller} needs a page, and the server components a server action returns without rerender() have none: load them with rsc(), or call getRequestContext() from vike-react-rsc/server`);
   }
   return scope.pageContext as PageContextServer;
@@ -62,11 +57,11 @@ export function getRequestContext(): RequestContext {
 /** Whether server components render here, e.g. a page's, outside a server action */
 export function isRenderingServerComponents(): boolean {
   const scope = storage.getStore();
-  return !!scope && !scope.action;
+  return !!scope && scope.kind !== "action";
 }
 
 export function rerender(): void {
-  const action = storage.getStore()?.action;
-  if (!action) throw notInServerAction();
-  action.outcome.rerender = true;
+  const scope = storage.getStore();
+  if (scope?.kind !== "action") throw notInServerAction();
+  scope.outcome.rerender = true;
 }
