@@ -493,9 +493,15 @@ function testSession() {
     // The redirect came from the action, not from an rsc() output, so the cached outputs show until they refresh
     await page.goBack();
     await waitForHydration("Show server counts");
+    const release = await holdRscLoads();
     await toggleLoadCounts();
     expect(await page.locator("[data-loading-component]").count()).to.equal(0);
     expect(await readLoadCounts()).to.deep.equal(loaded);
+    release();
+    await autoRetry(async () => {
+      expect(await readLoadCounts()).to.deep.equal(nextLoadCounts(loaded));
+    });
+    await page.unroute("**/*");
   });
 
   test("Server action: guard() of the same request throws redirect()", async () => {
@@ -818,9 +824,15 @@ function testServerComponentAbort() {
     await waitForHydration("Slow save");
     await page.goBack();
     await waitForHydration("Show server counts");
+    const release = await holdRscLoads();
     await toggleLoadCounts();
     expect(await page.locator("[data-loading-component]").count()).to.equal(0);
     expect(await readLoadCounts()).to.deep.equal(loaded);
+    release();
+    await autoRetry(async () => {
+      expect(await readLoadCounts()).to.deep.equal(nextLoadCounts(loaded));
+    });
+    await page.unroute("**/*");
   });
 }
 
@@ -1796,6 +1808,9 @@ function trackRscRequests() {
 }
 const readLoadCounts = () => page.locator("[data-load-count]").allTextContents();
 const toggleLoadCounts = () => page.click('button:has-text("server counts")');
+// Each count one higher: the server rendered once more
+const nextLoadCounts = (counts: string[]) => counts.map((count) => count.replace(/\d+/, (n) => String(Number(n) + 1)));
+const holdRscLoads = () => holdResponses((request) => !!request.headers()["x-rsc-load"]);
 
 async function showLoadCounts() {
   await page.goto(getServerUrl() + "/suspense");
@@ -1859,13 +1874,16 @@ function testRscCache() {
 
     // After `rsc: { staleTime: 10000 }` (+config.ts), the stale entry renders while it's refetched
     await sleep(Math.max(0, loadedAt + 10000 - Date.now()));
+    const release = await holdRscLoads();
     await toggleLoadCounts();
     await toggleLoadCounts();
     expect(await readLoadCounts()).to.deep.equal(loaded);
+    release();
     await autoRetry(async () => {
       expect(await readLoadCounts()).to.not.deep.equal(loaded);
     });
     expect(requests).to.have.length(2);
+    await page.unroute("**/*");
   });
 }
 
@@ -1877,14 +1895,17 @@ function testRscCacheInvalidation() {
     await page.click('button:has-text("Run a server action")');
     // Not response.finished(): Chrome can report a fully read no-store response as canceled, and finished() then never resolves
     await page.waitForSelector("[data-ran-action]");
+    const release = await holdRscLoads();
     await toggleLoadCounts();
     await toggleLoadCounts();
     expect(await readLoadCounts()).to.deep.equal(loaded);
+    release();
     await autoRetry(async () => {
       expect(await readLoadCounts()).to.not.deep.equal(loaded);
     });
     // The load, the action, the refetch
     expect(requests).to.have.length(3);
+    await page.unroute("**/*");
   });
 }
 
