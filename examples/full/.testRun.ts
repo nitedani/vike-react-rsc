@@ -493,9 +493,15 @@ function testSession() {
     // The redirect came from the action, not from an rsc() output, so the cached outputs show until they refresh
     await page.goBack();
     await waitForHydration("Show server counts");
+    const release = await holdRscLoads();
     await toggleLoadCounts();
     expect(await page.locator("[data-loading-component]").count()).to.equal(0);
     expect(await readLoadCounts()).to.deep.equal(loaded);
+    release();
+    await autoRetry(async () => {
+      expect(await readLoadCounts()).to.deep.equal(nextLoadCounts(loaded));
+    });
+    await page.unroute("**/*");
   });
 
   test("Server action: guard() of the same request throws redirect()", async () => {
@@ -818,9 +824,15 @@ function testServerComponentAbort() {
     await waitForHydration("Slow save");
     await page.goBack();
     await waitForHydration("Show server counts");
+    const release = await holdRscLoads();
     await toggleLoadCounts();
     expect(await page.locator("[data-loading-component]").count()).to.equal(0);
     expect(await readLoadCounts()).to.deep.equal(loaded);
+    release();
+    await autoRetry(async () => {
+      expect(await readLoadCounts()).to.deep.equal(nextLoadCounts(loaded));
+    });
+    await page.unroute("**/*");
   });
 }
 
@@ -1597,12 +1609,17 @@ async function expectLeavingStopsRender(path: string, key: string) {
   await fetchHtml(path);
   expect(await getServerCount(key), path).to.equal(before + 1);
 
+  // The wait of a request with ?held ends only once the server has seen the client leave
+  const started = await getServerCount(`${key} started`);
+  const left = await getServerCount(`${key} left`);
   const controller = new AbortController();
-  const response = fetch(getServerUrl() + path, { signal: controller.signal }).catch(() => {});
-  await sleep(500);
+  const response = fetch(getServerUrl() + path + "?held", { signal: controller.signal }).catch(() => {});
+  await autoRetry(async () => expect(await getServerCount(`${key} started`), path).to.equal(started + 1));
   controller.abort();
   await response;
-  await sleep(2500);
+  await autoRetry(async () => expect(await getServerCount(`${key} left`), path).to.equal(left + 1));
+  await fetchHtml("/counts?release");
+  await sleep(500);
   expect(await getServerCount(key), path).to.equal(before + 1);
 }
 
@@ -1767,22 +1784,21 @@ function testStaleAction() {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
     const returned = page.waitForEvent("console", (message) => message.text() === "Returned: saved");
-    let hasResponded = false;
-    void page
-      .waitForResponse((response) => response.request().method() === "POST")
-      .then(() => (hasResponded = true));
+    // The action's answer waits until the navigation has shown the new page
+    const release = await holdResponses((request) => new URL(request.url()).pathname === "/actions");
 
     await page.click('button:has-text("Slow save")');
     await page.click('a[href="/"]');
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("Vike React Server Components");
     });
-    expect(hasResponded, "the navigation must end before the action returns").to.equal(false);
+    release();
 
     // The caller still gets the value, and the page the action rendered isn't shown
     await returned;
     await sleep(500);
     expect(await page.textContent("h1")).to.include("Vike React Server Components");
+    await page.unroute("**/*");
   });
 }
 
@@ -1797,6 +1813,9 @@ function trackRscRequests() {
 }
 const readLoadCounts = () => page.locator("[data-load-count]").allTextContents();
 const toggleLoadCounts = () => page.click('button:has-text("server counts")');
+// Each count one higher: the server rendered once more
+const nextLoadCounts = (counts: string[]) => counts.map((count) => count.replace(/\d+/, (n) => String(Number(n) + 1)));
+const holdRscLoads = () => holdResponses((request) => !!request.headers()["x-rsc-load"]);
 
 async function showLoadCounts() {
   await page.goto(getServerUrl() + "/suspense");
@@ -1860,13 +1879,16 @@ function testRscCache() {
 
     // After `rsc: { staleTime: 10000 }` (+config.ts), the stale entry renders while it's refetched
     await sleep(Math.max(0, loadedAt + 10000 - Date.now()));
+    const release = await holdRscLoads();
     await toggleLoadCounts();
     await toggleLoadCounts();
     expect(await readLoadCounts()).to.deep.equal(loaded);
+    release();
     await autoRetry(async () => {
       expect(await readLoadCounts()).to.not.deep.equal(loaded);
     });
     expect(requests).to.have.length(2);
+    await page.unroute("**/*");
   });
 }
 
@@ -1878,14 +1900,17 @@ function testRscCacheInvalidation() {
     await page.click('button:has-text("Run a server action")');
     // Not response.finished(): Chrome can report a fully read no-store response as canceled, and finished() then never resolves
     await page.waitForSelector("[data-ran-action]");
+    const release = await holdRscLoads();
     await toggleLoadCounts();
     await toggleLoadCounts();
     expect(await readLoadCounts()).to.deep.equal(loaded);
+    release();
     await autoRetry(async () => {
       expect(await readLoadCounts()).to.not.deep.equal(loaded);
     });
     // The load, the action, the refetch
     expect(requests).to.have.length(3);
+    await page.unroute("**/*");
   });
 }
 
@@ -2162,6 +2187,19 @@ function testNavigationKeepsPage() {
     expect(await page.evaluate(() => (window as { afterRenders?: string[] }).afterRenders)).to.deep.equal(["/ (hydration)", "/todos"]);
     await page.unroute("**/*");
   });
+}
+
+// Holds the responses to the requests `isHeld` picks until release()
+async function holdResponses(isHeld: (request: { url(): string; headers(): Record<string, string> }) => boolean) {
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/*", async (route) => {
+    if (!isHeld(route.request())) return route.continue();
+    const response = await route.fetch();
+    await released;
+    await route.fulfill({ response });
+  });
+  return release;
 }
 
 // Holds the script whose source includes `marker` until release()

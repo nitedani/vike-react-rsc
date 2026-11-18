@@ -1,8 +1,9 @@
 import { Suspense } from "react";
-import { increment } from "../../serverCounts";
+import { getPageContext } from "vike-react-rsc/pageContext";
+import { increment, waitSlowly } from "../../serverCounts";
 
 async function Slow() {
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  await waitSlowly("slow", getPageContext());
   return <Resolved />;
 }
 
