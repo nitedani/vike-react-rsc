@@ -21,9 +21,22 @@ export function waitSlowly(key: string, pageContext: PageContext, endsOnLeave?: 
   const isHeld = "held" in urlParsed.search;
   increment(`${key} started`);
   return new Promise((resolve, reject) => {
-    if (isHeld) heldWaits.add(resolve);
-    setTimeout(() => (heldWaits.delete(resolve), resolve()), isHeld ? 30_000 : 1500);
-    abortSignal.addEventListener("abort", () => (increment(`${key} left`), endsOnLeave && reject(abortSignal.reason)), { once: true });
+    // Ends the wait once, and leaves no timer, listener or held entry behind
+    const settle = (leftWith?: { reason: unknown }) => {
+      clearTimeout(timer);
+      heldWaits.delete(end);
+      abortSignal.removeEventListener("abort", onLeave);
+      if (leftWith) reject(leftWith.reason);
+      else resolve();
+    };
+    const end = () => settle();
+    const onLeave = () => {
+      increment(`${key} left`);
+      if (endsOnLeave) settle({ reason: abortSignal.reason });
+    };
+    const timer = setTimeout(end, isHeld ? 30_000 : 1500);
+    if (isHeld) heldWaits.add(end);
+    abortSignal.addEventListener("abort", onLeave, { once: true });
   });
 }
 
