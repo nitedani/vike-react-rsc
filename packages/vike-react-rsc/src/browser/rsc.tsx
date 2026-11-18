@@ -44,7 +44,7 @@ export function rsc<Props extends object>(
     const cached = readOutput(key, staleTime, generation);
     const [loaded, setLoaded] = useState<{ key: string; drops: number; node: ReactNode }>();
 
-    // New props and server actions load it again and keep the tree: the output stays, so its client state survives
+    // A server action loads it again, and the output stays until the new one arrives, so its client state survives
     useEffect(() => {
       if (cached?.isFresh) return;
       let isLatest = true;
