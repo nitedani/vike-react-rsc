@@ -50,7 +50,11 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
       // Vike takes the alias of /aliased-layout for an npm package to pre-bundle
       logText.includes("Cannot optimize dependency: @app/components/AliasedLayout") ||
       // The export * of /export-all also re-exports a function
-      logText.includes("/pages/export-all/+Page.tsx unexpected export { shout }"),
+      logText.includes("/pages/export-all/+Page.tsx unexpected export { shout }") ||
+      // Rolldown's report of how long the build's plugins took, which depends on the machine's speed
+      (!isDev && logSource === "stderr" && logText.includes("[PLUGIN_TIMINGS]")) ||
+      // Vike's report that a hook took longer than its warning threshold, which depends on the machine's speed
+      logText.includes("is slow: it's taking more than"),
   });
 
   testClientComponents();
