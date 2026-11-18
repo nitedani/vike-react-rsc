@@ -12,7 +12,7 @@ declare global {
     interface PageContext {
       /** The page's Flight: inlined in the HTML, or streamed in the pageContext a navigation fetches. For a page that renders as in vike-react, only useActionState()'s state after a form submitted before hydration. */
       rscPayload?: ReadableStream<Uint8Array>;
-      /** On the server, while it answers a server action */
+      /** @internal On the server, while it answers a server action */
       rscAction?: ActionCall;
     }
 
@@ -38,6 +38,8 @@ declare global {
 
 // Internal pageContext properties
 export type PageContextInternal = {
+  /** @internal */
   _configViaHook?: ConfigViaHookResolved;
+  /** @internal */
   _headAlreadySet?: boolean;
 };
