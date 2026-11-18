@@ -1,11 +1,43 @@
 import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import { isBuiltin } from "node:module";
 import path from "node:path";
-import type { Environment, ResolvedConfig } from "vite";
+import type { DevEnvironment, Environment, Plugin, ResolvedConfig } from "vite";
 import packageJson from "../../package.json";
 import { resolveForBrowser } from "./browserResolver";
-import type { ResolveContext } from "./componentConfigs";
-import { getDirectives, getImportSources, isModuleFile, parseCompiled, type Directive } from "./parse";
+import type { Part, ResolveContext } from "./componentConfigs";
+import { getDirectives, getImportSources, isAppFile, isModuleFile, parseCompiled, type Directive } from "./parse";
+
+/** Each env forgets what it read of a file the editor changed, or of every file when one is added or deleted, which can change what
+ * its importers import: the plugins after this one read it again */
+export function serverComponentImports(): Plugin {
+  return {
+    name: "vike-react-rsc:server-component-imports",
+    enforce: "pre",
+    hotUpdate({ type, file }) {
+      if (type === "update") modules.get(this.environment)?.delete(file);
+      else modules.delete(this.environment);
+    },
+  };
+}
+
+export type Decision = { isServerComponent: boolean; serverComponentImport?: string[]; read: Set<string> };
+
+/** Where the env runs a Page, Layout, Wrapper or Loading, the server component import that decides it if any, and the files read */
+export async function decideIsServerComponent(
+  file: string,
+  directives: Directive[],
+  components: Part[],
+  isClientDefault: boolean,
+  context: Context
+): Promise<Decision> {
+  // By its directive, or as the file the env loads for a package's server component
+  if (directives.includes("use server component") || components.some((c) => c.isPackageServerComponent)) {
+    return { isServerComponent: true, read: new Set([file]) };
+  }
+  if (directives.length > 0 || !isClientDefault || !isAppFile(file)) return { isServerComponent: false, read: new Set([file]) };
+  const { serverComponentImport, read } = await findServerComponentImport(file, (file) => getModule(context, file));
+  return { isServerComponent: serverComponentImport !== undefined, serverComponentImport, read };
+}
 
 /** The first "use server component" file that `file` imports, through files without a directive, as the files from `file` to
  * it, and every file read to find it */
@@ -56,10 +88,9 @@ export function getModule(context: Context, file: string, read: () => string | P
   return walked;
 }
 
-/** Forgets what the env read of the file, or of every file: a new or deleted file can change what its importers import */
-export function invalidateModules(environment: Environment, file?: string): void {
-  if (file) modules.get(environment)?.delete(file);
-  else modules.delete(environment);
+/** The env's own resolve, for a hook without one, e.g. hotUpdate */
+export function getEnvironmentContext(environment: DevEnvironment): Context {
+  return { environment, resolve: (source, importer) => environment.pluginContainer.resolveId(source, importer) };
 }
 
 /** An import as the browser resolves it, so a walk reads the files the browser would load, without registering the packages

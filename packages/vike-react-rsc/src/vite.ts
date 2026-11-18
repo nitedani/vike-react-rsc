@@ -2,6 +2,7 @@ import rsc from "@vitejs/plugin-rsc";
 import type { Plugin } from "vite";
 import { setBrowserEnvironment } from "./plugin/browserResolver";
 import { clientApisOnServer } from "./plugin/clientApisOnServer";
+import { clientImport } from "./plugin/clientImport";
 import { clientInServerPackageDeps } from "./plugin/clientInServerPackageDeps";
 import { clientReferenceDeps } from "./plugin/clientReferenceDeps";
 import { commonJsDeps } from "./plugin/commonJsDeps";
@@ -9,7 +10,9 @@ import { isClientDefault } from "./plugin/componentConfigs";
 import { noServerComponentsInBrowser } from "./plugin/noServerComponentsInBrowser";
 import { noServerFunctionComponents } from "./plugin/noServerFunctionComponents";
 import { pageAssets } from "./plugin/pageAssets";
+import { pageContextRequests } from "./plugin/pageContextRequests";
 import { placement } from "./plugin/placement";
+import { serverComponentImports } from "./plugin/serverComponentImports";
 
 export function vikeReactRscPlugins(): Plugin[] {
   return [
@@ -56,6 +59,10 @@ export function vikeReactRscPlugins(): Plugin[] {
     commonJsDeps(),
     noServerFunctionComponents(),
     noServerComponentsInBrowser(),
+    // On a file change, in this order: the walked modules are forgotten, then the pageContext requests and the placements are decided again
+    serverComponentImports(),
+    clientImport(),
+    pageContextRequests(),
     ...placement(),
     clientApisOnServer(),
     pageAssets(),
