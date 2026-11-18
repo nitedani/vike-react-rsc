@@ -203,6 +203,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscPropsChange();
     testRscLoadError();
     testRscLoadRedirect();
+    testRscLoadRedirectInLayout();
     testRscLoadReadsData();
     testServerComponentAbort();
     testRscCache();
@@ -606,6 +607,20 @@ function testRscLoadRedirect() {
     await autoRetry(async () => {
       expect(await page.textContent("[data-rsc-redirecting]")).to.equal("Loaded");
     });
+  });
+}
+
+function testRscLoadRedirectInLayout() {
+  test("rsc(): an output in a layout that the redirect's target page shares loads again for the target", async () => {
+    for (const href of ["/abort/redirect-in-layout", "/abort/redirect-in-layout?in=server-function"]) {
+      await page.goto(getServerUrl() + href);
+      await waitForHydration("Load the server component in the layout");
+      await page.click('button:has-text("Load the server component in the layout")');
+      await page.waitForSelector('h1:has-text("Redirected from the layout")');
+      await autoRetry(async () => {
+        expect(await page.textContent("[data-rsc-in-layout]"), href).to.equal("Loaded on the target");
+      });
+    }
   });
 }
 

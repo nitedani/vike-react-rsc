@@ -13,6 +13,8 @@ const loads = new Map<string, Promise<ReactNode | undefined>>();
 const serverComponentIds = new Map<Function, number>();
 const objectIds = new WeakMap<object, number>();
 let objectCount = 0;
+// The drops when rsc() first rendered for the page
+const dropsOfPages = new WeakMap<object, number>();
 // callServer() comes from the app's copy of this package, and rsc() may come from a library's own
 const state = getShared("rsc", () => ({
   // Raised by every server action except rsc()'s loads: an output loaded before may show data the action changed
@@ -38,22 +40,23 @@ export function rsc<Props extends object>(
     const key = `${id}:${keyOf(props)}`;
     const staleTime = pageContext.config.rsc?.staleTime ?? 60_000;
     const generation = useSyncExternalStore(subscribeToStale, getGeneration, getGeneration);
+    const drops = getDropsOf(pageContext);
     const cached = readOutput(key, staleTime, generation);
-    const [loaded, setLoaded] = useState<{ key: string; node: ReactNode }>();
+    const [loaded, setLoaded] = useState<{ key: string; drops: number; node: ReactNode }>();
 
     // New props and server actions load it again and keep the tree: the output stays, so its client state survives
     useEffect(() => {
       if (cached?.isFresh) return;
       let isLatest = true;
       void load(key, () => serverComponent(props as Props)).then((node) => {
-        if (node !== undefined && isLatest) setLoaded({ key, node });
+        if (node !== undefined && isLatest) setLoaded({ key, drops, node });
       });
       return () => {
         isLatest = false;
       };
-    }, [key, generation]);
+    }, [key, generation, drops]);
 
-    const node = loaded?.key === key ? loaded.node : cached?.node;
+    const node = loaded?.key === key && loaded.drops === drops ? loaded.node : cached?.node;
     if (node !== undefined) return <OutputBoundary>{node}</OutputBoundary>;
     const DefaultFallback = pageContext.config.Loading?.component;
     return fallback ?? (DefaultFallback && <DefaultFallback />);
@@ -66,6 +69,13 @@ function readOutput(key: string, staleTime: number, generation: number): { node:
   const output = outputs.get(key);
   if (staleTime <= 0 || output?.drops !== state.drops) return;
   return { node: output.node, isFresh: output.generation === generation && Date.now() - output.loadedAt < staleTime };
+}
+
+// The page a redirect leads to shows no output from before it, and a component that a layout keeps loads again there. The
+// page that redirected shows them until it goes: loading again there would redirect again.
+function getDropsOf(pageContext: object): number {
+  if (!dropsOfPages.has(pageContext)) dropsOfPages.set(pageContext, state.drops);
+  return dropsOfPages.get(pageContext)!;
 }
 
 // Equal only for props the server function can't tell apart. Only strings hold user text, and they're quoted.
