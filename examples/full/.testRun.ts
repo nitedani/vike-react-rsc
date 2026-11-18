@@ -1886,6 +1886,43 @@ function testRscCacheInvalidation() {
     // The load, the action, the reload
     expect(requests).to.have.length(3);
   });
+
+  test("rsc(): a load a server action outdated, answering after the action's reload, doesn't replace the reload's output", async () => {
+    await page.goto(getServerUrl() + "/suspense");
+    await waitForHydration("Show server counts");
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let rendered!: () => void;
+    const isRendered = new Promise<void>((resolve) => (rendered = resolve));
+    let isFirst = true;
+    // The first load renders before the action, and its answer arrives after the action's reload
+    await page.route("**/*", async (route) => {
+      if (!isFirst || !route.request().headers()["x-rsc-load"]) return route.continue();
+      isFirst = false;
+      const response = await route.fetch();
+      await response.body();
+      rendered();
+      await released;
+      await route.fulfill({ response });
+    });
+    await toggleLoadCounts();
+    await isRendered;
+    await page.click('button:has-text("Run a server action")');
+    await page.waitForSelector("[data-ran-action]");
+    await autoRetry(async () => {
+      expect(await readLoadCounts()).to.have.length(2);
+    });
+    const reloaded = await readLoadCounts();
+
+    release();
+    // The outdated answer changes nothing on screen, so the test gives it time to be read
+    await sleep(750);
+    expect(await readLoadCounts()).to.deep.equal(reloaded);
+    await toggleLoadCounts();
+    await toggleLoadCounts();
+    expect(await readLoadCounts()).to.deep.equal(reloaded);
+    await page.unroute("**/*");
+  });
 }
 
 function testRscCacheInvalidationOnRejection() {

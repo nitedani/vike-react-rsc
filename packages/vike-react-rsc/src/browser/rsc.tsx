@@ -139,7 +139,9 @@ function load(key: string, call: () => Promise<ReactNode>): Promise<ReactNode | 
   const loading = loadComponent(call)
     .then(
       (node) => {
-        if (node !== undefined && startedAfter === state.drops) outputs.set(key, { node, generation: startedIn, drops: startedAfter, loadedAt: Date.now() });
+        // Keeps an output loaded after a later action: this one may not show what that action changed
+        const isOutdated = (outputs.get(key)?.generation ?? startedIn) > startedIn;
+        if (node !== undefined && startedAfter === state.drops && !isOutdated) outputs.set(key, { node, generation: startedIn, drops: startedAfter, loadedAt: Date.now() });
         return node;
       },
       (error: unknown) => {
