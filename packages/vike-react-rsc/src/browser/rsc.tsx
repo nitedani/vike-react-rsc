@@ -37,18 +37,15 @@ export function rsc<Props extends object>(
     const pageContext = usePageContext();
     const key = `${id}:${keyOf(props)}`;
     const staleTime = pageContext.config.rsc?.staleTime ?? 60_000;
-    // Shown until the next load arrives, even when out of date. Never set during SSR: loads start in effects.
-    const output = outputs.get(key);
-    const cached = output?.drops === state.drops ? output : undefined;
     const generation = useSyncExternalStore(subscribeToStale, getGeneration, getGeneration);
-    const isFresh = !!cached && cached.generation === generation && Date.now() - cached.loadedAt < staleTime;
+    const cached = readOutput(key, staleTime, generation);
     const [loaded, setLoaded] = useState<{ key: string; node: ReactNode }>();
 
     // New props and server actions load it again and keep the tree: the output stays, so its client state survives
     useEffect(() => {
-      if (isFresh) return;
+      if (cached?.isFresh) return;
       let isLatest = true;
-      void load(key, () => serverComponent(props as Props), staleTime).then((node) => {
+      void load(key, () => serverComponent(props as Props)).then((node) => {
         if (node !== undefined && isLatest) setLoaded({ key, node });
       });
       return () => {
@@ -61,6 +58,14 @@ export function rsc<Props extends object>(
     const DefaultFallback = pageContext.config.Loading?.component;
     return fallback ?? (DefaultFallback && <DefaultFallback />);
   };
+}
+
+// The output a component shows until the next load arrives, even when out of date, and whether it loads again. None
+// with `staleTime: 0`, nor from before a redirect dropped the outputs. Never set during SSR: loads start in effects.
+function readOutput(key: string, staleTime: number, generation: number): { node: ReactNode; isFresh: boolean } | undefined {
+  const output = outputs.get(key);
+  if (staleTime <= 0 || output?.drops !== state.drops) return;
+  return { node: output.node, isFresh: output.generation === generation && Date.now() - output.loadedAt < staleTime };
 }
 
 // Equal only for props the server function can't tell apart. Only strings hold user text, and they're quoted.
@@ -124,7 +129,7 @@ export function dropRscOutputs(): void {
 }
 
 // Resolves to undefined when the load fails: the fallback, or the last output, stays
-function load(key: string, call: () => Promise<ReactNode>, staleTime: number): Promise<ReactNode | undefined> {
+function load(key: string, call: () => Promise<ReactNode>): Promise<ReactNode | undefined> {
   const startedAfter = state.drops;
   // An action that runs while this loads may change what it shows
   const startedIn = state.generation;
@@ -134,7 +139,7 @@ function load(key: string, call: () => Promise<ReactNode>, staleTime: number): P
   const loading = loadComponent(call)
     .then(
       (node) => {
-        if (staleTime > 0 && node !== undefined && startedAfter === state.drops) outputs.set(key, { node, generation: startedIn, drops: startedAfter, loadedAt: Date.now() });
+        if (node !== undefined && startedAfter === state.drops) outputs.set(key, { node, generation: startedIn, drops: startedAfter, loadedAt: Date.now() });
         return node;
       },
       (error: unknown) => {
