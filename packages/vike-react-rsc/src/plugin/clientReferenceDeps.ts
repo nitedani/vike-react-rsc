@@ -1,5 +1,6 @@
 import { getPluginApi, type RscPluginManager } from "@vitejs/plugin-rsc";
 import type { Connect, DevEnvironment, Plugin, ResolvedConfig } from "vite";
+import { getClientReferenceImports } from "./pluginRscParts";
 
 const FIRST_RENDER = "virtual:vike-react-rsc/first-render";
 
@@ -55,8 +56,8 @@ export function clientReferenceDeps(): Plugin {
       handler() {
         if (this.environment.name !== "rsc") return;
         const { client, manager, warmed } = servers.get(this.environment.getTopLevelConfig())!;
-        // Every client reference recorded so far: plugin-rsc keys some by their id with its query, some without
-        for (const { importId } of Object.values(manager.clientReferenceMetaMap)) {
+        // Every client reference recorded so far
+        for (const importId of getClientReferenceImports(manager)) {
           if (warmed.has(importId)) continue;
           warmed.add(importId);
           // The browser's URL, unwrapped as Vite's middleware does before it transforms it

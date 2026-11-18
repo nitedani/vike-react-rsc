@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { ReactFormState } from "react-dom/client";
 import type { PageContext } from "vike/types";
 import { getAbortDigest } from "../abort";
+import { readVikeAbort } from "../edges/vikeRsc";
 import { getClientApiHint } from "../clientApiHint";
 import { getPageElement } from "../integration/getPageElement";
 import { getServerComponentImports } from "../serverComponentFlags";
@@ -89,8 +90,8 @@ function renderOnRead<Payload>(scope: Scope, getPayload: () => Payload): Readabl
         signal: stopped.signal,
         onError: (error: unknown) => {
           // A `throw redirect()` or `throw render()`: the HTML render, or the browser, acts on it
-          const abortDigest = getAbortDigest(error);
-          if (abortDigest) return abortDigest;
+          const abort = readVikeAbort(error);
+          if (abort) return getAbortDigest(abort);
           // Not the abort, nor what failed because of it
           if (stopped.signal.aborted) return;
           const hint = getClientApiHint(error, undefined, getServerComponentImports(pageContext));

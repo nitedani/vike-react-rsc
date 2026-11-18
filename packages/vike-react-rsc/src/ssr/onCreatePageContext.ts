@@ -1,4 +1,5 @@
 import type { PageContextServer } from "vike/types";
+import { skipGuardAndData } from "../edges/vikeServer";
 import { rendersFlight } from "../serverComponentFlags";
 import { getRsc } from "./bridge";
 import { createCookies } from "./cookies";
@@ -7,7 +8,7 @@ export async function onCreatePageContext(pageContext: PageContextServer): Promi
   pageContext.cookies = createCookies(pageContext);
   const call = pageContext.rscAction;
   await call?.run(pageContext);
-  if (call?.skipsGuardAndData) pageContext._skipGuardAndData_experimentalRSC = true;
+  if (call?.skipsGuardAndData) skipGuardAndData(pageContext);
   // A server action's answer renders the page itself: Vike would otherwise send this Flight along with rerender()'s values
   if (call?.answersWithFlight) return;
   const { runtime, pageContext: rscPageContext } = getRsc(pageContext);

@@ -1,11 +1,11 @@
 // Vike loads +middleware at startup, before Vite optimizes React, so neither this module nor its imports may import React
 import { enhance } from "@universal-middleware/core";
-import { getPageContextJson } from "vike/__internal";
 import { getGlobalContext } from "vike/server";
 import type { PageContextServer } from "vike/types";
+import { getPassedToClient } from "../edges/vikeServer";
 import { getHeadSettings } from "../integration/getHeadSettings";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
-import type { ActionCallInput, ActionOutcome, PassedToClient } from "../rsc/runtime";
+import type { ActionCallInput, ActionOutcome } from "../rsc/runtime";
 import "../types/PageContext";
 import { getRsc } from "./bridge";
 
@@ -61,7 +61,8 @@ export class ActionCall {
     // No outcome: the action threw. After render() to a page, the answer is that page, as for a form; Vike's error
     // page is left out, as callServer() rejects on its status without reading it
     const { returnValue, rerender } = this.outcome?.kind === "ran" ? this.outcome : { returnValue: undefined, rerender: !this.outcome && isPageAfterRender(pageContext) };
-    const passedToClient = rerender ? getPassedToClient(pageContext) : undefined;
+    // The browser has only the config of the page Vike showed, and an answer may render another page, e.g. after a throw render()
+    const passedToClient = rerender ? { ...getPassedToClient(pageContext), headSettings: getHeadSettings(pageContext) } : undefined;
     return runtime.actionPayload(rscPageContext, returnValue, { scopeKind: this.#scopeKind, passedToClient });
   }
 
@@ -121,18 +122,6 @@ export class ActionCall {
 // Not Vike's error page, whose is404 is set: after the action's `throw render()`, the page it rendered
 function isPageAfterRender(pageContext: PageContextServer): boolean {
   return pageContext.is404 === null;
-}
-
-// The keys let the browser drop a value the server no longer sets, as a navigation's new pageContext doesn't have it
-function getPassedToClient(pageContext: PageContextServer): PassedToClient {
-  const keys = (pageContext.config.passToClient ?? [])
-    .flat()
-    // Vike's Config type also takes { prop, once }, which its resolved type leaves out
-    .map((prop: string | { prop: string }) => (typeof prop === "string" ? prop : prop.prop))
-    // The top-level key: 'user' for 'user.id', and '\\.' is a dot in a key
-    .map((prop) => prop.split(/(?<!\\)\./)[0]!.replace(/\\\./g, "."));
-  // The browser has only the config of the page Vike showed, and an answer may render another page, e.g. after a throw render()
-  return { json: getPageContextJson(pageContext), keys, headSettings: getHeadSettings(pageContext) };
 }
 
 // Vike's +middleware. When the request calls a server action, it hands the action to the page that Vike renders after

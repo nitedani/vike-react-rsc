@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { PageContext, PageContextServer } from "vike/types";
 import { noRequestContext, notInServerAction } from "../errors";
+import { getPageContextInit } from "../edges/vikeRsc";
 import { getServerComponentView } from "../forkPageContext";
 import { getShared } from "../shared";
 import "../types/PageContext";
@@ -48,9 +49,9 @@ export function readUnforkedPageContext(caller: string): PageContextServer {
 export function getRequestContext(): RequestContext {
   const scope = storage.getStore();
   if (!scope) throw noRequestContext();
-  const pageContext = scope.pageContext as PageContextServer & { _pageContextInit: { rscAction?: unknown } };
-  // What renderPage() got from the server and every middleware, without rscAction, which vike-react-rsc sets for itself
-  const { rscAction: _, ...init } = pageContext._pageContextInit;
+  const pageContext = scope.pageContext as PageContextServer;
+  // Without rscAction, which vike-react-rsc sets for itself
+  const { rscAction: _, ...init } = getPageContextInit(pageContext);
   return { ...init, headers: pageContext.headers, cookies: pageContext.cookies, abortSignal: pageContext.abortSignal };
 }
 

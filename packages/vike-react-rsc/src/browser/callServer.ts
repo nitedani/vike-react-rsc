@@ -1,9 +1,9 @@
 import { createFromFetch, encodeReply } from "@vitejs/plugin-rsc/browser";
 import { startTransition } from "react";
-import { readPageContextJson } from "vike/__internal/client";
 import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
+import { readPageContextJson } from "../edges/vikeClient";
 import { getRedirectUrl } from "../redirect";
 import type { ActionPayload } from "../rsc/runtime";
 import { getCallKind, type CallKind } from "./callKind";
