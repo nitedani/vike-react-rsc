@@ -1767,22 +1767,21 @@ function testStaleAction() {
     await page.goto(getServerUrl() + "/actions");
     await waitForHydration("Slow save");
     const returned = page.waitForEvent("console", (message) => message.text() === "Returned: saved");
-    let hasResponded = false;
-    void page
-      .waitForResponse((response) => response.request().method() === "POST")
-      .then(() => (hasResponded = true));
+    // The action's answer waits until the navigation has shown the new page
+    const release = await holdResponses((request) => new URL(request.url()).pathname === "/actions");
 
     await page.click('button:has-text("Slow save")');
     await page.click('a[href="/"]');
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("Vike React Server Components");
     });
-    expect(hasResponded, "the navigation must end before the action returns").to.equal(false);
+    release();
 
     // The caller still gets the value, and the page the action rendered isn't shown
     await returned;
     await sleep(500);
     expect(await page.textContent("h1")).to.include("Vike React Server Components");
+    await page.unroute("**/*");
   });
 }
 
@@ -2162,6 +2161,19 @@ function testNavigationKeepsPage() {
     expect(await page.evaluate(() => (window as { afterRenders?: string[] }).afterRenders)).to.deep.equal(["/ (hydration)", "/todos"]);
     await page.unroute("**/*");
   });
+}
+
+// Holds the responses to the requests `isHeld` picks until release()
+async function holdResponses(isHeld: (request: { url(): string; headers(): Record<string, string> }) => boolean) {
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/*", async (route) => {
+    if (!isHeld(route.request())) return route.continue();
+    const response = await route.fetch();
+    await released;
+    await route.fulfill({ response });
+  });
+  return release;
 }
 
 // Holds the script whose source includes `marker` until release()
