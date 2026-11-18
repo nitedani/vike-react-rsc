@@ -1,11 +1,11 @@
-import { Component, useEffect, useState, type ReactNode } from "react";
+import { Component, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { usePageContext } from "../pageContext";
 import { getShared } from "../shared";
 
 type Output = { node: ReactNode; generation: number; drops: number; loadedAt: number };
 
 const outputs = new Map<string, Output>();
-// One load per key at a time, shared by every component that renders it
+// One load per key and generation at a time, shared by every component that renders it
 const loads = new Map<string, Promise<ReactNode | undefined>>();
 // Production builds name every server function "action", so the key tells them apart by identity
 const serverComponentIds = new Map<Function, number>();
@@ -15,6 +15,8 @@ let objectCount = 0;
 const state = getShared("rsc", () => ({
   // Raised by every server action except rsc()'s loads: an output loaded before may show data the action changed
   generation: 0,
+  // Called when the generation is raised: the outputs on screen load again
+  onStale: new Set<() => void>(),
   // Raised by every redirect that drops the outputs, a library copy's included: an output or a load from before is
   // neither shown, shared nor cached
   drops: 0,
@@ -37,20 +39,21 @@ export function rsc<Props extends object>(
     // Shown until the next load arrives, even when out of date. Never set during SSR: loads start in effects.
     const output = outputs.get(key);
     const cached = output?.drops === state.drops ? output : undefined;
-    const isFresh = !!cached && cached.generation === state.generation && Date.now() - cached.loadedAt < staleTime;
+    const generation = useSyncExternalStore(subscribeToStale, getGeneration, getGeneration);
+    const isFresh = !!cached && cached.generation === generation && Date.now() - cached.loadedAt < staleTime;
     const [loaded, setLoaded] = useState<{ key: string; node: ReactNode }>();
 
-    // New props start a new load and keep the tree: a cached output renders in place, so its client state survives
+    // New props and server actions load it again and keep the tree: the output stays, so its client state survives
     useEffect(() => {
       if (isFresh) return;
-      let isForCurrentProps = true;
+      let isLatest = true;
       void load(key, () => serverComponent(props as Props), staleTime).then((node) => {
-        if (node !== undefined && isForCurrentProps) setLoaded({ key, node });
+        if (node !== undefined && isLatest) setLoaded({ key, node });
       });
       return () => {
-        isForCurrentProps = false;
+        isLatest = false;
       };
-    }, [key]);
+    }, [key, generation]);
 
     const node = loaded?.key === key ? loaded.node : cached?.node;
     if (node !== undefined) return <OutputBoundary>{node}</OutputBoundary>;
@@ -108,6 +111,16 @@ export function isRscLoad(): boolean {
 
 export function markRscOutputsStale(): void {
   state.generation++;
+  for (const onStale of state.onStale) onStale();
+}
+
+function subscribeToStale(onStale: () => void): () => void {
+  state.onStale.add(onStale);
+  return () => state.onStale.delete(onStale);
+}
+
+function getGeneration(): number {
+  return state.generation;
 }
 
 export function dropRscOutputs(): void {
@@ -117,11 +130,11 @@ export function dropRscOutputs(): void {
 // Resolves to undefined when the load fails: the fallback, or the last output, stays
 function load(key: string, call: () => Promise<ReactNode>, staleTime: number): Promise<ReactNode | undefined> {
   const startedAfter = state.drops;
-  const loadKey = `${startedAfter}:${key}`;
-  const pending = loads.get(loadKey);
-  if (pending) return pending;
   // An action that runs while this loads may change what it shows
   const startedIn = state.generation;
+  const loadKey = `${startedAfter}:${startedIn}:${key}`;
+  const pending = loads.get(loadKey);
+  if (pending) return pending;
   state.isLoading = true;
   const request = call();
   state.isLoading = false;

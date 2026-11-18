@@ -1871,20 +1871,18 @@ function testRscCache() {
 }
 
 function testRscCacheInvalidation() {
-  test("rsc(): another server action marks the cache stale", async () => {
+  test("rsc(): another server action reloads the outputs on screen, which show until the new ones arrive", async () => {
     const requests = await showLoadCounts();
     const loaded = await readLoadCounts();
 
     await page.click('button:has-text("Run a server action")');
     // Not response.finished(): Chrome can report a fully read no-store response as canceled, and finished() then never resolves
     await page.waitForSelector("[data-ran-action]");
-    await toggleLoadCounts();
-    await toggleLoadCounts();
     expect(await readLoadCounts()).to.deep.equal(loaded);
     await autoRetry(async () => {
       expect(await readLoadCounts()).to.not.deep.equal(loaded);
     });
-    // The load, the action, the refetch
+    // The load, the action, the reload
     expect(requests).to.have.length(3);
   });
 }
