@@ -6,7 +6,7 @@ import { configsClientSide } from "../hooks/useConfig/configsClientSide";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import { collectClientDeps, renderClientLinks, type ClientDeps } from "../ssr/clientDeps";
-import { decodeFlight, renderUntilClientLeaves } from "../ssr/decodeFlight";
+import { decodeFlight, renderUntilClientLeaves } from "../ssr/htmlFlight";
 import { renderRootToHtml } from "../ssr/renderRootToHtml";
 import type { HeadValue } from "../types/Config";
 import type { PageContextInternal } from "../types/PageContext";
