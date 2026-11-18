@@ -38,5 +38,5 @@ export function showErrorPage(thrown: unknown, current: PageContextClient): void
 export function throwLateError(pageContext: PageContextClient): void {
   const { lateError } = shared;
   shared.lateError = undefined;
-  if (lateError?.urlPathname === pageContext.urlPathname && !pageContext.isErrorPage) throw lateError.thrown;
+  if (lateError?.urlPathname === pageContext.urlPathname) throw lateError.thrown;
 }
