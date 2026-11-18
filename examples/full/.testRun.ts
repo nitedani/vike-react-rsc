@@ -1609,12 +1609,17 @@ async function expectLeavingStopsRender(path: string, key: string) {
   await fetchHtml(path);
   expect(await getServerCount(key), path).to.equal(before + 1);
 
+  // The wait of a request with ?held ends only once the server has seen the client leave
+  const started = await getServerCount(`${key} started`);
+  const left = await getServerCount(`${key} left`);
   const controller = new AbortController();
-  const response = fetch(getServerUrl() + path, { signal: controller.signal }).catch(() => {});
-  await sleep(500);
+  const response = fetch(getServerUrl() + path + "?held", { signal: controller.signal }).catch(() => {});
+  await autoRetry(async () => expect(await getServerCount(`${key} started`), path).to.equal(started + 1));
   controller.abort();
   await response;
-  await sleep(2500);
+  await autoRetry(async () => expect(await getServerCount(`${key} left`), path).to.equal(left + 1));
+  await fetchHtml("/counts?release");
+  await sleep(500);
   expect(await getServerCount(key), path).to.equal(before + 1);
 }
 
