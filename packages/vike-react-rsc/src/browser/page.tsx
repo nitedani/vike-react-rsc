@@ -175,18 +175,18 @@ export function Root({ page }: { page: Shown }): ReactElement {
 
 // What the page's components gave useConfig() while rendering wins, as getHeadSetting() does. A value the same as in
 // `lastHead` stays as the tab has it, so a title the page set in the browser stays.
-export function applyHead([title, lang, description]: HeadSettings, { _configViaHook }: PageContextInternal, lastHead?: HeadSettings): void {
-  const pick = <T,>(viaHook: T | undefined, configured: T) => (viaHook !== undefined ? viaHook : configured);
+export function applyHead(headSettings: HeadSettings, { _configViaHook }: PageContextInternal, lastHead?: HeadSettings): void {
+  const pick = (name: keyof HeadSettings) => (_configViaHook?.[name] !== undefined ? _configViaHook[name] : headSettings[name]);
   // As null, "" shows no title or description, and readHtmlHead() reads their missing tags as null
   const tagValue = (value: string | null | undefined) => (value === "" ? null : value);
-  const head: HeadSettings = [tagValue(pick(_configViaHook?.title, title)), pick(_configViaHook?.lang, lang), tagValue(pick(_configViaHook?.description, description))];
-  const [newTitle, newLang, newDescription] = head.map((value, i) => (value === lastHead?.[i] ? undefined : value));
-  applyHeadSettings(newTitle, newLang, newDescription);
+  const head: HeadSettings = { title: tagValue(pick("title")), lang: pick("lang"), description: tagValue(pick("description")) };
+  const changed = (name: keyof HeadSettings) => (head[name] === lastHead?.[name] ? undefined : head[name]);
+  applyHeadSettings(changed("title"), changed("lang"), changed("description"));
   shared.head = head;
 }
 
 // The head the HTML has: the server writes no title or description tag for null or "", so a missing one reads as null
 function readHtmlHead(): HeadSettings {
   const description = document.head.querySelector<HTMLMetaElement>('meta[name="description"]');
-  return [document.head.querySelector("title")?.text ?? null, document.documentElement.getAttribute("lang"), description?.content ?? null];
+  return { title: document.head.querySelector("title")?.text ?? null, lang: document.documentElement.getAttribute("lang"), description: description?.content ?? null };
 }
