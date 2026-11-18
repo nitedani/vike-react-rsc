@@ -10,7 +10,7 @@ import "../types/PageContext";
 import { getRsc } from "./bridge";
 
 /** One action request, across Vike's phases: it runs in onCreatePageContext, and holds its answer until Vike's response is
- * known. The rsc env runs its `input`. `isRscLoad` when rsc() calls it to load a server component. */
+ * known. The rsc env runs its `input`. */
 export class ActionCall {
   /** The Set-Cookie lines the action appended to pageContext.headersResponse */
   #setCookies: string[] = [];
@@ -21,15 +21,18 @@ export class ActionCall {
 
   constructor(
     readonly input: ActionCallInput,
-    readonly url: string,
-    readonly isRscLoad: boolean
+    readonly url: string
   ) {}
+
+  get kind(): ActionCallInput["kind"] {
+    return this.input.kind;
+  }
 
   // Vike creates a pageContext for every page it renders, and an error or a `throw render()` makes it render another
   // page for the same request: only the first one runs the action, and the others wait for it
   async run(pageContext: PageContextServer): Promise<void> {
-    if (this.#rsc) {
-      await this.#running?.catch(() => {});
+    if (this.#running) {
+      await this.#running.catch(() => {});
       return;
     }
     this.#rsc = getRsc(pageContext);
@@ -42,22 +45,22 @@ export class ActionCall {
     }
   }
 
-  /** A form submitted before hydration: the answer is the page's HTML */
-  get isForm(): boolean {
-    return this.input.kind === "form";
+  /** A call from JavaScript: its answer is Flight. A form submitted before hydration gets the page's HTML. */
+  get answersWithFlight(): boolean {
+    return this.kind !== "form";
   }
 
   /** Without rerender(), a plain action's answer is its return value alone, which reads nothing guard() and data() provide */
   get skipsGuardAndData(): boolean {
-    return !!this.outcome && !this.isForm && !this.isRscLoad && !(this.outcome.kind === "ran" && this.outcome.rerender);
+    return !!this.outcome && this.kind === "action" && !(this.outcome.kind === "ran" && this.outcome.rerender);
   }
 
   /** The answer for the page Vike rendered: the return value, and the page after rerender() */
   renderAnswer(pageContext: PageContextServer): ReadableStream<Uint8Array> {
     const { runtime, pageContext: rscPageContext } = getRsc(pageContext);
     // No outcome: the action threw. After render() to a page, the answer is that page, as for a form; Vike's error
-    // page (is404 set) is left out, as callServer() rejects on its status without reading it
-    const { returnValue, rerender } = this.outcome?.kind === "ran" ? this.outcome : { returnValue: undefined, rerender: !this.outcome && pageContext.is404 === null };
+    // page is left out, as callServer() rejects on its status without reading it
+    const { returnValue, rerender } = this.outcome?.kind === "ran" ? this.outcome : { returnValue: undefined, rerender: !this.outcome && isPageAfterRender(pageContext) };
     const passedToClient = rerender ? getPassedToClient(pageContext) : undefined;
     return runtime.actionPayload(rscPageContext, returnValue, { scopeKind: this.#scopeKind, passedToClient });
   }
@@ -70,7 +73,7 @@ export class ActionCall {
     if (this.outcome?.kind === "unknownAction") return this.#answerUnknownAction(response);
     const headers = this.#headersWithCookies(response);
     // The page, or a redirect a browser follows
-    if (this.isForm) return new Response(response.body, { status, headers });
+    if (this.kind === "form") return new Response(response.body, { status, headers });
 
     // Without rerender() the answer is the return value, not the page: a failure or a redirect after the action, also
     // in the guard() or data() an rsc() load runs, is dropped (actionRedirectMiddleware made redirects REDIRECT_HEADER)
@@ -88,7 +91,7 @@ export class ActionCall {
   #answerUnknownAction(response: Response): Response {
     void response.body?.cancel();
     // A form can't reload as callServer() does, so the browser gets the page again, from this build
-    if (this.isForm) {
+    if (this.kind === "form") {
       const { pathname, search } = new URL(this.url);
       return new Response(null, { status: 303, headers: { location: pathname + search } });
     }
@@ -104,6 +107,7 @@ export class ActionCall {
     return headers;
   }
 
+  // A new response, with only the action's cookies: the headers of the failure or the redirect it replaces aren't its own
   #answerReturnValue(response: Response, returnValue: unknown): Response {
     void response.body?.cancel();
     const { runtime, pageContext } = this.#rsc!;
@@ -112,6 +116,11 @@ export class ActionCall {
       headers: new Headers([...this.#setCookies.map((setCookie): [string, string] => ["set-cookie", setCookie]), ["content-type", FLIGHT_CONTENT_TYPE]]),
     });
   }
+}
+
+// Not Vike's error page, whose is404 is set: after the action's `throw render()`, the page it rendered
+function isPageAfterRender(pageContext: PageContextServer): boolean {
+  return pageContext.is404 === null;
 }
 
 // The keys let the browser drop a value the server no longer sets, as a navigation's new pageContext doesn't have it
@@ -137,12 +146,12 @@ export async function rscMiddleware(
   const id = request.headers.get(ACTION_HEADER) ?? undefined;
   const limit = (await getGlobalContext()).config.rsc?.bodySizeLimit ?? 1024 * 1024;
   const form = id ? undefined : await getActionForm(request, limit);
-  if (form === null) return;
+  if (form?.kind === "notAnActionForm") return;
   if (isCrossSite(request)) return new Response(null, { status: 403 });
 
-  const input: ActionCallInput | undefined = id ? await readCall(request, id, limit) : form && { kind: "form", form };
-  if (!input) return new Response(null, { status: 413 });
-  const call = new ActionCall(input, request.url, request.headers.has(RSC_LOAD_HEADER));
+  const input = id ? await readCall(request, id, limit) : form;
+  if (!input || input.kind === "tooLarge") return new Response(null, { status: 413 });
+  const call = new ActionCall(input, request.url);
   // A middleware returns either context or a response function: the context is the object Vike merges into the page's
   // pageContext, so it gets the action directly
   Object.assign(context, { rscAction: call });
@@ -166,22 +175,26 @@ function redirectInHeader(request: Request): ((response: Response) => Response) 
 }
 export const actionRedirectMiddleware: typeof redirectInHeader = enhance(redirectInHeader, { name: "vike-react-rsc:server-action-redirect", order: -Infinity });
 
+type TooLarge = { kind: "tooLarge" };
+type ActionForm = Extract<ActionCallInput, { kind: "form" }>;
+
 // React renders a form whose action is a server function as a multipart POST with $ACTION_ fields, for a submit
 // before hydration, which the browser sends as a navigation. Read from a copy: any other POST reaches the next handler
-// with its body. Null if the request isn't such a form, undefined for a <form action> over `limit` or of unknown size.
-async function getActionForm(request: Request, limit: number): Promise<FormData | undefined | null> {
+// with its body. `tooLarge` for a <form action> over `limit` or of unknown size.
+async function getActionForm(request: Request, limit: number): Promise<ActionForm | TooLarge | { kind: "notAnActionForm" }> {
+  const notAnActionForm = { kind: "notAnActionForm" } as const;
   // Reading part of a fetch() upload breaks its connection's next request when the route doesn't read the rest
-  if (request.headers.get("sec-fetch-mode") !== "navigate") return null;
+  if (request.headers.get("sec-fetch-mode") !== "navigate") return notAnActionForm;
   const contentType = request.headers.get("content-type");
-  if (!contentType?.startsWith("multipart/form-data")) return null;
+  if (!contentType?.startsWith("multipart/form-data")) return notAnActionForm;
   // Under @vikejs/express, the next handler gets an empty body if this reads more than 1 MiB of it, the default limit
   const length = request.headers.get("content-length");
   if (length === null || Number(length) > limit) {
-    return (await startsWithActionField(request.clone(), contentType)) ? undefined : null;
+    return (await startsWithActionField(request.clone(), contentType)) ? { kind: "tooLarge" } : notAnActionForm;
   }
   // A <button formAction>'s $ACTION_ fields come where the button is, after the fields before it
   const form = await readBody(request.clone(), limit).catch(() => null);
-  return form instanceof FormData && [...form.keys()].some((key) => /^\$ACTION_(ID|REF)_/.test(key)) ? form : null;
+  return form instanceof FormData && [...form.keys()].some((key) => /^\$ACTION_(ID|REF)_/.test(key)) ? { kind: "form", form } : notAnActionForm;
 }
 
 // React writes a <form action>'s $ACTION_ fields right after <form>, so a browser sends them first
@@ -198,10 +211,11 @@ async function startsWithActionField(request: Request, contentType: string): Pro
   return head.startsWith(prefix);
 }
 
-// Undefined when the body has more than `limit` bytes
-async function readCall(request: Request, id: string, limit: number): Promise<ActionCallInput | undefined> {
+// rsc() marks its loads with RSC_LOAD_HEADER
+async function readCall(request: Request, id: string, limit: number): Promise<ActionCallInput | TooLarge> {
   const body = await readBody(request, limit);
-  return body === undefined ? undefined : { kind: "call", id, body };
+  if (body === undefined) return { kind: "tooLarge" };
+  return { kind: request.headers.has(RSC_LOAD_HEADER) ? "componentLoad" : "action", id, body };
 }
 
 // Undefined when the body has more than `limit` bytes: reading stops there, so a bigger body is never buffered whole

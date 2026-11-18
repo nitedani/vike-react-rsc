@@ -16,8 +16,9 @@ export type PagePayload = { root: ReactNode; formState?: ReactFormState };
 export type ActionPayload = { returnValue: unknown; page?: { root: ReactNode; passedToClient: PassedToClient } };
 /** pageContext values for the browser, serialized as Vike serializes them for a navigation, the key of every passToClient value, and the page's head settings */
 export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[]; headSettings: HeadSettings };
-/** What runs a server action: a call from JavaScript, with the action's id and its encoded arguments, or a form submitted before hydration */
-export type ActionCallInput = { kind: "call"; id: string; body: string | FormData } | { kind: "form"; form: FormData };
+/** What runs a server action: a call from JavaScript, an action's or rsc()'s load of a server component, with the action's
+ * id and its encoded arguments, or a form submitted before hydration */
+export type ActionCallInput = { kind: "action" | "componentLoad"; id: string; body: string | FormData } | { kind: "form"; form: FormData };
 /** What the running action builds: its return value, and whether it called rerender() */
 export type ActionRun = { kind: "ran"; returnValue: unknown; rerender: boolean };
 /** `unknownAction`: this build has no such action, e.g. after a deploy */
