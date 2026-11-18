@@ -220,9 +220,9 @@ async function getHtmlInjections(pageContext: PageContextServer) {
 }
 
 // As vike-react's resolveStreamSetting(). The HTML stream is a Web stream unless +stream asks for a Node.js one.
-export type StreamSetting = { type: "node" | "web"; enable: boolean | null; require: boolean };
-function resolveStreamSetting(pageContext: PageContextServer): StreamSetting {
-  const streamSetting: StreamSetting = { type: "web", enable: null, require: false };
+export type ResolvedStreamSetting = { type: "node" | "web"; enable: boolean | null; require: boolean };
+function resolveStreamSetting(pageContext: PageContextServer): ResolvedStreamSetting {
+  const streamSetting: ResolvedStreamSetting = { type: "web", enable: null, require: false };
   pageContext.config.stream
     ?.slice()
     .reverse()

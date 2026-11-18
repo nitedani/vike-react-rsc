@@ -160,7 +160,7 @@ export function Root({ page }: { page: Shown }): ReactElement {
     if (!state.headSettings) return;
     const pageContext = state.pageContext as PageContextClient & PageContextInternal;
     pageContext._headAlreadySet = true;
-    applyHead(state.headSettings, pageContext, shared.head);
+    applyShownHead(state.headSettings, pageContext, shared.head);
   }, [state.headSettings]);
   useEffect(() => {
     if (state === shared.shown) endNavigation();
@@ -175,7 +175,7 @@ export function Root({ page }: { page: Shown }): ReactElement {
 
 // What the page's components gave useConfig() while rendering wins, as getHeadSetting() does. A value the same as in
 // `lastHead` stays as the tab has it, so a title the page set in the browser stays.
-export function applyHead(headSettings: HeadSettings, { _configViaHook }: PageContextInternal, lastHead?: HeadSettings): void {
+export function applyShownHead(headSettings: HeadSettings, { _configViaHook }: PageContextInternal, lastHead?: HeadSettings): void {
   const pick = (name: keyof HeadSettings) => (_configViaHook?.[name] !== undefined ? _configViaHook[name] : headSettings[name]);
   // As null, "" shows no title or description, and readHtmlHead() reads their missing tags as null
   const tagValue = (value: string | null | undefined) => (value === "" ? null : value);

@@ -1,7 +1,7 @@
 import { transformModuleExportEffect } from "@vitejs/plugin-rsc/transforms";
 import path from "node:path";
 import type { DevEnvironment, ESTree, Plugin } from "vite";
-import type { ServerComponentFlags } from "../rendersFlight";
+import type { ServerComponentFlags } from "../serverComponentFlags";
 import { resolveForBrowser } from "./browserResolver";
 import { getComponentConfigs, isClientDefault, resolveComponentConfigs, type Part } from "./componentConfigs";
 import { getDirectives, getFile, getFileName, isAppFile, parse, type Directive } from "./parse";

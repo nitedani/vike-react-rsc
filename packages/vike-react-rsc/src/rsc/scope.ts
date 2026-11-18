@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { PageContext, PageContextServer } from "vike/types";
 import { noRequestContext, notInServerAction } from "../errors";
-import { getForkedPageContext } from "../forkPageContext";
+import { getServerComponentView } from "../forkPageContext";
 import { getShared } from "../shared";
 import "../types/PageContext";
 import type { ActionRun } from "./runtime";
@@ -26,11 +26,11 @@ export function getPageContext(): PageContextServer {
 
 /** The page's pageContext; its errors name `caller`, the function the user called */
 export function readPageContext(caller: string): PageContextServer {
-  return getForkedPageContext(readHtmlPageContext(caller));
+  return getServerComponentView(readUnforkedPageContext(caller));
 }
 
 /** The pageContext the HTML render reads, without the fork that server components see */
-export function readHtmlPageContext(caller: string): PageContextServer {
+export function readUnforkedPageContext(caller: string): PageContextServer {
   const scope = storage.getStore();
   if (!scope) {
     throw new Error(`[vike-react-rsc] ${caller} needs a server component render, and none runs here`);

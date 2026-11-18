@@ -1,5 +1,5 @@
 import type { PageContextServer } from "vike/types";
-import { rendersFlight } from "../rendersFlight";
+import { rendersFlight } from "../serverComponentFlags";
 import { getRsc } from "./bridge";
 import { createCookies } from "./cookies";
 

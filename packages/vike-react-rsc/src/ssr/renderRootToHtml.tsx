@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { renderToStream, type RenderToStreamOptions } from "react-streaming/server";
 import type { PageContextServer } from "vike/types";
 import { getAbort, toVikeAbort, type Abort } from "../abort";
-import type { StreamSetting } from "../integration/onRenderHtml";
+import type { ResolvedStreamSetting } from "../integration/onRenderHtml";
 import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { REDIRECT_META_ATTRIBUTE } from "../protocol";
 import { isHttpUrl } from "../redirect";
@@ -16,7 +16,7 @@ export async function renderRootToHtml(
   pageContext: PageContextServer,
   deps: ClientDeps,
   htmlRender: AbortController,
-  streamSetting: StreamSetting,
+  streamSetting: ResolvedStreamSetting,
   formState: ReactFormState | undefined
 ): Promise<void> {
   const { renderToStringOptions, renderToStreamOptions } = resolveReactOptions(pageContext);

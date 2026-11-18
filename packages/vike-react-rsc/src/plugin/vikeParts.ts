@@ -1,10 +1,10 @@
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
-import { componentConfigNames } from "../rendersFlight";
+import { componentConfigNames } from "../serverComponentFlags";
 
 const PAGE_ENTRY = "\0virtual:vike:page-entry:";
-// vike-react-rsc's own server hook, as its config imports it
-const OWN_SERVER_HOOK = "vike-react-rsc/__internal/ssr";
+/** The file of vike-react-rsc's own server hooks, as its config imports it */
+export const OWN_SERVER_HOOK = "vike-react-rsc/__internal/ssr";
 
 /** Each import Vike loads a Page, Layout, Wrapper or Loading from, the same array until Vike replaces its page configs on a change.
  * Vike's public config names a value's file only as a display string, so this reads its internal page configs */

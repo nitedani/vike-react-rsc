@@ -5,7 +5,7 @@ import type { PageContext } from "vike/types";
 import { getAbortDigest } from "../abort";
 import { getClientApiHint } from "../clientApiHint";
 import { getPageElement } from "../integration/getPageElement";
-import { getServerComponentImports } from "../rendersFlight";
+import { getServerComponentImports } from "../serverComponentFlags";
 import type { HeadSettings } from "../integration/getHeadSettings";
 import "../types/PageContext";
 import { runInScope, type Scope } from "./scope";

@@ -18,7 +18,7 @@ export function forkPageContext(pageContext: object): void {
 const views = getShared("forkPageContext", () => new WeakMap<object, object>());
 
 /** What getPageContext() returns: the rsc env's pageContext, or its fork once forkPageContext() ran */
-export function getForkedPageContext<T extends object>(pageContext: T): T {
+export function getServerComponentView<T extends object>(pageContext: T): T {
   let view = views.get(pageContext);
   if (!view) views.set(pageContext, (view = createView(pageContext)));
   return view as T;

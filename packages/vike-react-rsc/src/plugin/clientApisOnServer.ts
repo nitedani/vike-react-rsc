@@ -95,8 +95,8 @@ function getClientApis(program: ESTree.Program): string[] {
 
 // The browser-only APIs used as `name.api` or destructured from `name`, where `name` is one of `namespaces` and no scope around the use binds another `name`
 function getNamespaceApis(program: ESTree.Program, namespaces: Set<string>): string[] {
-  const scopes: Scope[] = [{ names: new Set(), isFunction: true }];
-  const uses: { name: string; api: string; around: Scope[] }[] = [];
+  const scopes: LexicalScope[] = [{ names: new Set(), isFunction: true }];
+  const uses: { name: string; api: string; around: LexicalScope[] }[] = [];
   const addUse = (name: string, key: ESTree.Node, computed: boolean) => {
     if (!computed && key.type === "Identifier" && clientApis.includes(key.name)) uses.push({ name, api: key.name, around: [...scopes] });
   };
@@ -163,7 +163,7 @@ function getNamespaceApis(program: ESTree.Program, namespaces: Set<string>): str
   return uses.filter(({ name, around }) => !around.some((scope) => scope.names.has(name))).map(({ api }) => api);
 }
 
-type Scope = { names: Set<string>; isFunction: boolean };
+type LexicalScope = { names: Set<string>; isFunction: boolean };
 
 function getBoundNames(pattern: ESTree.Node | null | undefined): string[] {
   switch (pattern?.type) {

@@ -34,7 +34,7 @@ export function vikeReactRscPlugins(): Plugin[] {
       }),
       // The client build leaves out what renders a page without a Flight, unless components is 'client'
       configEnvironment: (name, _config, { command }) => {
-        if (name === "client") return { define: { __VIKE_REACT_RSC_CLIENT_DEFAULT__: String(command === "serve" || isClientDefault()) } };
+        if (name === "client") return { define: { __VIKE_REACT_RSC_RENDERS_WITHOUT_FLIGHT__: String(command === "serve" || isClientDefault()) } };
       },
       // The server runs the rsc env's output, so with @cloudflare/vite-plugin both run in the Worker, whose envs bundle every package
       configResolved({ plugins, environments: { ssr, rsc } }) {
