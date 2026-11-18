@@ -13,10 +13,15 @@ import { runInScope, type Scope } from "./scope";
 
 /** A page's Flight decodes to it; `formState` after a form submitted before hydration, for useActionState() */
 export type PagePayload = { root: ReactNode; formState?: ReactFormState };
-/** A server action's Flight decodes to it; `page` after rerender(): its `root`, with the browser's new pageContext values */
-export type ActionPayload = { returnValue: unknown; page?: { root: ReactNode; passedToClient: PassedToClient } };
+/** A server action's Flight decodes to it; `root` is the page, after rerender(), with the browser's new pageContext values */
+export type ActionPayload = { returnValue: unknown } & ({} | { root: ReactNode; passedToClient: PassedToClient });
 /** pageContext values for the browser, serialized as Vike serializes them for a navigation, the key of every passToClient value, and the page's head settings */
-export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[]; headSettings: HeadSettings };
+export type PassedToClient = {
+  json: string | ReadableStream<Uint8Array>;
+  keys: string[];
+  // A list, as a tab still running another build of the app reads it
+  headSettings: [title: HeadSettings["title"], lang: HeadSettings["lang"], description: HeadSettings["description"]];
+};
 /** What runs a server action: a call from JavaScript, an action's or rsc()'s load of a server component, with the action's
  * id and its encoded arguments, or a form submitted before hydration */
 export type ActionCallInput = { kind: "action" | "componentLoad"; id: string; body: string | FormData } | { kind: "form"; form: FormData };
@@ -47,7 +52,7 @@ export function actionPayload(
   { scopeKind, passedToClient }: { scopeKind: "page" | "actionOutput"; passedToClient?: PassedToClient }
 ): ReadableStream<Uint8Array> {
   return renderOnRead<ActionPayload>({ kind: scopeKind, pageContext }, () =>
-    passedToClient ? { returnValue, page: { root: getPage(pageContext), passedToClient } } : { returnValue }
+    passedToClient ? { returnValue, root: getPage(pageContext), passedToClient } : { returnValue }
   );
 }
 

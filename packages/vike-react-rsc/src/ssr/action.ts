@@ -5,7 +5,7 @@ import type { PageContextServer } from "vike/types";
 import { getPassedToClient } from "../edges/vikeServer";
 import { getHeadSettings } from "../integration/getHeadSettings";
 import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, UNKNOWN_ACTION_HEADER } from "../protocol";
-import type { ActionCallInput, ActionOutcome } from "../rsc/runtime";
+import type { ActionCallInput, ActionOutcome, PassedToClient } from "../rsc/runtime";
 import "../types/PageContext";
 import { getRsc } from "./bridge";
 
@@ -62,7 +62,7 @@ export class ActionCall {
     // page is left out, as callServer() rejects on its status without reading it
     const { returnValue, rerender } = this.outcome?.kind === "ran" ? this.outcome : { returnValue: undefined, rerender: !this.outcome && isPageAfterRender(pageContext) };
     // The browser has only the config of the page Vike showed, and an answer may render another page, e.g. after a throw render()
-    const passedToClient = rerender ? { ...getPassedToClient(pageContext), headSettings: getHeadSettings(pageContext) } : undefined;
+    const passedToClient = rerender ? { ...getPassedToClient(pageContext), headSettings: getHeadSettingsInFlight(pageContext) } : undefined;
     return runtime.actionPayload(rscPageContext, returnValue, { scopeKind: this.#scopeKind, passedToClient });
   }
 
@@ -122,6 +122,11 @@ export class ActionCall {
 // Not Vike's error page, whose is404 is set: after the action's `throw render()`, the page it rendered
 function isPageAfterRender(pageContext: PageContextServer): boolean {
   return pageContext.is404 === null;
+}
+
+function getHeadSettingsInFlight(pageContext: PageContextServer): PassedToClient["headSettings"] {
+  const { title, lang, description } = getHeadSettings(pageContext);
+  return [title, lang, description];
 }
 
 // Vike's +middleware. When the request calls a server action, it hands the action to the page that Vike renders after
