@@ -45,6 +45,7 @@ const vikeReactRsc: Config = {
       match: { function: "import:react:createElement", args: { 0: `import:${packageName}/ClientOnly:ClientOnly` } },
       remove: { argsFrom: 2 },
     },
+    // React's server build has no useSyncExternalStore: a server component's useHydrated() gets false only from this
     {
       env: "server",
       filter: `${packageName}/useHydrated`,

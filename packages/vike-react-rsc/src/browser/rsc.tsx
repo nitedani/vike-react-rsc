@@ -4,6 +4,7 @@ import { getShared } from "../shared";
 
 type Output = { node: ReactNode; generation: number; drops: number; loadedAt: number };
 
+// Per copy of this package, as the ids in their keys are
 const outputs = new Map<string, Output>();
 // One load per key and generation at a time, shared by every component that renders it
 const loads = new Map<string, Promise<ReactNode | undefined>>();

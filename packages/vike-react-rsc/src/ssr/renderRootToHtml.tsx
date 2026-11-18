@@ -67,7 +67,7 @@ export async function renderRootToHtml(
       // react-streaming renders the page whole on a page without +stream, for a crawler, when pre-rendering, and with
       // { require: true, enable: false }. It reports a Suspense boundary's abort a macrotask late, and Vike can answer
       // it only until this function returns. So we wait for a Web stream's end, or, as a Node.js stream ends only once
-      // Vike pipes it, for the next macrotask.
+      // Vike pipes it, for the next macrotask: setImmediate() is Node.js's, and a Worker always gets a Web stream.
       if (stream.disabled) await (stream.readable ? stream.streamEnd : new Promise((resolve) => setImmediate(resolve)));
       void stream.streamEnd.then(() => htmlRender.abort());
       deps.injectToStream = stream.injectToStream;

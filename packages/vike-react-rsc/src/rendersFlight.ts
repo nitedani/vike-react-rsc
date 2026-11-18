@@ -28,6 +28,7 @@ export function getServerComponentImports(pageContext: PageContext): string[][] 
   });
 }
 
+// A +Loading file's value is `{ layout, component }`: the plugin flags that object
 function getComponentConfigValues(pageContext: PageContext): object[] {
   return componentConfigNames.flatMap((configName): object | object[] => pageContext.config[configName] ?? []);
 }

@@ -23,8 +23,6 @@
     "noFallthroughCasesInSwitch": true,
     "isolatedDeclarations": true,
     "declaration": true
-
-    /* Import aliases */
   },
   "include": ["src"],
   "exclude": ["node_modules"]

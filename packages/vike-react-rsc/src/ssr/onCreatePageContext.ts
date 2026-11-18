@@ -11,7 +11,7 @@ export async function onCreatePageContext(pageContext: PageContextServer): Promi
   // A server action's answer renders the page itself: Vike would otherwise send this Flight along with rerender()'s values
   if (call && !call.isForm) return;
   const { runtime, pageContext: rscPageContext } = getRsc(pageContext);
-  // The rsc env's pageContext: under ssr: false, the server env doesn't load the page's files
+  // The rsc env's pageContext: only its config has `components`, and under ssr: false the server env doesn't load the page's files
   if (rendersFlight(rscPageContext)) pageContext.rscPayload = runtime.pagePayload(rscPageContext);
   // Rendered without a Flight: only what a form submitted before hydration returned, for useActionState()
   else if (call?.isForm) pageContext.rscPayload = runtime.formStatePayload(rscPageContext);
