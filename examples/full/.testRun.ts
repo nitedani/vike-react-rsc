@@ -1631,8 +1631,9 @@ function testActionStreamedValues() {
     await autoRetry(async () => {
       expect((await actionTicks()).length).to.be.at.least(2);
     });
-    const clickedAt = await page.evaluate(() => Date.now());
     await clickNewLink("/todos");
+    // Once the click is done: under load, Playwright takes a while to dispatch it, and ticks keep coming until then
+    const clickedAt = await page.evaluate(() => Date.now());
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("Task Manager");
     });
