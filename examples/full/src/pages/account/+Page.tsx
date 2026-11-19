@@ -1,7 +1,6 @@
 import { getPageContext } from "vike-react-rsc/pageContext";
 import { logout } from "../../actions/session";
 import { sharedStyles } from "../../styles/shared";
-import { DataClient } from "./DataClient";
 
 export default function Page() {
   return (
@@ -13,7 +12,6 @@ export default function Page() {
       <p id="account-mw" css={sharedStyles.paragraph}>
         {getPageContext().mwMethod}
       </p>
-      <DataClient />
       <form action={logout}>
         <button type="submit">Log out</button>
       </form>
