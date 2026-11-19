@@ -1896,16 +1896,28 @@ function testRscCacheInvalidation() {
   test("rsc(): another server action reloads the outputs on screen, which show until the new ones arrive", async () => {
     const requests = await showLoadCounts();
     const loaded = await readLoadCounts();
+    // The reload waits until the test read what shows while it runs
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let reloading!: () => void;
+    const isReloading = new Promise<void>((resolve) => (reloading = resolve));
+    await page.route("**/*", async (route) => {
+      if (!route.request().headers()["x-rsc-load"]) return route.continue();
+      reloading();
+      await released;
+      await route.continue();
+    });
 
     await page.click('button:has-text("Run a server action")');
-    // Not response.finished(): Chrome can report a fully read no-store response as canceled, and finished() then never resolves
-    await page.waitForSelector("[data-ran-action]");
+    await isReloading;
     expect(await readLoadCounts()).to.deep.equal(loaded);
+    release();
     await autoRetry(async () => {
       expect(await readLoadCounts()).to.not.deep.equal(loaded);
     });
     // The load, the action, the reload
     expect(requests).to.have.length(3);
+    await page.unroute("**/*");
   });
 
   test("rsc(): a load a server action outdated, answering after the action's reload, doesn't replace the reload's output", async () => {
