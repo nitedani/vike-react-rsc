@@ -28,11 +28,11 @@ const shared = getShared(
     setRootState?: (shown: Shown) => void;
     // The React root Root renders in, to mount Root again after an error unmounted it or kept it from mounting
     reactRoot?: ReactRoot;
-    // Whether the user clicked or pressed a key since show() last ran
-    pressed?: boolean;
+    // The page Vike showed when the user last clicked or pressed a key
+    lastInputOn?: PageContextClient;
   } => {
     // A click, which a screen reader sends alone, or a key, as in a field; in the capture phase, so a handler that stops it counts too
-    for (const type of ["click", "keydown"]) addEventListener(type, () => (shared.pressed = true), true);
+    for (const type of ["click", "keydown"]) addEventListener(type, () => (shared.lastInputOn = getCurrentPageContext()), true);
     return { head: readHtmlHead() };
   }
 );
@@ -40,7 +40,6 @@ const shared = getShared(
 export function show(next: Shown): void {
   const previous = shared.shown;
   shared.shown = next;
-  shared.pressed = false;
   // As in vike-react, a navigation that turns +reactStrictMode on or off mounts the page again, its layouts included
   if (previous && isStrictMode(previous.pageContext) !== isStrictMode(next.pageContext)) shared.reactRoot!.render(getRootElement(next));
   else shared.setRootState?.(next);
@@ -75,15 +74,17 @@ export function onUncaughtError(error: unknown, componentStackToLog: string | un
   if (abort && isNavigationWaiting()) return endNavigation(toVikeAbort(abort));
   console.error(...(componentStackToLog ? [error, componentStackToLog] : [error]));
   markLogged(error);
-  if (isNavigationWaiting()) endNavigation(error);
-  // On the error page, only after a click or a key there, e.g. on its Try again: an error its own render throws would show it again without end
-  else if (!isErrorPageShown() || shared.pressed) showErrorPage(abort ? toVikeAbort(abort) : error, getCurrentPageContext());
+  if (isNavigationWaiting()) return endNavigation(error);
+  // Showing it again would throw it again: the page stays blank, as Vike leaves an error page that fails
+  if (isErrorPageOwnError()) return;
+  showErrorPage(abort ? toVikeAbort(abort) : error, getCurrentPageContext());
 }
 
-// An action's answer is never Vike's error page, though its pageContext, a fork of the page Vike showed, keeps that page's isErrorPage
-function isErrorPageShown(): boolean {
-  const { pageContext } = shared.shown!;
-  return pageContext === getCurrentPageContext() && pageContext.isErrorPage === true;
+// Vike's error page is on screen, and no one clicked or pressed a key since Vike showed it, e.g. on its Try again
+function isErrorPageOwnError(): boolean {
+  const current = getCurrentPageContext();
+  // An action's answer replaces the tree under a fork of Vike's pageContext, which keeps isErrorPage
+  return current.isErrorPage === true && shared.shown!.pageContext === current && shared.lastInputOn !== current;
 }
 
 // Around Root, not inside it: on hydration, React runs effects twice only under a <StrictMode> at the root
