@@ -1,5 +1,2 @@
-// The package root, as vike-react has it: tsconfig's `"types": ["vike-react"]` loads the config's types from it
-console.warn(
-  "[vike-react-rsc][warning] Replace `import vikeReact from 'vike-react'` with `import vikeReactRsc from 'vike-react-rsc/config'` (typically in your /pages/+config.js)"
-);
-export { default } from "./config";
+// Types only, as vike-react's deprecated bare import isn't taken over: tsconfig's `"types": ["vike-react"]` loads the config's types from it
+export type { default } from "./config";
