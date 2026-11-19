@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { rerenderPage } from "../../actions/rerenderPage";
 
-// It throws in the render its effect starts, once the navigation that showed the error page ended
+// Once shown, it throws what its rerenderPage() call rejects with, as a component showing a server function's result does while the server fails
 export function ThrowsOnceShown() {
-  const [shown, setShown] = useState(false);
-  useEffect(() => setShown(true), []);
-  if (shown) throw new Error("The error page failed in the browser on demand");
+  const [error, setError] = useState<unknown>();
+  useEffect(() => {
+    rerenderPage().catch(setError);
+  }, []);
+  if (error) throw error;
   return null;
 }

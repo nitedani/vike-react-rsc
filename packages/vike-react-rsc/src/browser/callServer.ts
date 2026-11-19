@@ -6,18 +6,11 @@ import { ACTION_HEADER, FLIGHT_CONTENT_TYPE, REDIRECT_HEADER, RSC_LOAD_HEADER, U
 import type { ActionPayload } from "../rsc/runtime";
 import { getCallKind, type CallKind } from "./callKind";
 import { followRedirect, getCurrentPageContext, leavePage, type RedirectHistory } from "./navigation";
-import { markCallRejection, showRoot } from "./root";
+import { showRoot } from "./root";
 import { markRscOutputsStale } from "./rsc";
 
 /** React calls it for every server function the browser calls, rsc()'s included */
-export function callServer(id: string, args: unknown[]): Promise<unknown> {
-  return call(id, args).catch((error: unknown) => {
-    markCallRejection(error);
-    throw error;
-  });
-}
-
-async function call(id: string, args: unknown[]): Promise<unknown> {
+export async function callServer(id: string, args: unknown[]): Promise<unknown> {
   // Before the first await: rsc() sets it only during its synchronous call
   const kind = getCallKind();
   const pageContext = getCurrentPageContext();
