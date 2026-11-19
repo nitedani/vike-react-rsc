@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { rsc } from "vike-react-rsc/client";
 import { getCount } from "../../actions/counter";
-import { LoadCount } from "./LoadCount";
+import { LoadCount, NamedLoadCount } from "./LoadCount";
 
 // No `fallback` prop: rsc() shows Loading.component
 const LoadCountRsc = rsc(LoadCount);
+const NamedLoadCountRsc = rsc(NamedLoadCount);
 
 // Two instances of one rsc() component share one request and one cache entry. Any other server action loads it again.
 export function LoadCountClient() {
@@ -15,6 +16,7 @@ export function LoadCountClient() {
     <div>
       <button onClick={() => setShown(!shown)}>{shown ? "Hide" : "Show"} server counts</button>
       <RunServerAction />
+      <NamedLoadCounts />
       {shown && (
         <>
           <LoadCountRsc />
@@ -33,5 +35,29 @@ function RunServerAction() {
       <button onClick={() => getCount().then(() => setRanAction(true))}>Run a server action</button>
       {ranAction && <span data-ran-action="">The server action ran</span>}
     </>
+  );
+}
+
+// Two rsc() components that each switch between the names X and Y, so one shows the output the other loaded
+function NamedLoadCounts() {
+  const [shown, setShown] = useState(false);
+  if (!shown) return <button onClick={() => setShown(true)}>Show named counts</button>;
+  return (
+    <>
+      <NamedLoadCountSwitch names={["X", "Y"]} />
+      <NamedLoadCountSwitch names={["Y", "X"]} />
+    </>
+  );
+}
+
+function NamedLoadCountSwitch({ names }: { names: [string, string] }) {
+  const [index, setIndex] = useState(0);
+  return (
+    <div>
+      <NamedLoadCountRsc name={names[index]} />
+      <button data-switch={names[0]} onClick={() => setIndex(1 - index)}>
+        Switch the name
+      </button>
+    </div>
   );
 }

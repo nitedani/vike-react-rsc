@@ -1817,6 +1817,7 @@ function trackRscRequests() {
   return requests;
 }
 const readLoadCounts = () => page.locator("[data-load-count]").allTextContents();
+const readNamedLoadCounts = () => page.locator("[data-named-load-count]").allTextContents();
 const toggleLoadCounts = () => page.click('button:has-text("server counts")');
 
 async function showLoadCounts() {
@@ -1941,6 +1942,37 @@ function testRscCacheInvalidation() {
     await toggleLoadCounts();
     await toggleLoadCounts();
     expect(await readLoadCounts()).to.deep.equal(reloaded);
+    await page.unroute("**/*");
+  });
+
+  test("rsc(): after a server action, a component switching back to props another one reloaded shows that reload, though its own reload failed", async () => {
+    await page.goto(getServerUrl() + "/suspense");
+    await waitForHydration("Show named counts");
+    await page.click('button:has-text("Show named counts")');
+    await autoRetry(async () => {
+      expect(await readNamedLoadCounts()).to.have.length(2);
+    });
+    const [x, y] = await readNamedLoadCounts();
+    // Each shows the output the other loaded
+    await page.click('button[data-switch="X"]');
+    await page.click('button[data-switch="Y"]');
+    expect(await readNamedLoadCounts()).to.deep.equal([y, x]);
+
+    // The action reloads both: Y's load gets a 500, and the second component shows X's
+    await page.route("**/*", (route) => {
+      const request = route.request();
+      if (request.headers()["x-rsc-load"] && request.postData()?.includes('"Y"')) return route.fulfill({ status: 500 });
+      return route.continue();
+    });
+    const failed = page.waitForEvent("console", (message) => message.text().includes(RSC_LOAD_ERROR_LOG));
+    await page.click('button:has-text("Run a server action")');
+    await failed;
+    await autoRetry(async () => {
+      expect((await readNamedLoadCounts())[1]).to.not.equal(x);
+    });
+    const [, reloaded] = await readNamedLoadCounts();
+    await page.click('button[data-switch="X"]');
+    expect(await readNamedLoadCounts()).to.deep.equal([reloaded, reloaded]);
     await page.unroute("**/*");
   });
 }

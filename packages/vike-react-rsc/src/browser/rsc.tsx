@@ -56,7 +56,8 @@ export function rsc<Props extends object>(
       };
     }, [key, generation, drops]);
 
-    const node = loaded?.key === key && loaded.drops === drops ? loaded.node : cached?.node;
+    // The cache first: another component may have loaded these props since, e.g. once an action ran
+    const node = cached ? cached.node : loaded?.key === key && loaded.drops === drops ? loaded.node : undefined;
     if (node !== undefined) return <OutputBoundary>{node}</OutputBoundary>;
     const DefaultFallback = pageContext.config.Loading?.component;
     return fallback ?? (DefaultFallback && <DefaultFallback />);
