@@ -1,8 +1,7 @@
 import { useDeferredValue, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import type { Root as ReactRoot } from "react-dom/client";
 import type { PageContextClient } from "vike/types";
-import { getAbort, toVikeAbort } from "../abort";
-import { createPageContextFromServer, markLogged, showErrorPage } from "../edges/vikeClient";
+import { createPageContextFromServer } from "../edges/vikeClient";
 import { applyHeadSettings } from "../integration/applyHeadSettings";
 import type { HeadSettings } from "../integration/getHeadSettings";
 import { isStrictMode, withStrictMode } from "../integration/withStrictMode";
@@ -10,7 +9,7 @@ import { PageContextProvider } from "../pageContext";
 import { getShared } from "../shared";
 import type { PageContextInternal } from "../types/PageContext";
 import { AbortBoundary } from "./AbortBoundary";
-import { endNavigation, getCurrentPageContext, isNavigationWaiting, type RedirectHistory } from "./navigation";
+import { endNavigation, getCurrentPageContext, type RedirectHistory } from "./navigation";
 
 // `redirectHistory`: of a redirect `root` throws, the same as for the call whose answer sent it, after rerender() or as a
 // throw render()'s page. A navigation's page has none: its redirect replaces it.
@@ -28,13 +27,7 @@ const shared = getShared(
     setRootState?: (shown: Shown) => void;
     // The React root Root renders in, to mount Root again after an error unmounted it or kept it from mounting
     reactRoot?: ReactRoot;
-    // The page Vike showed when the user last clicked or pressed a key
-    lastInputOn?: PageContextClient;
-  } => {
-    // A click, which a screen reader sends alone, or a key, as in a field; in the capture phase, so a handler that stops it counts too
-    for (const type of ["click", "keydown"]) addEventListener(type, () => (shared.lastInputOn = getCurrentPageContext()), true);
-    return { head: readHtmlHead() };
-  }
+  } => ({ head: readHtmlHead() })
 );
 
 export function show(next: Shown): void {
@@ -65,26 +58,14 @@ export function getReactRoot(): ReactRoot | undefined {
   return shared.reactRoot;
 }
 
-/** The React root's: an error React throws while rendering goes to the navigation showing the page, as in vike-react, or else to a new one */
-export function onUncaughtError(error: unknown, componentStackToLog: string | undefined): void {
-  // React unmounted Root, or never mounted it when hydrating threw: the next page, e.g. the error page, mounts it again
+/** The next show() mounts Root again, as React unmounted it or never mounted it */
+export function remountOnNextShow(): void {
   shared.setRootState = (shown) => shared.reactRoot!.render(getRootElement(shown));
-  const abort = getAbort(error);
-  // A server component's `throw render()` while a navigation waits for the page: Vike answers it, unlogged, as on the server
-  if (abort && isNavigationWaiting()) return endNavigation(toVikeAbort(abort));
-  console.error(...(componentStackToLog ? [error, componentStackToLog] : [error]));
-  markLogged(error);
-  if (isNavigationWaiting()) return endNavigation(error);
-  // Showing it again would throw it again: the page stays blank, as Vike leaves an error page that fails
-  if (isErrorPageOwnError()) return;
-  showErrorPage(abort ? toVikeAbort(abort) : error, getCurrentPageContext());
 }
 
-// Vike's error page is on screen, and no one clicked or pressed a key since Vike showed it, e.g. on its Try again
-function isErrorPageOwnError(): boolean {
-  const current = getCurrentPageContext();
-  // An action's answer replaces the tree under a fork of Vike's pageContext, which keeps isErrorPage
-  return current.isErrorPage === true && shared.shown!.pageContext === current && shared.lastInputOn !== current;
+/** The pageContext of what Root shows: Vike's, or a fork of it under an action's answer */
+export function getShownPageContext(): PageContextClient {
+  return shared.shown!.pageContext;
 }
 
 // Around Root, not inside it: on hydration, React runs effects twice only under a <StrictMode> at the root
@@ -104,9 +85,7 @@ export function Root({ page }: { page: Shown }): ReactElement {
     // A navigation or an action can finish while React hydrates
     setState(shared.shown!);
     // Once Root unmounts, e.g. as code renders something else into pageContext.root, the next page mounts it again
-    return () => {
-      shared.setRootState = (shown) => shared.reactRoot!.render(getRootElement(shown));
-    };
+    return remountOnNextShow;
   }, []);
   // Once React commits an answer's tree, applies its head; onRenderClient() applies a navigation's
   useEffect(() => {
