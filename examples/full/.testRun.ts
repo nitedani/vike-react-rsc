@@ -81,7 +81,6 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isStatic = cmd === "pnpm run preview:static";
 
   run(cmd, {
-    serverUrl: process.env.SERVER_URL,
     serverIsReadyMessage: (log) =>
       log.includes("Local:") || log.includes("ready in"),
     // The preview commands build before they serve.

@@ -2,8 +2,6 @@
   "name": "vike-react-rsc-example-full",
   "private": true,
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "type": "module",
   "scripts": {
     "dev": "vike dev",
@@ -11,14 +9,9 @@
     "preview": "vike build && vike preview",
     "preview:static": "VIKE_CONFIG='{prerender:{noExtraDir:true}}' vike build && node ./preview-static.mjs"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.7.0",
   "dependencies": {
     "@compiled/react": "^2.0.0",
     "@types/react": "^19.2.18",
-    "@universal-deploy/node": "^0.1.14",
     "@universal-middleware/core": "^0.6.2",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
