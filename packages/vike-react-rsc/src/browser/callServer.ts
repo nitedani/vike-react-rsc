@@ -11,8 +11,7 @@ import { markRscOutputsStale } from "./rsc";
 
 /** React calls it for every server function the browser calls, rsc()'s included */
 export async function callServer(id: string, args: unknown[]): Promise<unknown> {
-  // Before the first await: rsc() sets it only during its synchronous call
-  const kind = getCallKind();
+  const kind = getCallKind(args);
   const pageContext = getCurrentPageContext();
   const response = await postAction(pageContext.urlOriginal, id, args, kind);
   // Even when the answer is an error, the action may have run

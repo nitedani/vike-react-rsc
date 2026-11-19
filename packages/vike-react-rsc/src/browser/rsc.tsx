@@ -1,7 +1,7 @@
 import { Component, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { usePageContext } from "../pageContext";
 import { getShared } from "../shared";
-import { loadComponent } from "./callKind";
+import { markComponentLoad } from "./callKind";
 
 type Output = { node: ReactNode; generation: number; drops: number; loadedAt: number };
 
@@ -48,7 +48,7 @@ export function rsc<Props extends object>(
     useEffect(() => {
       if (cached?.isFresh) return;
       let isLatest = true;
-      void load(key, () => serverComponent(props as Props)).then((node) => {
+      void load(key, () => serverComponent(markComponentLoad(props as Props))).then((node) => {
         if (node !== undefined && isLatest) setLoaded({ key, drops, node });
       });
       return () => {
@@ -147,7 +147,7 @@ function load(key: string, call: () => Promise<ReactNode>): Promise<ReactNode | 
   const loadKey = `${startedAfter}:${startedIn}:${key}`;
   const pending = loads.get(loadKey);
   if (pending) return pending;
-  const loading = loadComponent(call)
+  const loading = call()
     .then(
       (node) => {
         // Keeps an output loaded after a later action: this one may not show what that action changed

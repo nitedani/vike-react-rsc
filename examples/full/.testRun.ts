@@ -638,6 +638,22 @@ function testRscLoadReadsData() {
       expect(await page.textContent("[data-rsc-page-data]")).to.equal('{"from":"data()"}');
     });
   });
+
+  test("rsc(): a server function bound on the server or in the browser loads as a component, whose server components read the page", async () => {
+    const loads: (string | undefined)[] = [];
+    const onRequest = (request: { method(): string; headers(): Record<string, string> }) => {
+      if (request.method() === "POST") loads.push(request.headers()["x-rsc-load"]);
+    };
+    page.on("request", onRequest);
+    await page.goto(getServerUrl() + "/rsc-bound");
+    await autoRetry(async () => {
+      expect(await page.locator("[data-rsc-bound]").allTextContents()).to.deep.equal(["server-bound: /rsc-bound", "client-bound: /rsc-bound"]);
+    });
+    // A load sent as an action would load again once the action marked the outputs stale
+    await sleep(500);
+    page.off("request", onRequest);
+    expect(loads).to.deep.equal(["1", "1"]);
+  });
 }
 
 function testServerComponentAbort() {
