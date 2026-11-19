@@ -39,7 +39,7 @@ export function show(next: Shown): void {
   else shared.setRootState?.(next);
 }
 
-/** Shows the tree an action's answer sent, after rerender() or as a throw render()'s page, with the pageContext values it sent and none of the passToClient `keys` it didn't */
+/** Shows the tree an action's answer sent, after rerender() or as a throw render()'s page, with the pageContext values it sent and none of the `keys` it didn't */
 export function showRoot({ root, passed, keys, redirectHistory, headSettings }: { root: ReactNode; passed: Record<string, unknown>; keys: string[]; redirectHistory: RedirectHistory; headSettings: HeadSettings }): void {
   // A new object, as a navigation's: the tree on screen keeps reading its own until React shows this one
   const pageContext = createPageContextFromServer(getCurrentPageContext(), passed);

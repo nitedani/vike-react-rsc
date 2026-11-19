@@ -881,6 +881,17 @@ function testActionAbort() {
     });
     await page.context().clearCookies();
   });
+
+  test("Server action: a throw render() of a page without +data leaves it no data, as a navigation does", async () => {
+    await page.goto(getServerUrl() + "/actions");
+    await waitForHydration("Slow save");
+    await page.click('button:has-text("Log in, then render the account")');
+    await autoRetry(async () => {
+      expect(await page.textContent("#account-user")).to.equal("Logged in as bob");
+    });
+    expect(await page.textContent("[data-page-data]")).to.equal("none");
+    await page.context().clearCookies();
+  });
 }
 
 function testUnknownAction() {

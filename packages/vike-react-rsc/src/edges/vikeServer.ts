@@ -9,8 +9,13 @@ export function skipGuardAndData(pageContext: PageContextServer): void {
   pageContext._skipGuardAndData_experimentalRSC = true;
 }
 
-/** pageContext's values for the browser, serialized as Vike serializes them for a navigation, and the key of every
- * passToClient value: the keys let the browser drop a value the server no longer sets, as a navigation's new pageContext
+// The values Vike passes to the browser for every page, besides passToClient's, e.g. data, which a page without +data doesn't have:
+// Vike's passToClientBuiltInPageContext (vike/dist/server/runtime/renderPageServer/html/serializeContext.js), which it doesn't export
+// TODO: remove once Vike's createPageContextFromServer_experimentalRSC() drops the values the server no longer sends: https://github.com/nitedani/vike-react-rsc/issues/48
+const VIKE_PASSED_TO_CLIENT = ["abortReason", "_urlRewrite", "_urlRedirect", "abortStatusCode", "_abortCall", "_pageContextInitIsPassedToClient", "pageId", "routeParams", "data"];
+
+/** pageContext's values for the browser, serialized as Vike serializes them for a navigation, and the key of every value
+ * Vike can pass: the keys let the browser drop a value the server no longer sets, as a navigation's new pageContext
  * doesn't have it */
 export function getPassedToClient(pageContext: PageContextServer): { json: string | ReadableStream<Uint8Array>; keys: string[] } {
   const keys = (pageContext.config.passToClient ?? [])
@@ -19,5 +24,5 @@ export function getPassedToClient(pageContext: PageContextServer): { json: strin
     .map((prop: string | { prop: string }) => (typeof prop === "string" ? prop : prop.prop))
     // The top-level key: 'user' for 'user.id', and '\\.' is a dot in a key
     .map((prop) => prop.split(/(?<!\\)\./)[0]!.replace(/\\\./g, "."));
-  return { json: getPageContextJson(pageContext), keys };
+  return { json: getPageContextJson(pageContext), keys: [...VIKE_PASSED_TO_CLIENT, ...keys] };
 }

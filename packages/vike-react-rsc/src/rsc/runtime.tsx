@@ -15,7 +15,7 @@ import { runInScope, type Scope } from "./scope";
 export type PagePayload = { root: ReactNode; formState?: ReactFormState };
 /** A server action's Flight decodes to it; `page` after rerender(): its `root`, with the browser's new pageContext values */
 export type ActionPayload = { returnValue: unknown; page?: { root: ReactNode; passedToClient: PassedToClient } };
-/** pageContext values for the browser, serialized as Vike serializes them for a navigation, the key of every passToClient value, and the page's head settings */
+/** pageContext values for the browser, serialized as Vike serializes them for a navigation, the key of every value Vike can pass, and the page's head settings */
 export type PassedToClient = { json: string | ReadableStream<Uint8Array>; keys: string[]; headSettings: HeadSettings };
 /** What runs a server action: a call from JavaScript, an action's or rsc()'s load of a server component, with the action's
  * id and its encoded arguments, or a form submitted before hydration */
