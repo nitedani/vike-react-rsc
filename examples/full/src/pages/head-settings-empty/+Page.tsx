@@ -1,4 +1,4 @@
-import { renderAgain } from "../../actions/renderAgain";
+import { rerenderPage } from "../../actions/rerenderPage";
 import { increment } from "../../serverCounts";
 
 export default function Page() {
@@ -6,7 +6,7 @@ export default function Page() {
     <>
       <h1>Head settings emptied</h1>
       <p data-render-count="">Rendered {increment("head-settings-empty")} times</p>
-      <form action={renderAgain}>
+      <form action={rerenderPage}>
         <button type="submit">Render again</button>
       </form>
     </>
