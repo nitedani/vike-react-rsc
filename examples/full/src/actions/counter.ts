@@ -2,13 +2,11 @@
 
 interface CounterState {
   count: number;
-  lastUpdated: string;
 }
 
 // Shared counter state that persists across all users
 let counterState: CounterState = {
-  count: 0,
-  lastUpdated: new Date().toISOString()
+  count: 0
 };
 
 // Get the current counter state
@@ -22,8 +20,7 @@ export const incrementCount = async (): Promise<CounterState> => {
   await new Promise((resolve) => setTimeout(resolve, 300));
 
   counterState = {
-    count: counterState.count + 1,
-    lastUpdated: new Date().toISOString()
+    count: counterState.count + 1
   };
 
   return counterState;

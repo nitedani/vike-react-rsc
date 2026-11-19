@@ -273,7 +273,7 @@ Boundaries only run in the browser, so to catch a throw on a first load, put a `
 - Vike's built-in server, which needs no setup, or your own, e.g. Hono or Express: see [`+server`](https://vike.dev/server).
   [`vike-photon`](https://github.com/vikejs/vike-photon) isn't supported, as it's [deprecated](https://vike.dev/blog/universal-deploy).
   On [Cloudflare](https://vike.dev/cloudflare), the rsc environment runs in the same Worker: `cloudflare({ viteEnvironment: { name: "ssr", childEnvironments: ["rsc"] } })` in `vite.config.ts`.
-  `vike dev` there needs the next Vike release.
+  `vike dev` there needs the next Vike release, with [vikejs/vike#3729](https://github.com/vikejs/vike/pull/3729).
 
 The goal is feature parity with `vike-react`: [open an issue](https://github.com/nitedani/vike-react-rsc/issues) for anything that works worse here.
 

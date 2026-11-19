@@ -8,8 +8,5 @@ export default defineConfig({
 
   resolve: {
     noExternal: ["@compiled/react"],
-    alias: {
-      "#": "/src",
-    },
   },
 });

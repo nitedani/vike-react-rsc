@@ -4,9 +4,11 @@ import { navigate } from "vike/client/router";
 import type { OnRenderClientAsync, PageContextClient } from "vike/types";
 import { onCaughtError } from "../browser/AbortBoundary";
 import { callServer } from "../browser/callServer";
-import { applyHead, getReactRoot, getRootElement, onUncaughtError, rendered, setCurrentPageContext, setReactRoot, show } from "../browser/page";
+import { rendered, setCurrentPageContext } from "../browser/navigation";
+import { onUncaughtError } from "../browser/onUncaughtError";
+import { applyShownHead, getReactRoot, getRootElement, setReactRoot, show } from "../browser/root";
 import { markRscOutputsStale } from "../browser/rsc";
-import { findServerComponent } from "../rendersFlight";
+import { findServerComponent } from "../serverComponentFlags";
 import type { PagePayload } from "../rsc/runtime";
 import type { PageContextInternal } from "../types/PageContext";
 import { callCumulativeHooks } from "../utils/callCumulativeHooks";
@@ -17,7 +19,7 @@ import { getPageElement } from "./getPageElement";
 import { resolveReactOptions } from "./resolveReactOptions";
 
 // Whether a page can render without a Flight, as in vike-react: under components: 'client', and always in dev
-declare const __VIKE_REACT_RSC_CLIENT_DEFAULT__: boolean;
+declare const __VIKE_REACT_RSC_RENDERS_WITHOUT_FLIGHT__: boolean;
 
 setServerCallback(callServer);
 
@@ -27,7 +29,8 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
   // - Store hydration https://github.com/vikejs/vike-react/issues/110
   await callCumulativeHooks(pageContext.config.onBeforeRenderClient, pageContext);
   const { root, formState } = await getPagePayload(pageContext);
-  const page = { pageContext, root };
+  // As an HTTP redirect does, a redirect the page throws replaces it in history
+  const page = { pageContext, root, redirectHistory: "replace" as const };
   const rootElement = getRootElement(page);
   pageContext.page = rootElement;
   // Evaluated before the page shows, so a setting that throws reaches Vike; the HTML has the hydrated page's
@@ -38,8 +41,7 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
   if (!getReactRoot()) {
     const container = document.getElementById("root")!;
     const { hydrateRootOptions, createRootOptions } = resolveReactOptions(pageContext);
-    // Whether the page was [Server-Side Rendered](https://vike.dev/ssr).
-    if (pageContext.isHydration && ((!__VIKE_REACT_RSC_CLIENT_DEFAULT__ && pageContext.config.ssr !== false) || container.innerHTML !== "")) {
+    if (wasServerRendered(pageContext, container)) {
       const options = { ...hydrateRootOptions, ...withOurErrorCallbacks(hydrateRootOptions), formState: formState ?? hydrateRootOptions?.formState };
       setReactRoot(hydrateRoot(container, rootElement, options));
     } else {
@@ -54,15 +56,20 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
   await rendered(pageContext.abortSignal);
   // The user navigated elsewhere: skip the page's head and +onAfterRenderClient, but keep hydration's, which testing tools wait for
   if (pageContext.abortSignal.aborted && !pageContext.isHydration) return;
-  if (!pageContext.isHydration) {
+  if (headSettings) {
     pageContext._headAlreadySet = true;
-    applyHead(headSettings!, pageContext);
+    applyShownHead(headSettings, pageContext);
   }
   // Use cases:
   // - Custom user settings: https://vike.dev/head-tags#custom-settings
   // - Testing tools: https://github.com/vikejs/vike-react/issues/95
   await callCumulativeHooks(pageContext.config.onAfterRenderClient, pageContext);
 };
+
+// Whether the page was [Server-Side Rendered](https://vike.dev/ssr). Where pages can render without a Flight, the HTML tells
+function wasServerRendered(pageContext: PageContextClient, container: HTMLElement): boolean {
+  return pageContext.isHydration && ((!__VIKE_REACT_RSC_RENDERS_WITHOUT_FLIGHT__ && pageContext.config.ssr !== false) || container.innerHTML !== "");
+}
 
 // Our error callbacks run first, then the user's, as in vike-react
 function withOurErrorCallbacks(options: RootOptions | undefined): Pick<RootOptions, "onCaughtError" | "onUncaughtError"> {
@@ -130,7 +137,7 @@ async function getPagePayload(pageContext: PageContextClient): Promise<PagePaylo
   if (flight?.root) return flight;
   // A page that renders as in vike-react has no Flight, or only what a form submitted before hydration returned. So has
   // the error page after an error in the browser on a fully pre-rendered site, where Vike doesn't ask a server for it.
-  if (!__VIKE_REACT_RSC_CLIENT_DEFAULT__ || !pageContext.config.Page) throw cannotRenderInBrowser(pageContext, "components: 'server' makes it a server component");
+  if (!__VIKE_REACT_RSC_RENDERS_WITHOUT_FLIGHT__ || !pageContext.config.Page) throw cannotRenderInBrowser(pageContext, "components: 'server' makes it a server component");
   const serverComponent = findServerComponent(pageContext);
   if (serverComponent) {
     const { file, serverComponentImport } = serverComponent;

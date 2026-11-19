@@ -12,7 +12,7 @@ export function parse(code: string, id: string): Promise<ESTree.Program> {
 }
 
 /** The module as Vite runs it: without the imports TypeScript drops, those only types use, unless the file's tsconfig keeps
- * them with verbatimModuleSyntax */
+ * them with verbatimModuleSyntax. For what such an import would mislead, e.g. a walk of the imports; parse() for the rest */
 export async function parseCompiled(code: string, id: string, config: ResolvedConfig): Promise<ESTree.Program> {
   const file = getFile(id);
   const lang = langs[path.extname(file) as keyof typeof langs];

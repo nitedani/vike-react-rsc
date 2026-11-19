@@ -1,24 +1,29 @@
-import { Component, useEffect, useState, type ReactNode } from "react";
+import { Component, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { usePageContext } from "../pageContext";
 import { getShared } from "../shared";
+import { markComponentLoad } from "./callKind";
 
 type Output = { node: ReactNode; generation: number; drops: number; loadedAt: number };
 
+// Per copy of this package, as the ids in their keys are
 const outputs = new Map<string, Output>();
-// One load per key at a time, shared by every component that renders it
+// One load per key and generation at a time, shared by every component that renders it
 const loads = new Map<string, Promise<ReactNode | undefined>>();
 // Production builds name every server function "action", so the key tells them apart by identity
 const serverComponentIds = new Map<Function, number>();
 const objectIds = new WeakMap<object, number>();
 let objectCount = 0;
+// The drops when rsc() first rendered for the page
+const dropsOfPages = new WeakMap<object, number>();
 // callServer() comes from the app's copy of this package, and rsc() may come from a library's own
 const state = getShared("rsc", () => ({
   // Raised by every server action except rsc()'s loads: an output loaded before may show data the action changed
   generation: 0,
+  // Called when the generation is raised: the outputs on screen load again
+  onStale: new Set<() => void>(),
   // Raised by every redirect that drops the outputs, a library copy's included: an output or a load from before is
   // neither shown, shared nor cached
   drops: 0,
-  isLoading: false,
   // What rsc() outputs threw: AbortBoundary tells them from what a server action's answer sent
   thrownByOutputs: new WeakSet<object>(),
 }));
@@ -34,29 +39,44 @@ export function rsc<Props extends object>(
     const pageContext = usePageContext();
     const key = `${id}:${keyOf(props)}`;
     const staleTime = pageContext.config.rsc?.staleTime ?? 60_000;
-    // Shown until the next load arrives, even when out of date. Never set during SSR: loads start in effects.
-    const output = outputs.get(key);
-    const cached = output?.drops === state.drops ? output : undefined;
-    const isFresh = !!cached && cached.generation === state.generation && Date.now() - cached.loadedAt < staleTime;
-    const [loaded, setLoaded] = useState<{ key: string; node: ReactNode }>();
+    const generation = useSyncExternalStore(subscribeToStale, getGeneration, getGeneration);
+    const drops = getDropsOf(pageContext);
+    const cached = readOutput(key, staleTime, generation);
+    const [loaded, setLoaded] = useState<{ key: string; drops: number; node: ReactNode }>();
 
-    // New props start a new load and keep the tree: a cached output renders in place, so its client state survives
+    // A server action loads it again, and the output stays until the new one arrives, so its client state survives
     useEffect(() => {
-      if (isFresh) return;
-      let isForCurrentProps = true;
-      void load(key, () => serverComponent(props as Props), staleTime).then((node) => {
-        if (node !== undefined && isForCurrentProps) setLoaded({ key, node });
+      if (cached?.isFresh) return;
+      let isLatest = true;
+      void load(key, () => serverComponent(markComponentLoad(props as Props))).then((node) => {
+        if (node !== undefined && isLatest) setLoaded({ key, drops, node });
       });
       return () => {
-        isForCurrentProps = false;
+        isLatest = false;
       };
-    }, [key]);
+    }, [key, generation, drops]);
 
-    const node = loaded?.key === key ? loaded.node : cached?.node;
+    // The cache first: another component may have loaded these props since, e.g. once an action ran
+    const node = cached ? cached.node : loaded?.key === key && loaded.drops === drops ? loaded.node : undefined;
     if (node !== undefined) return <OutputBoundary>{node}</OutputBoundary>;
     const DefaultFallback = pageContext.config.Loading?.component;
     return fallback ?? (DefaultFallback && <DefaultFallback />);
   };
+}
+
+// The output a component shows until the next load arrives, even when out of date, and whether it loads again. None
+// with `staleTime: 0`, nor from before a redirect dropped the outputs. Never set during SSR: loads start in effects.
+function readOutput(key: string, staleTime: number, generation: number): { node: ReactNode; isFresh: boolean } | undefined {
+  const output = outputs.get(key);
+  if (staleTime <= 0 || output?.drops !== state.drops) return;
+  return { node: output.node, isFresh: output.generation === generation && Date.now() - output.loadedAt < staleTime };
+}
+
+// The page a redirect leads to shows no output from before it, and a component that a layout keeps loads again there. The
+// page that redirected shows them until it goes: loading again there would redirect again.
+function getDropsOf(pageContext: object): number {
+  if (!dropsOfPages.has(pageContext)) dropsOfPages.set(pageContext, state.drops);
+  return dropsOfPages.get(pageContext)!;
 }
 
 // Equal only for props the server function can't tell apart. Only strings hold user text, and they're quoted.
@@ -101,13 +121,18 @@ export function isThrownByRscOutput(error: unknown): boolean {
   return typeof error === "object" && error !== null && state.thrownByOutputs.has(error);
 }
 
-/** True while rsc() calls a server function: callServer() reads it in the same synchronous call */
-export function isRscLoad(): boolean {
-  return state.isLoading;
-}
-
 export function markRscOutputsStale(): void {
   state.generation++;
+  for (const onStale of state.onStale) onStale();
+}
+
+function subscribeToStale(onStale: () => void): () => void {
+  state.onStale.add(onStale);
+  return () => state.onStale.delete(onStale);
+}
+
+function getGeneration(): number {
+  return state.generation;
 }
 
 export function dropRscOutputs(): void {
@@ -115,20 +140,19 @@ export function dropRscOutputs(): void {
 }
 
 // Resolves to undefined when the load fails: the fallback, or the last output, stays
-function load(key: string, call: () => Promise<ReactNode>, staleTime: number): Promise<ReactNode | undefined> {
+function load(key: string, call: () => Promise<ReactNode>): Promise<ReactNode | undefined> {
   const startedAfter = state.drops;
-  const loadKey = `${startedAfter}:${key}`;
-  const pending = loads.get(loadKey);
-  if (pending) return pending;
   // An action that runs while this loads may change what it shows
   const startedIn = state.generation;
-  state.isLoading = true;
-  const request = call();
-  state.isLoading = false;
-  const loading = request
+  const loadKey = `${startedAfter}:${startedIn}:${key}`;
+  const pending = loads.get(loadKey);
+  if (pending) return pending;
+  const loading = call()
     .then(
       (node) => {
-        if (staleTime > 0 && node !== undefined && startedAfter === state.drops) outputs.set(key, { node, generation: startedIn, drops: startedAfter, loadedAt: Date.now() });
+        // Keeps an output loaded after a later action: this one may not show what that action changed
+        const isOutdated = (outputs.get(key)?.generation ?? startedIn) > startedIn;
+        if (node !== undefined && startedAfter === state.drops && !isOutdated) outputs.set(key, { node, generation: startedIn, drops: startedAfter, loadedAt: Date.now() });
         return node;
       },
       (error: unknown) => {

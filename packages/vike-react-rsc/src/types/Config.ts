@@ -215,7 +215,7 @@ declare global {
        * https://vike.dev/react-setting
        */
       react?: ReactOptions | ((pageContext: PageContext) => ReactOptions) | ImportString;
-      /** Internal: the rsc env's runtime */
+      /** @internal The rsc env's runtime */
       rscRuntime?: RscRuntime | ImportString;
     }
 
@@ -238,6 +238,7 @@ declare global {
       onBeforeRenderClient?: Function[];
       onAfterRenderClient?: Function[];
       react?: (ReactOptions | ((pageContext: PageContext) => ReactOptions))[];
+      /** @internal */
       rscRuntime: RscRuntime;
     }
   }

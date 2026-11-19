@@ -62,8 +62,13 @@ const ERROR_PAGE_REQUEST_FAILED = /index\.server\.pageContext\.json\S* couldn't 
 // Thrown by /late-browser-error's component in the browser, inside <Suspense>, so after the first render ended
 const LATE_BROWSER_ERROR = "A component failed in the browser after its page rendered";
 
+// Logged in the browser for a server function call that the server answers with its error page, once React throws it
+const ACTION_FAILED_LOG = "Error: [vike-react-rsc] Server action failed: HTTP 500";
+
 // Thrown by /throws-on-click's component in the browser, while it renders after a click
 const CLICK_ERROR = "A component failed in the browser on a click";
+// Thrown by /throws-on-click's data() while testErrorPageInBrowser() sets its cookie
+const DATA_ERROR = "data() failed on demand";
 
 // Thrown by /throws on the server, then logged there, and by React in the browser: in production as its error #441
 const THROWS_ERROR = "A server component failed on demand";
@@ -81,7 +86,6 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
   const isStatic = cmd === "pnpm run preview:static";
 
   run(cmd, {
-    serverUrl: process.env.SERVER_URL,
     serverIsReadyMessage: (log) =>
       log.includes("Local:") || log.includes("ready in"),
     // The preview commands build before they serve.
@@ -115,6 +119,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       logText.includes(BROWSER_GUARD_ERROR) ||
       logText.includes(LATE_BROWSER_ERROR) ||
       logText.includes(CLICK_ERROR) ||
+      (logSource === "stderr" && (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /throws-on-click 500"))) ||
       // React's report that hydrating it failed and that it rendered the boundary in the browser, as in vike-react. In
       // dev, Vite also forwards it to the server's stderr.
       logText.includes("There was an error while hydrating") ||
@@ -203,6 +208,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
     testRscPropsChange();
     testRscLoadError();
     testRscLoadRedirect();
+    testRscLoadRedirectInLayout();
     testRscLoadReadsData();
     testServerComponentAbort();
     testRscCache();
@@ -609,6 +615,20 @@ function testRscLoadRedirect() {
   });
 }
 
+function testRscLoadRedirectInLayout() {
+  test("rsc(): an output in a layout that the redirect's target page shares loads again for the target", async () => {
+    for (const href of ["/abort/redirect-in-layout", "/abort/redirect-in-layout?in=server-function"]) {
+      await page.goto(getServerUrl() + href);
+      await waitForHydration("Load the server component in the layout");
+      await page.click('button:has-text("Load the server component in the layout")');
+      await page.waitForSelector('h1:has-text("Redirected from the layout")');
+      await autoRetry(async () => {
+        expect(await page.textContent("[data-rsc-in-layout]"), href).to.equal("Loaded on the target");
+      });
+    }
+  });
+}
+
 function testRscLoadReadsData() {
   test("rsc(): the server components a load returns read the page's data()", async () => {
     await page.goto(getServerUrl() + "/actions");
@@ -617,6 +637,22 @@ function testRscLoadReadsData() {
     await autoRetry(async () => {
       expect(await page.textContent("[data-rsc-page-data]")).to.equal('{"from":"data()"}');
     });
+  });
+
+  test("rsc(): a server function bound on the server or in the browser loads as a component, whose server components read the page", async () => {
+    const loads: (string | undefined)[] = [];
+    const onRequest = (request: { method(): string; headers(): Record<string, string> }) => {
+      if (request.method() === "POST") loads.push(request.headers()["x-rsc-load"]);
+    };
+    page.on("request", onRequest);
+    await page.goto(getServerUrl() + "/rsc-bound");
+    await autoRetry(async () => {
+      expect(await page.locator("[data-rsc-bound]").allTextContents()).to.deep.equal(["server-bound: /rsc-bound", "client-bound: /rsc-bound"]);
+    });
+    // A load sent as an action would load again once the action marked the outputs stale
+    await sleep(500);
+    page.off("request", onRequest);
+    expect(loads).to.deep.equal(["1", "1"]);
   });
 }
 
@@ -1631,8 +1667,9 @@ function testActionStreamedValues() {
     await autoRetry(async () => {
       expect((await actionTicks()).length).to.be.at.least(2);
     });
-    const clickedAt = await page.evaluate(() => Date.now());
     await clickNewLink("/todos");
+    // Once the click is done: under load, Playwright takes a while to dispatch it, and ticks keep coming until then
+    const clickedAt = await page.evaluate(() => Date.now());
     await autoRetry(async () => {
       expect(await page.textContent("h1")).to.include("Task Manager");
     });
@@ -1796,6 +1833,7 @@ function trackRscRequests() {
   return requests;
 }
 const readLoadCounts = () => page.locator("[data-load-count]").allTextContents();
+const readNamedLoadCounts = () => page.locator("[data-named-load-count]").allTextContents();
 const toggleLoadCounts = () => page.click('button:has-text("server counts")');
 
 async function showLoadCounts() {
@@ -1871,21 +1909,99 @@ function testRscCache() {
 }
 
 function testRscCacheInvalidation() {
-  test("rsc(): another server action marks the cache stale", async () => {
+  test("rsc(): another server action reloads the outputs on screen, which show until the new ones arrive", async () => {
     const requests = await showLoadCounts();
     const loaded = await readLoadCounts();
+    // The reload waits until the test read what shows while it runs
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let reloading!: () => void;
+    const isReloading = new Promise<void>((resolve) => (reloading = resolve));
+    await page.route("**/*", async (route) => {
+      if (!route.request().headers()["x-rsc-load"]) return route.continue();
+      reloading();
+      await released;
+      await route.continue();
+    });
 
     await page.click('button:has-text("Run a server action")');
-    // Not response.finished(): Chrome can report a fully read no-store response as canceled, and finished() then never resolves
-    await page.waitForSelector("[data-ran-action]");
-    await toggleLoadCounts();
-    await toggleLoadCounts();
+    await isReloading;
     expect(await readLoadCounts()).to.deep.equal(loaded);
+    release();
     await autoRetry(async () => {
       expect(await readLoadCounts()).to.not.deep.equal(loaded);
     });
-    // The load, the action, the refetch
+    // The load, the action, the reload
     expect(requests).to.have.length(3);
+    await page.unroute("**/*");
+  });
+
+  test("rsc(): a load a server action outdated, answering after the action's reload, doesn't replace the reload's output", async () => {
+    await page.goto(getServerUrl() + "/suspense");
+    await waitForHydration("Show server counts");
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let rendered!: () => void;
+    const isRendered = new Promise<void>((resolve) => (rendered = resolve));
+    let isFirst = true;
+    // The first load renders before the action, and its answer arrives after the action's reload
+    await page.route("**/*", async (route) => {
+      if (!isFirst || !route.request().headers()["x-rsc-load"]) return route.continue();
+      isFirst = false;
+      const response = await route.fetch();
+      await response.body();
+      rendered();
+      await released;
+      await route.fulfill({ response });
+    });
+    await toggleLoadCounts();
+    await isRendered;
+    await page.click('button:has-text("Run a server action")');
+    await page.waitForSelector("[data-ran-action]");
+    await autoRetry(async () => {
+      expect(await readLoadCounts()).to.have.length(2);
+    });
+    const reloaded = await readLoadCounts();
+
+    release();
+    // The outdated answer changes nothing on screen, so the test gives it time to be read
+    await sleep(750);
+    expect(await readLoadCounts()).to.deep.equal(reloaded);
+    await toggleLoadCounts();
+    await toggleLoadCounts();
+    expect(await readLoadCounts()).to.deep.equal(reloaded);
+    await page.unroute("**/*");
+  });
+
+  test("rsc(): after a server action, a component switching back to props another one reloaded shows that reload, though its own reload failed", async () => {
+    await page.goto(getServerUrl() + "/suspense");
+    await waitForHydration("Show named counts");
+    await page.click('button:has-text("Show named counts")');
+    await autoRetry(async () => {
+      expect(await readNamedLoadCounts()).to.have.length(2);
+    });
+    const [x, y] = await readNamedLoadCounts();
+    // Each shows the output the other loaded
+    await page.click('button[data-switch="X"]');
+    await page.click('button[data-switch="Y"]');
+    expect(await readNamedLoadCounts()).to.deep.equal([y, x]);
+
+    // The action reloads both: Y's load gets a 500, and the second component shows X's
+    await page.route("**/*", (route) => {
+      const request = route.request();
+      if (request.headers()["x-rsc-load"] && request.postData()?.includes('"Y"')) return route.fulfill({ status: 500 });
+      return route.continue();
+    });
+    const failed = page.waitForEvent("console", (message) => message.text().includes(RSC_LOAD_ERROR_LOG));
+    await page.click('button:has-text("Run a server action")');
+    await failed;
+    await autoRetry(async () => {
+      expect((await readNamedLoadCounts())[1]).to.not.equal(x);
+    });
+    const [, reloaded] = await readNamedLoadCounts();
+    await page.click('button[data-switch="X"]');
+    expect(await readNamedLoadCounts()).to.deep.equal([reloaded, reloaded]);
+    await page.unroute("**/*");
   });
 }
 
@@ -1998,6 +2114,55 @@ function testErrorPageInBrowser(isStatic: boolean) {
     page.off("request", onRequest);
     expect(documents).to.have.length(1);
   });
+
+  // A static host has no error page to show, nor a server for its rerender()
+  if (!isStatic) {
+    test("A server function's rejection that the error page throws once a click showed it doesn't show it again", async () => {
+      await page.goto(getServerUrl() + "/throws-on-click");
+      await waitForHydration("Fail now");
+      await page.context().addCookies(["failData", "failErrorPage"].map((name) => ({ name, value: "1", url: getServerUrl() })));
+      const requests: string[] = [];
+      const onRequest = (request: { url(): string }) => {
+        if (request.url().includes(".pageContext.json")) requests.push(request.url());
+      };
+      page.on("request", onRequest);
+      const thrown = page.waitForEvent("console", (message) => message.text().includes(ACTION_FAILED_LOG));
+      await page.click('button:text-is("Fail now")');
+      await thrown;
+      // Showing it again would take a few milliseconds
+      await sleep(1500);
+      page.off("request", onRequest);
+      await page.context().clearCookies({ name: "failData" });
+      await page.context().clearCookies({ name: "failErrorPage" });
+      expect(requests).to.have.length(1);
+      expectLog(ACTION_FAILED_LOG);
+    });
+
+    test("The error page's Try again shows the error page while the server still fails, then the page, where a component that throws shows the error page", async () => {
+      await page.context().addCookies(["failData", "keyRetry"].map((name) => ({ name, value: "1", url: getServerUrl() })));
+      await page.goto(getServerUrl() + "/throws-on-click");
+      await waitForHydration("Try again");
+      const tryAgain = 'button:text-is("Try again")';
+      const pressEnterInField = async () => {
+        await page.focus("[data-key-retry]");
+        await page.keyboard.press("Enter");
+      };
+      // The third is a click alone, as a screen reader or voice control sends it, and the last a key alone, in a field
+      for (const retry of [() => page.click(tryAgain), () => page.click(tryAgain), () => page.$eval(tryAgain, (button) => (button as HTMLButtonElement).click()), pressEnterInField]) {
+        await page.$eval("h1", (h1) => h1.setAttribute("data-shown-before", ""));
+        await retry();
+        await page.waitForSelector("h1:text-is('Something went wrong'):not([data-shown-before])");
+        await waitForHydration("Try again");
+      }
+      await page.context().clearCookies({ name: "failData" });
+      await page.context().clearCookies({ name: "keyRetry" });
+      await page.click(tryAgain);
+      await waitForHydration("Fail now");
+      await page.click('button:text-is("Fail now")');
+      await page.waitForSelector("h1:text-is('Something went wrong')");
+      expectLog(ACTION_FAILED_LOG);
+    });
+  }
 
   test("A component that throws while a client navigation waits for its answer leaves that navigation to show its page", async () => {
     await page.goto(getServerUrl() + "/throws-on-click");

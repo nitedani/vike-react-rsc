@@ -2,14 +2,12 @@ import { Component, use, type ReactNode } from "react";
 import type { RootOptions } from "react-dom/client";
 import { getAbort } from "../abort";
 import { REDIRECT_META_ATTRIBUTE } from "../protocol";
-import { followRedirect } from "./callServer";
-import { endNavigation } from "./page";
+import { endNavigation, followRedirect, type RedirectHistory } from "./navigation";
 import { isThrownByRscOutput } from "./rsc";
 
 type CaughtErrorInfo = Parameters<NonNullable<RootOptions["onCaughtError"]>>[1];
-// `keepsPage`: a server action's answer sent the children, so their redirect keeps the page in history, as the
-// action's own redirect does
-type Props = { children: ReactNode; keepsPage: boolean };
+// `redirectHistory`: that of the call whose answer sent the children, as for its own redirect
+type Props = { children: ReactNode; redirectHistory: RedirectHistory };
 type State = { children?: ReactNode; redirectTo?: string; isFromRscOutput?: boolean; thrown?: object };
 
 /** Leaves for the target of a `throw redirect()` that a server component threw after the response started: in the
@@ -32,7 +30,7 @@ export class AbortBoundary extends Component<Props, State> {
   render(): ReactNode {
     const { redirectTo, isFromRscOutput, thrown } = this.state;
     // An rsc() output loads on its own, even inside what the answer sent
-    return redirectTo ? <Redirect thrown={thrown!} url={redirectTo} keepsPage={this.props.keepsPage && !isFromRscOutput} /> : this.props.children;
+    return redirectTo ? <Redirect thrown={thrown!} url={redirectTo} history={isFromRscOutput ? "replace" : this.props.redirectHistory} /> : this.props.children;
   }
 }
 
@@ -56,12 +54,12 @@ export function onCaughtError(error: unknown, componentStackToLog: string | unde
 // One per thrown redirect: React renders the boundary again each time it retries the update that threw it
 const leaving = new WeakMap<object, Promise<never>>();
 
-function Redirect({ thrown, url, keepsPage }: { thrown: object; url: string; keepsPage: boolean }): ReactNode {
+function Redirect({ thrown, url, history }: { thrown: object; url: string; history: RedirectHistory }): ReactNode {
   if (!leaving.has(thrown)) {
     // Vike starts the target's navigation once the one showing this page ends
     endNavigation();
     // Replaces the page in history, as an HTTP redirect does, unless a server action's answer sent what threw it
-    unlessHtmlRedirects(() => void followRedirect(url, keepsPage));
+    unlessHtmlRedirects(() => void followRedirect(url, history));
     leaving.set(thrown, new Promise(() => {}));
   }
   // No Suspense boundary is above, so the update that threw never commits: the page stays shown until the target renders

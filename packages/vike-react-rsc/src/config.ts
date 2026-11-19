@@ -2,6 +2,7 @@ import type { Config } from "vike/types";
 import "./types/Config.js";
 import "./types/PageContext.js";
 import { ssrEffect } from "./integration/ssrEffect";
+import { OWN_SERVER_HOOK } from "./plugin/vikeParts";
 import { vikeReactRscPlugins } from "./vite";
 
 // Users add it with `extends: [vikeReactRsc]`
@@ -13,8 +14,8 @@ const vikeReactRsc: Config = {
 
   Loading: "import:vike-react-rsc/__internal/Loading:default",
 
-  onCreatePageContext: ["import:vike-react-rsc/__internal/ssr:onCreatePageContext", "import:vike-react-rsc/__internal/browserHooks:throwLateError"],
-  onRenderHtml: "import:vike-react-rsc/__internal/ssr:onRenderHtml",
+  onCreatePageContext: [`import:${OWN_SERVER_HOOK}:onCreatePageContext`, "import:vike-react-rsc/__internal/browserHooks:throwLateError"],
+  onRenderHtml: `import:${OWN_SERVER_HOOK}:onRenderHtml`,
   onRenderClient: "import:vike-react-rsc/__internal/browser:onRenderClient",
   onError: "import:vike-react-rsc/__internal/onError:onError",
   middleware: ["import:vike-react-rsc/__internal/middleware:actionRedirectMiddleware", "import:vike-react-rsc/__internal/middleware:rscMiddleware"],
@@ -45,6 +46,7 @@ const vikeReactRsc: Config = {
       match: { function: "import:react:createElement", args: { 0: `import:${packageName}/ClientOnly:ClientOnly` } },
       remove: { argsFrom: 2 },
     },
+    // React's server build has no useSyncExternalStore: a server component's useHydrated() gets false only from this
     {
       env: "server",
       filter: `${packageName}/useHydrated`,

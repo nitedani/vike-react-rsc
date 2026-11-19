@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
 import { getComponentConfigs } from "./componentConfigs";
+import { getBuildImporters, getDevImporters } from "./diagnostics";
 import { getFile, getFileName, isAppFile, isModuleFile, startsWithDirective } from "./parse";
 import { findPackageServerComponentImport, getModule, importsServerComponent, type Context } from "./serverComponentImports";
 
@@ -28,8 +29,7 @@ export function noServerComponentsInBrowser(): Plugin {
         ? await findPackageServerComponentImport(preBundled, environment.getTopLevelConfig())
         : (await startsWithDirective(code, id, "use server component")) && [id];
       if (!serverComponentImport) return;
-      const { moduleGraph } = environment;
-      const chains = getImportChains(id, getComponentConfig, (id) => [...(moduleGraph.getModuleById(id)?.importers ?? [])].flatMap((importer) => importer.id ?? []));
+      const chains = getImportChains(id, getComponentConfig, getDevImporters(environment));
       const fromServerComponent = serverComponentImport.toReversed();
       this.error(await getServerComponentInBrowserErrors(chains.map(([, ...importers]) => [...fromServerComponent, ...importers]), getComponentConfig, this));
     },
@@ -37,10 +37,7 @@ export function noServerComponentsInBrowser(): Plugin {
       if (this.environment.name !== "client") return;
       const getComponentConfig = await getComponentConfigs(this);
       for (const id of serverComponentsInBrowser) {
-        const chains = getImportChains(id, getComponentConfig, (id) => {
-          const { importers = [], dynamicImporters = [] } = this.getModuleInfo(id) ?? {};
-          return [...importers, ...dynamicImporters];
-        });
+        const chains = getImportChains(id, getComponentConfig, getBuildImporters(this));
         this.error(await getServerComponentInBrowserErrors(chains, getComponentConfig, this));
       }
     },

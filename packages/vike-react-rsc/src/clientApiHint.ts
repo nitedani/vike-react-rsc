@@ -1,3 +1,5 @@
+import { describeServerComponentImport } from "./plugin/diagnostics";
+
 /** What a server file can use, but React's server build lacks: Component and PureComponent are what a class component extends */
 export const clientApis: string[] = [
   "Component", "PureComponent", "addTransitionType", "createContext", "startTransition", "useActionState", "useContext",
@@ -5,11 +7,20 @@ export const clientApis: string[] = [
   "useOptimistic", "useReducer", "useRef", "useState", "useSyncExternalStore", "useTransition",
 ];
 
-/** For React's TypeError when a server file uses one of them: the fix, naming the component by the first frame named like
- * one, so never a hook's own file, or else the file that failed as `page` loaded it. A build's stack names its chunks, not
- * the files. `serverComponentImports` are the files from each of the page's files that is a server component because it
- * imports one, to that server component. */
-export function getClientApiHint(error: unknown, page?: string, serverComponentImports: string[][] = []): string | undefined {
+/** For React's TypeError when a server file that uses one of them fails as it loads, for the page `pageId` if known: the fix */
+export function getLoadErrorHint(error: unknown, pageId: string | undefined): string | undefined {
+  return getClientApiHint(error, pageId, []);
+}
+
+/** For React's TypeError when a server component uses one of them as it renders: the fix. `serverComponentImports` are the
+ * files from each of the page's files that is a server component because it imports one, to that server component. */
+export function getRenderErrorHint(error: unknown, serverComponentImports: string[][]): string | undefined {
+  return getClientApiHint(error, undefined, serverComponentImports);
+}
+
+// The fix, naming the component by the first frame named like one, so never a hook's own file, or else the file that
+// failed as `page` loaded it. A build's stack names its chunks, not the files.
+function getClientApiHint(error: unknown, page: string | undefined, serverComponentImports: string[][]): string | undefined {
   if (!(error instanceof TypeError)) return;
   const api = error.message.includes("Class extends value undefined") ? "Component" : /(\w+)\)? is not a function/.exec(error.message)?.[1];
   if (!api || !clientApis.includes(api)) return;
@@ -38,13 +49,9 @@ export function getClientApiHint(error: unknown, page?: string, serverComponentI
     return `${runsOnServer}: move the code that ${use} into a "use client" file (${caller === file ? "this one" : "the one it's in"}, if nothing else in it needs the server)${orReexport}${listed}`;
   }
   // A "use client" file can't import a server component
-  const [importer, ...imported] = serverComponentImport;
-  const serverComponent = imported.pop()!;
-  const through = imported.length > 0 ? ` through ${imported.join(", ")}` : "";
-  // A package's file isn't the app's to change
-  const fix = serverComponent.startsWith("node_modules/") ? "" : `, or remove "use server component" from ${serverComponent}, if nothing in it needs the server`;
+  const { serverComponent, through, removeDirective } = describeServerComponentImport(serverComponentImport);
   return (
-    `${runsOnServer}, as ${importer} imports the server component ${serverComponent}${through}: ` +
-    `move the code that ${use} into a "use client" component${fix}`
+    `${runsOnServer}, as ${serverComponentImport[0]} imports the server component ${serverComponent}${through}: ` +
+    `move the code that ${use} into a "use client" component${removeDirective}`
   );
 }
