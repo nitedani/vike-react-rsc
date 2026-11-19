@@ -2139,18 +2139,23 @@ function testErrorPageInBrowser(isStatic: boolean) {
     });
 
     test("The error page's Try again shows the error page while the server still fails, then the page, where a component that throws shows the error page", async () => {
-      await page.context().addCookies([{ name: "failData", value: "1", url: getServerUrl() }]);
+      await page.context().addCookies(["failData", "keyRetry"].map((name) => ({ name, value: "1", url: getServerUrl() })));
       await page.goto(getServerUrl() + "/throws-on-click");
       await waitForHydration("Try again");
       const tryAgain = 'button:text-is("Try again")';
-      // The last one is a click alone, as a screen reader or voice control sends it
-      for (const click of [() => page.click(tryAgain), () => page.click(tryAgain), () => page.$eval(tryAgain, (button) => (button as HTMLButtonElement).click())]) {
+      const pressEnterInField = async () => {
+        await page.focus("[data-key-retry]");
+        await page.keyboard.press("Enter");
+      };
+      // The third is a click alone, as a screen reader or voice control sends it, and the last a key alone, in a field
+      for (const retry of [() => page.click(tryAgain), () => page.click(tryAgain), () => page.$eval(tryAgain, (button) => (button as HTMLButtonElement).click()), pressEnterInField]) {
         await page.$eval("h1", (h1) => h1.setAttribute("data-shown-before", ""));
-        await click();
+        await retry();
         await page.waitForSelector("h1:text-is('Something went wrong'):not([data-shown-before])");
         await waitForHydration("Try again");
       }
       await page.context().clearCookies({ name: "failData" });
+      await page.context().clearCookies({ name: "keyRetry" });
       await page.click(tryAgain);
       await waitForHydration("Fail now");
       await page.click('button:text-is("Fail now")');
