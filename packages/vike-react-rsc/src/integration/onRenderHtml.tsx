@@ -87,7 +87,7 @@ async function buildDocument(pageContext: PageContextServer & PageContextInterna
 async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps, htmlRender: AbortController): Promise<void> {
   // Before any HTML hook runs, so that server components see pageContext's keys as on a client navigation, where no HTML
   // hook runs
-  // TODO: remove once server components get their own pageContext: https://github.com/nitedani/vike-react-rsc/issues/30
+  // TODO: remove once server components get their own pageContext: https://github.com/nitedani/vike-react-rsc/issues/48
   forkPageContext(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
