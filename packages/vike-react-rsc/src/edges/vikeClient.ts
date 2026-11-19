@@ -1,4 +1,4 @@
-// Vike's private names that the browser uses, until Vike has public ones: https://github.com/nitedani/vike-react-rsc/issues/48
+// What the browser relies on in Vike beyond its public API, until Vike has its own: private names (https://github.com/nitedani/vike-react-rsc/issues/48), and how a late error's navigation shows the error page (https://github.com/vikejs/vike/issues/3726)
 import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
 import { getShared } from "../shared";

@@ -37,5 +37,6 @@ export function onUncaughtError(error: unknown, componentStackToLog: string | un
 function isErrorPageOwnError(): boolean {
   const current = getCurrentPageContext();
   // An action's answer replaces the tree under a fork of Vike's pageContext, which keeps isErrorPage
+  // TODO: compare only isErrorPage once https://github.com/vikejs/vike/pull/3753 is released
   return current.isErrorPage === true && getShownPageContext() === current && shared.lastInputOn !== current;
 }
