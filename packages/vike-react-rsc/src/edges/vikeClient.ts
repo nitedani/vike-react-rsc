@@ -1,15 +1,9 @@
 // Vike's private names that the browser uses, until Vike has public ones: https://github.com/nitedani/vike-react-rsc/issues/48
-import { createPageContextFromServer_experimentalRSC } from "vike/__internal/client";
 import { navigate } from "vike/client/router";
 import type { PageContextClient } from "vike/types";
 import { getShared } from "../shared";
 
-export { readPageContextJson } from "vike/__internal/client";
-
-/** A new pageContext for the page `current` shows, with the values the server `passed`, as a navigation's */
-export function createPageContextFromServer(current: PageContextClient, passed: Record<string, unknown>): PageContextClient {
-  return createPageContextFromServer_experimentalRSC(current, passed);
-}
+export { createPageContextFromServer_experimentalRSC as createPageContextFromServer, readPageContextJson } from "vike/__internal/client";
 
 /** Vike renders its error page for `error` without logging it again */
 export function markLogged(error: unknown): void {
