@@ -62,6 +62,9 @@ const ERROR_PAGE_REQUEST_FAILED = /index\.server\.pageContext\.json\S* couldn't 
 // Thrown by /late-browser-error's component in the browser, inside <Suspense>, so after the first render ended
 const LATE_BROWSER_ERROR = "A component failed in the browser after its page rendered";
 
+// Thrown by the error page's component in the browser once it showed, while testErrorPageInBrowser() sets its cookie
+const ERROR_PAGE_ERROR = "The error page failed in the browser on demand";
+
 // Thrown by /throws-on-click's component in the browser, while it renders after a click
 const CLICK_ERROR = "A component failed in the browser on a click";
 // Thrown by /throws-on-click's data() while testErrorPageInBrowser() sets its cookie
@@ -117,6 +120,8 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       logText.includes(LATE_BROWSER_ERROR) ||
       logText.includes(CLICK_ERROR) ||
       (logSource === "stderr" && (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /throws-on-click 500"))) ||
+      logText.includes("Error: [vike-react-rsc] Server action failed: HTTP 500") ||
+      logText.includes(ERROR_PAGE_ERROR) ||
       // React's report that hydrating it failed and that it rendered the boundary in the browser, as in vike-react. In
       // dev, Vite also forwards it to the server's stderr.
       logText.includes("There was an error while hydrating") ||
@@ -2052,12 +2057,35 @@ function testErrorPageInBrowser(isStatic: boolean) {
     expect(documents).to.have.length(1);
   });
 
-  // A static host can't run the error page's rerender()
+  // A static host has no error page to show, nor a server for its rerender()
   if (!isStatic) {
-    test("After the error page's Try again showed the page, a component that throws shows the error page", async () => {
+    test("The error page's own error once it showed doesn't show it again", async () => {
+      await page.context().addCookies([{ name: "failErrorPage", value: "1", url: getServerUrl() }]);
+      const requests: string[] = [];
+      const onRequest = (request: { url(): string }) => {
+        if (request.url().includes(".pageContext.json")) requests.push(request.url());
+      };
+      page.on("request", onRequest);
+      const thrown = page.waitForEvent("console", (message) => message.text().includes(ERROR_PAGE_ERROR));
+      await page.goto(getServerUrl() + "/late-browser-error");
+      await thrown;
+      // Showing it again would take a few milliseconds
+      await sleep(1500);
+      page.off("request", onRequest);
+      await page.context().clearCookies({ name: "failErrorPage" });
+      expect(requests).to.have.length(1);
+    });
+
+    test("The error page's Try again shows the error page while the server still fails, then the page, where a component that throws shows the error page", async () => {
       await page.context().addCookies([{ name: "failData", value: "1", url: getServerUrl() }]);
       await page.goto(getServerUrl() + "/throws-on-click");
       await waitForHydration("Try again");
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await page.$eval("h1", (h1) => h1.setAttribute("data-shown-before", ""));
+        await page.click('button:text-is("Try again")');
+        await page.waitForSelector("h1:text-is('Something went wrong'):not([data-shown-before])");
+        await waitForHydration("Try again");
+      }
       await page.context().clearCookies({ name: "failData" });
       await page.click('button:text-is("Try again")');
       await waitForHydration("Fail now");

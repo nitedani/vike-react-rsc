@@ -28,7 +28,9 @@ const shared = getShared(
     setRootState?: (shown: Shown) => void;
     // The React root Root renders in, to mount Root again after an error unmounted it or kept it from mounting
     reactRoot?: ReactRoot;
-  } => ({ head: readHtmlHead() })
+    // What server function calls rejected with: React throws one on the page, e.g. a form action's
+    callRejections: WeakSet<Error>;
+  } => ({ head: readHtmlHead(), callRejections: new WeakSet() })
 );
 
 export function show(next: Shown): void {
@@ -69,14 +71,18 @@ export function onUncaughtError(error: unknown, componentStackToLog: string | un
   console.error(...(componentStackToLog ? [error, componentStackToLog] : [error]));
   markLogged(error);
   if (isNavigationWaiting()) endNavigation(error);
-  // Not for the error page's own error: showing the error page again would throw it again
-  else if (!isErrorPageShown()) showErrorPage(abort ? toVikeAbort(abort) : error, getCurrentPageContext());
+  // Not for the error page's own render error, which it would throw again; a call's rejection, e.g. its Try again's, shows it again
+  else if (shared.callRejections.has(error as Error) || !isErrorPageShown()) showErrorPage(abort ? toVikeAbort(abort) : error, getCurrentPageContext());
 }
 
 // An action's answer is never Vike's error page, though its pageContext, a fork of the page Vike showed, keeps that page's isErrorPage
 function isErrorPageShown(): boolean {
   const { pageContext } = shared.shown!;
   return pageContext === getCurrentPageContext() && pageContext.isErrorPage === true;
+}
+
+export function markCallRejection(error: unknown): void {
+  if (error instanceof Error) shared.callRejections.add(error);
 }
 
 // Around Root, not inside it: on hydration, React runs effects twice only under a <StrictMode> at the root
