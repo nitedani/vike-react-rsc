@@ -69,7 +69,14 @@ export function onUncaughtError(error: unknown, componentStackToLog: string | un
   console.error(...(componentStackToLog ? [error, componentStackToLog] : [error]));
   markLogged(error);
   if (isNavigationWaiting()) endNavigation(error);
-  else showErrorPage(abort ? toVikeAbort(abort) : error, getCurrentPageContext());
+  // Not for the error page's own error: showing the error page again would throw it again
+  else if (!isErrorPageShown()) showErrorPage(abort ? toVikeAbort(abort) : error, getCurrentPageContext());
+}
+
+// An action's answer is never Vike's error page, though its pageContext, a fork of the page Vike showed, keeps that page's isErrorPage
+function isErrorPageShown(): boolean {
+  const { pageContext } = shared.shown!;
+  return pageContext === getCurrentPageContext() && pageContext.isErrorPage === true;
 }
 
 // Around Root, not inside it: on hydration, React runs effects twice only under a <StrictMode> at the root

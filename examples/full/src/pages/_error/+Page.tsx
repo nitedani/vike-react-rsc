@@ -1,6 +1,15 @@
 import { getPageContext } from "vike-react-rsc/pageContext";
+import { rerenderPage } from "../../actions/rerenderPage";
 
 // https://vike.dev/error-page
 export default function Page() {
-  return <h1>{getPageContext().is404 ? "Page not found" : "Something went wrong"}</h1>;
+  if (getPageContext().is404) return <h1>Page not found</h1>;
+  return (
+    <>
+      <h1>Something went wrong</h1>
+      <form action={rerenderPage}>
+        <button type="submit">Try again</button>
+      </form>
+    </>
+  );
 }

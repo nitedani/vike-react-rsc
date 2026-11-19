@@ -16,12 +16,12 @@ const shared = getShared("lateError", (): { lateError?: { urlPathname: string; t
 
 /** Shows Vike's error page for what React threw on the page `current` once its navigation ended, e.g. once a Suspense
  * fallback showed, and React unmounted the page. Vike shows the error page only for what a hook throws, so a new
- * navigation's onCreatePageContext hook throws it, before Vike fetches the page again. Stops at the error page's own error.
+ * navigation's onCreatePageContext hook throws it, before Vike fetches the page again.
  * TODO: replace with Vike's API, once https://github.com/vikejs/vike/issues/3726 lets it show its error page from a component */
 export function showErrorPage(thrown: unknown, current: PageContextClient): void {
-  const { urlPathname, isErrorPage, isHydration, abortSignal } = current;
+  const { urlPathname, isHydration, abortSignal } = current;
   // Vike aborts the shown page's signal once the next navigation commits: that navigation's page mounts Root again
-  if (isErrorPage || abortSignal.aborted) return;
+  if (abortSignal.aborted) return;
   shared.lateError = { urlPathname, thrown };
   // A static host has no error page, so Vike reloads a client navigation: after the first render's error, that would loop
   // A new history entry would trap Back: going back reruns the page, which throws and pushes another

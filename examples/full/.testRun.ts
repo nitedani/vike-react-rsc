@@ -64,6 +64,8 @@ const LATE_BROWSER_ERROR = "A component failed in the browser after its page ren
 
 // Thrown by /throws-on-click's component in the browser, while it renders after a click
 const CLICK_ERROR = "A component failed in the browser on a click";
+// Thrown by /throws-on-click's data() while testErrorPageInBrowser() sets its cookie
+const DATA_ERROR = "data() failed on demand";
 
 // Thrown by /throws on the server, then logged there, and by React in the browser: in production as its error #441
 const THROWS_ERROR = "A server component failed on demand";
@@ -114,6 +116,7 @@ function testRun(cmd: `pnpm run ${"dev" | "preview" | "preview:static"}`) {
       logText.includes(BROWSER_GUARD_ERROR) ||
       logText.includes(LATE_BROWSER_ERROR) ||
       logText.includes(CLICK_ERROR) ||
+      (logSource === "stderr" && (logText.includes(DATA_ERROR) || logText.includes("HTTP response ← /throws-on-click 500"))) ||
       // React's report that hydrating it failed and that it rendered the boundary in the browser, as in vike-react. In
       // dev, Vite also forwards it to the server's stderr.
       logText.includes("There was an error while hydrating") ||
@@ -2048,6 +2051,20 @@ function testErrorPageInBrowser(isStatic: boolean) {
     page.off("request", onRequest);
     expect(documents).to.have.length(1);
   });
+
+  // A static host can't run the error page's rerender()
+  if (!isStatic) {
+    test("After the error page's Try again showed the page, a component that throws shows the error page", async () => {
+      await page.context().addCookies([{ name: "failData", value: "1", url: getServerUrl() }]);
+      await page.goto(getServerUrl() + "/throws-on-click");
+      await waitForHydration("Try again");
+      await page.context().clearCookies({ name: "failData" });
+      await page.click('button:text-is("Try again")');
+      await waitForHydration("Fail now");
+      await page.click('button:text-is("Fail now")');
+      await page.waitForSelector("h1:text-is('Something went wrong')");
+    });
+  }
 
   test("A component that throws while a client navigation waits for its answer leaves that navigation to show its page", async () => {
     await page.goto(getServerUrl() + "/throws-on-click");
