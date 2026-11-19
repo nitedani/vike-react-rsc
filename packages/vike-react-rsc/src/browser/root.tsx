@@ -28,11 +28,11 @@ const shared = getShared(
     setRootState?: (shown: Shown) => void;
     // The React root Root renders in, to mount Root again after an error unmounted it or kept it from mounting
     reactRoot?: ReactRoot;
-    // Whether the user pressed a pointer or a key since show() last ran
+    // Whether the user clicked or pressed a key since show() last ran
     pressed?: boolean;
   } => {
-    // In the capture phase, so a press whose handler stops it counts too
-    for (const type of ["pointerdown", "keydown"]) addEventListener(type, () => (shared.pressed = true), true);
+    // A click, which a screen reader sends alone, or a key, as in a field; in the capture phase, so a handler that stops it counts too
+    for (const type of ["click", "keydown"]) addEventListener(type, () => (shared.pressed = true), true);
     return { head: readHtmlHead() };
   }
 );
@@ -76,7 +76,7 @@ export function onUncaughtError(error: unknown, componentStackToLog: string | un
   console.error(...(componentStackToLog ? [error, componentStackToLog] : [error]));
   markLogged(error);
   if (isNavigationWaiting()) endNavigation(error);
-  // On the error page, only after a press there, e.g. on its Try again: an error its own render throws would show it again without end
+  // On the error page, only after a click or a key there, e.g. on its Try again: an error its own render throws would show it again without end
   else if (!isErrorPageShown() || shared.pressed) showErrorPage(abort ? toVikeAbort(abort) : error, getCurrentPageContext());
 }
 
