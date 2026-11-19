@@ -11,10 +11,9 @@ import type { PageContextInternal } from "../types/PageContext";
 import { AbortBoundary } from "./AbortBoundary";
 import { endNavigation, getCurrentPageContext, type RedirectHistory } from "./navigation";
 
-// `redirectHistory`: of a redirect `root` throws, the same as for the call whose answer sent it, after rerender() or as a
-// throw render()'s page. A navigation's page has none: its redirect replaces it.
+// `redirectHistory`: of a redirect `root` throws, the same as for the navigation or the call whose answer sent it
 // `headSettings`: the head an answer sent with `root`, which Root applies once React has committed it
-type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings; redirectHistory?: RedirectHistory };
+type Shown = { pageContext: PageContextClient; root: ReactNode; headSettings?: HeadSettings; redirectHistory: RedirectHistory };
 
 // One for every copy of this file: after an edit, Vite can load the next page's entry with a new copy
 const shared = getShared(
@@ -101,7 +100,7 @@ export function Root({ page }: { page: Shown }): ReactElement {
   // TODO: remove once the react peer dependency requires a React release that includes https://github.com/react/react/pull/36867
   return PageContextProvider({
     pageContext: state.pageContext,
-    children: <AbortBoundary redirectHistory={state.redirectHistory ?? "replace"}>{state.root}</AbortBoundary>,
+    children: <AbortBoundary redirectHistory={state.redirectHistory}>{state.root}</AbortBoundary>,
   });
 }
 

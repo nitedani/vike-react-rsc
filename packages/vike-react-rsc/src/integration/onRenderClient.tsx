@@ -29,7 +29,8 @@ export const onRenderClient: OnRenderClientAsync = async (pageContext: PageConte
   // - Store hydration https://github.com/vikejs/vike-react/issues/110
   await callCumulativeHooks(pageContext.config.onBeforeRenderClient, pageContext);
   const { root, formState } = await getPagePayload(pageContext);
-  const page = { pageContext, root };
+  // As an HTTP redirect does, a redirect the page throws replaces it in history
+  const page = { pageContext, root, redirectHistory: "replace" as const };
   const rootElement = getRootElement(page);
   pageContext.page = rootElement;
   // Evaluated before the page shows, so a setting that throws reaches Vike; the HTML has the hydrated page's
