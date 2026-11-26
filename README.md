@@ -116,6 +116,7 @@ export default function Page() {
 > Any browser can call an action, and `guard()` doesn't protect it: check authorization in the action.
 
 A request body over 1 MB gets a 413: raise the limit with `rsc: { bodySizeLimit: 10_000_000 }` (bytes) in `pages/+config.ts`.
+There is one exception, before the page's JavaScript loads. If a form over the limit is sent with a `<button formAction={action}>`, the action doesn't run and the request gets no 413. The page just loads again.
 Under `@vikejs/express`, a raised limit makes a plain `multipart/form-data` form over 1 MB, posted to your own route, arrive empty
 ([details](https://github.com/magne4000/universal-middleware/issues/463)).
 
