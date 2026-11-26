@@ -190,9 +190,10 @@ function load(key: string, call: () => Promise<ReactNode>, staleTime: number): P
   const loading = call()
     .then(
       (node) => {
-        // Keeps an output loaded after a later action: this one may not show what that action changed
-        const isOutdated = (getOutputs().get(key)?.generation ?? startedIn) > startedIn;
-        if (staleTime > 0 && node !== undefined && startedAfter === state.drops && !isOutdated) store(key, { node, generation: startedIn, loadedAt: Date.now() });
+        // An action or redirect ran while this loaded: the output may not show what changed
+        if (staleTime > 0 && node !== undefined && startedAfter === state.drops && startedIn === state.generation) {
+          store(key, { node, generation: startedIn, loadedAt: Date.now() });
+        }
         return node;
       },
       (error: unknown) => {
