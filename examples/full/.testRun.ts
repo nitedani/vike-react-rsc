@@ -1934,29 +1934,40 @@ function testRscCache() {
     await waitForHydration("Page through named counts");
     const requests = trackRscRequests();
     await page.click('button:has-text("Page through named counts")');
-    const showPage = (index: number) => page.fill("[data-page-index]", String(index));
-    const readPage = () => page.textContent("[data-named-load-count]");
-    for (let index = 0; index <= 51; index++) {
-      if (index > 0) await showPage(index);
+    const input = page.getByRole("spinbutton", { name: "Page index" });
+    const showPage = async (index: number) => {
+      await input.fill(String(index));
       await autoRetry(async () => {
-        expect(await readPage()).to.include(`Page ${index},`);
+        expect(await page.textContent("[data-named-load-count]")).to.include(`Page ${index},`);
       });
-    }
-    expect(requests).to.have.length(52);
+    };
+    for (let index = 0; index <= 50; index++) await showPage(index);
+    expect(requests).to.have.length(51);
 
-    // Page 51 shows, and pages 1 to 50 stay cached: page 1 renders at once, without a request
-    await showPage(1);
-    expect(await page.locator("[data-loading-component]").count()).to.equal(0);
-    expect(await readPage()).to.include("Page 1,");
-    expect(requests).to.have.length(52);
-
-    // Page 0 was evicted: it shows Loading.component until it loads again
+    // Page 0 renders from the cache, which makes it the one read last
     await showPage(0);
-    expect(await page.locator("[data-loading-component]").count()).to.equal(1);
-    await autoRetry(async () => {
-      expect(await readPage()).to.include("Page 0,");
-    });
+    expect(await page.locator("[data-loading-component]").count()).to.equal(0);
+    expect(requests).to.have.length(51);
+
+    // Page 51 evicts page 1, the one read first, and page 0 stays cached
+    await showPage(51);
+    await showPage(0);
+    expect(await page.locator("[data-loading-component]").count()).to.equal(0);
+    expect(requests).to.have.length(52);
+
+    // Page 1 shows Loading.component until it loads again
+    const release = await holdRscLoads();
+    try {
+      await input.fill("1");
+      await autoRetry(async () => {
+        expect(await page.locator("[data-loading-component]").count()).to.equal(1);
+      });
+    } finally {
+      release();
+    }
+    await showPage(1);
     expect(requests).to.have.length(53);
+    await page.unroute("**/*");
   });
 }
 

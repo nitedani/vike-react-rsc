@@ -63,7 +63,6 @@ function NamedLoadCountSwitch({ names }: { names: [string, string] }) {
   );
 }
 
-// One rsc() component paged through names: of the outputs it no longer shows, the cache keeps the 50 read last
 function PagedLoadCount() {
   const [index, setIndex] = useState<number>();
   // What the input holds while it's edited, e.g. nothing: the page shown changes only for a number
@@ -74,13 +73,12 @@ function PagedLoadCount() {
       <label>
         Page index{" "}
         <input
-          data-page-index=""
           type="number"
           value={text}
           onChange={(event) => {
             const value = event.target.value;
             setText(value);
-            if (value !== "" && !Number.isNaN(Number(value))) setIndex(Number(value));
+            if (value !== "") setIndex(Number(value));
           }}
         />
       </label>
