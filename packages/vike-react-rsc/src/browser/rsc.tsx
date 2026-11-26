@@ -1,4 +1,4 @@
-import { Component, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Component, useEffect, useLayoutEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { usePageContext } from "../pageContext";
 import { getShared } from "../shared";
 import { markComponentLoad } from "./callKind";
@@ -47,8 +47,9 @@ export function rsc<Props extends object>(
     const staleTime = pageContext.config.rsc?.staleTime ?? 60_000;
     const generation = useSyncExternalStore(subscribeToStale, getGeneration, getGeneration);
     const drops = getDropsOf(pageContext);
+    const renderedAfter = state.drops;
     const cached = readOutput(key, staleTime, generation);
-    useShownKey(key);
+    useShownKey(key, cached?.output, renderedAfter);
     const [loaded, setLoaded] = useState<{ key: string; drops: number; node: ReactNode }>();
 
     // A server action loads it again, and the output stays until the new one arrives, so its client state survives
@@ -64,7 +65,7 @@ export function rsc<Props extends object>(
     }, [key, generation, drops]);
 
     // The cache first: another component may have loaded these props since, e.g. once an action ran
-    const node = cached ? cached.node : loaded?.key === key && loaded.drops === drops ? loaded.node : undefined;
+    const node = cached ? cached.output.node : loaded?.key === key && loaded.drops === drops ? loaded.node : undefined;
     if (node !== undefined) return <OutputBoundary>{node}</OutputBoundary>;
     const DefaultFallback = pageContext.config.Loading?.component;
     return fallback ?? (DefaultFallback && <DefaultFallback />);
@@ -73,19 +74,24 @@ export function rsc<Props extends object>(
 
 // The output a component shows until the next load arrives, even when out of date, and whether it loads again. None
 // with `staleTime: 0`, nor from before a redirect dropped the outputs. Never set during SSR: loads start in effects.
-function readOutput(key: string, staleTime: number, generation: number): { node: ReactNode; isFresh: boolean } | undefined {
+function readOutput(key: string, staleTime: number, generation: number): { output: Output; isFresh: boolean } | undefined {
   const outputs = getOutputs();
   const output = outputs.get(key);
   if (staleTime <= 0 || !output) return;
-  // Evicted last: the component that renders it marks its key shown only once its effects run
+  // Promote hits before the component's pin effect runs
   outputs.delete(key);
   outputs.set(key, output);
-  return { node: output.node, isFresh: output.generation === generation && Date.now() - output.loadedAt < staleTime };
+  return { output, isFresh: output.generation === generation && Date.now() - output.loadedAt < staleTime };
 }
 
-function useShownKey(key: string): void {
-  useEffect(() => {
+// Pins on commit, before a load that settles next can evict the output, and puts back one evicted while it rendered
+function useShownKey(key: string, renderedOutput: Output | undefined, renderedAfter: number): void {
+  useLayoutEffect(() => {
     shownKeys.set(key, (shownKeys.get(key) ?? 0) + 1);
+    if (renderedOutput && renderedAfter === state.drops) {
+      const outputs = getOutputs();
+      if (!outputs.has(key)) outputs.set(key, renderedOutput);
+    }
     return () => {
       const count = shownKeys.get(key)! - 1;
       if (count > 0) shownKeys.set(key, count);
