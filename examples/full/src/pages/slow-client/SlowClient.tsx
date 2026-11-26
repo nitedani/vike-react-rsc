@@ -1,7 +1,7 @@
 "use client";
 import { use } from "react";
 import { usePageContext } from "vike-react-rsc/pageContext";
-import { increment } from "../../serverCounts";
+import { increment, waitSlowly } from "../../serverCounts";
 
 // One wait per page render: React renders the component again once it's over
 const waits = new WeakMap<object, Promise<void>>();
@@ -10,7 +10,7 @@ const waits = new WeakMap<object, Promise<void>>();
 export function SlowClient() {
   const pageContext = usePageContext();
   let wait = waits.get(pageContext);
-  if (!wait) waits.set(pageContext, (wait = new Promise((resolve) => setTimeout(resolve, 1500))));
+  if (!wait) waits.set(pageContext, (wait = waitSlowly("slow-client", pageContext)));
   use(wait);
   return <Resolved />;
 }

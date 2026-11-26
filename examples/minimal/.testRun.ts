@@ -6,6 +6,11 @@ function testRun(cmd: `pnpm run ${"dev" | "preview"}`) {
     serverIsReadyMessage: (log) => log.includes("Local:") || log.includes("ready in"),
     // The preview command builds before it serves
     additionalTimeout: cmd === "pnpm run dev" ? 0 : 60000,
+    tolerateError: ({ logSource, logText }) =>
+      // Rolldown's report of how long the build's plugins took, which depends on the machine's speed
+      (cmd === "pnpm run preview" && logSource === "stderr" && logText.includes("[PLUGIN_TIMINGS]")) ||
+      // Vike's report that a hook took longer than its warning threshold, which depends on the machine's speed
+      logText.includes("is slow: it's taking more than"),
   });
 
   test("an app with no vite.config hydrates: the counter counts", async () => {
