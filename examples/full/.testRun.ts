@@ -1928,6 +1928,36 @@ function testRscCache() {
     expect(requests).to.have.length(2);
     await page.unroute("**/*");
   });
+
+  test("rsc(): of the outputs no component shows, the 50 read last stay cached", async () => {
+    await page.goto(getServerUrl() + "/suspense");
+    await waitForHydration("Page through named counts");
+    const requests = trackRscRequests();
+    await page.click('button:has-text("Page through named counts")');
+    const showPage = (index: number) => page.fill("[data-page-index]", String(index));
+    const readPage = () => page.textContent("[data-named-load-count]");
+    for (let index = 0; index <= 51; index++) {
+      if (index > 0) await showPage(index);
+      await autoRetry(async () => {
+        expect(await readPage()).to.include(`Page ${index},`);
+      });
+    }
+    expect(requests).to.have.length(52);
+
+    // Page 51 shows, and pages 1 to 50 stay cached: page 1 renders at once, without a request
+    await showPage(1);
+    expect(await page.locator("[data-loading-component]").count()).to.equal(0);
+    expect(await readPage()).to.include("Page 1,");
+    expect(requests).to.have.length(52);
+
+    // Page 0 was evicted: it shows Loading.component until it loads again
+    await showPage(0);
+    expect(await page.locator("[data-loading-component]").count()).to.equal(1);
+    await autoRetry(async () => {
+      expect(await readPage()).to.include("Page 0,");
+    });
+    expect(requests).to.have.length(53);
+  });
 }
 
 function testRscCacheInvalidation() {

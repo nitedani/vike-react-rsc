@@ -17,6 +17,7 @@ export function LoadCountClient() {
       <button onClick={() => setShown(!shown)}>{shown ? "Hide" : "Show"} server counts</button>
       <RunServerAction />
       <NamedLoadCounts />
+      <PagedLoadCount />
       {shown && (
         <>
           <LoadCountRsc />
@@ -58,6 +59,18 @@ function NamedLoadCountSwitch({ names }: { names: [string, string] }) {
       <button data-switch={names[0]} onClick={() => setIndex(1 - index)}>
         Switch the name
       </button>
+    </div>
+  );
+}
+
+// One rsc() component paged through names: of the outputs it no longer shows, the cache keeps the 50 read last
+function PagedLoadCount() {
+  const [index, setIndex] = useState<number>();
+  if (index === undefined) return <button onClick={() => setIndex(0)}>Page through named counts</button>;
+  return (
+    <div>
+      <input data-page-index="" type="number" value={index} onChange={(event) => setIndex(Number(event.target.value))} />
+      <NamedLoadCountRsc name={`Page ${index}`} />
     </div>
   );
 }
