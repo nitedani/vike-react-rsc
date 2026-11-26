@@ -3,9 +3,9 @@ import { usePageContext } from "../pageContext";
 import { getShared } from "../shared";
 import { markComponentLoad } from "./callKind";
 
-type Output = { node: ReactNode; generation: number; drops: number; loadedAt: number };
+type Output = { node: ReactNode; generation: number; loadedAt: number };
 
-// Per copy of this package, as the ids in their keys are
+// Not shared with other copies of this package: the keys hold ids from this copy's serverComponentIds and objectIds
 const outputs = new Map<string, Output>();
 // One load per key and generation at a time, shared by every component that renders it
 const loads = new Map<string, Promise<ReactNode | undefined>>();
@@ -27,6 +27,8 @@ const state = getShared("rsc", () => ({
   // What rsc() outputs threw: AbortBoundary tells them from what a server action's answer sent
   thrownByOutputs: new WeakSet<object>(),
 }));
+// The drops the outputs were loaded after
+let outputsDrops = state.drops;
 
 /** Makes a client component that loads the server component from the server, and shows `fallback`, or Loading.component, until it loads */
 export function rsc<Props extends object>(
@@ -48,7 +50,7 @@ export function rsc<Props extends object>(
     useEffect(() => {
       if (cached?.isFresh) return;
       let isLatest = true;
-      void load(key, () => serverComponent(markComponentLoad(props as Props))).then((node) => {
+      void load(key, () => serverComponent(markComponentLoad(props as Props)), staleTime).then((node) => {
         if (node !== undefined && isLatest) setLoaded({ key, drops, node });
       });
       return () => {
@@ -67,8 +69,8 @@ export function rsc<Props extends object>(
 // The output a component shows until the next load arrives, even when out of date, and whether it loads again. None
 // with `staleTime: 0`, nor from before a redirect dropped the outputs. Never set during SSR: loads start in effects.
 function readOutput(key: string, staleTime: number, generation: number): { node: ReactNode; isFresh: boolean } | undefined {
-  const output = outputs.get(key);
-  if (staleTime <= 0 || output?.drops !== state.drops) return;
+  const output = getOutputs().get(key);
+  if (staleTime <= 0 || !output) return;
   return { node: output.node, isFresh: output.generation === generation && Date.now() - output.loadedAt < staleTime };
 }
 
@@ -139,8 +141,17 @@ export function dropRscOutputs(): void {
   state.drops++;
 }
 
+// A redirect in any copy of this package frees the outputs from before it
+function getOutputs(): Map<string, Output> {
+  if (outputsDrops !== state.drops) {
+    outputs.clear();
+    outputsDrops = state.drops;
+  }
+  return outputs;
+}
+
 // Resolves to undefined when the load fails: the fallback, or the last output, stays
-function load(key: string, call: () => Promise<ReactNode>): Promise<ReactNode | undefined> {
+function load(key: string, call: () => Promise<ReactNode>, staleTime: number): Promise<ReactNode | undefined> {
   const startedAfter = state.drops;
   // An action that runs while this loads may change what it shows
   const startedIn = state.generation;
@@ -151,8 +162,8 @@ function load(key: string, call: () => Promise<ReactNode>): Promise<ReactNode | 
     .then(
       (node) => {
         // Keeps an output loaded after a later action: this one may not show what that action changed
-        const isOutdated = (outputs.get(key)?.generation ?? startedIn) > startedIn;
-        if (node !== undefined && startedAfter === state.drops && !isOutdated) outputs.set(key, { node, generation: startedIn, drops: startedAfter, loadedAt: Date.now() });
+        const isOutdated = (getOutputs().get(key)?.generation ?? startedIn) > startedIn;
+        if (staleTime > 0 && node !== undefined && startedAfter === state.drops && !isOutdated) getOutputs().set(key, { node, generation: startedIn, loadedAt: Date.now() });
         return node;
       },
       (error: unknown) => {
