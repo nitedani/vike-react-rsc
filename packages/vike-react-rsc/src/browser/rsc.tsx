@@ -31,7 +31,6 @@ const state = getShared("rsc", () => ({
   // What rsc() outputs threw: AbortBoundary tells them from what a server action's answer sent
   thrownByOutputs: new WeakSet<object>(),
 }));
-// The drops the outputs were loaded after
 let outputsDrops = state.drops;
 
 /** Makes a client component that loads the server component from the server, and shows `fallback`, or Loading.component, until it loads */
@@ -167,7 +166,7 @@ export function dropRscOutputs(): void {
   state.drops++;
 }
 
-// A redirect in any copy of this package frees the outputs from before it
+// Clear this copy's outputs on its first cache access after a redirect
 function getOutputs(): Map<string, Output> {
   if (outputsDrops !== state.drops) {
     outputs.clear();
@@ -196,7 +195,7 @@ function load(key: string, call: () => Promise<ReactNode>, staleTime: number): P
   const loading = call()
     .then(
       (node) => {
-        // An action or redirect ran while this loaded: the output may not show what changed
+        // A replacement may already be evicted when this response arrives
         if (staleTime > 0 && node !== undefined && startedAfter === state.drops && startedIn === state.generation) {
           store(key, { node, generation: startedIn, loadedAt: Date.now() });
         }
