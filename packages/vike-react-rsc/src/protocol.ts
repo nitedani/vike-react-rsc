@@ -6,7 +6,7 @@
 
 export const ACTION_HEADER = "x-rsc-action";
 export const REDIRECT_HEADER = "x-rsc-redirect";
-// Sent by rsc(): the server components it loads read the page's pageContext, so guard() and data() run for them
+// Sent by rsc(): guard() and data() run, so the server components it returns read the page; the function it calls has only the request
 export const RSC_LOAD_HEADER = "x-rsc-load";
 // The server has no action with the called id, e.g. after a deploy: the browser reloads
 export const UNKNOWN_ACTION_HEADER = "x-rsc-unknown-action";

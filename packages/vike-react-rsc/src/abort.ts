@@ -12,10 +12,9 @@ export type Abort =
   | { rewrite: `/${string}`; reason?: unknown }
   | { statusCode: StatusCode; reason?: unknown };
 
-/** The rsc env: the digest of a Vike abort, else undefined */
-export function getAbortDigest(error: unknown): string | undefined {
-  const abort = readVikeAbort(error);
-  return abort && DIGEST_PREFIX + serialize(abort);
+/** The rsc env: the digest that carries `abort` across the Flight */
+export function getAbortDigest(abort: Abort): string {
+  return DIGEST_PREFIX + serialize(abort);
 }
 
 /** The ssr env and the browser: what an error decoded from the Flight asks for, if it's a Vike abort */
@@ -42,21 +41,3 @@ function serialize(abort: Abort): string {
     return stringify({ ...abort, reason: undefined });
   }
 }
-
-// TODO: use AbortError from vike/abort once it exists: https://github.com/vikejs/vike/issues/1707#issuecomment-6231396862
-function readVikeAbort(error: unknown): Abort | undefined {
-  if (typeof error !== "object" || error === null) return;
-  if (!("_isAbortError" in error && "_pageContextAbort" in error)) return;
-  const { _urlRedirect, _urlRewrite, abortStatusCode, abortReason } = (error as VikeAbortError)._pageContextAbort;
-  if (_urlRedirect) return { redirect: { url: _urlRedirect.url, statusCode: _urlRedirect.statusCode } };
-  if (_urlRewrite) return { rewrite: _urlRewrite, reason: abortReason };
-  return { statusCode: abortStatusCode!, reason: abortReason };
-}
-type VikeAbortError = {
-  _pageContextAbort: {
-    _urlRedirect?: { url: string; statusCode: 301 | 302 };
-    _urlRewrite?: `/${string}`;
-    abortStatusCode?: StatusCode;
-    abortReason?: unknown;
-  };
-};

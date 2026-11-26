@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePageContext } from "vike-react-rsc/pageContext";
-import { renderAgain } from "../../actions/renderAgain";
+import { rerenderPage } from "../../actions/rerenderPage";
 
 export const Page = () => {
   useState(0);
@@ -12,7 +12,7 @@ export const Page = () => {
       <div>Client Component</div>
       <p data-url-pathname="">{urlPathname}</p>
       <p data-visitor="">{visitor ?? "none"}</p>
-      <button onClick={() => renderAgain()}>Render again</button>
+      <button onClick={() => rerenderPage()}>Render again</button>
     </>
   );
 };

@@ -25,3 +25,12 @@ function PageContextError() {
 export async function returnPageContextError() {
   return <PageContextError />;
 }
+
+function BoundPagePath({ name }: { name: string }) {
+  return <p data-rsc-bound="">{name}: {getPageContext().urlPathname}</p>;
+}
+
+// Loaded with rsc() once bound to a name, on the server or in the browser: the server component it returns reads the page that loads it
+export async function BoundPagePathComponent(name: string, _props: object) {
+  return <BoundPagePath name={name} />;
+}

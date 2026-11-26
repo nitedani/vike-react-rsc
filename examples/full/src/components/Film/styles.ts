@@ -65,19 +65,6 @@ export const filmStyles = {
     color: '#0070f3'
   },
 
-  // Card description
-  cardDescription: {
-    color: '#666',
-    lineHeight: 1.6,
-    fontSize: '0.95rem',
-    flex: 1,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    display: '-webkit-box',
-    WebkitLineClamp: 4,
-    WebkitBoxOrient: 'vertical'
-  },
-
   // Card button container
   cardButtonContainer: {
     marginTop: 'auto',
@@ -179,16 +166,6 @@ export const filmStyles = {
     borderBottom: '2px solid #0070f3',
     paddingBottom: '0.75rem',
     textAlign: 'center'
-  },
-
-  infoGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '1.5rem',
-    marginBottom: '2rem',
-    '@media (max-width: 768px)': {
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))'
-    }
   },
 
   infoItem: {
@@ -312,14 +289,6 @@ export const filmStyles = {
     flexDirection: 'column',
     position: 'relative',
     height: '100%'
-  },
-
-  skeletonInfoItem: {
-    height: '50px',
-    backgroundColor: '#f5f5f5',
-    borderRadius: '4px',
-    marginBottom: '1rem',
-    width: '60%'
   },
 
   skeletonContent: {

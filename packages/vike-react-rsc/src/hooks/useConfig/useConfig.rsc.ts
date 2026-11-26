@@ -1,6 +1,6 @@
 // vike-react-rsc/useConfig in the rsc env, e.g. imported by a server component
 import type { PageContextServer } from "vike/types";
-import { readHtmlPageContext } from "../../rsc/scope";
+import { readUnforkedPageContext } from "../../rsc/scope";
 import type { ConfigViaHook } from "../../types/Config";
 import type { PageContextInternal } from "../../types/PageContext";
 import { setPageContextConfigViaHook } from "./setPageContextConfigViaHook";
@@ -8,7 +8,7 @@ import { setPageContextConfigViaHook } from "./setPageContextConfigViaHook";
 const loggedCallSites = new Set<string | undefined>();
 
 export function useConfig(): (config: ConfigViaHook) => void {
-  const pageContext = readHtmlPageContext("useConfig()") as PageContextServer & PageContextInternal;
+  const pageContext = readUnforkedPageContext("useConfig()") as PageContextServer & PageContextInternal;
   return (config: ConfigViaHook) => {
     // The call renders nothing, so its values never reach the browser: a client navigation keeps the previous page's title
     logOnce(new Error(`[vike-react-rsc] useConfig() in a server component only sets the HTML <head> of a full page load. Render <Config ${Object.keys(config).map((name) => `${name}={…}`).join(" ")} /> (vike-react-rsc/Config) instead, or start this file with "use client".`));

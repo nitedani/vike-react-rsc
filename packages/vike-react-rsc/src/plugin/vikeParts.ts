@@ -1,10 +1,10 @@
 import path from "node:path";
 import { getVikeConfig } from "vike/plugin";
-import { componentConfigNames } from "../rendersFlight";
+import { componentConfigNames } from "../serverComponentFlags";
 
 const PAGE_ENTRY = "\0virtual:vike:page-entry:";
-// vike-react-rsc's own server hook, as its config imports it
-const OWN_SERVER_HOOK = "vike-react-rsc/__internal/ssr";
+/** The file of vike-react-rsc's own server hooks, as its config imports it */
+export const OWN_SERVER_HOOK = "vike-react-rsc/__internal/ssr";
 
 /** Each import Vike loads a Page, Layout, Wrapper or Loading from, the same array until Vike replaces its page configs on a change.
  * Vike's public config names a value's file only as a display string, so this reads its internal page configs */
@@ -46,7 +46,7 @@ function asServerOnly(source: ConfigValueSource): ConfigValueSource {
 
 /** Sets whether a client navigation to the page asks the server for its pageContext */
 export function setNeedsPageContextRequest(pageConfig: PageConfig, needsRequest: boolean): void {
-  // TODO: replace with a public per-page setter in Vike: https://github.com/vikejs/vike/issues/3730. Vike makes the request for a page with a server-only hook, and an extension can't say which of its pages need its own hook
+  // TODO: replace with a public per-page setter in Vike: https://github.com/vikejs/vike/issues/3736. Vike makes the request for a page with a server-only hook, and an extension can't say which of its pages need its own hook
   const computed = pageConfig.configValuesComputed.hasServerOnlyHook;
   if (computed) computed.value = needsRequest;
 }

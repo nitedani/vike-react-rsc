@@ -96,18 +96,6 @@ export const sharedStyles = {
     }
   },
 
-  // Feature icon container
-  featureIconContainer: {
-    width: '50px',
-    height: '50px',
-    borderRadius: '10px',
-    backgroundColor: 'rgba(0, 112, 243, 0.1)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '0 auto 1rem'
-  },
-
   // Feature number
   featureNumber: {
     width: '50px',

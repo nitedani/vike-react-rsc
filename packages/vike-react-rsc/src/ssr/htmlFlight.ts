@@ -3,8 +3,9 @@ import type { PageContextServer } from "vike/types";
 import type { PagePayload } from "../rsc/runtime";
 import type { ClientDeps } from "./clientDeps";
 
-/** Runs `render`, which gets an AbortController to abort once the HTML has rendered, or once nobody will read it. Aborting
- * stops React's HTML render and the copy of the Flight that the HTML reads. Once the client leaves, Vike sends no HTML. */
+/** Runs `render` with the AbortController of the HTML render: renderRootToHtml() aborts it once the HTML has rendered or
+ * timed out, and this function once the client leaves or nobody will read the HTML. Aborting stops React's HTML render
+ * and the copy of the Flight that the HTML reads. Once the client leaves, Vike sends no HTML. */
 export async function renderUntilClientLeaves<T>(pageContext: PageContextServer, render: (htmlRender: AbortController) => Promise<T>): Promise<T | undefined> {
   const htmlRender = new AbortController();
   // Vike cancels the HTML once the client leaves, which stops the Flight too, but only after onRenderHtml() has returned

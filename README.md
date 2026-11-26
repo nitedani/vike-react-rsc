@@ -116,6 +116,7 @@ export default function Page() {
 > Any browser can call an action, and `guard()` doesn't protect it: check authorization in the action.
 
 A request body over 1 MB gets a 413: raise the limit with `rsc: { bodySizeLimit: 10_000_000 }` (bytes) in `pages/+config.ts`.
+There is one exception, before the page's JavaScript loads. If a form over the limit is sent with a `<button formAction={action}>`, the action doesn't run and the request gets no 413. The page just loads again.
 Under `@vikejs/express`, a raised limit makes a plain `multipart/form-data` form over 1 MB, posted to your own route, arrive empty
 ([details](https://github.com/magne4000/universal-middleware/issues/463)).
 
@@ -273,7 +274,7 @@ Boundaries only run in the browser, so to catch a throw on a first load, put a `
 - Vike's built-in server, which needs no setup, or your own, e.g. Hono or Express: see [`+server`](https://vike.dev/server).
   [`vike-photon`](https://github.com/vikejs/vike-photon) isn't supported, as it's [deprecated](https://vike.dev/blog/universal-deploy).
   On [Cloudflare](https://vike.dev/cloudflare), the rsc environment runs in the same Worker: `cloudflare({ viteEnvironment: { name: "ssr", childEnvironments: ["rsc"] } })` in `vite.config.ts`.
-  `vike dev` there needs the next Vike release.
+  `vike dev` there needs the next Vike release, with [vikejs/vike#3729](https://github.com/vikejs/vike/pull/3729).
 
 The goal is feature parity with `vike-react`: [open an issue](https://github.com/nitedani/vike-react-rsc/issues) for anything that works worse here.
 

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { renderToStream, type RenderToStreamOptions } from "react-streaming/server";
 import type { PageContextServer } from "vike/types";
 import { getAbort, toVikeAbort, type Abort } from "../abort";
-import type { StreamSetting } from "../integration/onRenderHtml";
+import type { ResolvedStreamSetting } from "../integration/onRenderHtml";
 import { resolveReactOptions } from "../integration/resolveReactOptions";
 import { REDIRECT_META_ATTRIBUTE } from "../protocol";
 import { isHttpUrl } from "../redirect";
@@ -16,7 +16,7 @@ export async function renderRootToHtml(
   pageContext: PageContextServer,
   deps: ClientDeps,
   htmlRender: AbortController,
-  streamSetting: StreamSetting,
+  streamSetting: ResolvedStreamSetting,
   formState: ReactFormState | undefined
 ): Promise<void> {
   const { renderToStringOptions, renderToStreamOptions } = resolveReactOptions(pageContext);
@@ -41,8 +41,9 @@ export async function renderRootToHtml(
   // A server component may `throw redirect()` or `throw render()`. Until this function returns, Vike can still answer
   // it. After that, the HTML has started, so only tags we inject into the stream can tell the browser.
   let boundaryAbort: unknown;
+  let injectToStream: ((html: string) => void) | undefined;
   const onAbort = (error: unknown, abort: Abort) => {
-    if (deps.injectToStream) deps.injectToStream(renderAbortMeta(abort));
+    if (injectToStream) injectToStream(renderAbortMeta(abort));
     else boundaryAbort ??= error;
   };
   try {
@@ -67,10 +68,11 @@ export async function renderRootToHtml(
       // react-streaming renders the page whole on a page without +stream, for a crawler, when pre-rendering, and with
       // { require: true, enable: false }. It reports a Suspense boundary's abort a macrotask late, and Vike can answer
       // it only until this function returns. So we wait for a Web stream's end, or, as a Node.js stream ends only once
-      // Vike pipes it, for the next macrotask.
+      // Vike pipes it, for the next macrotask: setImmediate() is Node.js's, and a Worker always gets a Web stream.
       if (stream.disabled) await (stream.readable ? stream.streamEnd : new Promise((resolve) => setImmediate(resolve)));
       void stream.streamEnd.then(() => htmlRender.abort());
-      deps.injectToStream = stream.injectToStream;
+      injectToStream = stream.injectToStream;
+      deps.streamLinks(stream.injectToStream);
       // A string, as vike-react's renderToString() gives +onAfterRenderHtml
       if (rendersToString) pageContext.pageHtmlString = await new Response(stream.readable).text();
       // A Web stream rendered whole has ended, so injecting into it would throw. +onAfterRenderHtml gets a new stream

@@ -1,5 +1,6 @@
 import { getPluginApi } from "@vitejs/plugin-rsc";
 import type { Plugin, Rollup } from "vite";
+import { getClientReferenceGroup, getRscBundle } from "./pluginRscParts";
 import { getRscPageEntry } from "./vikeParts";
 
 /** Vike preloads the fonts it finds in a page's client entry. A server component's fonts are only in the rsc build's chunks, and a client
@@ -15,8 +16,8 @@ export function pageAssets(): Plugin {
         if (clientEntry.type !== "chunk") continue;
         const rscPageEntry = getRscPageEntry(clientEntry.facadeModuleId);
         if (!rscPageEntry) continue;
-        const rscChunks = getStaticChunks(manager.bundles.rsc!, rscPageEntry);
-        const referenceGroups = new Set(rscChunks.flatMap(({ moduleIds }) => moduleIds.flatMap((id) => manager.clientReferenceMetaMap[id]?.groupChunkId ?? [])));
+        const rscChunks = getStaticChunks(getRscBundle(manager), rscPageEntry);
+        const referenceGroups = new Set(rscChunks.flatMap(({ moduleIds }) => moduleIds.flatMap((id) => getClientReferenceGroup(manager, id) ?? [])));
         const clientChunks = [...referenceGroups].flatMap((group) => getStaticChunks(clientBundle, group));
         for (const chunk of [...rscChunks, ...clientChunks]) {
           for (const asset of chunk.viteMetadata?.importedAssets ?? []) clientEntry.viteMetadata!.importedAssets.add(asset);

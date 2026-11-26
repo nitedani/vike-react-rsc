@@ -6,7 +6,7 @@ import { configsClientSide } from "../hooks/useConfig/configsClientSide";
 import { PageContextProvider } from "../pageContext";
 import { FLIGHT_CONTENT_TYPE } from "../protocol";
 import { collectClientDeps, renderClientLinks, type ClientDeps } from "../ssr/clientDeps";
-import { decodeFlight, renderUntilClientLeaves } from "../ssr/decodeFlight";
+import { decodeFlight, renderUntilClientLeaves } from "../ssr/htmlFlight";
 import { renderRootToHtml } from "../ssr/renderRootToHtml";
 import type { HeadValue } from "../types/Config";
 import type { PageContextInternal } from "../types/PageContext";
@@ -24,7 +24,7 @@ addEcosystemStamp();
 export const onRenderHtml: OnRenderHtmlAsync = async (pageContext) => {
   // A server action: the answer is Flight, and the middleware (ssr/action.ts) sends it
   const call = pageContext.rscAction;
-  if (call && !call.isForm) {
+  if (call?.answersWithFlight) {
     pageContext.content = call.renderAnswer(pageContext);
     pageContext.headersResponse.set("content-type", FLIGHT_CONTENT_TYPE);
     return;
@@ -87,7 +87,7 @@ async function buildDocument(pageContext: PageContextServer & PageContextInterna
 async function renderPageToHtml(pageContext: PageContextServer, deps: ClientDeps, htmlRender: AbortController): Promise<void> {
   // Before any HTML hook runs, so that server components see pageContext's keys as on a client navigation, where no HTML
   // hook runs
-  // TODO: remove once server components get their own pageContext: https://github.com/nitedani/vike-react-rsc/issues/30
+  // TODO: remove once server components get their own pageContext: https://github.com/nitedani/vike-react-rsc/issues/48
   forkPageContext(pageContext);
   // Under ssr: false the HTML has no page: the browser renders it, from the Flight if it has one
   const ssr = pageContext.config.ssr !== false;
@@ -220,9 +220,9 @@ async function getHtmlInjections(pageContext: PageContextServer) {
 }
 
 // As vike-react's resolveStreamSetting(). The HTML stream is a Web stream unless +stream asks for a Node.js one.
-export type StreamSetting = { type: "node" | "web"; enable: boolean | null; require: boolean };
-function resolveStreamSetting(pageContext: PageContextServer): StreamSetting {
-  const streamSetting: StreamSetting = { type: "web", enable: null, require: false };
+export type ResolvedStreamSetting = { type: "node" | "web"; enable: boolean | null; require: boolean };
+function resolveStreamSetting(pageContext: PageContextServer): ResolvedStreamSetting {
+  const streamSetting: ResolvedStreamSetting = { type: "web", enable: null, require: false };
   pageContext.config.stream
     ?.slice()
     .reverse()
