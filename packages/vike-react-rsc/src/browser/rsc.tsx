@@ -1,4 +1,4 @@
-import { Component, useEffect, useLayoutEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Component, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { usePageContext } from "../pageContext";
 import { getShared } from "../shared";
 import { markComponentLoad } from "./callKind";
@@ -83,9 +83,9 @@ function readOutput(key: string, staleTime: number, generation: number): { outpu
   return { output, isFresh: output.generation === generation && Date.now() - output.loadedAt < staleTime };
 }
 
-// Pins on commit, before a load that settles next can evict the output, and puts back one evicted while it rendered
+// Pins the key while mounted, hidden by Suspense too, and puts back the output it rendered if a load evicted it first
 function useShownKey(key: string, renderedOutput: Output | undefined, renderedAfter: number): void {
-  useLayoutEffect(() => {
+  useEffect(() => {
     shownKeys.set(key, (shownKeys.get(key) ?? 0) + 1);
     if (renderedOutput && renderedAfter === state.drops) {
       const outputs = getOutputs();
