@@ -83,7 +83,7 @@ function readOutput(key: string, staleTime: number, generation: number): { outpu
   return { output, isFresh: output.generation === generation && Date.now() - output.loadedAt < staleTime };
 }
 
-// Pins the key while mounted, hidden by Suspense too, and puts back the output it rendered if a load evicted it first
+// Pins the key while mounted, hidden by Suspense too, and puts back the output it rendered if it was evicted since
 function useShownKey(key: string, renderedOutput: Output | undefined, renderedAfter: number): void {
   useEffect(() => {
     shownKeys.set(key, (shownKeys.get(key) ?? 0) + 1);
@@ -94,7 +94,10 @@ function useShownKey(key: string, renderedOutput: Output | undefined, renderedAf
     return () => {
       const count = shownKeys.get(key)! - 1;
       if (count > 0) shownKeys.set(key, count);
-      else shownKeys.delete(key);
+      else {
+        shownKeys.delete(key);
+        trimUnshown(getOutputs());
+      }
     };
   }, [key]);
 }
@@ -175,13 +178,25 @@ function getOutputs(): Map<string, Output> {
   return outputs;
 }
 
-// Caches the output as the one read last, then evicts the unshown outputs read first, past MAX_UNSHOWN
+// Caches the output as the one read last
 function store(key: string, output: Output): void {
   const outputs = getOutputs();
   outputs.delete(key);
   outputs.set(key, output);
-  const unshown = [...outputs.keys()].filter((outputKey) => !shownKeys.has(outputKey));
-  for (const evicted of unshown.slice(0, -MAX_UNSHOWN)) outputs.delete(evicted);
+  trimUnshown(outputs);
+}
+
+// Evicts the unshown outputs read first, past MAX_UNSHOWN
+function trimUnshown(outputs: Map<string, Output>): void {
+  if (outputs.size <= MAX_UNSHOWN) return;
+  let excess = -MAX_UNSHOWN;
+  for (const key of outputs.keys()) if (!shownKeys.has(key)) excess++;
+  if (excess <= 0) return;
+  for (const key of outputs.keys()) {
+    if (shownKeys.has(key)) continue;
+    outputs.delete(key);
+    if (--excess === 0) break;
+  }
 }
 
 // Resolves to undefined when the load fails: the fallback, or the last output, stays
