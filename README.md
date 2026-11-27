@@ -153,7 +153,7 @@ export function ShowDetails() {
 ```
 
 Props go to the server component. `fallback` shows until it loads, and without one, your [`+Loading`](https://vike.dev/Loading) shows.
-The browser keeps the result fresh for `rsc: { staleTime }` ms (default 60 000) or until an action runs, and may evict unmounted results sooner.
+The browser reuses the result for up to `rsc: { staleTime }` ms (default 60 000), or until an action runs. Unmounted results may be evicted sooner.
 Any browser can call it too: check authorization in it.
 
 ## `getPageContext()` and `getRequestContext()`
