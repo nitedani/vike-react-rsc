@@ -17,6 +17,7 @@ export function LoadCountClient() {
       <button onClick={() => setShown(!shown)}>{shown ? "Hide" : "Show"} server counts</button>
       <RunServerAction />
       <NamedLoadCounts />
+      <PagedLoadCount />
       {shown && (
         <>
           <LoadCountRsc />
@@ -58,6 +59,30 @@ function NamedLoadCountSwitch({ names }: { names: [string, string] }) {
       <button data-switch={names[0]} onClick={() => setIndex(1 - index)}>
         Switch the name
       </button>
+    </div>
+  );
+}
+
+function PagedLoadCount() {
+  const [index, setIndex] = useState<number>();
+  // What the input holds while it's edited, e.g. nothing: the page shown changes only for a number
+  const [text, setText] = useState("0");
+  if (index === undefined) return <button onClick={() => setIndex(0)}>Page through named counts</button>;
+  return (
+    <div>
+      <label>
+        Page index{" "}
+        <input
+          type="number"
+          value={text}
+          onChange={(event) => {
+            const value = event.target.value;
+            setText(value);
+            if (value !== "") setIndex(Number(value));
+          }}
+        />
+      </label>
+      <NamedLoadCountRsc name={`Page ${index}`} />
     </div>
   );
 }

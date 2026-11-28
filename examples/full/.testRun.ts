@@ -1928,6 +1928,54 @@ function testRscCache() {
     expect(requests).to.have.length(2);
     await page.unroute("**/*");
   });
+
+  test("rsc(): of the outputs no component shows, the 50 read last stay cached", async () => {
+    await page.goto(getServerUrl() + "/suspense");
+    await waitForHydration("Page through named counts");
+    // Every output stays fresh: the test above covers rsc.staleTime
+    await page.clock.setFixedTime(Date.now());
+    try {
+      const requests = trackRscRequests();
+      await page.click('button:has-text("Page through named counts")');
+      const input = page.getByRole("spinbutton", { name: "Page index" });
+      const showPage = async (index: number) => {
+        await input.fill(String(index));
+        await autoRetry(async () => {
+          expect(await page.textContent("[data-named-load-count]")).to.include(`Page ${index},`);
+        });
+      };
+      for (let index = 0; index <= 50; index++) await showPage(index);
+      expect(requests).to.have.length(51);
+
+      // Page 0 renders from the cache, which makes it the one read last
+      await showPage(0);
+      expect(await page.locator("[data-loading-component]").count()).to.equal(0);
+      expect(requests).to.have.length(51);
+
+      // Page 51 evicts page 1, the one read first, and page 0 stays cached
+      await showPage(51);
+      await showPage(0);
+      expect(await page.locator("[data-loading-component]").count()).to.equal(0);
+      expect(requests).to.have.length(52);
+
+      // Page 1 shows Loading.component until it loads again
+      const release = await holdRscLoads();
+      try {
+        await input.fill("1");
+        await autoRetry(async () => {
+          expect(await page.locator("[data-loading-component]").count()).to.equal(1);
+        });
+      } finally {
+        release();
+      }
+      await showPage(1);
+      expect(requests).to.have.length(53);
+      await page.unroute("**/*");
+    } finally {
+      // Playwright keeps the fixed time for the pages that later tests load
+      await page.clock.setSystemTime(Date.now());
+    }
+  });
 }
 
 function testRscCacheInvalidation() {

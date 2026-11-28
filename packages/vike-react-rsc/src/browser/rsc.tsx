@@ -3,10 +3,14 @@ import { usePageContext } from "../pageContext";
 import { getShared } from "../shared";
 import { markComponentLoad } from "./callKind";
 
-type Output = { node: ReactNode; generation: number; drops: number; loadedAt: number };
+type Output = { node: ReactNode; generation: number; loadedAt: number };
 
-// Per copy of this package, as the ids in their keys are
+// Not shared with other copies of this package: the keys hold ids from this copy's serverComponentIds and objectIds
 const outputs = new Map<string, Output>();
+// How many outputs no mounted component shows stay cached: the ones read last
+const MAX_UNSHOWN = 50;
+// How many mounted components show each key: the cache keeps their outputs
+const shownKeys = new Map<string, number>();
 // One load per key and generation at a time, shared by every component that renders it
 const loads = new Map<string, Promise<ReactNode | undefined>>();
 // Production builds name every server function "action", so the key tells them apart by identity
@@ -27,6 +31,7 @@ const state = getShared("rsc", () => ({
   // What rsc() outputs threw: AbortBoundary tells them from what a server action's answer sent
   thrownByOutputs: new WeakSet<object>(),
 }));
+let outputsDrops = state.drops;
 
 /** Makes a client component that loads the server component from the server, and shows `fallback`, or Loading.component, until it loads */
 export function rsc<Props extends object>(
@@ -41,14 +46,16 @@ export function rsc<Props extends object>(
     const staleTime = pageContext.config.rsc?.staleTime ?? 60_000;
     const generation = useSyncExternalStore(subscribeToStale, getGeneration, getGeneration);
     const drops = getDropsOf(pageContext);
+    const renderedAfter = state.drops;
     const cached = readOutput(key, staleTime, generation);
+    useShownKey(key, cached?.output, renderedAfter);
     const [loaded, setLoaded] = useState<{ key: string; drops: number; node: ReactNode }>();
 
     // A server action loads it again, and the output stays until the new one arrives, so its client state survives
     useEffect(() => {
       if (cached?.isFresh) return;
       let isLatest = true;
-      void load(key, () => serverComponent(markComponentLoad(props as Props))).then((node) => {
+      void load(key, () => serverComponent(markComponentLoad(props as Props)), staleTime).then((node) => {
         if (node !== undefined && isLatest) setLoaded({ key, drops, node });
       });
       return () => {
@@ -57,7 +64,7 @@ export function rsc<Props extends object>(
     }, [key, generation, drops]);
 
     // The cache first: another component may have loaded these props since, e.g. once an action ran
-    const node = cached ? cached.node : loaded?.key === key && loaded.drops === drops ? loaded.node : undefined;
+    const node = cached ? cached.output.node : loaded?.key === key && loaded.drops === drops ? loaded.node : undefined;
     if (node !== undefined) return <OutputBoundary>{node}</OutputBoundary>;
     const DefaultFallback = pageContext.config.Loading?.component;
     return fallback ?? (DefaultFallback && <DefaultFallback />);
@@ -66,10 +73,33 @@ export function rsc<Props extends object>(
 
 // The output a component shows until the next load arrives, even when out of date, and whether it loads again. None
 // with `staleTime: 0`, nor from before a redirect dropped the outputs. Never set during SSR: loads start in effects.
-function readOutput(key: string, staleTime: number, generation: number): { node: ReactNode; isFresh: boolean } | undefined {
+function readOutput(key: string, staleTime: number, generation: number): { output: Output; isFresh: boolean } | undefined {
+  const outputs = getOutputs();
   const output = outputs.get(key);
-  if (staleTime <= 0 || output?.drops !== state.drops) return;
-  return { node: output.node, isFresh: output.generation === generation && Date.now() - output.loadedAt < staleTime };
+  if (staleTime <= 0 || !output) return;
+  // Promote hits before the component's pin effect runs
+  outputs.delete(key);
+  outputs.set(key, output);
+  return { output, isFresh: output.generation === generation && Date.now() - output.loadedAt < staleTime };
+}
+
+// Pins the key while mounted, hidden by Suspense too, and puts back the output it rendered if it was evicted since
+function useShownKey(key: string, renderedOutput: Output | undefined, renderedAfter: number): void {
+  useEffect(() => {
+    shownKeys.set(key, (shownKeys.get(key) ?? 0) + 1);
+    if (renderedOutput && renderedAfter === state.drops) {
+      const outputs = getOutputs();
+      if (!outputs.has(key)) outputs.set(key, renderedOutput);
+    }
+    return () => {
+      const count = shownKeys.get(key)! - 1;
+      if (count > 0) shownKeys.set(key, count);
+      else {
+        shownKeys.delete(key);
+        trimUnshown(getOutputs());
+      }
+    };
+  }, [key]);
 }
 
 // The page a redirect leads to shows no output from before it, and a component that a layout keeps loads again there. The
@@ -139,8 +169,38 @@ export function dropRscOutputs(): void {
   state.drops++;
 }
 
+// Clear this copy's outputs on its first cache access after a redirect
+function getOutputs(): Map<string, Output> {
+  if (outputsDrops !== state.drops) {
+    outputs.clear();
+    outputsDrops = state.drops;
+  }
+  return outputs;
+}
+
+// Caches the output as the one read last
+function store(key: string, output: Output): void {
+  const outputs = getOutputs();
+  outputs.delete(key);
+  outputs.set(key, output);
+  trimUnshown(outputs);
+}
+
+// Evicts the unshown outputs read first, past MAX_UNSHOWN
+function trimUnshown(outputs: Map<string, Output>): void {
+  if (outputs.size <= MAX_UNSHOWN) return;
+  let excess = -MAX_UNSHOWN;
+  for (const key of outputs.keys()) if (!shownKeys.has(key)) excess++;
+  if (excess <= 0) return;
+  for (const key of outputs.keys()) {
+    if (shownKeys.has(key)) continue;
+    outputs.delete(key);
+    if (--excess === 0) break;
+  }
+}
+
 // Resolves to undefined when the load fails: the fallback, or the last output, stays
-function load(key: string, call: () => Promise<ReactNode>): Promise<ReactNode | undefined> {
+function load(key: string, call: () => Promise<ReactNode>, staleTime: number): Promise<ReactNode | undefined> {
   const startedAfter = state.drops;
   // An action that runs while this loads may change what it shows
   const startedIn = state.generation;
@@ -150,9 +210,10 @@ function load(key: string, call: () => Promise<ReactNode>): Promise<ReactNode | 
   const loading = call()
     .then(
       (node) => {
-        // Keeps an output loaded after a later action: this one may not show what that action changed
-        const isOutdated = (outputs.get(key)?.generation ?? startedIn) > startedIn;
-        if (node !== undefined && startedAfter === state.drops && !isOutdated) outputs.set(key, { node, generation: startedIn, drops: startedAfter, loadedAt: Date.now() });
+        // A replacement may already be evicted when this response arrives
+        if (staleTime > 0 && node !== undefined && startedAfter === state.drops && startedIn === state.generation) {
+          store(key, { node, generation: startedIn, loadedAt: Date.now() });
+        }
         return node;
       },
       (error: unknown) => {
